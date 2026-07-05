@@ -1,14 +1,23 @@
 # Regras Para Agentes
 
-- `legacy/` e somente referencia e nao deve ser modificado sem autorizacao explicita.
-- `app/` sera o sistema novo.
-- O primeiro hotel e `muller-fioreze`.
-- A futura arquitetura usara Cloudflare Worker, Static Assets e D1.
-- O sistema sera multi-hotel com `hotel_id`.
-- Nao usar dados reais nos testes.
-- Nao acessar producao sem autorizacao.
+- `legacy/` e somente referencia historica. Nao modificar, mover, renomear ou excluir arquivos sem autorizacao explicita.
+- `app/` contem a plataforma nova e compartilhada.
+- O primeiro tenant da plataforma e `muller-fioreze`.
+- A arquitetura nova usa Cloudflare Worker, Workers Static Assets e D1.
+- O sistema deve ser multi-hotel por `hotel_id`.
+- Modulos usam `module_key` estavel em ingles, como `guest-portal`, `room-service`, `emporio`, `spa`, `romantic-packages` e `admin`.
+- Nao criar aplicacoes duplicadas por hotel dentro de `app/`.
+- Diferencas entre hoteis devem vir de dados, configuracoes, branding, dominios, modulos habilitados e permissoes.
+- O ERP deve ser unico e protegido, nao um painel separado por hotel.
+- Nao usar dados reais nos testes, seeds ou exemplos.
+- Nao acessar producao, Apps Script, Google Sheets, Cloudflare remoto, D1 remoto, servidor de impressao ou impressoras sem autorizacao explicita.
 - Nao imprimir em impressora real durante desenvolvimento.
-- Mudancas no banco deverao usar migrations.
+- Impressao deve permanecer desativada por padrao com `IMPRESSION_ENABLED=false`.
+- Mudancas no banco devem usar migrations versionadas.
+- Consultas SQL devem usar parametros.
+- Valores monetarios devem ser persistidos em centavos.
+- Senhas nunca devem ser armazenadas em texto puro.
+- Arquivos de credenciais, estados locais, logs e backups nao devem ser versionados.
 - Nao excluir arquivos sem justificar.
-- A pasta `Migração Arquivos Room service muller/` e a entrada original e deve permanecer intacta.
-- Nao executar HTMLs, Apps Script, servidor de impressao, arquivos `.bat` ou chamadas de producao durante organizacao e analise.
+- A pasta `Migracao Arquivos Room service muller/` e a entrada original local e deve permanecer intacta.
+- Nao executar HTMLs legados, Apps Script, servidor de impressao, arquivos `.bat` ou chamadas de producao durante analise ou desenvolvimento.

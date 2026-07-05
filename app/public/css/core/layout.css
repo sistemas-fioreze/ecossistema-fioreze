@@ -1,0 +1,85 @@
+.app-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 18px 16px calc(18px + var(--safe-bottom));
+}
+
+.loader-screen,
+.state-screen {
+  min-height: calc(100vh - 36px);
+  min-height: calc(100dvh - 36px);
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.portal-shell {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: grid;
+  gap: 18px;
+}
+
+.portal-header {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+}
+
+.hotel-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.hotel-logo {
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  background: var(--color-secondary);
+  padding: 8px;
+}
+
+.hotel-title {
+  margin: 0;
+  font-size: 1.45rem;
+  line-height: 1.1;
+}
+
+.hotel-subtitle {
+  margin: 4px 0 0;
+  color: var(--color-muted);
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+
+.module-nav {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.module-view {
+  display: grid;
+  gap: 18px;
+}
+
+@media (min-width: 760px) {
+  .app-shell {
+    padding: 26px;
+  }
+
+  .portal-header {
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
+}
