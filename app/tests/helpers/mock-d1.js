@@ -23,6 +23,12 @@ function createAssetsBinding() {
   return {
     fetch(request) {
       const pathname = new URL(request.url).pathname;
+      if (pathname === "/admin/") {
+        return new Response("<!doctype html><html><body><h1>ERP Fioreze</h1></body></html>", {
+          headers: { "content-type": "text/html; charset=utf-8" },
+        });
+      }
+
       return new Response(`<html><body>${pathname}</body></html>`, {
         headers: { "content-type": "text/html; charset=utf-8" },
       });

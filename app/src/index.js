@@ -40,8 +40,14 @@ async function handleRequest(request, env, ctx) {
     return router.handle(request, env, ctx);
   }
 
-  if (url.pathname === "/admin" || url.pathname.startsWith("/admin/")) {
-    return serveAsset(request, env, "/admin/index.html");
+  if (url.pathname === "/admin") {
+    const canonicalUrl = new URL(request.url);
+    canonicalUrl.pathname = "/admin/";
+    return Response.redirect(canonicalUrl.toString(), 308);
+  }
+
+  if (url.pathname.startsWith("/admin/")) {
+    return serveAsset(request, env, "/admin/");
   }
 
   if (isDirectAsset(url.pathname)) {
