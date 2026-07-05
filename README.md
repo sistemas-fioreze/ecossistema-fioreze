@@ -1,16 +1,16 @@
-# Portais Fioreze
+# Ecossistema Fioreze
 
-Fonte oficial do ecossistema digital da Familia Fioreze.
+Repositorio oficial da plataforma digital unificada da Familia Fioreze.
 
 ## Estrutura
 
-- `Migração Arquivos Room service muller/`: entrada original do sistema legado. Deve permanecer intacta.
-- `legacy/hoteis/muller-fioreze/`: copia organizada e sanitizada para referencia historica.
-- `app/`: futuro sistema novo. Ainda nao iniciado.
-- `docs/`: mapas, regras, inventario e plano de migracao.
+- `legacy/`: copias sanitizadas dos sistemas antigos, separadas por hotel e modulo. E referencia historica e nao deve ser publicada como sistema novo.
+- `app/`: plataforma nova compartilhada, com Cloudflare Worker, Workers Static Assets, D1 local, front-end, migrations, seeds, testes e ferramentas.
+- `docs/`: documentacao de migracao, regras, operacao e arquitetura.
+- `docs/arquitetura/`: contratos da plataforma nova, incluindo estrutura do repositorio, banco, API, autenticacao, impressao e modulos.
 
 ## Estado atual
 
-O primeiro hotel mapeado e `muller-fioreze`.
+O primeiro hotel e `muller-fioreze`. O primeiro modulo funcional e `room-service`, mas a base nasceu para hospedar Portal do Hospede, Emporio, Spa, Pacotes Romanticos, ERP administrativo unificado e futuros modulos sem duplicar aplicacoes por hotel.
 
-A arquitetura futura prevista usa Cloudflare Worker, Static Assets e D1, mas esta etapa nao inicia a migracao. O objetivo atual e apenas preservar, organizar e documentar o legado com impacto zero no sistema existente.
+Todo desenvolvimento desta etapa e local. Nao ha deploy, acesso ao D1 remoto, Apps Script, planilhas, servidor de impressao ou impressoras.

@@ -1,0 +1,71 @@
+import fs from "node:fs";
+import path from "node:path";
+
+const root = process.cwd();
+const required = [
+  "public/index.html",
+  "public/admin/index.html",
+  "src/index.js",
+  "src/core/router.js",
+  "src/core/tenant.js",
+  "src/core/module-registry.js",
+  "src/modules/room-service/routes.js",
+  "migrations/core/0001_core_initial.sql",
+  "migrations/core/0002_core_admin.sql",
+  "migrations/modules/guest-portal/0003_guest_portal_foundation.sql",
+  "migrations/modules/room-service/0004_room_service.sql",
+  "migrations/modules/spa/0005_spa_foundation.sql",
+  "migrations/modules/romantic-packages/0006_romantic_packages_foundation.sql",
+  "seeds/dev.sql",
+  "wrangler.jsonc",
+  ".dev.vars.example",
+];
+
+const forbiddenDirs = ["muller", "fioreze-centro", "hotel-3"].map((dir) => path.join(root, dir));
+const failures = [];
+
+for (const relative of required) {
+  if (!fs.existsSync(path.join(root, relative))) failures.push(`ausente: ${relative}`);
+}
+
+for (const dir of forbiddenDirs) {
+  if (fs.existsSync(dir)) failures.push(`diretorio proibido: ${path.relative(root, dir)}`);
+}
+
+const wrangler = fs.readFileSync(path.join(root, "wrangler.jsonc"), "utf8");
+const databaseId = JSON.parse(wrangler).d1_databases?.[0]?.database_id || "";
+const idMatches = databaseId ? countOccurrences(wrangler, databaseId) : [];
+const otherFilesWithDatabaseId = listFiles(root).filter((file) => {
+  const relative = path.relative(root, file).replaceAll("\\", "/");
+  if (relative === "wrangler.jsonc") return false;
+  if (relative.startsWith("node_modules/") || relative === "package-lock.json") return false;
+  if (isBinaryPath(relative)) return false;
+  return databaseId && fs.readFileSync(file, "utf8").includes(databaseId);
+});
+if (!databaseId || idMatches !== 1) failures.push("database_id deve aparecer uma vez em wrangler.jsonc");
+if (otherFilesWithDatabaseId.length) failures.push("database_id apareceu fora do wrangler.jsonc");
+
+if (failures.length) {
+  console.error(failures.join("\n"));
+  process.exit(1);
+}
+
+console.log("structure-check: ok");
+
+function listFiles(dir) {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(dir, entry.name);
+    const relative = path.relative(root, full).replaceAll("\\", "/");
+    if (relative.startsWith("node_modules/") || relative.startsWith(".wrangler/")) return [];
+    if (entry.isDirectory()) return listFiles(full);
+    return [full];
+  });
+}
+
+function countOccurrences(content, value) {
+  return content.split(value).length - 1;
+}
+
+function isBinaryPath(relative) {
+  return /\.(png|jpg|jpeg|gif|webp|ico|pdf|zip)$/i.test(relative);
+}

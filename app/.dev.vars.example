@@ -1,0 +1,3 @@
+ENVIRONMENT=development
+IMPRESSION_ENABLED=false
+DEFAULT_HOTEL_SLUG=muller-fioreze
