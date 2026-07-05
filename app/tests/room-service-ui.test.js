@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createCartStore, cartStorageKey } from "../public/js/modules/room-service/cart.js";
 import { filterCatalog, flattenCatalog, formatMoney, getCatalogItemMap, sanitizeMediaPath } from "../public/js/modules/room-service/catalog.js";
+import { internalsForTests } from "../public/js/modules/room-service/index.js";
 import { evaluateServiceStatus } from "../public/js/modules/room-service/service-status.js";
+
+const { submitOrder, syncSubmitButton, updateServiceStatus } = internalsForTests;
 
 const CATEGORIES = [
   {
@@ -125,6 +128,114 @@ test("carrinho rejeita produto indisponivel", () => {
   assert.throws(() => cart.add("suco"), /Indisponivel/);
 });
 
+test("botao de pedido fica habilitado quando o servico esta aberto", () => {
+  const { button, container } = submitButtonFixture();
+
+  syncSubmitButton(container, { status: { open: true }, isSubmitting: false });
+
+  assert.equal(button.disabled, false);
+  assert.equal(button.textContent, "Finalizar pedido");
+  assert.equal(button.getAttribute("aria-disabled"), "false");
+  assert.equal(button.classList.contains("is-closed"), false);
+});
+
+test("botao de pedido fica desabilitado quando o servico esta fechado", () => {
+  const { button, container } = submitButtonFixture();
+
+  syncSubmitButton(container, { status: { open: false, next_opening: null }, isSubmitting: false });
+
+  assert.equal(button.disabled, true);
+  assert.equal(button.textContent, "Room Service fechado");
+  assert.equal(button.getAttribute("aria-disabled"), "true");
+  assert.equal(button.classList.contains("is-closed"), true);
+  assert.match(button.getAttribute("aria-label"), /Room Service fechado/);
+});
+
+test("botao de pedido mostra envio em andamento", () => {
+  const { button, container } = submitButtonFixture();
+
+  syncSubmitButton(container, { status: { open: true }, isSubmitting: true });
+
+  assert.equal(button.disabled, true);
+  assert.equal(button.textContent, "Enviando pedido...");
+  assert.equal(button.getAttribute("aria-disabled"), "true");
+  assert.equal(button.classList.contains("is-submitting"), true);
+});
+
+test("botao de pedido volta habilitado quando envio termina com servico aberto", () => {
+  const { button, container } = submitButtonFixture();
+  const state = { status: { open: true }, isSubmitting: true };
+  syncSubmitButton(container, state);
+
+  state.isSubmitting = false;
+  syncSubmitButton(container, state);
+
+  assert.equal(button.disabled, false);
+  assert.equal(button.textContent, "Finalizar pedido");
+  assert.equal(button.classList.contains("is-submitting"), false);
+});
+
+test("botao de pedido permanece desabilitado se o servico fecha durante envio", () => {
+  const { button, container } = submitButtonFixture();
+  const state = { status: { open: true }, isSubmitting: true };
+  syncSubmitButton(container, state);
+
+  state.status = { open: false, next_opening: null };
+  state.isSubmitting = false;
+  syncSubmitButton(container, state);
+
+  assert.equal(button.disabled, true);
+  assert.equal(button.textContent, "Room Service fechado");
+  assert.equal(button.classList.contains("is-closed"), true);
+});
+
+test("botao de pedido acompanha atualizacao de horario aberto e fechado", () => {
+  const { button, container } = roomServiceContainerFixture();
+  const state = {
+    bootstrap: {
+      service_hours: { "room-service": weekHours("16:00", "22:00") },
+      timezone: "America/Sao_Paulo",
+    },
+    isSubmitting: false,
+  };
+
+  updateServiceStatus(container, state, new Date("2026-07-05T20:00:00.000Z"));
+  assert.equal(button.disabled, false);
+  assert.equal(button.textContent, "Finalizar pedido");
+
+  updateServiceStatus(container, state, new Date("2026-07-05T18:00:00.000Z"));
+  assert.equal(button.disabled, true);
+  assert.equal(button.textContent, "Room Service fechado");
+
+  updateServiceStatus(container, state, new Date("2026-07-06T20:00:00.000Z"));
+  assert.equal(button.disabled, false);
+  assert.equal(button.textContent, "Finalizar pedido");
+});
+
+test("submitOrder bloqueia antes do POST quando o servico esta fechado", async () => {
+  const { button, container, modal, modalTitle } = roomServiceContainerFixture();
+  const state = {
+    bootstrap: {
+      service_hours: { "room-service": [] },
+      timezone: "America/Sao_Paulo",
+    },
+    isSubmitting: false,
+    status: { open: true },
+    cart: {
+      snapshot() {
+        throw new Error("Fluxo de envio nao deveria acessar o carrinho quando fechado.");
+      },
+    },
+  };
+
+  await submitOrder(container, state, {});
+
+  assert.equal(button.disabled, true);
+  assert.equal(button.textContent, "Room Service fechado");
+  assert.equal(modal.hidden, false);
+  assert.equal(modalTitle.textContent, "Room Service fechado no momento");
+});
+
 test("service_hours identifica aberto, fechado e proxima abertura", () => {
   const hours = weekHours("16:00", "22:00");
   const open = evaluateServiceStatus({ serviceHours: hours, timezone: "America/Sao_Paulo", now: new Date("2026-07-05T20:00:00.000Z") });
@@ -177,5 +288,78 @@ function memoryStorage() {
     setItem(key, value) {
       map.set(key, value);
     },
+  };
+}
+
+function submitButtonFixture() {
+  const button = fakeElement();
+  return {
+    button,
+    container: {
+      querySelector(selector) {
+        if (selector === "[data-submit-order]") return button;
+        return null;
+      },
+    },
+  };
+}
+
+function roomServiceContainerFixture() {
+  const button = fakeElement();
+  const modal = fakeElement({ hidden: true });
+  const modalTitle = fakeElement();
+  const elements = new Map([
+    ["[data-submit-order]", button],
+    ["[data-service-status-pill]", fakeElement()],
+    ["[data-service-status-label]", fakeElement()],
+    ["[data-service-status-detail]", fakeElement()],
+    ["[data-service-hours]", fakeElement()],
+    ["[data-service-note]", fakeElement({ hidden: true })],
+    ["[data-modal]", modal],
+    ["[data-modal-card]", fakeElement()],
+    ["[data-modal-success]", fakeElement({ hidden: true })],
+    ["[data-modal-title]", modalTitle],
+    ["[data-modal-text]", fakeElement()],
+    ["[data-modal-close]", fakeElement({ focus() {} })],
+  ]);
+  return {
+    button,
+    modal,
+    modalTitle,
+    container: {
+      querySelector(selector) {
+        if (!elements.has(selector)) throw new Error(`Seletor inesperado no teste: ${selector}`);
+        return elements.get(selector);
+      },
+    },
+  };
+}
+
+function fakeElement(overrides = {}) {
+  const attributes = new Map();
+  const classes = new Set();
+  return {
+    disabled: false,
+    hidden: false,
+    textContent: "",
+    classList: {
+      toggle(name, enabled) {
+        if (enabled) classes.add(name);
+        else classes.delete(name);
+      },
+      contains(name) {
+        return classes.has(name);
+      },
+    },
+    setAttribute(name, value) {
+      attributes.set(name, String(value));
+    },
+    getAttribute(name) {
+      return attributes.get(name) ?? null;
+    },
+    removeAttribute(name) {
+      attributes.delete(name);
+    },
+    ...overrides,
   };
 }
