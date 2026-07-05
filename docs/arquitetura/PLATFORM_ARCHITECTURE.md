@@ -16,7 +16,8 @@ O core fica em `app/src/core/` e responde por:
 - modulos registrados;
 - feature flags;
 - identidade visual;
-- navegacao publica.
+- navegacao publica;
+- horarios operacionais publicos por hotel e modulo.
 
 Middlewares em `app/src/middleware/` cuidam de autenticacao, autorizacao, tenant, modulo habilitado e seguranca HTTP.
 
@@ -48,6 +49,12 @@ O ERP tambem e unico em `app/public/admin/index.html`.
 ## Banco
 
 O D1 e local nesta fase. Migrations D1 executaveis ficam versionadas diretamente em `app/migrations/`, em ordem definida pelo prefixo numerico global. Modulos continuam separados no codigo e na documentacao, mas nao por subpastas de migrations executaveis. Seeds ficam em `app/seeds/dev.sql` e contem apenas dados ficticios.
+
+`service_hours` e a fonte canonica de horarios operacionais, separada por `hotel_id` e `module_key`, com suporte a varias faixas no mesmo dia por `sort_order`. O timezone vem de `hotels.timezone`, evitando duplicacao em cada linha de horario.
+
+`media_assets` guarda metadados de assets e midias, nunca binarios. Nesta fase os registros de demonstracao usam `storage_provider = static`; R2 permanece apenas como arquitetura futura.
+
+A migration `0007_core_service_hours_media_assets.sql` e incremental porque `0001` a `0006` ja foram aplicadas no D1 remoto de desenvolvimento.
 
 ## Seguranca De Escopo
 

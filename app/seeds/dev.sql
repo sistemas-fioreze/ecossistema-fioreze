@@ -18,10 +18,8 @@ INSERT OR IGNORE INTO hotel_branding (hotel_id, logo_url, icon_url, primary_colo
 
 INSERT OR IGNORE INTO hotel_settings (id, hotel_id, setting_key, setting_value, value_type, is_public, created_at, updated_at) VALUES
   ('set-muller-rs-status', 'muller-fioreze', 'room_service.status', 'open', 'string', 1, '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
-  ('set-muller-rs-hours', 'muller-fioreze', 'room_service.hours', '{"start":"16:00","end":"22:00"}', 'json', 1, '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
   ('set-muller-impression', 'muller-fioreze', 'room_service.impression_enabled', 'false', 'boolean', 0, '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
-  ('set-aurora-rs-status', 'aurora-demo', 'room_service.status', 'open', 'string', 1, '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
-  ('set-aurora-rs-hours', 'aurora-demo', 'room_service.hours', '{"start":"15:00","end":"21:00"}', 'json', 1, '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z');
+  ('set-aurora-rs-status', 'aurora-demo', 'room_service.status', 'open', 'string', 1, '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z');
 
 INSERT OR IGNORE INTO hotel_modules (hotel_id, module_key, enabled, is_public, public_name, navigation_label, sort_order, settings_json, created_at, updated_at) VALUES
   ('muller-fioreze', 'guest-portal', 1, 1, 'Portal', 'Inicio', 10, NULL, '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
@@ -35,6 +33,26 @@ INSERT OR IGNORE INTO hotel_modules (hotel_id, module_key, enabled, is_public, p
   ('aurora-demo', 'emporio', 1, 1, 'Loja Demo', 'Loja', 30, NULL, '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
   ('aurora-demo', 'spa', 0, 1, 'Spa Aurora', 'Spa', 40, NULL, '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
   ('aurora-demo', 'admin', 1, 0, 'ERP', 'ERP', 90, NULL, '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z');
+
+INSERT OR IGNORE INTO service_hours (id, hotel_id, module_key, day_of_week, opens_at, closes_at, is_closed, sort_order, status, created_at, updated_at) VALUES
+  ('hours-muller-rs-0', 'muller-fioreze', 'room-service', 0, '16:00', '22:00', 0, 10, 'active', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
+  ('hours-muller-rs-1', 'muller-fioreze', 'room-service', 1, '16:00', '22:00', 0, 10, 'active', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
+  ('hours-muller-rs-2', 'muller-fioreze', 'room-service', 2, '16:00', '22:00', 0, 10, 'active', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
+  ('hours-muller-rs-3', 'muller-fioreze', 'room-service', 3, '16:00', '22:00', 0, 10, 'active', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
+  ('hours-muller-rs-4', 'muller-fioreze', 'room-service', 4, '16:00', '22:00', 0, 10, 'active', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
+  ('hours-muller-rs-5', 'muller-fioreze', 'room-service', 5, '16:00', '22:00', 0, 10, 'active', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
+  ('hours-muller-rs-6', 'muller-fioreze', 'room-service', 6, '16:00', '22:00', 0, 10, 'active', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
+  ('hours-aurora-rs-0', 'aurora-demo', 'room-service', 0, '15:00', '21:00', 0, 10, 'active', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
+  ('hours-aurora-rs-1', 'aurora-demo', 'room-service', 1, '15:00', '21:00', 0, 10, 'active', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
+  ('hours-aurora-rs-2', 'aurora-demo', 'room-service', 2, '15:00', '21:00', 0, 10, 'active', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
+  ('hours-aurora-rs-3', 'aurora-demo', 'room-service', 3, '15:00', '21:00', 0, 10, 'active', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
+  ('hours-aurora-rs-4', 'aurora-demo', 'room-service', 4, '15:00', '21:00', 0, 10, 'active', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
+  ('hours-aurora-rs-5', 'aurora-demo', 'room-service', 5, '15:00', '21:00', 0, 10, 'active', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
+  ('hours-aurora-rs-6', 'aurora-demo', 'room-service', 6, '15:00', '21:00', 0, 10, 'active', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z');
+
+INSERT OR IGNORE INTO media_assets (id, hotel_id, module_key, storage_provider, object_key, public_url, alt_text, mime_type, status, created_at, updated_at) VALUES
+  ('media-muller-logo', 'muller-fioreze', 'guest-portal', 'static', 'hotels/muller-fioreze/logo.png', '/assets/hotels/muller-fioreze/logo.png', 'Logo demo do hotel Muller e Fioreze', 'image/png', 'active', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
+  ('media-muller-icon', 'muller-fioreze', 'guest-portal', 'static', 'hotels/muller-fioreze/logo-ff.png', '/assets/hotels/muller-fioreze/logo-ff.png', 'Icone demo do hotel Muller e Fioreze', 'image/png', 'active', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z');
 
 INSERT OR IGNORE INTO navigation_items (id, hotel_id, module_key, label, path, icon_key, sort_order, is_public, enabled, created_at, updated_at) VALUES
   ('nav-muller-home', 'muller-fioreze', 'guest-portal', 'Inicio', '/muller-fioreze', 'home', 10, 1, 1, '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),

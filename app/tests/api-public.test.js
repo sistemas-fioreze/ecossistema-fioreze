@@ -26,6 +26,44 @@ test("bootstrap retorna hotel, branding e somente modulos publicos habilitados",
   assert.equal(body.data.settings["internal.note"], undefined);
 });
 
+test("bootstrap retorna service_hours do hotel correto sem campos internos", async () => {
+  const { json } = createWorkerTestContext();
+  const { response, body } = await json("/api/v1/public/hotels/muller-fioreze/bootstrap");
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(Object.keys(body.data.service_hours), ["room-service"]);
+
+  const roomServiceHours = body.data.service_hours["room-service"];
+  assert.equal(roomServiceHours.length, 8);
+  assert.deepEqual(roomServiceHours.slice(0, 2), [
+    {
+      day_of_week: 0,
+      opens_at: "16:00",
+      closes_at: "22:00",
+      is_closed: false,
+    },
+    {
+      day_of_week: 0,
+      opens_at: "22:30",
+      closes_at: "23:30",
+      is_closed: false,
+    },
+  ]);
+  assert.equal(roomServiceHours.some((entry) => entry.opens_at === "08:00"), false);
+  assert.equal(roomServiceHours.some((entry) => "id" in entry || "created_at" in entry || "updated_at" in entry), false);
+});
+
+test("bootstrap nao vaza service_hours de outro hotel", async () => {
+  const { json } = createWorkerTestContext();
+  const { body: muller } = await json("/api/v1/public/hotels/muller-fioreze/bootstrap");
+  const { body: aurora } = await json("/api/v1/public/hotels/aurora-demo/bootstrap");
+
+  assert.equal(muller.data.service_hours["room-service"].every((entry) => entry.opens_at !== "15:00"), true);
+  assert.equal(aurora.data.service_hours["room-service"].length, 7);
+  assert.equal(aurora.data.service_hours["room-service"].every((entry) => entry.opens_at === "15:00"), true);
+  assert.equal(aurora.data.service_hours["room-service"].every((entry) => entry.closes_at === "21:00"), true);
+});
+
 test("hotel inexistente retorna 404 controlado", async () => {
   const { json } = createWorkerTestContext();
   const { response, body } = await json("/api/v1/public/hotels/hotel-inexistente/bootstrap");

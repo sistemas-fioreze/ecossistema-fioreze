@@ -43,6 +43,35 @@ export async function getHotelSettings(env, hotelId) {
   return settings;
 }
 
+export async function getServiceHours(env, hotelId) {
+  const rows = await all(
+    env,
+    `SELECT sh.module_key, sh.day_of_week, sh.opens_at, sh.closes_at, sh.is_closed
+       FROM service_hours sh
+       JOIN hotel_modules hm
+         ON hm.hotel_id = sh.hotel_id
+        AND hm.module_key = sh.module_key
+      WHERE sh.hotel_id = ?
+        AND sh.status = 'active'
+        AND sh.archived_at IS NULL
+        AND hm.enabled = 1
+        AND hm.is_public = 1
+      ORDER BY sh.module_key, sh.day_of_week, sh.sort_order`,
+    [hotelId],
+  );
+
+  return rows.reduce((grouped, row) => {
+    if (!grouped[row.module_key]) grouped[row.module_key] = [];
+    grouped[row.module_key].push({
+      day_of_week: row.day_of_week,
+      opens_at: row.opens_at,
+      closes_at: row.closes_at,
+      is_closed: Boolean(row.is_closed),
+    });
+    return grouped;
+  }, {});
+}
+
 function parseSettingValue(value, type) {
   if (type === "boolean") return value === "true" || value === "1";
   if (type === "number") return Number(value);
@@ -99,12 +128,13 @@ export async function resolveTenantBySlug(env, slug) {
     throw notFoundError("Hotel nao encontrado ou indisponivel.");
   }
 
-  const [branding, settings, modules, navigation, features] = await Promise.all([
+  const [branding, settings, modules, navigation, features, serviceHours] = await Promise.all([
     getHotelBranding(env, hotel.id),
     getHotelSettings(env, hotel.id),
     getEnabledModules(env, hotel.id),
     getNavigation(env, hotel.id),
     getPublicFeatures(env, hotel.id),
+    getServiceHours(env, hotel.id),
   ]);
 
   return {
@@ -126,6 +156,7 @@ export async function resolveTenantBySlug(env, slug) {
     })),
     navigation,
     features,
+    service_hours: serviceHours,
   };
 }
 
@@ -143,6 +174,7 @@ export async function getBootstrap(env, slug) {
     modules: tenant.modules,
     navigation: tenant.navigation,
     features: tenant.features,
+    service_hours: tenant.service_hours,
     settings: tenant.settings,
     service_status: {
       room_service: tenant.settings["room_service.status"] || "closed",
