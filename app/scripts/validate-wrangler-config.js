@@ -15,12 +15,19 @@ if (!validate(configForSchema)) {
   process.exit(1);
 }
 
-if (config.d1_databases?.[0]?.binding !== "DB") {
+const d1 = config.d1_databases?.[0] || {};
+
+if (d1.binding !== "DB") {
   console.error("D1 binding deve ser DB.");
   process.exit(1);
 }
 
-if (JSON.stringify(config).includes("--remote") || config.d1_databases?.[0]?.remote === true) {
+if (d1.migrations_dir !== "migrations" || d1.migrations_pattern !== "migrations/*.sql") {
+  console.error("Migrations D1 devem usar app/migrations/*.sql em ordem global.");
+  process.exit(1);
+}
+
+if (JSON.stringify(config).includes("--remote") || d1.remote === true) {
   console.error("Configuracao remota nao permitida nesta fase.");
   process.exit(1);
 }
