@@ -1,0 +1,50 @@
+# Segredos e credenciais
+**/credenciais.json
+**/credentials.json
+**/config.json
+**/status.json
+**/logs_impressao.txt
+**/historico_*.txt
+**/contador.txt
+**/ultima_linha.txt
+secrets/
+*.key
+*.pem
+
+# Ambientes e variaveis locais
+.env
+.env.*
+!.env.example
+.dev.vars
+
+# Node / Cloudflare
+node_modules/
+.wrangler/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+
+# Bancos, logs, backups e temporarios
+*.sqlite
+*.sqlite3
+*.db
+*.log
+logs/
+backups/
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+
+# Build/cache
+dist/
+build/
+.cache/
+.parcel-cache/
+.vite/
+coverage/

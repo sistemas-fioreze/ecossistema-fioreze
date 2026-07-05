@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "GOOGLE_SHEET_ID_REMOVIDO",
+  "private_key_id": "CREDENCIAL_NAO_VERSIONADA",
+  "private_key": "CREDENCIAL_NAO_VERSIONADA",
+  "client_email": "CREDENCIAL_NAO_VERSIONADA",
+  "client_id": "CREDENCIAL_NAO_VERSIONADA",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "CREDENCIAL_NAO_VERSIONADA",
+  "universe_domain": "googleapis.com"
+}

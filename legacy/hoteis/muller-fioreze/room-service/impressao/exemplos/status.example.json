@@ -1,0 +1,14 @@
+{
+  "servidor": "offline",
+  "impressora_configurada": "CAMINHO_IMPRESSORA_EXEMPLO",
+  "impressao_automatica": false,
+  "ultimo_pedido_impresso": "DADOS_HOSPEDE_REMOVIDOS",
+  "ultima_data_hora_impressao": null,
+  "ultimo_erro": null,
+  "total_impressoes_sessao": 0,
+  "conexao_planilha": "desconectado",
+  "status_geral": "offline",
+  "api": "http://127.0.0.1:5050",
+  "iniciado_em": null,
+  "atualizado_em": null
+}

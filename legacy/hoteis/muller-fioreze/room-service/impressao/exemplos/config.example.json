@@ -1,0 +1,15 @@
+{
+  "nome_hotel": "Muller Fioreze Exemplo",
+  "spreadsheet_id": "GOOGLE_SHEET_ID_REMOVIDO",
+  "worksheet_name": "Pedidos",
+  "printer_name": "CAMINHO_IMPRESSORA_EXEMPLO",
+  "creds_file": "CREDENCIAL_NAO_VERSIONADA",
+  "logo_file": "logo.png",
+  "vias": 2,
+  "modo_vias": "hotel_cliente",
+  "notificacao_windows": false,
+  "impressao_automatica": false,
+  "intervalo_busca_segundos": 5,
+  "api_host": "127.0.0.1",
+  "api_port": 5050
+}

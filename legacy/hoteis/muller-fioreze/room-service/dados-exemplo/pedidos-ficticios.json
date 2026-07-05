@@ -1,0 +1,12 @@
+[
+  {
+    "id": "pedido-exemplo-001",
+    "hotel_id": "muller-fioreze",
+    "hospede": "DADOS_HOSPEDE_REMOVIDOS",
+    "quarto": "000",
+    "pedido": "Item ficticio x1 - R$ 0.00",
+    "total": 0,
+    "status_impressao": "pendente",
+    "observacao": "DADOS_HOSPEDE_REMOVIDOS"
+  }
+]

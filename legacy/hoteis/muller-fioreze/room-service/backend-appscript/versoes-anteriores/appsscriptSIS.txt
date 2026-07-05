@@ -1,0 +1,258 @@
+// ==========================================
+// MOTOR V8 - FIOREZE CENTRO (v5.3 - HUMAN EDITION)
+// ==========================================
+const SPREAD_SISTEMA = "GOOGLE_SHEET_ID_REMOVIDO";
+const SPREAD_CARDAPIO = "GOOGLE_SHEET_ID_REMOVIDO";
+
+function doPost(e) {
+  try {
+    const p = JSON.parse(e.postData.contents);
+    const action = p.action;
+
+    if (action === "login") {
+      const sheet = SpreadsheetApp.openById(SPREAD_SISTEMA).getSheetByName("Usuarios");
+      const data = sheet.getDataRange().getValues();
+      for(let i=1; i<data.length; i++) {
+        if(String(data[i][0]).trim() === String(p.codigo).trim() && String(data[i][2]).trim() === String(p.senha).trim()) {
+          sheet.getRange(i+1, 6).setValue("Online");
+          return ContentService.createTextOutput(JSON.stringify({success: true, user: { codigo: data[i][0], nome: data[i][1], nivel: String(data[i][3]).trim(), tema: data[i][4] || "Claro" }})).setMimeType(ContentService.MimeType.JSON);
+        }
+      }
+      return ContentService.createTextOutput(JSON.stringify({success: false})).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === "logout") {
+      const sheet = SpreadsheetApp.openById(SPREAD_SISTEMA).getSheetByName("Usuarios");
+      const data = sheet.getDataRange().getValues();
+      for(let i=1; i<data.length; i++) {
+        if(String(data[i][0]).trim() === String(p.codigo).trim()) { sheet.getRange(i+1, 6).setValue("Offline"); break; }
+      }
+      return ContentService.createTextOutput(JSON.stringify({success: true})).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === "send_chat") {
+      const sheetChat = SpreadsheetApp.openById(SPREAD_SISTEMA).getSheetByName("Chat");
+      let atendente = p.remetente.startsWith("Hospede") ? "" : (p.atendente || "");
+      sheetChat.appendRow([new Date(), String(p.quarto), p.remetente, p.mensagem, atendente]);
+
+      if(atendente !== "" && p.mensagem !== "SYS_EMPTY_CART" && !p.mensagem.startsWith("SYS_SYNC_CART")) {
+        const chatData = sheetChat.getDataRange().getValues();
+        for(let i=1; i<chatData.length; i++) { if(String(chatData[i][1]) === String(p.quarto) && chatData[i][4] === "") { sheetChat.getRange(i+1, 5).setValue(atendente); } }
+      }
+      return ContentService.createTextOutput(JSON.stringify({success: true})).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === "end_chat") {
+      const sheetChat = SpreadsheetApp.openById(SPREAD_SISTEMA).getSheetByName("Chat");
+      const chatData = sheetChat.getDataRange().getValues();
+      for(let i = chatData.length - 1; i >= 1; i--) {
+          if(String(chatData[i][1]).trim() === String(p.quarto).trim()) { sheetChat.deleteRow(i+1); }
+      }
+      return ContentService.createTextOutput(JSON.stringify({success: true})).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === "sync_hospede") {
+      const sheetH = SpreadsheetApp.openById(SPREAD_SISTEMA).getSheetByName("Hospedes"); const dataH = sheetH.getDataRange().getValues(); let existe = false;
+      for(let i=1; i<dataH.length; i++) {
+        if(String(dataH[i][3]) === String(p.apto)) {
+          sheetH.getRange(i+1, 1).setValue(new Date()); sheetH.getRange(i+1, 2).setValue(p.nome);
+          if(p.celular) sheetH.getRange(i+1, 3).setValue(p.celular); existe = true; break;
+        }
+      }
+      if(!existe) sheetH.appendRow([new Date(), p.nome, p.celular, p.apto]);
+      return ContentService.createTextOutput(JSON.stringify({success: true})).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === "delete_guest") {
+      if(String(p.nivelLogado).trim().toLowerCase() !== "master") throw new Error("Sem permissão");
+      const sheetH = SpreadsheetApp.openById(SPREAD_SISTEMA).getSheetByName("Hospedes");
+      const dataH = sheetH.getDataRange().getValues();
+      for(let i=1; i<dataH.length; i++) {
+        if(String(dataH[i][3]).trim() === String(p.apto).trim()) { sheetH.deleteRow(i+1); break; }
+      }
+      return ContentService.createTextOutput(JSON.stringify({success: true})).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === "add_order") {
+      const sheetPedidos = SpreadsheetApp.openById(SPREAD_SISTEMA).getSheetByName("Pedidos");
+      sheetPedidos.appendRow([new Date(), p.guestName, p.roomNumber, p.items, p.total, "novo", p.consumptionLocation, p.atendente, "Recebido", p.observacao || ""]);
+      try {
+        const sheetUsers = SpreadsheetApp.openById(SPREAD_SISTEMA).getSheetByName("Usuarios"); const usersData = sheetUsers.getDataRange().getValues();
+        const notifObj = { id: new Date().getTime(), title: "Novo Pedido", text: `Apto ${p.roomNumber} (${p.consumptionLocation}) - R$ ${p.total.toFixed(2)}` };
+        for(let i=1; i<usersData.length; i++) { let notifs = []; try { notifs = JSON.parse(usersData[i][6]) || []; } catch(e){} notifs.push(notifObj); sheetUsers.getRange(i+1, 7).setValue(JSON.stringify(notifs)); }
+      } catch(e) {}
+      return ContentService.createTextOutput(JSON.stringify({success: true})).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === "clear_notif") {
+      const sheetUsers = SpreadsheetApp.openById(SPREAD_SISTEMA).getSheetByName("Usuarios"); const usersData = sheetUsers.getDataRange().getValues();
+      for(let i=1; i<usersData.length; i++) {
+        if(String(usersData[i][0]).trim() === String(p.codigo).trim()) {
+           if(p.clearAll) { sheetUsers.getRange(i+1, 7).setValue("[]"); } else { let notifs = []; try { notifs = JSON.parse(usersData[i][6]) || []; } catch(e){} notifs = notifs.filter(n => n.id != p.notifId); sheetUsers.getRange(i+1, 7).setValue(JSON.stringify(notifs)); } break;
+        }
+      }
+      return ContentService.createTextOutput(JSON.stringify({success: true})).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === "update_order_status") {
+      const sheet = SpreadsheetApp.openById(SPREAD_SISTEMA).getSheetByName("Pedidos");
+      if(p.linha > 1) sheet.getRange(p.linha, 9).setValue(p.novoStatus);
+      return ContentService.createTextOutput(JSON.stringify({success: true})).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === "reprint_order" || action === "delete_order") {
+      const sheet = SpreadsheetApp.openById(SPREAD_SISTEMA).getSheetByName("Pedidos");
+      const linhaReal = parseInt(p.linha, 10);
+      if(linhaReal > 1) {
+        if(action === "reprint_order") sheet.getRange(linhaReal, 6).setValue("reimprimir");
+        else {
+            if(String(p.nivelLogado).trim().toLowerCase() !== "master") throw new Error("Sem permissão");
+            sheet.deleteRow(linhaReal);
+        }
+      }
+      return ContentService.createTextOutput(JSON.stringify({success: true})).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === "save_user") {
+      if(String(p.nivelLogado).trim().toLowerCase() !== "master") throw new Error("Sem permissão");
+      SpreadsheetApp.openById(SPREAD_SISTEMA).getSheetByName("Usuarios").appendRow([p.novoCodigo, p.novoNome, p.novaSenha, p.novoNivel, "Claro", "Offline", "[]"]);
+      return ContentService.createTextOutput(JSON.stringify({success: true})).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === "delete_user") {
+      if(String(p.nivelLogado).trim().toLowerCase() !== "master") throw new Error("Sem permissão");
+      const sheet = SpreadsheetApp.openById(SPREAD_SISTEMA).getSheetByName("Usuarios"); const data = sheet.getDataRange().getValues();
+      for(let i=1; i<data.length; i++) { if(data[i][0] == p.codigoParaApagar) { sheet.deleteRow(i+1); break; } }
+      return ContentService.createTextOutput(JSON.stringify({success: true})).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === "save_menu_item") {
+      if(String(p.nivelLogado).trim().toLowerCase() !== "master") throw new Error("Sem permissão");
+      const sheet = SpreadsheetApp.openById(SPREAD_CARDAPIO).getSheetByName("Cardapio");
+      if(p.linha) { sheet.getRange(p.linha, 1, 1, 9).setValues([[p.categoria, p.nome, p.meta, p.desc, p.preco, p.imagem, p.opcoes, p.estoque, p.tag]]); }
+      else { sheet.appendRow([p.categoria, p.nome, p.meta, p.desc, p.preco, p.imagem, p.opcoes, p.estoque, p.tag]); }
+      return ContentService.createTextOutput(JSON.stringify({success: true})).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === "toggle_stock") {
+      if(String(p.nivelLogado).trim().toLowerCase() !== "master") throw new Error("Sem permissão");
+      const sheet = SpreadsheetApp.openById(SPREAD_CARDAPIO).getSheetByName("Cardapio");
+      sheet.getRange(p.linha, 8).setValue(p.novoEstoque);
+      return ContentService.createTextOutput(JSON.stringify({success: true})).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === "update_store_status") {
+      let sheet = SpreadsheetApp.openById(SPREAD_SISTEMA).getSheetByName("Parametros");
+      if(!sheet) { sheet = SpreadsheetApp.openById(SPREAD_SISTEMA).insertSheet("Parametros"); sheet.appendRow(["Abertura Manual", "Status"]); }
+      sheet.getRange("A2").setValue(p.manual);
+      sheet.getRange("B2").setValue(p.status);
+      return ContentService.createTextOutput(JSON.stringify({success: true})).setMimeType(ContentService.MimeType.JSON);
+    }
+
+  } catch (err) { return ContentService.createTextOutput(JSON.stringify({success: false, error: err.message})).setMimeType(ContentService.MimeType.JSON); }
+}
+
+function doGet(e) {
+  const q = e.parameter.q;
+
+  // SERVE O SITE DO HÓSPEDE (COLUNA A)
+  if (q === "site") {
+    const sheet = SpreadsheetApp.openById(SPREAD_SISTEMA).getSheetByName("Codigo");
+    const pedacos = sheet.getRange("A2:A30").getValues();
+    let htmlCompleto = "";
+    pedacos.forEach(pedaco => { if(pedaco[0]) htmlCompleto += pedaco[0]; });
+    return HtmlService.createHtmlOutput(htmlCompleto)
+      .setTitle("Room Service - Fioreze Centro")
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
+  // SERVE O PAINEL INTERNO (COLUNA B)
+  if (q === "internal") {
+    const sheet = SpreadsheetApp.openById(SPREAD_SISTEMA).getSheetByName("Codigo");
+    const pedacos = sheet.getRange("B2:B40").getValues();
+    let htmlCompleto = "";
+    pedacos.forEach(pedaco => { if(pedaco[0]) htmlCompleto += pedaco[0]; });
+    return HtmlService.createHtmlOutput(htmlCompleto)
+      .setTitle("ERP Master - Fioreze Centro")
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
+  if (q === "poll_login") {
+    const sheetP = SpreadsheetApp.openById(SPREAD_SISTEMA).getSheetByName("Pedidos");
+    return ContentService.createTextOutput(JSON.stringify({ ordersCount: sheetP.getLastRow() })).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  if (q === "poll_guest") {
+    const apto = e.parameter.quarto; const ssS = SpreadsheetApp.openById(SPREAD_SISTEMA);
+    const chatData = ssS.getSheetByName("Chat").getDataRange().getDisplayValues(); chatData.shift();
+    const chats = chatData.filter(r => String(r[1]) === String(apto)).map(r => ({ data: r[0], quarto: String(r[1]), remetente: r[2], msg: r[3], atendente: r[4] }));
+    const usersData = ssS.getSheetByName("Usuarios").getDataRange().getValues();
+    let staffOnline = false; for(let i=1; i<usersData.length; i++) { if(usersData[i][5] === "Online") { staffOnline = true; break; } }
+    const pedData = ssS.getSheetByName("Pedidos").getDataRange().getValues(); let orderStatus = null;
+    for(let i = pedData.length - 1; i >= 1; i--) { if(String(pedData[i][2]) === String(apto)) { orderStatus = pedData[i][8]; break; } }
+    return ContentService.createTextOutput(JSON.stringify({ chats, staffOnline, orderStatus })).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  if (q === "poll_internal") {
+    const codigo = e.parameter.codigo; const ssS = SpreadsheetApp.openById(SPREAD_SISTEMA);
+    const chatData = ssS.getSheetByName("Chat").getDataRange().getDisplayValues(); chatData.shift();
+    const chats = chatData.map(r => ({ data: r[0], quarto: String(r[1]), remetente: r[2], msg: r[3], atendente: r[4] }));
+    const usersData = ssS.getSheetByName("Usuarios").getDataRange().getValues();
+    let notifs = []; for(let i=1; i<usersData.length; i++) { if(String(usersData[i][0]).trim() === String(codigo).trim()) { try { notifs = JSON.parse(usersData[i][6]) || []; } catch(e){} break; } }
+    const ordersCount = ssS.getSheetByName("Pedidos").getLastRow();
+
+    const pedData = ssS.getSheetByName("Pedidos").getDataRange().getValues();
+    let pendingOrders = 0;
+    for(let i = 1; i < pedData.length; i++) {
+        let st = String(pedData[i][8]).toLowerCase();
+        if(st !== "entregue" && st !== "concluído") pendingOrders++;
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({ chats, notifications: notifs, ordersCount, pendingOrders })).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  if (q === "guests") {
+    const dataValues = SpreadsheetApp.openById(SPREAD_SISTEMA).getSheetByName("Hospedes").getDataRange().getValues(); dataValues.shift();
+    let hospedes = dataValues.map(r => { return { data: (r[0] instanceof Date ? Utilities.formatDate(r[0], "GMT-3", "dd/MM/yyyy HH:mm") : r[0]), nome: r[1], celular: r[2], apto: String(r[3]) }; });
+    return ContentService.createTextOutput(JSON.stringify(hospedes.reverse())).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  if(q === "init_data") {
+    const ssS = SpreadsheetApp.openById(SPREAD_SISTEMA);
+    const usersData = ssS.getSheetByName("Usuarios").getDataRange().getValues(); usersData.shift();
+    let staffOnline = false;
+    const users = usersData.map(r => { if(r[5] === "Online") staffOnline = true; return {codigo: r[0], nome: r[1], nivel: String(r[3]).trim(), tema: r[4], status: r[5] || "Offline"}; });
+
+    let paramsObj = { manual: "Não", status: "Fechado" }; const sheetParam = ssS.getSheetByName("Parametros");
+    if(sheetParam) {
+        let a2 = sheetParam.getRange("A2").getValue(); let b2 = sheetParam.getRange("B2").getValue();
+        paramsObj.manual = a2 ? String(a2).trim() : "Não";
+        paramsObj.status = b2 ? String(b2).trim() : "Fechado";
+    }
+
+    let cardapio = []; const sheetCardapio = SpreadsheetApp.openById(SPREAD_CARDAPIO).getSheetByName("Cardapio");
+    if(sheetCardapio) {
+       const cardData = sheetCardapio.getDataRange().getValues(); cardData.shift();
+       cardapio = cardData.map((r, idx) => ({ linha: idx + 2, categoria: r[0], nome: r[1], meta: r[2], desc: r[3], preco: parseFloat(String(r[4]).replace(',','.')) || 0, imagem: r[5], opcoes: r[6] ? r[6].split(',').map(o => o.trim()) : [], opcoesRaw: r[6] || "", estoque: r[7] !== "" ? parseInt(r[7]) : null, tag: r[8] || "Item" }));
+    }
+    return ContentService.createTextOutput(JSON.stringify({users: users, cardapio: cardapio, params: paramsObj, staffOnline: staffOnline})).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  if(q === "orders") {
+    const sheet = SpreadsheetApp.openById(SPREAD_SISTEMA).getSheetByName("Pedidos");
+    const dataValues = sheet.getDataRange().getValues(); const displayValues = sheet.getDataRange().getDisplayValues();
+    const headers = displayValues.shift(); dataValues.shift();
+    const headerMap = { "Data/Hora": "data", "Hóspede": "nome", "Quarto": "quarto", "Pedido": "pedido", "Total": "total", "# Total": "total", "Status Impressao": "status", "Local de Consumo": "local", "Atendente": "atendente", "Status pedido": "status_pedido", "Observação": "observacao" };
+    const json = dataValues.map((row, index) => {
+      let obj = { linha_planilha: index + 2 };
+      headers.forEach((h, i) => {
+         let key = headerMap[h.trim()] || h.trim().toLowerCase();
+         if (key === 'data' && row[i] instanceof Date) { obj[key] = Utilities.formatDate(row[i], "GMT-3", "dd/MM/yyyy HH:mm"); }
+         else { obj[key] = displayValues[index][i]; }
+      });
+      return obj;
+    });
+    return ContentService.createTextOutput(JSON.stringify(json)).setMimeType(ContentService.MimeType.JSON);
+  }
+}
