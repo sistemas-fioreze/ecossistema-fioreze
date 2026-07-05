@@ -40,6 +40,7 @@ export function groupProductsByCategory(rows) {
       price_cents: row.price_cents,
       currency: row.currency,
       image_url: row.image_url,
+      image_alt: row.name,
       available: row.is_available !== 0,
       availability_label: row.availability_label || null,
     });

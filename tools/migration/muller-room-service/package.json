@@ -1,0 +1,13 @@
+{
+  "name": "muller-room-service-migration-tool",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Ferramenta offline de inventario e dry-run para migracao do Room Service Muller.",
+  "scripts": {
+    "test": "node --test \"tests/**/*.test.js\"",
+    "inspect": "node inspect-input.js",
+    "validate": "node validate-data.js",
+    "dry-run": "node generate-import.js --dry-run"
+  }
+}

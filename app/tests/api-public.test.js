@@ -119,6 +119,7 @@ test("consulta de produtos e isolada por hotel", async () => {
   assert.equal(itemIds.includes("aurora-sandwich"), false);
   assert.equal(itemIds.includes("muller-emporio-water"), false);
   assert.equal(itemIds.includes("muller-archived"), false);
+  assert.equal(body.data.categories[0].items.every((item) => typeof item.image_alt === "string"), true);
 });
 
 test("shell publico e servido para rotas de hotel sem baixar HTML remoto", async () => {

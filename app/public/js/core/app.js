@@ -1,5 +1,5 @@
 import { apiGet } from "./api.js";
-import { renderError } from "./errors.js";
+import { escapeHtml, renderError } from "./errors.js";
 import { loadModule } from "./module-loader.js";
 import { setActiveNavigation } from "./router.js";
 import { resolveModuleFromPath, resolveSlugFromPath } from "./tenant.js";
@@ -31,14 +31,15 @@ async function boot() {
 }
 
 function renderShell(bootstrap, moduleKey) {
-  const logo = bootstrap.branding?.logo_url
-    ? `<img class="hotel-logo" src="${bootstrap.branding.logo_url}" alt="">`
+  const logoUrl = sanitizeAssetPath(bootstrap.branding?.logo_url);
+  const logo = logoUrl
+    ? `<img class="hotel-logo" src="${escapeHtml(logoUrl)}" alt="">`
     : `<div class="hotel-logo" aria-hidden="true"></div>`;
   const nav = bootstrap.navigation
     .filter((item) => bootstrap.modules.some((module) => module.module_key === item.module_key))
     .map(
       (item) =>
-        `<a class="nav-link" data-module-link="${item.module_key}" href="${item.path}">${item.label}</a>`,
+        `<a class="nav-link" data-module-link="${escapeHtml(item.module_key)}" href="${escapeHtml(item.path)}">${escapeHtml(item.label)}</a>`,
     )
     .join("");
 
@@ -48,17 +49,23 @@ function renderShell(bootstrap, moduleKey) {
         <div class="hotel-brand">
           ${logo}
           <div>
-            <h1 class="hotel-title">${bootstrap.name}</h1>
-            <p class="hotel-subtitle">${bootstrap.locale} · ${bootstrap.currency}</p>
+            <h1 class="hotel-title">${escapeHtml(bootstrap.name)}</h1>
+            <p class="hotel-subtitle">${escapeHtml(bootstrap.locale)} &middot; ${escapeHtml(bootstrap.currency)}</p>
           </div>
         </div>
         <nav class="module-nav" data-module-nav aria-label="Modulos do hotel">${nav}</nav>
       </header>
-      <section class="module-view" data-module-view data-module-key="${moduleKey}">
+      <section class="module-view" data-module-view data-module-key="${escapeHtml(moduleKey)}">
         <div class="panel">Carregando modulo...</div>
       </section>
     </section>
   `;
+}
+
+function sanitizeAssetPath(path) {
+  const value = String(path || "").trim();
+  if (value.startsWith("/assets/")) return value;
+  return null;
 }
 
 boot().catch((error) => {
