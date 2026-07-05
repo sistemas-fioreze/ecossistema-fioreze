@@ -7,17 +7,25 @@ if (!name || !/^[a-z0-9-]+$/.test(name)) {
   process.exit(1);
 }
 
-const migrations = listSql("migrations");
-const next = String(migrations.length + 1).padStart(4, "0");
-const file = path.join("migrations", `${next}_${name.replaceAll("-", "_")}.sql`);
+const migrationsDir = "migrations";
+const migrations = listSql(migrationsDir);
+const next = String(nextMigrationNumber(migrations)).padStart(4, "0");
+const file = path.join(migrationsDir, `${next}_${name.replaceAll("-", "_")}.sql`);
 fs.writeFileSync(file, "PRAGMA foreign_keys = ON;\n\n", { flag: "wx" });
 console.log(file);
 
 function listSql(dir) {
   if (!fs.existsSync(dir)) return [];
-  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) return listSql(full);
-    return entry.name.endsWith(".sql") ? [full] : [];
-  });
+  return fs
+    .readdirSync(dir, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".sql"))
+    .map((entry) => path.join(dir, entry.name));
+}
+
+function nextMigrationNumber(files) {
+  const highest = files.reduce((max, file) => {
+    const match = path.basename(file).match(/^(\d{4})_/);
+    return match ? Math.max(max, Number(match[1])) : max;
+  }, 0);
+  return highest + 1;
 }

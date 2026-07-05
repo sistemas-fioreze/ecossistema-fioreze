@@ -16,7 +16,7 @@
       "database_id": "883e953a-4280-454b-8aed-a3148f8008f1",
       "preview_database_id": "fioreze-portais-db-dev-local",
       "migrations_dir": "migrations",
-      "migrations_pattern": "migrations/**/*.sql"
+      "migrations_pattern": "migrations/*.sql"
     }
   ],
   "vars": {

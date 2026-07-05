@@ -28,6 +28,8 @@ O modulo deve ter JavaScript e CSS proprios em `public/js/modules/<module_key>/`
 
 Usar tabelas compartilhadas quando fizer sentido, como catalogos e pedidos. Criar tabelas proprias quando o fluxo tiver estado especifico, como Spa ou Pacotes Romanticos.
 
+Migrations D1 executaveis ficam diretamente em `app/migrations/` e seguem uma unica sequencia numerica global. O contrato do modulo pode documentar quais migrations pertencem ao modulo, mas nao deve criar subpastas SQL executaveis ou sequencias independentes.
+
 ## Testes
 
 Todo modulo deve testar:

@@ -47,7 +47,7 @@ O ERP tambem e unico em `app/public/admin/index.html`.
 
 ## Banco
 
-O D1 e local nesta fase. Migrations ficam versionadas em `app/migrations/`, separadas entre `core` e `modules`. Seeds ficam em `app/seeds/dev.sql` e contem apenas dados ficticios.
+O D1 e local nesta fase. Migrations D1 executaveis ficam versionadas diretamente em `app/migrations/`, em ordem definida pelo prefixo numerico global. Modulos continuam separados no codigo e na documentacao, mas nao por subpastas de migrations executaveis. Seeds ficam em `app/seeds/dev.sql` e contem apenas dados ficticios.
 
 ## Seguranca De Escopo
 

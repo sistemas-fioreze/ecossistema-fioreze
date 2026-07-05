@@ -10,7 +10,7 @@ Contem a plataforma nova. O codigo e compartilhado entre hoteis e modulos:
 - shell publico unico em `public/index.html`;
 - ERP unico em `public/admin/index.html`;
 - CSS e JavaScript separados entre `core` e `modules`;
-- migrations versionadas em `migrations/`;
+- migrations versionadas diretamente em `migrations/`, com uma unica ordem numerica global;
 - seeds ficticios em `seeds/`;
 - testes locais em `tests/`;
 - scripts de validacao local em `scripts/`.
@@ -49,7 +49,7 @@ Contem inventarios, mapas, regras, plano de migracao e contratos de arquitetura.
 1. Registrar o `module_key` na tabela `modules`.
 2. Criar pasta em `app/src/modules/<module_key>/`.
 3. Criar assets de front-end em `app/public/js/modules/<module_key>/` e `app/public/css/modules/<module_key>/`.
-4. Criar migrations especificas quando o fluxo do modulo exigir tabelas proprias.
+4. Criar migrations especificas em `app/migrations/` quando o fluxo do modulo exigir tabelas proprias, usando o proximo numero global disponivel.
 5. Registrar rotas no core somente por contrato de modulo.
 6. Validar `hotel_modules.enabled` em toda rota publica e administrativa do modulo.
 
@@ -65,6 +65,7 @@ Nunca duplicar: Worker, shell publico, ERP, conexao D1, login, autorizacao, boot
 
 - `hotel_id`: minusculas, hifens, sem acentos. Exemplo: `muller-fioreze`.
 - `module_key`: minusculas, hifens, em ingles. Exemplo: `room-service`.
+- migrations D1: arquivos SQL diretamente em `app/migrations/`, prefixados por uma sequencia global unica.
 - rotas publicas: `/<hotel_slug>/<module_key>` e `/api/v1/public/hotels/:hotel_slug/...`.
 - rotas administrativas: `/admin` e `/api/v1/admin/...`.
 - dados de hotel ficam no D1; codigo compartilhado nao deve fixar nomes, horarios, cores ou regras de um hotel.

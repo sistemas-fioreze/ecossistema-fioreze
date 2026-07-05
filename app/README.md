@@ -13,7 +13,7 @@ Um unico Worker, um unico front-end publico, um unico ERP e um unico banco D1 mu
 - `src/core/`: roteamento, D1, tenant, bootstrap, validacao, respostas e feature flags.
 - `src/middleware/`: autenticacao, autorizacao, modulo habilitado e headers.
 - `src/modules/`: regras e rotas por modulo.
-- `migrations/`: SQL versionado.
+- `migrations/`: SQL versionado em diretorio plano, com ordem pelo prefixo numerico global.
 - `seeds/dev.sql`: dados ficticios locais.
 - `tests/`: testes locais com D1 mockado.
 - `scripts/`: validacoes locais e utilitarios.
@@ -101,6 +101,8 @@ npm run dev
 Todos os scripts D1 usam modo local. Nao ha scripts remotos nesta fase.
 
 ## Migrations E Seeds Locais
+
+As migrations D1 executaveis ficam diretamente em `app/migrations/`. O Wrangler usa `migrations/*.sql`, entao a ordem deve ser definida pelo prefixo numerico global: `0001`, `0002`, `0003` e assim por diante. Modulos nao devem criar sequencias independentes em subpastas.
 
 Aplicar migrations:
 
