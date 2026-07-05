@@ -35,6 +35,8 @@ env/
 *.log
 logs/
 backups/
+local-input/
+local-output/
 tmp/
 temp/
 *.tmp
