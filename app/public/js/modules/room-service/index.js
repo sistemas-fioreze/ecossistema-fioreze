@@ -261,12 +261,12 @@ function renderHotelHeader(container, state) {
   );
 }
 
-function updateServiceStatus(container, state) {
+function updateServiceStatus(container, state, now = new Date()) {
   const hours = state.bootstrap.service_hours?.[MODULE_KEY] || [];
   state.status = evaluateServiceStatus({
     serviceHours: hours,
     timezone: state.bootstrap.timezone,
-    now: new Date(),
+    now,
   });
   const description = describeServiceStatus(state.status);
   const pill = container.querySelector("[data-service-status-pill]");
@@ -282,6 +282,34 @@ function updateServiceStatus(container, state) {
   } else {
     note.hidden = false;
     note.textContent = `${description.detail} Voce ainda pode consultar o cardapio.`;
+  }
+  syncSubmitButton(container, state);
+}
+
+function syncSubmitButton(container, state) {
+  const button = container.querySelector("[data-submit-order]");
+  if (!button) return;
+
+  const closed = !state.status?.open;
+  const disabled = Boolean(state.isSubmitting || closed);
+  const label = state.isSubmitting ? "Enviando pedido..." : closed ? "Room Service fechado" : "Finalizar pedido";
+
+  button.disabled = disabled;
+  button.textContent = label;
+  button.setAttribute("aria-disabled", String(disabled));
+  button.classList.toggle("is-closed", closed && !state.isSubmitting);
+  button.classList.toggle("is-submitting", Boolean(state.isSubmitting));
+
+  if (state.isSubmitting) {
+    button.setAttribute("aria-label", "Enviando pedido...");
+    button.removeAttribute("title");
+  } else if (closed) {
+    const detail = state.status ? describeServiceStatus(state.status).detail : "Pedidos indisponiveis no momento.";
+    button.setAttribute("aria-label", `Room Service fechado. ${detail}`);
+    button.setAttribute("title", detail);
+  } else {
+    button.setAttribute("aria-label", "Finalizar pedido");
+    button.removeAttribute("title");
   }
 }
 
@@ -456,6 +484,7 @@ function renderCart(container, state) {
   setText(container, "[data-cart-total]", totalLabel);
   setText(container, "[data-mobile-cart-count]", countLabel);
   setText(container, "[data-mobile-cart-total]", totalLabel);
+  syncSubmitButton(container, state);
   container.querySelector("[data-mobile-cart-count]").classList.add("pulse");
   window.setTimeout(() => container.querySelector("[data-mobile-cart-count]")?.classList.remove("pulse"), 350);
 }
@@ -539,10 +568,9 @@ async function submitOrder(container, state, form) {
     return;
   }
 
-  const submit = container.querySelector("[data-submit-order]");
   const status = container.querySelector("[data-form-status]");
   state.isSubmitting = true;
-  submit.disabled = true;
+  syncSubmitButton(container, state);
   status.hidden = false;
   status.classList.remove("error");
   status.textContent = "Enviando seu pedido...";
@@ -584,7 +612,7 @@ async function submitOrder(container, state, form) {
     showModal(container, "Nao foi possivel enviar", error.message);
   } finally {
     state.isSubmitting = false;
-    submit.disabled = false;
+    updateServiceStatus(container, state);
   }
 }
 
@@ -689,5 +717,8 @@ export const internalsForTests = {
   buildNotes,
   renderStaticShell,
   sanitizeAssetPath,
+  submitOrder,
+  syncSubmitButton,
+  updateServiceStatus,
   escapeHtml,
 };
