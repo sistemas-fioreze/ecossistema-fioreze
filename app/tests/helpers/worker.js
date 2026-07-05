@@ -29,6 +29,7 @@ export function jsonPost(body, headers = {}) {
     headers: {
       "content-type": "application/json",
       "idempotency-key": `test-${crypto.randomUUID()}`,
+      "x-fioreze-test-now": "2026-07-05T20:00:00.000Z",
       ...headers,
     },
     body: JSON.stringify(body),

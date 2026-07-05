@@ -4,6 +4,7 @@ import { createPublicId, isValidIdempotencyKey } from "../../core/identifiers.js
 import { multiplyCents } from "../../core/money.js";
 import { nowIso } from "../../core/time.js";
 import { optionalString, readJson, requireArray, requirePositiveInteger, requireString } from "../../core/validation.js";
+import { assertRoomServiceOpen } from "./service-hours.js";
 
 const MODULE_KEY = "room-service";
 
@@ -18,6 +19,13 @@ export async function createRoomServiceOrder({ request, env, tenant }) {
   const existing = await findOrderByIdempotencyKey(env, tenant.hotel_id, idempotencyKey);
   if (existing) {
     return { ...existing, idempotent: true };
+  }
+
+  const serviceStatus = assertRoomServiceOpen({ request, env, tenant, moduleKey: MODULE_KEY });
+  if (!serviceStatus.open) {
+    throw unprocessable("Room Service fechado no momento.", {
+      next_opening: serviceStatus.next_opening,
+    });
   }
 
   const payload = await readJson(request);

@@ -57,6 +57,46 @@ test("rejeita pedido sem idempotency-key valida", async () => {
   assert.equal(body.error.code, "bad_request");
 });
 
+test("rejeita pedido fora do horario de service_hours", async () => {
+  const { json, env } = createWorkerTestContext();
+  const { response, body } = await json(
+    "/api/v1/public/hotels/muller-fioreze/room-service/orders",
+    jsonPost(VALID_ORDER, { "x-fioreze-test-now": "2026-07-05T18:00:00.000Z" }),
+  );
+
+  assert.equal(response.status, 422);
+  assert.equal(body.error.code, "unprocessable_entity");
+  assert.equal(body.error.message, "Room Service fechado no momento.");
+  assert.equal(env.__data.orders.length, 0);
+});
+
+test("aceita pedido em segunda faixa do mesmo dia", async () => {
+  const { json } = createWorkerTestContext();
+  const { response, body } = await json(
+    "/api/v1/public/hotels/muller-fioreze/room-service/orders",
+    jsonPost(VALID_ORDER, { "x-fioreze-test-now": "2026-07-06T01:45:00.000Z" }),
+  );
+
+  assert.equal(response.status, 201);
+  assert.equal(body.data.status, "received");
+});
+
+test("aceita pedido em horario que atravessa meia-noite", async () => {
+  const { json, env } = createWorkerTestContext();
+  env.__data.serviceHours = [
+    { hotel_id: "muller-fioreze", module_key: "room-service", day_of_week: 0, opens_at: "22:00", closes_at: "02:00", is_closed: 0, sort_order: 10, status: "active", archived_at: null },
+    ...env.__data.serviceHours.filter((entry) => entry.hotel_id !== "muller-fioreze"),
+  ];
+
+  const { response, body } = await json(
+    "/api/v1/public/hotels/muller-fioreze/room-service/orders",
+    jsonPost(VALID_ORDER, { "x-fioreze-test-now": "2026-07-06T04:30:00.000Z" }),
+  );
+
+  assert.equal(response.status, 201);
+  assert.equal(body.data.status, "received");
+});
+
 test("rejeita produto inexistente", async () => {
   const { json } = createWorkerTestContext();
   const { response, body } = await json(
