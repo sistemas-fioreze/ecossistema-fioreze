@@ -108,6 +108,26 @@ function createFixtureData() {
       hotelModule("aurora-demo", "spa", 0, 1, "Spa", "Spa", 40),
       hotelModule("aurora-demo", "admin", 1, 0, "ERP", "ERP", 90),
     ],
+    serviceHours: [
+      ...weekHours("muller-fioreze", "room-service", "16:00", "22:00"),
+      serviceHour("muller-fioreze", "room-service", 0, "22:30", "23:30", 20),
+      serviceHour("muller-fioreze", "room-service", 1, "08:00", "09:00", 99, "archived"),
+      serviceHour("muller-fioreze", "emporio", 0, "09:00", "10:00"),
+      ...weekHours("aurora-demo", "room-service", "15:00", "21:00"),
+    ],
+    mediaAssets: [
+      {
+        id: "media-muller-logo",
+        hotel_id: "muller-fioreze",
+        module_key: "guest-portal",
+        storage_provider: "static",
+        object_key: "hotels/muller-fioreze/logo.png",
+        public_url: "/assets/hotels/muller-fioreze/logo.png",
+        alt_text: "Logo demo",
+        mime_type: "image/png",
+        status: "active",
+      },
+    ],
     navigation: [
       nav("muller-fioreze", "guest-portal", "Inicio", "/muller-fioreze", 10),
       nav("muller-fioreze", "room-service", "Room Service", "/muller-fioreze/room-service", 20),
@@ -159,6 +179,7 @@ function createFixtureData() {
     orders: [],
     orderItems: [],
     orderStatusHistory: [],
+    printEvents: [],
   };
 }
 
@@ -185,6 +206,24 @@ function hotelModule(hotelId, moduleKey, enabled, isPublic, publicName, navigati
 
 function nav(hotelId, moduleKey, label, path, sortOrder, enabled = 1) {
   return { hotel_id: hotelId, module_key: moduleKey, label, path, icon_key: moduleKey, sort_order: sortOrder, enabled, is_public: 1 };
+}
+
+function weekHours(hotelId, moduleKey, opensAt, closesAt) {
+  return Array.from({ length: 7 }, (_, day) => serviceHour(hotelId, moduleKey, day, opensAt, closesAt));
+}
+
+function serviceHour(hotelId, moduleKey, dayOfWeek, opensAt, closesAt, sortOrder = 10, status = "active") {
+  return {
+    hotel_id: hotelId,
+    module_key: moduleKey,
+    day_of_week: dayOfWeek,
+    opens_at: opensAt,
+    closes_at: closesAt,
+    is_closed: 0,
+    sort_order: sortOrder,
+    status,
+    archived_at: status === "archived" ? "2026-07-04T00:00:00.000Z" : null,
+  };
 }
 
 function catalog(id, hotelId, moduleKey) {
@@ -330,6 +369,28 @@ class MockD1Database {
       return this.data.navigation
         .filter((entry) => entry.hotel_id === hotelId && entry.enabled === 1 && entry.is_public === 1)
         .sort((a, b) => a.sort_order - b.sort_order || a.label.localeCompare(b.label));
+    }
+
+    if (normalized.includes("from service_hours sh")) {
+      const [hotelId] = params;
+      return this.data.serviceHours
+        .filter((entry) => entry.hotel_id === hotelId && entry.status === "active" && entry.archived_at == null)
+        .filter((entry) => {
+          const moduleRow = this.data.hotelModules.find(
+            (hotelModuleRow) =>
+              hotelModuleRow.hotel_id === entry.hotel_id &&
+              hotelModuleRow.module_key === entry.module_key &&
+              hotelModuleRow.enabled === 1 &&
+              hotelModuleRow.is_public === 1,
+          );
+          return Boolean(moduleRow);
+        })
+        .sort(
+          (a, b) =>
+            a.module_key.localeCompare(b.module_key) ||
+            a.day_of_week - b.day_of_week ||
+            a.sort_order - b.sort_order,
+        );
     }
 
     if (normalized.includes("from hotel_features hf")) {

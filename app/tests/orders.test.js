@@ -30,6 +30,7 @@ test("cria pedido de Room Service recalculando total pelo banco", async () => {
   assert.equal(env.__data.orders.length, 1);
   assert.equal(env.__data.orderItems.length, 2);
   assert.equal(env.__data.orderStatusHistory.length, 1);
+  assert.equal(env.__data.printEvents.length, 0);
 });
 
 test("idempotency-key repetida retorna o pedido existente", async () => {

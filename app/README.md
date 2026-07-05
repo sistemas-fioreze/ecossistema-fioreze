@@ -38,6 +38,7 @@ Rotas publicas planejadas:
 - branding;
 - modulos habilitados;
 - navegacao;
+- horarios publicos em `service_hours`;
 - configuracoes publicas;
 - feature flags publicas;
 - status de servicos;
@@ -49,7 +50,7 @@ Nao retorna usuarios, permissoes, tokens, segredos ou configuracoes internas.
 
 Tabelas principais:
 
-- core: `hotels`, `hotel_domains`, `hotel_branding`, `hotel_settings`, `modules`, `hotel_modules`, `navigation_items`, `features`, `hotel_features`, `rooms`;
+- core: `hotels`, `hotel_domains`, `hotel_branding`, `hotel_settings`, `modules`, `hotel_modules`, `navigation_items`, `features`, `hotel_features`, `rooms`, `service_hours`, `media_assets`;
 - admin: `admin_users`, `admin_roles`, `admin_permissions`, `admin_user_roles`, `admin_role_permissions`, `admin_hotel_access`, `admin_sessions`, `admin_audit_log`;
 - portal: `portal_pages`, `portal_sections`, `portal_content_items`, `events`, `hotel_information`;
 - catalogos: `catalogs`, `categories`, `catalog_items`, `catalog_item_availability`;
@@ -104,6 +105,12 @@ Todos os scripts D1 usam modo local. Nao ha scripts remotos nesta fase.
 
 As migrations D1 executaveis ficam diretamente em `app/migrations/`. O Wrangler usa `migrations/*.sql`, entao a ordem deve ser definida pelo prefixo numerico global: `0001`, `0002`, `0003` e assim por diante. Modulos nao devem criar sequencias independentes em subpastas.
 
+A migration `0007_core_service_hours_media_assets.sql` e incremental porque `0001` a `0006` ja foram aplicadas no D1 remoto de desenvolvimento. Migrations ja aplicadas nao devem ser editadas; qualquer mudanca posterior de schema deve criar a proxima migration global.
+
+`service_hours` e a fonte canonica de horarios operacionais por hotel e modulo. Ela permite varias faixas por dia usando `sort_order`; o timezone vem de `hotels.timezone`.
+
+`media_assets` guarda metadados de midia e assets. O D1 nao armazena binarios. Nesta fase o seed usa assets `static` sanitizados; R2 e uma etapa futura.
+
 Aplicar migrations:
 
 ```bash
@@ -129,6 +136,7 @@ Os testes cobrem:
 - saude;
 - hotel existente e inexistente;
 - bootstrap;
+- horarios publicos em `service_hours`;
 - branding;
 - modulos habilitados e desabilitados;
 - produtos;

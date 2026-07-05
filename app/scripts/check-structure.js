@@ -16,6 +16,7 @@ const required = [
   "migrations/0004_room_service.sql",
   "migrations/0005_spa_foundation.sql",
   "migrations/0006_romantic_packages_foundation.sql",
+  "migrations/0007_core_service_hours_media_assets.sql",
   "seeds/dev.sql",
   "wrangler.jsonc",
   ".dev.vars.example",

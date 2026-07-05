@@ -14,6 +14,9 @@
 - Nao imprimir em impressora real durante desenvolvimento.
 - Impressao deve permanecer desativada por padrao com `IMPRESSION_ENABLED=false`.
 - Mudancas no banco devem usar migrations versionadas.
+- Migrations ja aplicadas em qualquer D1 remoto nunca devem ser editadas; mudancas posteriores de schema exigem nova migration incremental.
+- `service_hours` e a fonte canonica de horarios operacionais por hotel e modulo.
+- `media_assets` guarda somente metadados de midia; binarios ficam fora do D1.
 - Consultas SQL devem usar parametros.
 - Valores monetarios devem ser persistidos em centavos.
 - Senhas nunca devem ser armazenadas em texto puro.
