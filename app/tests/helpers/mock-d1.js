@@ -24,9 +24,12 @@ function createAssetsBinding() {
     fetch(request) {
       const pathname = new URL(request.url).pathname;
       if (pathname === "/admin/") {
-        return new Response("<!doctype html><html><body><h1>ERP Fioreze</h1></body></html>", {
+        return new Response(
+          '<!doctype html><html><body><h1>ERP Fioreze</h1><form id="loginForm"></form><div id="ordersList"></div></body></html>',
+          {
           headers: { "content-type": "text/html; charset=utf-8" },
-        });
+          },
+        );
       }
 
       return new Response(`<html><body>${pathname}</body></html>`, {
@@ -182,6 +185,47 @@ function createFixtureData() {
       availability("muller-emporio-water", "muller-fioreze", 1),
       availability("aurora-sandwich", "aurora-demo", 1),
     ],
+    adminUsers: [
+      {
+        id: "user-demo-admin",
+        display_name: "Usuario Admin Demo",
+        email: "admin-demo@example.invalid",
+        password_hash:
+          "pbkdf2$sha256$210000$ZmlvcmV6ZS1hZG1pbi1kZW1vLXNhbHQtMjAyNg==$pyDE+YfHY8oVHR16wprIcX1hEP9Ph9X6L+juKuD9U2U=",
+        password_strategy: "pbkdf2",
+        status: "active",
+        force_password_change: 0,
+      },
+      {
+        id: "user-aurora-admin",
+        display_name: "Usuario Aurora Demo",
+        email: "aurora-demo@example.invalid",
+        password_hash:
+          "pbkdf2$sha256$210000$ZmlvcmV6ZS1hZG1pbi1kZW1vLXNhbHQtMjAyNg==$pyDE+YfHY8oVHR16wprIcX1hEP9Ph9X6L+juKuD9U2U=",
+        password_strategy: "pbkdf2",
+        status: "active",
+        force_password_change: 0,
+      },
+    ],
+    adminRoles: [{ id: "role-demo-manager", role_key: "demo-manager", name: "Gerente demo" }],
+    adminPermissions: [
+      { id: "perm-orders-read", permission_key: "room-service.orders.read", module_key: "room-service" },
+      { id: "perm-orders-write", permission_key: "room-service.orders.write", module_key: "room-service" },
+    ],
+    adminUserRoles: [
+      { user_id: "user-demo-admin", role_id: "role-demo-manager" },
+      { user_id: "user-aurora-admin", role_id: "role-demo-manager" },
+    ],
+    adminRolePermissions: [
+      { role_id: "role-demo-manager", permission_id: "perm-orders-read" },
+      { role_id: "role-demo-manager", permission_id: "perm-orders-write" },
+    ],
+    adminHotelAccess: [
+      { user_id: "user-demo-admin", hotel_id: "muller-fioreze", access_level: "manager" },
+      { user_id: "user-aurora-admin", hotel_id: "aurora-demo", access_level: "manager" },
+    ],
+    adminSessions: [],
+    adminAuditLog: [],
     orders: [],
     orderItems: [],
     orderStatusHistory: [],
@@ -336,6 +380,46 @@ class MockD1Database {
       );
     }
 
+    if (normalized.includes("from admin_users") && normalized.includes("lower(email) = lower(?)")) {
+      const [email] = params;
+      return this.data.adminUsers.find((user) => user.email.toLowerCase() === String(email).toLowerCase()) || null;
+    }
+
+    if (normalized.includes("from admin_sessions s") && normalized.includes("s.token_hash = ?")) {
+      const [tokenHash, now] = params;
+      const session = this.data.adminSessions.find(
+        (entry) => entry.token_hash === tokenHash && entry.revoked_at == null && entry.expires_at > now,
+      );
+      if (!session) return null;
+      const user = this.data.adminUsers.find((entry) => entry.id === session.user_id && entry.status === "active");
+      if (!user) return null;
+      return {
+        session_id: session.id,
+        user_id: user.id,
+        expires_at: session.expires_at,
+        display_name: user.display_name,
+        email: user.email,
+      };
+    }
+
+    if (normalized.includes("from orders o") && normalized.includes("join hotels h") && normalized.includes("where o.id = ?")) {
+      const [orderId, moduleKey] = params;
+      const order = this.data.orders.find((entry) => entry.id === orderId && entry.module_key === moduleKey);
+      if (!order) return null;
+      const hotel = this.data.hotels.find((entry) => entry.id === order.hotel_id);
+      return {
+        ...order,
+        hotel_name: hotel?.name,
+        timezone: hotel?.timezone,
+        locale: hotel?.locale,
+      };
+    }
+
+    if (normalized.includes("from orders") && normalized.includes("where id = ?") && normalized.includes("and module_key = ?")) {
+      const [orderId, moduleKey] = params;
+      return this.data.orders.find((entry) => entry.id === orderId && entry.module_key === moduleKey) || null;
+    }
+
     if (normalized.includes("from hotel_features") && normalized.includes("hf.feature_key = ?")) {
       const [hotelId, featureKey] = params;
       const feature = this.data.features.find((entry) => entry.feature_key === featureKey && entry.status === "active");
@@ -416,6 +500,72 @@ class MockD1Database {
         .sort((a, b) => a.feature_key.localeCompare(b.feature_key));
     }
 
+    if (normalized.includes("from admin_hotel_access aha")) {
+      const [userId] = params;
+      return this.data.adminHotelAccess
+        .filter((entry) => entry.user_id === userId)
+        .map((entry) => {
+          const hotel = this.data.hotels.find((hotelRow) => hotelRow.id === entry.hotel_id && hotelRow.status === "active");
+          return hotel
+            ? {
+                hotel_id: hotel.id,
+                slug: hotel.slug,
+                name: hotel.name,
+                short_name: hotel.short_name,
+                timezone: hotel.timezone,
+                locale: hotel.locale,
+                currency: hotel.currency,
+                access_level: entry.access_level,
+              }
+            : null;
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    if (normalized.includes("from admin_user_roles ur")) {
+      const [userId] = params;
+      const roleIds = this.data.adminUserRoles.filter((entry) => entry.user_id === userId).map((entry) => entry.role_id);
+      const permissionIds = this.data.adminRolePermissions
+        .filter((entry) => roleIds.includes(entry.role_id))
+        .map((entry) => entry.permission_id);
+      return this.data.adminPermissions
+        .filter((entry) => permissionIds.includes(entry.id))
+        .map((entry) => ({ permission_key: entry.permission_key }))
+        .sort((a, b) => a.permission_key.localeCompare(b.permission_key));
+    }
+
+    if (normalized.includes("from orders o") && normalized.includes("left join order_items oi")) {
+      const moduleKey = params[0];
+      const hotelCount = countInPlaceholders(normalized, "o.hotel_id in");
+      const hotelIds = params.slice(1, 1 + hotelCount);
+      let cursor = 1 + hotelCount;
+      const hasStatus = normalized.includes("o.status = ?");
+      const status = hasStatus ? params[cursor++] : null;
+      const hasSearch = normalized.includes("o.public_id like ?");
+      const search = hasSearch ? String(params[cursor] || "").replaceAll("%", "").toLowerCase() : "";
+      return this.data.orders
+        .filter((order) => order.module_key === moduleKey && hotelIds.includes(order.hotel_id))
+        .filter((order) => !status || order.status === status)
+        .filter((order) => {
+          if (!search) return true;
+          return [order.public_id, order.room_code, order.guest_name]
+            .filter(Boolean)
+            .some((value) => String(value).toLowerCase().includes(search));
+        })
+        .map((order) => {
+          const hotel = this.data.hotels.find((entry) => entry.id === order.hotel_id);
+          return {
+            ...order,
+            hotel_name: hotel?.name,
+            timezone: hotel?.timezone,
+            item_count: this.data.orderItems.filter((item) => item.order_id === order.id).length,
+          };
+        })
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+        .slice(0, 100);
+    }
+
     if (normalized.includes("from catalog_items ci") && normalized.includes("join categories c")) {
       const [hotelId] = params;
       return this.data.catalogItems
@@ -439,6 +589,27 @@ class MockD1Database {
           };
         })
         .sort((a, b) => a.category_sort_order - b.category_sort_order || a.sort_order - b.sort_order || a.name.localeCompare(b.name));
+    }
+
+    if (normalized.includes("from order_items") && normalized.includes("where order_id = ?")) {
+      const [orderId, hotelId, moduleKey] = params;
+      return this.data.orderItems
+        .filter((item) => item.order_id === orderId && item.hotel_id === hotelId && item.module_key === moduleKey)
+        .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id));
+    }
+
+    if (normalized.includes("from order_status_history") && normalized.includes("where order_id = ?")) {
+      const [orderId, hotelId, moduleKey] = params;
+      return this.data.orderStatusHistory
+        .filter((entry) => entry.order_id === orderId && entry.hotel_id === hotelId && entry.module_key === moduleKey)
+        .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id));
+    }
+
+    if (normalized.includes("from print_events") && normalized.includes("where order_id = ?")) {
+      const [orderId, hotelId, moduleKey] = params;
+      return this.data.printEvents
+        .filter((entry) => entry.order_id === orderId && entry.hotel_id === hotelId && entry.module_key === moduleKey)
+        .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id));
     }
 
     throw new Error(`Unhandled all SQL: ${normalized}`);
@@ -488,14 +659,29 @@ class MockD1Database {
     }
 
     if (normalized.startsWith("insert into order_status_history")) {
-      const [id, order_id, hotel_id, module_key, created_at] = params;
+      if (params.length === 5) {
+        const [id, order_id, hotel_id, module_key, created_at] = params;
+        this.data.orderStatusHistory.push({
+          id,
+          order_id,
+          hotel_id,
+          module_key,
+          status: "received",
+          note: "Pedido recebido localmente.",
+          actor_user_id: null,
+          created_at,
+        });
+        return { success: true };
+      }
+      const [id, order_id, hotel_id, module_key, status, note, actor_user_id, created_at] = params;
       this.data.orderStatusHistory.push({
         id,
         order_id,
         hotel_id,
         module_key,
-        status: "received",
-        note: "Pedido recebido localmente.",
+        status,
+        note,
+        actor_user_id,
         created_at,
       });
       return { success: true };
@@ -528,6 +714,60 @@ class MockD1Database {
         quantity,
         line_total_cents,
         selected_options_snapshot,
+        created_at,
+      });
+      return { success: true };
+    }
+
+    if (normalized.startsWith("insert into admin_sessions")) {
+      const [id, user_id, token_hash, user_agent_hash, ip_hash, created_at, expires_at] = params;
+      this.data.adminSessions.push({
+        id,
+        user_id,
+        token_hash,
+        user_agent_hash,
+        ip_hash,
+        created_at,
+        expires_at,
+        revoked_at: null,
+      });
+      return { success: true };
+    }
+
+    if (normalized.startsWith("update admin_sessions")) {
+      const [revoked_at, token_hash] = params;
+      for (const session of this.data.adminSessions) {
+        if (session.token_hash === token_hash && session.revoked_at == null) {
+          session.revoked_at = revoked_at;
+        }
+      }
+      return { success: true };
+    }
+
+    if (normalized.startsWith("update orders")) {
+      const [status, updated_at, cancelStatus, cancelled_at, id, hotel_id, module_key, currentStatus] = params;
+      const order = this.data.orders.find(
+        (entry) => entry.id === id && entry.hotel_id === hotel_id && entry.module_key === module_key && entry.status === currentStatus,
+      );
+      if (order) {
+        order.status = status;
+        order.updated_at = updated_at;
+        if (cancelStatus === "cancelled") order.cancelled_at = cancelled_at;
+      }
+      return { success: true };
+    }
+
+    if (normalized.startsWith("insert into admin_audit_log")) {
+      const [id, hotel_id, module_key, actor_user_id, action, entity_type, entity_id, metadata_json, created_at] = params;
+      this.data.adminAuditLog.push({
+        id,
+        hotel_id,
+        module_key,
+        actor_user_id,
+        action,
+        entity_type,
+        entity_id,
+        metadata_json,
         created_at,
       });
       return { success: true };
@@ -567,4 +807,13 @@ class MockD1Statement {
 
 function normalize(sql) {
   return sql.replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+function countInPlaceholders(normalizedSql, marker) {
+  const start = normalizedSql.indexOf(marker);
+  if (start === -1) return 0;
+  const open = normalizedSql.indexOf("(", start);
+  const close = normalizedSql.indexOf(")", open);
+  if (open === -1 || close === -1) return 0;
+  return normalizedSql.slice(open, close).split("?").length - 1;
 }

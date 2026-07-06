@@ -11,12 +11,82 @@
     <link rel="stylesheet" href="/css/modules/admin/admin.css">
   </head>
   <body>
-    <main class="admin-shell">
-      <section class="admin-access-card">
-        <div class="brand-mark" aria-hidden="true"></div>
-        <p class="eyebrow">ERP unificado</p>
-        <h1>Acesso administrativo protegido</h1>
-        <p id="adminStatus">Verificando sessao local...</p>
+    <main id="adminApp" class="admin-shell" data-state="loading">
+      <section class="admin-login" data-view="login" hidden>
+        <form id="loginForm" class="admin-access-card" autocomplete="on">
+          <div class="brand-mark" aria-hidden="true"></div>
+          <p class="eyebrow">ERP Fioreze</p>
+          <h1>Acesso administrativo</h1>
+          <label>
+            <span>E-mail</span>
+            <input id="loginEmail" name="email" type="email" autocomplete="username" required>
+          </label>
+          <label>
+            <span>Senha</span>
+            <input id="loginPassword" name="password" type="password" autocomplete="current-password" required>
+          </label>
+          <button id="loginButton" class="admin-primary-button" type="submit">Entrar</button>
+          <p id="loginError" class="admin-error" role="alert" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section class="admin-dashboard" data-view="dashboard" hidden>
+        <header class="admin-topbar">
+          <div>
+            <p class="eyebrow">ERP Fioreze</p>
+            <h1>Pedidos Room Service</h1>
+          </div>
+          <div class="admin-session-box">
+            <span id="sessionUser"></span>
+            <button id="logoutButton" type="button">Sair</button>
+          </div>
+        </header>
+
+        <section class="admin-filters" aria-label="Filtros de pedidos">
+          <label>
+            <span>Hotel</span>
+            <select id="hotelFilter"></select>
+          </label>
+          <label>
+            <span>Status</span>
+            <select id="statusFilter">
+              <option value="">Todos</option>
+              <option value="received">Recebido</option>
+              <option value="preparing">Em preparo</option>
+              <option value="ready">Pronto</option>
+              <option value="completed">Concluido</option>
+              <option value="cancelled">Cancelado</option>
+            </select>
+          </label>
+          <label class="admin-search">
+            <span>Busca</span>
+            <input id="searchFilter" type="search" placeholder="Public ID, acomodacao ou nome">
+          </label>
+          <button id="refreshButton" type="button">Atualizar</button>
+        </section>
+
+        <p id="dashboardError" class="admin-error" role="alert" aria-live="polite"></p>
+
+        <section class="admin-workspace">
+          <section class="admin-orders-panel" aria-label="Lista de pedidos">
+            <div class="admin-panel-heading">
+              <h2>Pedidos</h2>
+              <span id="ordersCount">0</span>
+            </div>
+            <div id="ordersList" class="admin-orders-list" aria-live="polite"></div>
+          </section>
+
+          <aside class="admin-detail-panel" aria-label="Detalhes do pedido">
+            <div id="orderDetail" class="admin-detail-empty">Selecione um pedido.</div>
+          </aside>
+        </section>
+      </section>
+
+      <section class="admin-loading" data-view="loading">
+        <div class="admin-access-card">
+          <div class="brand-mark" aria-hidden="true"></div>
+          <p id="adminStatus">Verificando sessao local...</p>
+        </div>
       </section>
     </main>
     <script type="module" src="/js/modules/admin/admin.js"></script>
