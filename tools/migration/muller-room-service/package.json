@@ -1,6 +1,6 @@
 {
   "name": "muller-room-service-migration-tool",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "description": "Ferramenta offline de inventario e dry-run para migracao do Room Service Muller.",

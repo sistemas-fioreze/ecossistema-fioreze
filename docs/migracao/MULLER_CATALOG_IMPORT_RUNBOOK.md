@@ -20,6 +20,9 @@ node tools/migration/muller-room-service/generate-import.js \
 ```
 
 5. Confirmar que os arquivos gerados ficaram somente em `local-output/muller/catalog-import/`.
+6. Confirmar que, sem `--before-state`, o arquivo `catalog.rollback.sql` nao foi gerado.
+
+O pacote sem snapshot anterior real serve para revisao e validacao local. Ele nao libera aplicacao remota.
 
 ## 2. Revisao
 
@@ -30,7 +33,10 @@ Revisar estes arquivos locais, sem versiona-los:
 - `catalog.before.expected.json`
 - `catalog.after.expected.json`
 - `catalog.apply.sql`
-- `catalog.rollback.sql`
+- `catalog.fixture-rollback.sql`
+- `catalog.snapshot-query.sql`
+
+Revisar `catalog.rollback.sql` somente quando ele existir. Esse arquivo so deve existir se a geracao usou `--before-state` valido.
 
 Conferir obrigatoriamente:
 
@@ -46,8 +52,17 @@ Conferir obrigatoriamente:
 - itens ficticios candidatos a arquivamento;
 - tabelas afetadas;
 - tabelas proibidas;
-- hashes de apply e rollback;
+- `remote_apply_ready`;
+- `remote_rollback_ready`;
+- `rollback_source`;
+- hashes de apply, fixture rollback e snapshot query;
+- hash do rollback remoto apenas quando `catalog.rollback.sql` existir;
 - validacao local com apply, segunda aplicacao e rollback.
+
+Interpretacao obrigatoria:
+
+- `catalog.fixture-rollback.sql`: somente testes e SQLite local ficticio. Nunca aplicar no D1 remoto.
+- `catalog.rollback.sql`: somente rollback remoto real gerado a partir de snapshot anterior validado.
 
 ## 3. Backup
 
@@ -57,21 +72,26 @@ Antes de qualquer aplicacao remota futura:
 2. Confirmar o D1 de desenvolvimento:
    - `database_name=fioreze-portais-db-dev`
    - `database_id=883e953a-4280-454b-8aed-a3148f8008f1`
-3. Obter snapshot ou exportacao aprovada do estado anterior.
-4. Guardar o snapshot em local seguro fora do Git.
-5. Conferir que o rollback foi gerado antes do apply.
+3. Revisar `catalog.snapshot-query.sql`.
+4. Obter snapshot ou exportacao aprovada do estado anterior em tarefa futura explicitamente autorizada.
+5. Guardar o snapshot em local seguro fora do Git.
+6. Gerar novamente o pacote com `--before-state`.
+7. Conferir `remote_apply_ready=true` e `remote_rollback_ready=true`.
+8. Conferir que `catalog.rollback.sql` foi gerado a partir do snapshot real antes do apply.
 
 ## 4. Aplicacao Remota Futura
 
 A aplicacao remota nao esta autorizada por este documento. Quando houver autorizacao explicita:
 
 1. Usar somente o `catalog.apply.sql` revisado.
-2. Aplicar somente no D1 de desenvolvimento autorizado.
-3. Nao aplicar migrations improvisadas.
-4. Nao executar seed.
-5. Nao tocar em producao.
-6. Nao acessar Apps Script, Google Sheets ou impressao.
-7. Registrar o comando exato antes da escrita.
+2. Aplicar somente se `remote_apply_ready=true`.
+3. Confirmar que `catalog.rollback.sql` existe e foi gerado de `rollback_source=real-before-state-snapshot`.
+4. Aplicar somente no D1 de desenvolvimento autorizado.
+5. Nao aplicar migrations improvisadas.
+6. Nao executar seed.
+7. Nao tocar em producao.
+8. Nao acessar Apps Script, Google Sheets ou impressao.
+9. Registrar o comando exato antes da escrita.
 
 ## 5. Validacao
 
@@ -95,12 +115,15 @@ Se a validacao falhar:
 
 1. Interromper novas escritas.
 2. Preservar logs e manifest localmente, fora do Git.
-3. Revisar `catalog.rollback.sql`.
-4. Aplicar rollback somente com autorizacao explicita.
-5. Validar o retorno funcional ao estado anterior esperado.
-6. Confirmar que pedidos e itens de pedidos nao foram alterados.
+3. Confirmar que `catalog.rollback.sql` existe e que o manifesto marca `remote_rollback_ready=true`.
+4. Revisar `catalog.rollback.sql`.
+5. Aplicar rollback somente com autorizacao explicita.
+6. Validar o retorno funcional ao estado anterior esperado.
+7. Confirmar que pedidos e itens de pedidos nao foram alterados.
 
 O rollback deve ser logico. Ele nao deve apagar `catalog_items` que possam ser referenciados por pedidos.
+
+Nunca aplicar `catalog.fixture-rollback.sql` no D1 remoto.
 
 ## 7. Criterios de Interrupcao
 
@@ -110,6 +133,10 @@ Parar antes de qualquer escrita se ocorrer qualquer uma destas condicoes:
 - D1 diferente do autorizado;
 - hashes de input divergentes dos revisados;
 - manifest com `hotel_id` ou `module_key` incorretos;
+- `remote_apply_ready=false`;
+- `remote_rollback_ready=false`;
+- `rollback_source` diferente de `real-before-state-snapshot` para aplicacao remota;
+- ausencia de `catalog.rollback.sql` antes da escrita remota;
 - SQL contendo `DELETE` em tabelas de catalogo;
 - SQL tocando `orders`, `order_items`, `print_events`, usuarios ou sessoes;
 - URLs privadas ou credenciais em arquivos versionados;

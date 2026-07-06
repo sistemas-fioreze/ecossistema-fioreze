@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { stableHash } from "./hash.js";
 import { insertOrUpdateSql, literalList, sqliteLiteral, updateSql } from "./sqlite-literals.js";
 
-export const IMPORT_PACKAGE_VERSION = "0.2.0";
+export const IMPORT_PACKAGE_VERSION = "0.2.1";
 
 export const AFFECTED_TABLES = ["catalogs", "categories", "catalog_items", "catalog_item_availability"];
 
@@ -27,6 +27,7 @@ export function buildExecutableCatalogImportPackage({
   archiveMissing = false,
   generatedAt = new Date().toISOString(),
   baselineSnapshot = defaultDevelopmentCatalogSnapshot({ hotelId, moduleKey }),
+  beforeState = null,
 } = {}) {
   if (!catalogData?.catalog) throw new Error("Catalogo normalizado obrigatorio.");
   if (moduleKey !== "room-service") throw new Error("Esta ferramenta prepara apenas o modulo room-service.");
@@ -34,15 +35,21 @@ export function buildExecutableCatalogImportPackage({
   const candidate = buildCandidateRows({ catalogData, hotelId, moduleKey, generatedAt });
   const baseline = normalizeSnapshot(baselineSnapshot);
   const duplicateNameGroups = buildDuplicateNameGroups(candidate.items);
-  const activeBaselineItemIds = new Set(baseline.items.filter((item) => item.status === "active").map((item) => item.id));
+  const realBeforeState = beforeState?.snapshot ? normalizeSnapshot(beforeState.snapshot) : null;
+  const archiveBaseline = realBeforeState || baseline;
+  const activeBaselineItemIds = new Set(archiveBaseline.items.filter((item) => item.status === "active").map((item) => item.id));
   const candidateItemIds = new Set(candidate.items.map((item) => item.id));
   const itemIdsToArchive = [...activeBaselineItemIds].filter((id) => !candidateItemIds.has(id));
 
   const applySql = buildApplySql({ candidate, hotelId, moduleKey, generatedAt, archiveMissing });
-  const rollbackSql = buildRollbackSql({ candidate, baseline, hotelId, moduleKey, generatedAt });
-  const validation = buildStaticValidation({ candidate, baseline, itemIdsToArchive });
-  const beforeExpected = buildBeforeExpected({ baseline, hotelId, moduleKey });
-  const afterExpected = buildAfterExpected({ candidate, baseline, itemIdsToArchive, hotelId, moduleKey });
+  const fixtureRollbackSql = buildRollbackSql({ candidate, baseline, hotelId, moduleKey, generatedAt, rollbackKind: "fixture" });
+  const remoteRollbackSql = realBeforeState
+    ? buildRollbackSql({ candidate, baseline: realBeforeState, hotelId, moduleKey, generatedAt, rollbackKind: "remote" })
+    : null;
+  const snapshotQuerySql = buildSnapshotQuerySql({ hotelId, moduleKey });
+  const validation = buildStaticValidation({ candidate, baseline: archiveBaseline, itemIdsToArchive });
+  const beforeExpected = buildBeforeExpected({ baseline: archiveBaseline, hotelId, moduleKey, source: realBeforeState ? "snapshot-real-anterior" : "fixture-ficticia-local" });
+  const afterExpected = buildAfterExpected({ candidate, baseline: archiveBaseline, itemIdsToArchive, hotelId, moduleKey });
   const manifest = buildManifest({
     candidate,
     baseline,
@@ -52,13 +59,18 @@ export function buildExecutableCatalogImportPackage({
     generatedAt,
     gitHead,
     applySql,
-    rollbackSql,
+    fixtureRollbackSql,
+    remoteRollbackSql,
+    snapshotQuerySql,
     archiveMissing,
+    beforeState,
   });
 
   return {
     applySql,
-    rollbackSql,
+    fixtureRollbackSql,
+    remoteRollbackSql,
+    snapshotQuerySql,
     manifest,
     validation,
     beforeExpected,
@@ -410,13 +422,33 @@ function buildApplySql({ candidate, hotelId, moduleKey, generatedAt, archiveMiss
   return `${lines.join("\n")}\n`;
 }
 
-function buildRollbackSql({ candidate, baseline, hotelId, moduleKey, generatedAt }) {
+function buildSnapshotQuerySql({ hotelId, moduleKey }) {
+  const hotel = sqliteLiteral(hotelId);
+  const module = sqliteLiteral(moduleKey);
+  return [
+    "-- Snapshot query for future authorized D1 read only.",
+    "-- Collect only Muller Room Service catalog state before applying catalog import.",
+    "-- Do not execute in this preparation task.",
+    `SELECT id, hotel_id, module_key, name, description, status, sort_order, created_at, updated_at, archived_at FROM catalogs WHERE hotel_id=${hotel} AND module_key=${module} ORDER BY id;`,
+    `SELECT id, hotel_id, catalog_id, module_key, name, description, status, sort_order, created_at, updated_at FROM categories WHERE hotel_id=${hotel} AND module_key=${module} ORDER BY id;`,
+    `SELECT id, public_id, hotel_id, catalog_id, category_id, module_key, item_type, name, description, price_cents, currency, image_url, status, sort_order, metadata_json, created_at, updated_at, archived_at FROM catalog_items WHERE hotel_id=${hotel} AND module_key=${module} ORDER BY id;`,
+    `SELECT ca.hotel_id, ca.catalog_item_id, ca.is_available, ca.availability_label, ca.starts_at, ca.ends_at, ca.updated_at FROM catalog_item_availability ca JOIN catalog_items ci ON ci.id=ca.catalog_item_id AND ci.hotel_id=ca.hotel_id WHERE ca.hotel_id=${hotel} AND ci.module_key=${module} ORDER BY ca.catalog_item_id;`,
+    "",
+  ].join("\n");
+}
+
+function buildRollbackSql({ candidate, baseline, hotelId, moduleKey, generatedAt, rollbackKind = "remote" }) {
+  const baselineCatalogIds = new Set(baseline.catalogs.map((catalog) => catalog.id));
   const baselineCategoryIds = new Set(baseline.categories.map((category) => category.id));
   const baselineItemIds = new Set(baseline.items.map((item) => item.id));
+  const newCatalogIds = baselineCatalogIds.has(candidate.catalog.id) ? [] : [candidate.catalog.id];
   const newCategoryIds = candidate.categories.map((category) => category.id).filter((id) => !baselineCategoryIds.has(id));
   const newItemIds = candidate.items.map((item) => item.id).filter((id) => !baselineItemIds.has(id));
+  const firstComment = rollbackKind === "fixture"
+    ? "-- Fixture rollback SQL for temporary SQLite validation only. Do not use on remote D1."
+    : "-- Remote rollback SQL generated from real before-state snapshot. Review before remote use.";
   const lines = [
-    "-- Catalog import rollback SQL generated locally. Review before remote use.",
+    firstComment,
     "-- Logical rollback only; no order or order_items records are deleted.",
     "PRAGMA foreign_keys = ON;",
     "BEGIN TRANSACTION;",
@@ -522,6 +554,16 @@ function buildRollbackSql({ candidate, baseline, hotelId, moduleKey, generatedAt
     );
   }
 
+  if (newCatalogIds.length) {
+    lines.push(
+      updateSql(
+        "catalogs",
+        { status: "archived", archived_at: generatedAt, updated_at: generatedAt },
+        `hotel_id=${sqliteLiteral(hotelId)} AND module_key=${sqliteLiteral(moduleKey)} AND id IN ${literalList(newCatalogIds)}`,
+      ),
+    );
+  }
+
   if (newItemIds.length) {
     lines.push(
       updateSql(
@@ -565,11 +607,11 @@ function buildStaticValidation({ candidate, baseline, itemIdsToArchive }) {
   };
 }
 
-function buildBeforeExpected({ baseline, hotelId, moduleKey }) {
+function buildBeforeExpected({ baseline, hotelId, moduleKey, source = "fixture-ficticia-local" }) {
   return {
     hotel_id: hotelId,
     module_key: moduleKey,
-    source: "fixture-ficticia-local",
+    source,
     catalogs: baseline.catalogs.length,
     active_categories: baseline.categories.filter((category) => category.status === "active").length,
     active_items: baseline.items.filter((item) => item.status === "active").length,
@@ -594,11 +636,27 @@ function buildAfterExpected({ candidate, baseline, itemIdsToArchive, hotelId, mo
   };
 }
 
-function buildManifest({ candidate, baseline, duplicateNameGroups, itemIdsToArchive, inputHashes, generatedAt, gitHead, applySql, rollbackSql, archiveMissing }) {
+function buildManifest({
+  candidate,
+  baseline,
+  duplicateNameGroups,
+  itemIdsToArchive,
+  inputHashes,
+  generatedAt,
+  gitHead,
+  applySql,
+  fixtureRollbackSql,
+  remoteRollbackSql,
+  snapshotQuerySql,
+  archiveMissing,
+  beforeState,
+}) {
+  const hasRealBeforeState = Boolean(beforeState?.snapshot);
+  const diffBaseline = hasRealBeforeState ? normalizeSnapshot(beforeState.snapshot) : baseline;
   const candidateCategoryIds = new Set(candidate.categories.map((category) => category.id));
-  const baselineCategoryIds = new Set(baseline.categories.map((category) => category.id));
+  const baselineCategoryIds = new Set(diffBaseline.categories.map((category) => category.id));
   const candidateItemIds = new Set(candidate.items.map((item) => item.id));
-  const baselineItemIds = new Set(baseline.items.map((item) => item.id));
+  const baselineItemIds = new Set(diffBaseline.items.map((item) => item.id));
   const recordsToInsert =
     candidate.categories.filter((category) => !baselineCategoryIds.has(category.id)).length +
     candidate.items.filter((item) => !baselineItemIds.has(item.id)).length +
@@ -615,7 +673,28 @@ function buildManifest({ candidate, baseline, duplicateNameGroups, itemIdsToArch
     generated_at: generatedAt,
     tool_version: IMPORT_PACKAGE_VERSION,
     git_head: gitHead,
+    remote_apply_ready: hasRealBeforeState,
+    remote_rollback_ready: hasRealBeforeState,
+    rollback_source: hasRealBeforeState ? "real-before-state-snapshot" : "fixture-validation-only",
+    review_notes: hasRealBeforeState
+      ? [
+          "Apply e rollback remoto foram gerados a partir de snapshot anterior validado.",
+          "Revise hashes e contagens antes de qualquer escrita remota futura.",
+        ]
+      : [
+          "Apply foi validado localmente em SQLite temporario.",
+          "Rollback remoto ainda nao foi gerado.",
+          "Aplicacao remota bloqueada ate existir snapshot real anterior do D1.",
+          "catalog.fixture-rollback.sql e apenas para validacao local e nao pode ser usado no D1 remoto.",
+        ],
     input_hashes: inputHashes,
+    before_state: hasRealBeforeState
+      ? {
+          sha256: beforeState.sha256,
+          counts: beforeState.counts,
+          ids: beforeState.ids,
+        }
+      : null,
     candidate_catalog: {
       id: candidate.catalog.id,
       name_hash: stableHash(candidate.catalog.name, 16),
@@ -646,7 +725,9 @@ function buildManifest({ candidate, baseline, duplicateNameGroups, itemIdsToArch
     tables_explicitly_prohibited: PROHIBITED_TABLES,
     sql_hashes: {
       apply_sha256: sha256Text(applySql),
-      rollback_sha256: sha256Text(rollbackSql),
+      rollback_sha256: remoteRollbackSql ? sha256Text(remoteRollbackSql) : null,
+      fixture_rollback_sha256: sha256Text(fixtureRollbackSql),
+      snapshot_query_sha256: sha256Text(snapshotQuerySql),
     },
     guarantees: {
       no_delete_from_catalog_items: true,

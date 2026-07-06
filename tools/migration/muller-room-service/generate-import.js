@@ -4,6 +4,7 @@ import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { parseArgs, arrayArg, stringArg } from "./lib/args.js";
+import { readBeforeStateSnapshot } from "./lib/before-state.js";
 import { normalizeCatalog } from "./lib/catalog.js";
 import { buildExecutableCatalogImportPackage } from "./lib/catalog-import-package.js";
 import { validateCatalogImportPackage } from "./lib/catalog-import-validation.js";
@@ -38,6 +39,10 @@ const audit = auditData({ workbooks, catalogData, orderData });
 
 if (outputFormat === "executable-sql") {
   const repoRoot = await findRepoRoot(process.cwd());
+  const beforeStatePath = stringArg(args["before-state"], "");
+  const beforeState = beforeStatePath
+    ? await readBeforeStateSnapshot(beforeStatePath, { hotelId, moduleKey })
+    : null;
   const importPackage = buildExecutableCatalogImportPackage({
     catalogData,
     hotelId,
@@ -45,6 +50,7 @@ if (outputFormat === "executable-sql") {
     inputHashes,
     gitHead: await getGitHead(repoRoot),
     archiveMissing: Boolean(args["archive-missing"]),
+    beforeState,
   });
   const validation = {
     static: importPackage.validation,
@@ -67,15 +73,22 @@ if (outputFormat === "executable-sql") {
     },
     local_database: await validateCatalogImportPackage({
       applySql: importPackage.applySql,
-      rollbackSql: importPackage.rollbackSql,
+      rollbackSql: importPackage.remoteRollbackSql || importPackage.fixtureRollbackSql,
       manifest: importPackage.manifest,
       repoRoot,
+      baselineSnapshot: beforeState?.snapshot,
       outputDatabasePath: path.join(outputDir, "catalog-validation.sqlite"),
     }),
   };
 
   await fs.writeFile(path.join(outputDir, "catalog.apply.sql"), importPackage.applySql, "utf8");
-  await fs.writeFile(path.join(outputDir, "catalog.rollback.sql"), importPackage.rollbackSql, "utf8");
+  await fs.writeFile(path.join(outputDir, "catalog.fixture-rollback.sql"), importPackage.fixtureRollbackSql, "utf8");
+  await fs.writeFile(path.join(outputDir, "catalog.snapshot-query.sql"), importPackage.snapshotQuerySql, "utf8");
+  if (importPackage.remoteRollbackSql) {
+    await fs.writeFile(path.join(outputDir, "catalog.rollback.sql"), importPackage.remoteRollbackSql, "utf8");
+  } else {
+    await removeIfExists(path.join(outputDir, "catalog.rollback.sql"));
+  }
   await writeJson(path.join(outputDir, "catalog.manifest.json"), importPackage.manifest);
   await writeJson(path.join(outputDir, "catalog.validation.json"), validation);
   await writeJson(path.join(outputDir, "catalog.before.expected.json"), importPackage.beforeExpected);
@@ -95,7 +108,9 @@ if (outputFormat === "executable-sql") {
     },
     files: [
       "catalog.apply.sql",
-      "catalog.rollback.sql",
+      "catalog.fixture-rollback.sql",
+      "catalog.snapshot-query.sql",
+      ...(importPackage.remoteRollbackSql ? ["catalog.rollback.sql"] : []),
       "catalog.manifest.json",
       "catalog.validation.json",
       "catalog.before.expected.json",
@@ -122,6 +137,14 @@ if (outputFormat === "executable-sql") {
       duplicate_names: audit.duplicate_names,
     },
   }, null, 2));
+}
+
+async function removeIfExists(filePath) {
+  try {
+    await fs.unlink(filePath);
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
 }
 
 async function getGitHead(repoRoot) {

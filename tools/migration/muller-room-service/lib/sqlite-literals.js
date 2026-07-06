@@ -1,4 +1,4 @@
-const ALLOWED_COLUMNS = {
+export const ALLOWED_COLUMNS = {
   catalogs: new Set(["id", "hotel_id", "module_key", "name", "description", "status", "sort_order", "created_at", "updated_at", "archived_at"]),
   categories: new Set(["id", "hotel_id", "catalog_id", "module_key", "name", "description", "status", "sort_order", "created_at", "updated_at"]),
   catalog_items: new Set([

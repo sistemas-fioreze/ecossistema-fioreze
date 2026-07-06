@@ -61,12 +61,7 @@ export async function validateCatalogImportPackage({
         afterSecondApply.order_items_hash === afterRollback.order_items_hash,
       second_apply_same_counts_ok: comparableCounts(afterFirstApply) === comparableCounts(afterSecondApply),
       created_at_preserved_on_second_apply_ok: firstCreatedAt === secondCreatedAt,
-      rollback_functional_state_ok:
-        afterRollback.active_baseline_items === before.active_baseline_items &&
-        afterRollback.archived_baseline_items === before.archived_baseline_items &&
-        afterRollback.imported_active_products === 0 &&
-        afterRollback.orders_hash === before.orders_hash &&
-        afterRollback.order_items_hash === before.order_items_hash,
+      rollback_functional_state_ok: rollbackFunctionalStateOk({ before, afterRollback, manifest }),
     },
   };
   result.ok = Object.values(result.checks).every(Boolean);
@@ -179,7 +174,7 @@ function buildValidationFixtureSql({ hotelId, moduleKey, baselineSnapshot }) {
     "INSERT INTO catalog_item_availability (hotel_id, catalog_item_id, is_available, availability_label, updated_at) VALUES ('muller-fioreze', 'item-muller-emporio-fixture', 1, NULL, '2026-07-04T00:00:00.000Z');",
     "INSERT INTO catalog_item_availability (hotel_id, catalog_item_id, is_available, availability_label, updated_at) VALUES ('aurora-demo', 'item-aurora-fixture', 1, NULL, '2026-07-04T00:00:00.000Z');",
     "INSERT INTO orders (id, public_id, hotel_id, module_key, origin, room_id, room_code, guest_name, notes, currency, subtotal_cents, discount_cents, total_cents, status, idempotency_key, created_at, updated_at) VALUES ('order-fixture-muller', 'order_fixture_muller', 'muller-fioreze', 'room-service', 'fixture', NULL, 'D-000', 'Hospede Fixture', 'Pedido ficticio.', 'BRL', 900, 0, 900, 'received', 'fixture-order-muller', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z');",
-    "INSERT INTO order_items (id, order_id, hotel_id, module_key, catalog_item_id, item_name_snapshot, item_description_snapshot, unit_price_cents, quantity, line_total_cents, selected_options_snapshot, created_at) VALUES ('order-item-fixture-muller', 'order-fixture-muller', 'muller-fioreze', 'room-service', 'item-muller-cafe-demo', 'Cafe demo', 'Snapshot ficticio.', 900, 1, 900, NULL, '2026-07-04T00:00:00.000Z');",
+    "INSERT INTO order_items (id, order_id, hotel_id, module_key, catalog_item_id, item_name_snapshot, item_description_snapshot, unit_price_cents, quantity, line_total_cents, selected_options_snapshot, created_at) VALUES ('order-item-fixture-muller', 'order-fixture-muller', 'muller-fioreze', 'room-service', NULL, 'Cafe demo', 'Snapshot ficticio.', 900, 1, 900, NULL, '2026-07-04T00:00:00.000Z');",
     "COMMIT;",
   );
   return `${lines.join("\n")}\n`;
@@ -189,10 +184,17 @@ function snapshot(db, manifest) {
   const hotelId = manifest.hotel_id;
   const moduleKey = manifest.module_key;
   const candidateIds = manifest.candidate_record_ids.item_ids;
+  const candidateCategoryIds = candidateIdsFromCategories(manifest);
+  const beforeStateIds = manifest.before_state?.ids || null;
+  const newCandidateItemIds = beforeStateIds ? candidateIds.filter((id) => !beforeStateIds.item_ids.includes(id)) : candidateIds;
+  const newCandidateCategoryIds = beforeStateIds ? candidateCategoryIds.filter((id) => !beforeStateIds.category_ids.includes(id)) : candidateCategoryIds;
+  const newCandidateCatalogIds = beforeStateIds
+    ? [manifest.candidate_record_ids.catalog_id].filter((id) => !beforeStateIds.catalog_ids.includes(id))
+    : [manifest.candidate_record_ids.catalog_id];
   const baselineIds = ["item-muller-cafe-demo", "item-muller-sanduiche-demo", "item-muller-indisponivel-demo", "item-muller-arquivado-demo"];
   return {
     active_catalogs: count(db, "SELECT COUNT(*) AS n FROM catalogs WHERE hotel_id=? AND module_key=? AND status='active'", [hotelId, moduleKey]),
-    imported_categories: countIn(db, "categories", "id", candidateIdsFromCategories(manifest), "hotel_id=? AND module_key=?", [hotelId, moduleKey]),
+    imported_categories: countIn(db, "categories", "id", candidateCategoryIds, "hotel_id=? AND module_key=?", [hotelId, moduleKey]),
     imported_products: countIn(db, "catalog_items", "id", candidateIds, "hotel_id=? AND module_key=?", [hotelId, moduleKey]),
     imported_active_products: countIn(db, "catalog_items", "id", candidateIds, "hotel_id=? AND module_key=? AND status='active'", [hotelId, moduleKey]),
     imported_available_products: countIn(
@@ -214,10 +216,34 @@ function snapshot(db, manifest) {
     archived_missing_items: count(db, "SELECT COUNT(*) AS n FROM catalog_items WHERE hotel_id=? AND module_key=? AND status='archived' AND id IN ('item-muller-cafe-demo','item-muller-sanduiche-demo','item-muller-indisponivel-demo')", [hotelId, moduleKey]),
     active_baseline_items: countIn(db, "catalog_items", "id", baselineIds, "hotel_id=? AND module_key=? AND status='active'", [hotelId, moduleKey]),
     archived_baseline_items: countIn(db, "catalog_items", "id", baselineIds, "hotel_id=? AND module_key=? AND status='archived'", [hotelId, moduleKey]),
+    new_imported_active_catalogs: countIn(db, "catalogs", "id", newCandidateCatalogIds, "hotel_id=? AND module_key=? AND status='active'", [hotelId, moduleKey]),
+    new_imported_active_categories: countIn(db, "categories", "id", newCandidateCategoryIds, "hotel_id=? AND module_key=? AND status='active'", [hotelId, moduleKey]),
+    new_imported_active_products: countIn(db, "catalog_items", "id", newCandidateItemIds, "hotel_id=? AND module_key=? AND status='active'", [hotelId, moduleKey]),
+    before_state_hash: beforeStateIds ? beforeStateHash(db, beforeStateIds) : null,
     aurora_hash: tableHash(db, "SELECT id, status, price_cents FROM catalog_items WHERE hotel_id='aurora-demo' ORDER BY id"),
     orders_hash: tableHash(db, "SELECT id, status, total_cents, updated_at FROM orders ORDER BY id"),
     order_items_hash: tableHash(db, "SELECT id, catalog_item_id, unit_price_cents, quantity FROM order_items ORDER BY id"),
   };
+}
+
+function rollbackFunctionalStateOk({ before, afterRollback, manifest }) {
+  if (manifest.before_state?.ids) {
+    return (
+      afterRollback.before_state_hash === before.before_state_hash &&
+      afterRollback.new_imported_active_catalogs === 0 &&
+      afterRollback.new_imported_active_categories === 0 &&
+      afterRollback.new_imported_active_products === 0 &&
+      afterRollback.orders_hash === before.orders_hash &&
+      afterRollback.order_items_hash === before.order_items_hash
+    );
+  }
+  return (
+    afterRollback.active_baseline_items === before.active_baseline_items &&
+    afterRollback.archived_baseline_items === before.archived_baseline_items &&
+    afterRollback.imported_active_products === 0 &&
+    afterRollback.orders_hash === before.orders_hash &&
+    afterRollback.order_items_hash === before.order_items_hash
+  );
 }
 
 function selectCandidateCreatedAt(db, manifest) {
@@ -247,6 +273,25 @@ function tableHash(db, sql) {
   return simpleHash(JSON.stringify(rows));
 }
 
+function beforeStateHash(db, ids) {
+  return combinedTableHash(db, [
+    `SELECT 'catalogs' AS table_name, id, hotel_id, module_key, name, description, status, sort_order, created_at, updated_at, archived_at FROM catalogs WHERE id IN ${literalList(ids.catalog_ids)} ORDER BY id`,
+    `SELECT 'categories' AS table_name, id, hotel_id, catalog_id, module_key, name, description, status, sort_order, created_at, updated_at FROM categories WHERE id IN ${literalList(ids.category_ids)} ORDER BY id`,
+    `SELECT 'catalog_items' AS table_name, id, public_id, hotel_id, catalog_id, category_id, module_key, item_type, name, description, price_cents, currency, image_url, status, sort_order, metadata_json, created_at, updated_at, archived_at FROM catalog_items WHERE id IN ${literalList(ids.item_ids)} ORDER BY id`,
+    `SELECT 'catalog_item_availability' AS table_name, hotel_id, catalog_item_id, is_available, availability_label, starts_at, ends_at, updated_at FROM catalog_item_availability WHERE catalog_item_id IN ${literalList(ids.availability_item_ids)} ORDER BY catalog_item_id`,
+  ]);
+}
+
+function combinedTableHash(db, queries) {
+  const rows = [];
+  for (const sql of queries) {
+    const statement = db.prepare(sql);
+    while (statement.step()) rows.push(statement.getAsObject());
+    statement.free();
+  }
+  return simpleHash(JSON.stringify(rows));
+}
+
 function comparableCounts(snapshot) {
   return JSON.stringify({
     active_catalogs: snapshot.active_catalogs,
@@ -268,6 +313,7 @@ function rowValues(values) {
 }
 
 function literalList(values) {
+  if (!values.length) return "(NULL)";
   return `(${values.map(sqliteLiteral).join(", ")})`;
 }
 
