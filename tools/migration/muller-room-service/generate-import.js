@@ -52,6 +52,28 @@ if (outputFormat === "executable-sql") {
     archiveMissing: Boolean(args["archive-missing"]),
     beforeState,
   });
+  const localDatabaseValidation = await validateCatalogImportPackage({
+    applySql: importPackage.applySql,
+    rollbackSql: importPackage.remoteRollbackSql || importPackage.fixtureRollbackSql,
+    manifest: importPackage.manifest,
+    repoRoot,
+    baselineSnapshot: beforeState?.snapshot,
+    outputDatabasePath: path.join(outputDir, "catalog-validation.sqlite"),
+  });
+  const remoteReady =
+    Boolean(beforeState) &&
+    Boolean(importPackage.remoteRollbackSql) &&
+    localDatabaseValidation.ok &&
+    localDatabaseValidation.checks.availability_absence_restored_ok === true &&
+    localDatabaseValidation.checks.rollback_functional_state_ok === true;
+  importPackage.manifest.remote_apply_ready = remoteReady;
+  importPackage.manifest.remote_rollback_ready = remoteReady;
+  importPackage.manifest.validation_summary = {
+    local_database_ok: localDatabaseValidation.ok,
+    availability_absence_restored_ok: localDatabaseValidation.checks.availability_absence_restored_ok,
+    rollback_functional_state_ok: localDatabaseValidation.checks.rollback_functional_state_ok,
+  };
+
   const validation = {
     static: importPackage.validation,
     input_audit: {
@@ -71,14 +93,7 @@ if (outputFormat === "executable-sql") {
         sensitive_categories: sheet.sensitive_categories,
       })),
     },
-    local_database: await validateCatalogImportPackage({
-      applySql: importPackage.applySql,
-      rollbackSql: importPackage.remoteRollbackSql || importPackage.fixtureRollbackSql,
-      manifest: importPackage.manifest,
-      repoRoot,
-      baselineSnapshot: beforeState?.snapshot,
-      outputDatabasePath: path.join(outputDir, "catalog-validation.sqlite"),
-    }),
+    local_database: localDatabaseValidation,
   };
 
   await fs.writeFile(path.join(outputDir, "catalog.apply.sql"), importPackage.applySql, "utf8");

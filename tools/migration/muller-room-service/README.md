@@ -133,7 +133,7 @@ Existem dois tipos de rollback:
 
 Sem `--before-state`, o manifesto marca `remote_apply_ready=false`, `remote_rollback_ready=false` e `rollback_source=fixture-validation-only`. Isso bloqueia a aplicacao remota ate existir snapshot real anterior do D1.
 
-O rollback remoto nao apaga pedidos, nao altera `orders`, nao altera `order_items`, nao toca no Aurora e nao usa `DELETE` em `catalog_items`.
+O rollback remoto nao apaga pedidos, nao altera `orders`, nao altera `order_items`, nao toca no Aurora e nao usa `DELETE` em `catalogs`, `categories` ou `catalog_items`. A unica exclusao permitida no rollback remoto e em `catalog_item_availability`, exclusivamente para restaurar a ausencia de linha de disponibilidade em item antigo que existia no `--before-state` sem disponibilidade. Esse `DELETE` deve confirmar defensivamente `hotel_id=muller-fioreze` e `module_key=room-service` via `catalog_items`.
 
 ### Validacao local
 
@@ -147,8 +147,11 @@ Verificacoes feitas:
 - arquivamento de itens ausentes no escopo Muller Room Service;
 - Aurora intacto;
 - `orders` e `order_items` intactos;
+- restauracao da ausencia de disponibilidade para todos os `item_ids` do `--before-state`;
 - rollback funcional para o estado ficticio inicial, quando sem `--before-state`;
 - rollback baseado no snapshot anterior validado, quando com `--before-state`.
+
+`remote_apply_ready=true` e `remote_rollback_ready=true` so podem aparecer quando ha `--before-state` valido, `catalog.rollback.sql` remoto real, validacao local aprovada, `availability_absence_restored_ok=true` e `rollback_functional_state_ok=true`.
 
 ### Snapshot anterior
 

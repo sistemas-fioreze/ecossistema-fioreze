@@ -78,6 +78,7 @@ Antes de qualquer aplicacao remota futura:
 6. Gerar novamente o pacote com `--before-state`.
 7. Conferir `remote_apply_ready=true` e `remote_rollback_ready=true`.
 8. Conferir que `catalog.rollback.sql` foi gerado a partir do snapshot real antes do apply.
+9. Conferir que a validacao local marcou `availability_absence_restored_ok=true` e `rollback_functional_state_ok=true`.
 
 ## 4. Aplicacao Remota Futura
 
@@ -121,7 +122,9 @@ Se a validacao falhar:
 6. Validar o retorno funcional ao estado anterior esperado.
 7. Confirmar que pedidos e itens de pedidos nao foram alterados.
 
-O rollback deve ser logico. Ele nao deve apagar `catalog_items` que possam ser referenciados por pedidos.
+O rollback deve ser logico para catalogos, categorias e produtos. Ele nao deve apagar `catalog_items` que possam ser referenciados por pedidos.
+
+A unica exclusao permitida no rollback remoto e em `catalog_item_availability`, apenas para itens antigos presentes no `--before-state` que nao tinham linha de disponibilidade antes da importacao. Esse `DELETE` deve ser limitado ao `hotel_id=muller-fioreze`, ao `module_key=room-service` confirmado em `catalog_items`, e nunca deve tocar Aurora, outros modulos, `orders` ou `order_items`.
 
 Nunca aplicar `catalog.fixture-rollback.sql` no D1 remoto.
 

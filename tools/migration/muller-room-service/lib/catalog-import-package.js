@@ -444,6 +444,8 @@ function buildRollbackSql({ candidate, baseline, hotelId, moduleKey, generatedAt
   const newCatalogIds = baselineCatalogIds.has(candidate.catalog.id) ? [] : [candidate.catalog.id];
   const newCategoryIds = candidate.categories.map((category) => category.id).filter((id) => !baselineCategoryIds.has(id));
   const newItemIds = candidate.items.map((item) => item.id).filter((id) => !baselineItemIds.has(id));
+  const baselineAvailabilityItemIds = new Set(baseline.availability.map((entry) => entry.catalog_item_id));
+  const baselineItemsWithoutAvailabilityIds = baseline.items.map((item) => item.id).filter((id) => !baselineAvailabilityItemIds.has(id));
   const firstComment = rollbackKind === "fixture"
     ? "-- Fixture rollback SQL for temporary SQLite validation only. Do not use on remote D1."
     : "-- Remote rollback SQL generated from real before-state snapshot. Review before remote use.";
@@ -545,6 +547,13 @@ function buildRollbackSql({ candidate, baseline, hotelId, moduleKey, generatedAt
           updateColumns: ["is_available", "availability_label", "starts_at", "ends_at", "updated_at"],
         },
       ),
+    );
+  }
+
+  if (rollbackKind === "remote" && baselineItemsWithoutAvailabilityIds.length) {
+    const ids = literalList(baselineItemsWithoutAvailabilityIds);
+    lines.push(
+      `DELETE FROM catalog_item_availability WHERE hotel_id=${sqliteLiteral(hotelId)} AND catalog_item_id IN ${ids} AND catalog_item_id IN (SELECT id FROM catalog_items WHERE hotel_id=${sqliteLiteral(hotelId)} AND module_key=${sqliteLiteral(moduleKey)} AND id IN ${ids});`,
     );
   }
 
@@ -673,12 +682,13 @@ function buildManifest({
     generated_at: generatedAt,
     tool_version: IMPORT_PACKAGE_VERSION,
     git_head: gitHead,
-    remote_apply_ready: hasRealBeforeState,
-    remote_rollback_ready: hasRealBeforeState,
+    remote_apply_ready: false,
+    remote_rollback_ready: false,
     rollback_source: hasRealBeforeState ? "real-before-state-snapshot" : "fixture-validation-only",
     review_notes: hasRealBeforeState
       ? [
           "Apply e rollback remoto foram gerados a partir de snapshot anterior validado.",
+          "Aplicacao remota permanece bloqueada ate a validacao local completa marcar remote_apply_ready=true e remote_rollback_ready=true.",
           "Revise hashes e contagens antes de qualquer escrita remota futura.",
         ]
       : [
@@ -736,6 +746,7 @@ function buildManifest({
       print_events_untouched: true,
       aurora_demo_untouched: true,
       external_images_redacted: true,
+      availability_absence_restored: Boolean(remoteRollbackSql),
     },
   };
 }

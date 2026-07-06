@@ -222,6 +222,58 @@ test("sem before-state gera fixture rollback e bloqueia apply/rollback remoto", 
   assert.equal(manifest.rollback_source, "fixture-validation-only");
 });
 
+test("CLI com before-state libera remoto somente apos validacao local completa", async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "muller-tool-cli-before-"));
+  const csv = path.join(dir, "catalogo.csv");
+  await fs.writeFile(
+    csv,
+    "Categoria;Produto;Descricao;Preco;Disponivel\nBebidas;Suco Demo;Novo texto;R$ 12,50;sim\nLanches;Novo Produto;Novo item;R$ 25,00;sim\n",
+    "utf8",
+  );
+  const catalog = normalizeCatalog([await readTabularFile(csv)], {});
+  const beforeStatePath = path.join(dir, "before-state.json");
+  await fs.writeFile(
+    beforeStatePath,
+    JSON.stringify(validBeforeStateFromCatalog(catalog, { includeFirstItemOnly: true }), null, 2),
+    "utf8",
+  );
+  const output = `local-output/muller/test-before-ready-${Date.now()}`;
+
+  await execFileAsync(
+    process.execPath,
+    [
+      "tools/migration/muller-room-service/generate-import.js",
+      "--spreadsheet",
+      csv,
+      "--hotel",
+      "muller-fioreze",
+      "--module",
+      "room-service",
+      "--output-format",
+      "executable-sql",
+      "--archive-missing",
+      "--before-state",
+      beforeStatePath,
+      "--output",
+      output,
+      "--dry-run",
+    ],
+    { cwd: repoRoot },
+  );
+
+  const outputDir = path.join(repoRoot, output);
+  const manifest = JSON.parse(await fs.readFile(path.join(outputDir, "catalog.manifest.json"), "utf8"));
+  const validation = JSON.parse(await fs.readFile(path.join(outputDir, "catalog.validation.json"), "utf8"));
+  assert.equal(await exists(path.join(outputDir, "catalog.rollback.sql")), true);
+  assert.equal(manifest.remote_apply_ready, true);
+  assert.equal(manifest.remote_rollback_ready, true);
+  assert.equal(manifest.rollback_source, "real-before-state-snapshot");
+  assert.equal(manifest.validation_summary.local_database_ok, true);
+  assert.equal(manifest.validation_summary.availability_absence_restored_ok, true);
+  assert.equal(manifest.validation_summary.rollback_functional_state_ok, true);
+  assert.equal(validation.local_database.ok, true);
+});
+
 test("before-state valido gera rollback remoto e valida restauracao real", async () => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "muller-tool-before-"));
   const csv = path.join(dir, "catalogo.csv");
@@ -241,8 +293,8 @@ test("before-state valido gera rollback remoto e valida restauracao real", async
   });
 
   assert.equal(Boolean(importPackage.remoteRollbackSql), true);
-  assert.equal(importPackage.manifest.remote_apply_ready, true);
-  assert.equal(importPackage.manifest.remote_rollback_ready, true);
+  assert.equal(importPackage.manifest.remote_apply_ready, false);
+  assert.equal(importPackage.manifest.remote_rollback_ready, false);
   assert.equal(importPackage.manifest.rollback_source, "real-before-state-snapshot");
   assert.equal(importPackage.manifest.before_state.sha256, validated.sha256);
   assert.match(importPackage.remoteRollbackSql, /Suco antigo/);
@@ -257,8 +309,59 @@ test("before-state valido gera rollback remoto e valida restauracao real", async
     outputDatabasePath: path.join(dir, "validation.sqlite"),
   });
   assert.equal(validation.ok, true);
+  assert.equal(validation.checks.availability_absence_restored_ok, true);
   assert.equal(validation.checks.rollback_functional_state_ok, true);
+  assert.equal(validation.before.before_state_hash, validation.after_rollback.before_state_hash);
   assert.equal(validation.after_rollback.new_imported_active_products, 0);
+});
+
+test("rollback remoto remove disponibilidade criada para item antigo que nao tinha disponibilidade", async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "muller-tool-availability-absence-"));
+  const csv = path.join(dir, "catalogo.csv");
+  await fs.writeFile(
+    csv,
+    [
+      "Categoria;Produto;Descricao;Preco;Disponivel",
+      "Bebidas;Item Antigo Sem Disponibilidade;Item ja existia sem disponibilidade;R$ 10,00;sim",
+      "Bebidas;Item Antigo Com Disponibilidade;Item ja existia com disponibilidade;R$ 11,00;sim",
+      "Bebidas;Item Novo Importado;Item novo ficticio;R$ 12,00;sim",
+    ].join("\n"),
+    "utf8",
+  );
+  const catalog = normalizeCatalog([await readTabularFile(csv)], {});
+  const beforeState = validateBeforeStateSnapshot(beforeStateWithMissingAvailability(catalog), {});
+  const importPackage = buildExecutableCatalogImportPackage({
+    catalogData: catalog,
+    beforeState,
+    archiveMissing: true,
+    generatedAt: "2026-07-05T12:00:00.000Z",
+  });
+
+  assert.match(importPackage.remoteRollbackSql, /DELETE FROM catalog_item_availability/);
+  assert.match(importPackage.remoteRollbackSql, /hotel_id='muller-fioreze'/);
+  assert.match(importPackage.remoteRollbackSql, /module_key='room-service'/);
+  assert.doesNotMatch(importPackage.remoteRollbackSql, /DELETE FROM catalog_items/);
+  assert.doesNotMatch(importPackage.remoteRollbackSql, /DELETE FROM catalogs/);
+  assert.doesNotMatch(importPackage.remoteRollbackSql, /DELETE FROM categories/);
+
+  const validation = await validateCatalogImportPackage({
+    applySql: importPackage.applySql,
+    rollbackSql: importPackage.remoteRollbackSql,
+    manifest: importPackage.manifest,
+    baselineSnapshot: beforeState.snapshot,
+    repoRoot,
+    outputDatabasePath: path.join(dir, "validation.sqlite"),
+  });
+
+  assert.equal(validation.ok, true);
+  assert.equal(validation.checks.availability_absence_restored_ok, true);
+  assert.equal(validation.checks.rollback_functional_state_ok, true);
+  assert.equal(validation.before.before_state_hash, validation.after_rollback.before_state_hash);
+  assert.equal(validation.before.before_state_availability_hash, validation.after_rollback.before_state_availability_hash);
+  assert.equal(validation.after_rollback.new_imported_active_products, 0);
+  assert.equal(validation.checks.aurora_untouched_ok, true);
+  assert.equal(validation.checks.orders_untouched_ok, true);
+  assert.equal(validation.checks.order_items_untouched_ok, true);
 });
 
 test("before-state invalido rejeita outro hotel, outro modulo, tabelas proibidas e snapshot incompleto", async () => {
@@ -417,6 +520,79 @@ function validBeforeStateFromCatalog(catalog, { includeFirstItemOnly = false } =
         ends_at: null,
         updated_at: timestamp,
       })),
+    },
+  };
+}
+
+function beforeStateWithMissingAvailability(catalog) {
+  const timestamp = "2026-07-04T00:00:00.000Z";
+  const category = catalog.categories[0];
+  const [withoutAvailability, withAvailability] = catalog.items;
+  return {
+    format_version: BEFORE_STATE_FORMAT_VERSION,
+    hotel_id: "muller-fioreze",
+    module_key: "room-service",
+    generated_at: timestamp,
+    tables: {
+      catalogs: [
+        {
+          id: catalog.catalog.id,
+          hotel_id: "muller-fioreze",
+          module_key: "room-service",
+          name: "Catalogo anterior",
+          description: "Estado anterior ficticio.",
+          status: "active",
+          sort_order: 10,
+          created_at: timestamp,
+          updated_at: timestamp,
+          archived_at: null,
+        },
+      ],
+      categories: [
+        {
+          id: category.id,
+          hotel_id: "muller-fioreze",
+          catalog_id: catalog.catalog.id,
+          module_key: "room-service",
+          name: "Bebidas anteriores",
+          description: "Categoria anterior ficticia.",
+          status: "active",
+          sort_order: 10,
+          created_at: timestamp,
+          updated_at: timestamp,
+        },
+      ],
+      catalog_items: [withoutAvailability, withAvailability].map((item, index) => ({
+        id: item.id,
+        public_id: item.public_id,
+        hotel_id: "muller-fioreze",
+        catalog_id: catalog.catalog.id,
+        category_id: category.id,
+        module_key: "room-service",
+        item_type: "product",
+        name: index === 0 ? "Item antigo sem disponibilidade" : "Item antigo com disponibilidade",
+        description: "Descricao anterior ficticia.",
+        price_cents: 999 + index,
+        currency: "BRL",
+        image_url: null,
+        status: "active",
+        sort_order: 10 + index * 10,
+        metadata_json: null,
+        created_at: timestamp,
+        updated_at: timestamp,
+        archived_at: null,
+      })),
+      catalog_item_availability: [
+        {
+          hotel_id: "muller-fioreze",
+          catalog_item_id: withAvailability.id,
+          is_available: 0,
+          availability_label: "Disponibilidade anterior ficticia",
+          starts_at: null,
+          ends_at: null,
+          updated_at: timestamp,
+        },
+      ],
     },
   };
 }

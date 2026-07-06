@@ -61,6 +61,7 @@ export async function validateCatalogImportPackage({
         afterSecondApply.order_items_hash === afterRollback.order_items_hash,
       second_apply_same_counts_ok: comparableCounts(afterFirstApply) === comparableCounts(afterSecondApply),
       created_at_preserved_on_second_apply_ok: firstCreatedAt === secondCreatedAt,
+      availability_absence_restored_ok: availabilityAbsenceRestoredOk({ before, afterRollback, manifest }),
       rollback_functional_state_ok: rollbackFunctionalStateOk({ before, afterRollback, manifest }),
     },
   };
@@ -220,6 +221,7 @@ function snapshot(db, manifest) {
     new_imported_active_categories: countIn(db, "categories", "id", newCandidateCategoryIds, "hotel_id=? AND module_key=? AND status='active'", [hotelId, moduleKey]),
     new_imported_active_products: countIn(db, "catalog_items", "id", newCandidateItemIds, "hotel_id=? AND module_key=? AND status='active'", [hotelId, moduleKey]),
     before_state_hash: beforeStateIds ? beforeStateHash(db, beforeStateIds) : null,
+    before_state_availability_hash: beforeStateIds ? beforeStateAvailabilityHash(db, hotelId, beforeStateIds.item_ids) : null,
     aurora_hash: tableHash(db, "SELECT id, status, price_cents FROM catalog_items WHERE hotel_id='aurora-demo' ORDER BY id"),
     orders_hash: tableHash(db, "SELECT id, status, total_cents, updated_at FROM orders ORDER BY id"),
     order_items_hash: tableHash(db, "SELECT id, catalog_item_id, unit_price_cents, quantity FROM order_items ORDER BY id"),
@@ -244,6 +246,11 @@ function rollbackFunctionalStateOk({ before, afterRollback, manifest }) {
     afterRollback.orders_hash === before.orders_hash &&
     afterRollback.order_items_hash === before.order_items_hash
   );
+}
+
+function availabilityAbsenceRestoredOk({ before, afterRollback, manifest }) {
+  if (!manifest.before_state?.ids) return true;
+  return afterRollback.before_state_availability_hash === before.before_state_availability_hash;
 }
 
 function selectCandidateCreatedAt(db, manifest) {
@@ -278,8 +285,15 @@ function beforeStateHash(db, ids) {
     `SELECT 'catalogs' AS table_name, id, hotel_id, module_key, name, description, status, sort_order, created_at, updated_at, archived_at FROM catalogs WHERE id IN ${literalList(ids.catalog_ids)} ORDER BY id`,
     `SELECT 'categories' AS table_name, id, hotel_id, catalog_id, module_key, name, description, status, sort_order, created_at, updated_at FROM categories WHERE id IN ${literalList(ids.category_ids)} ORDER BY id`,
     `SELECT 'catalog_items' AS table_name, id, public_id, hotel_id, catalog_id, category_id, module_key, item_type, name, description, price_cents, currency, image_url, status, sort_order, metadata_json, created_at, updated_at, archived_at FROM catalog_items WHERE id IN ${literalList(ids.item_ids)} ORDER BY id`,
-    `SELECT 'catalog_item_availability' AS table_name, hotel_id, catalog_item_id, is_available, availability_label, starts_at, ends_at, updated_at FROM catalog_item_availability WHERE catalog_item_id IN ${literalList(ids.availability_item_ids)} ORDER BY catalog_item_id`,
+    `SELECT 'catalog_item_availability' AS table_name, hotel_id, catalog_item_id, is_available, availability_label, starts_at, ends_at, updated_at FROM catalog_item_availability WHERE catalog_item_id IN ${literalList(ids.item_ids)} ORDER BY catalog_item_id`,
   ]);
+}
+
+function beforeStateAvailabilityHash(db, hotelId, itemIds) {
+  return tableHash(
+    db,
+    `SELECT hotel_id, catalog_item_id, is_available, availability_label, starts_at, ends_at, updated_at FROM catalog_item_availability WHERE hotel_id=${sqliteLiteral(hotelId)} AND catalog_item_id IN ${literalList(itemIds)} ORDER BY catalog_item_id`,
+  );
 }
 
 function combinedTableHash(db, queries) {
