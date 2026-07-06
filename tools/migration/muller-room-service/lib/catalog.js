@@ -6,7 +6,7 @@ export function normalizeCatalog(workbooks, { hotelId = "muller-fioreze", module
   const categories = new Map();
   const items = [];
   const ignoredRows = [];
-  const catalogId = `catalog-${slugify(hotelId)}-${slugify(moduleKey)}`;
+  const catalogId = defaultCatalogId(hotelId, moduleKey);
 
   for (const workbook of workbooks) {
     for (const sheet of workbook.sheets) {
@@ -48,6 +48,8 @@ export function normalizeCatalog(workbooks, { hotelId = "muller-fioreze", module
         const available = availableValue === "" || availableValue == null ? statusText !== "indisponivel" : normalizeBoolean(availableValue);
         const status = statusText.includes("arquiv") ? "archived" : statusText.includes("inativ") ? "inactive" : "active";
         const sourceKey = `${hotelId}|${moduleKey}|${sheet.name}|${rowNumber}|${name}`;
+        const rawImage = normalizeText(valueAt(row, map.image)) || null;
+        const image = normalizeImageForImport(rawImage);
         items.push({
           id: `item-${slugify(hotelId)}-${slugify(moduleKey)}-${slugify(name || "sem-nome")}-${stableHash(sourceKey, 8)}`,
           public_id: `pub-${stableHash(sourceKey, 14)}`,
@@ -60,7 +62,9 @@ export function normalizeCatalog(workbooks, { hotelId = "muller-fioreze", module
           description: normalizeText(valueAt(row, map.description)),
           price_cents: money.cents,
           currency: normalizeText(valueAt(row, map.currency)) || "BRL",
-          image_url: normalizeText(valueAt(row, map.image)) || null,
+          image_url: image.image_url,
+          source_image_hash: image.source_image_hash,
+          source_image_kind: image.source_image_kind,
           status,
           sort_order: Number(valueAt(row, map.order)) || items.length * 10 + 10,
           is_available: available !== false && status === "active",
@@ -90,6 +94,25 @@ export function normalizeCatalog(workbooks, { hotelId = "muller-fioreze", module
     categories: [...categories.values()],
     items,
     ignored_rows: ignoredRows,
+  };
+}
+
+function defaultCatalogId(hotelId, moduleKey) {
+  if (hotelId === "muller-fioreze" && moduleKey === "room-service") return "cat-muller-room-service";
+  return `catalog-${slugify(hotelId)}-${slugify(moduleKey)}`;
+}
+
+function normalizeImageForImport(rawImage) {
+  if (!rawImage) {
+    return { image_url: null, source_image_hash: null, source_image_kind: "empty" };
+  }
+  if (rawImage.startsWith("/assets/")) {
+    return { image_url: rawImage, source_image_hash: null, source_image_kind: "static-asset" };
+  }
+  return {
+    image_url: null,
+    source_image_hash: stableHash(rawImage, 16),
+    source_image_kind: /^https?:\/\//i.test(rawImage) ? "external-link-redacted" : "non-static-reference-redacted",
   };
 }
 
