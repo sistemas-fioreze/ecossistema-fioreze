@@ -79,6 +79,7 @@ Antes de qualquer aplicacao remota futura:
 7. Conferir `remote_apply_ready=true` e `remote_rollback_ready=true`.
 8. Conferir que `catalog.rollback.sql` foi gerado a partir do snapshot real antes do apply.
 9. Conferir que a validacao local marcou `availability_absence_restored_ok=true` e `rollback_functional_state_ok=true`.
+10. Conferir que a validacao local marcou `explicit_transaction_statements_absent_ok=true`, `d1_file_compatible_ok=true` e `local_atomic_validation_ok=true`.
 
 ## 4. Aplicacao Remota Futura
 
@@ -93,6 +94,10 @@ A aplicacao remota nao esta autorizada por este documento. Quando houver autoriz
 7. Nao tocar em producao.
 8. Nao acessar Apps Script, Google Sheets ou impressao.
 9. Registrar o comando exato antes da escrita.
+
+O Wrangler/D1 rejeita `BEGIN TRANSACTION`, `SAVEPOINT` e controles explicitos equivalentes em arquivos executados por `wrangler d1 execute --remote --file`. Por isso, `catalog.apply.sql` e `catalog.rollback.sql` nao devem conter comandos explicitos de transacao. A execucao remota do arquivo fica a cargo do Wrangler/D1. A validacao local continua atomica pelo helper `runSqlAtomically(db, sql)` no sql.js.
+
+Nao remover comandos de transacao manualmente de um pacote antigo. Sempre corrigir a ferramenta, regenerar o pacote, revisar hashes e repetir a validacao antes de qualquer escrita remota.
 
 ## 5. Validacao
 

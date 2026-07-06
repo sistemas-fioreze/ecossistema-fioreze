@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { createRequire } from "node:module";
 import initSqlJs from "sql.js";
-import { defaultDevelopmentCatalogSnapshot } from "./catalog-import-package.js";
+import { defaultDevelopmentCatalogSnapshot, hasExplicitTransactionStatements } from "./catalog-import-package.js";
 import { sqliteLiteral } from "./sqlite-literals.js";
 
 const require = createRequire(import.meta.url);
@@ -19,16 +19,16 @@ export async function validateCatalogImportPackage({
   const db = new SQL.Database();
 
   await applyMigrations(db, path.join(repoRoot, "app", "migrations"));
-  db.run(buildValidationFixtureSql({ hotelId: manifest.hotel_id, moduleKey: manifest.module_key, baselineSnapshot }));
+  runSqlAtomically(db, buildValidationFixtureSql({ hotelId: manifest.hotel_id, moduleKey: manifest.module_key, baselineSnapshot }));
 
   const before = snapshot(db, manifest);
-  db.run(applySql);
+  runSqlAtomically(db, applySql);
   const afterFirstApply = snapshot(db, manifest);
   const firstCreatedAt = selectCandidateCreatedAt(db, manifest);
-  db.run(applySql);
+  runSqlAtomically(db, applySql);
   const afterSecondApply = snapshot(db, manifest);
   const secondCreatedAt = selectCandidateCreatedAt(db, manifest);
-  db.run(rollbackSql);
+  runSqlAtomically(db, rollbackSql);
   const afterRollback = snapshot(db, manifest);
 
   if (outputDatabasePath) {
@@ -63,10 +63,28 @@ export async function validateCatalogImportPackage({
       created_at_preserved_on_second_apply_ok: firstCreatedAt === secondCreatedAt,
       availability_absence_restored_ok: availabilityAbsenceRestoredOk({ before, afterRollback, manifest }),
       rollback_functional_state_ok: rollbackFunctionalStateOk({ before, afterRollback, manifest }),
+      explicit_transaction_statements_absent_ok: explicitTransactionStatementsAbsentOk({ applySql, rollbackSql, manifest }),
+      d1_file_compatible_ok: manifest.guarantees?.d1_file_compatible === true,
+      local_atomic_validation_ok: true,
     },
   };
   result.ok = Object.values(result.checks).every(Boolean);
   return result;
+}
+
+export function runSqlAtomically(db, sql) {
+  db.run("BEGIN TRANSACTION;");
+  try {
+    db.run(sql);
+    db.run("COMMIT;");
+  } catch (error) {
+    try {
+      db.run("ROLLBACK;");
+    } catch {
+      // Preserve the original SQL failure; a failed cleanup attempt is secondary.
+    }
+    throw error;
+  }
 }
 
 async function applyMigrations(db, migrationsDir) {
@@ -80,7 +98,6 @@ function buildValidationFixtureSql({ hotelId, moduleKey, baselineSnapshot }) {
   const timestamp = "2026-07-04T00:00:00.000Z";
   const lines = [
     "PRAGMA foreign_keys = ON;",
-    "BEGIN TRANSACTION;",
     `INSERT INTO modules (module_key, name, description, status, created_at, updated_at) VALUES (${sqliteLiteral(moduleKey)}, 'Room Service', 'Modulo ficticio para validacao local.', 'foundation', ${sqliteLiteral(timestamp)}, ${sqliteLiteral(timestamp)});`,
     "INSERT INTO modules (module_key, name, description, status, created_at, updated_at) VALUES ('emporio', 'Emporio', 'Modulo ficticio protegido.', 'planned', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z');",
     `INSERT INTO hotels (id, slug, name, short_name, timezone, locale, currency, status, created_at, updated_at) VALUES (${sqliteLiteral(hotelId)}, ${sqliteLiteral(hotelId)}, 'Hotel fixture', 'Fixture', 'America/Sao_Paulo', 'pt-BR', 'BRL', 'active', ${sqliteLiteral(timestamp)}, ${sqliteLiteral(timestamp)});`,
@@ -176,7 +193,6 @@ function buildValidationFixtureSql({ hotelId, moduleKey, baselineSnapshot }) {
     "INSERT INTO catalog_item_availability (hotel_id, catalog_item_id, is_available, availability_label, updated_at) VALUES ('aurora-demo', 'item-aurora-fixture', 1, NULL, '2026-07-04T00:00:00.000Z');",
     "INSERT INTO orders (id, public_id, hotel_id, module_key, origin, room_id, room_code, guest_name, notes, currency, subtotal_cents, discount_cents, total_cents, status, idempotency_key, created_at, updated_at) VALUES ('order-fixture-muller', 'order_fixture_muller', 'muller-fioreze', 'room-service', 'fixture', NULL, 'D-000', 'Hospede Fixture', 'Pedido ficticio.', 'BRL', 900, 0, 900, 'received', 'fixture-order-muller', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z');",
     "INSERT INTO order_items (id, order_id, hotel_id, module_key, catalog_item_id, item_name_snapshot, item_description_snapshot, unit_price_cents, quantity, line_total_cents, selected_options_snapshot, created_at) VALUES ('order-item-fixture-muller', 'order-fixture-muller', 'muller-fioreze', 'room-service', NULL, 'Cafe demo', 'Snapshot ficticio.', 900, 1, 900, NULL, '2026-07-04T00:00:00.000Z');",
-    "COMMIT;",
   );
   return `${lines.join("\n")}\n`;
 }
@@ -251,6 +267,14 @@ function rollbackFunctionalStateOk({ before, afterRollback, manifest }) {
 function availabilityAbsenceRestoredOk({ before, afterRollback, manifest }) {
   if (!manifest.before_state?.ids) return true;
   return afterRollback.before_state_availability_hash === before.before_state_availability_hash;
+}
+
+function explicitTransactionStatementsAbsentOk({ applySql, rollbackSql, manifest }) {
+  return (
+    manifest.guarantees?.explicit_transaction_statements_absent === true &&
+    !hasExplicitTransactionStatements(applySql) &&
+    !hasExplicitTransactionStatements(rollbackSql)
+  );
 }
 
 function selectCandidateCreatedAt(db, manifest) {
