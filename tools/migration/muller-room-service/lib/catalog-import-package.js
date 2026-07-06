@@ -1,8 +1,9 @@
 import crypto from "node:crypto";
+import { normalizeIsoUtcTimestamp } from "./generated-at.js";
 import { stableHash } from "./hash.js";
 import { insertOrUpdateSql, literalList, sqliteLiteral, updateSql } from "./sqlite-literals.js";
 
-export const IMPORT_PACKAGE_VERSION = "0.2.2";
+export const IMPORT_PACKAGE_VERSION = "0.2.3";
 
 export const EXPLICIT_TRANSACTION_STATEMENT_PATTERN = /^\s*(BEGIN(?:\s+TRANSACTION)?|COMMIT|END\s+TRANSACTION|ROLLBACK(?:\s+TO)?|SAVEPOINT|RELEASE)\b/im;
 
@@ -31,14 +32,24 @@ export function buildExecutableCatalogImportPackage({
   inputHashes = [],
   gitHead = null,
   archiveMissing = false,
-  generatedAt = new Date().toISOString(),
+  generatedAt = null,
+  generatedAtSource = null,
   baselineSnapshot = defaultDevelopmentCatalogSnapshot({ hotelId, moduleKey }),
   beforeState = null,
 } = {}) {
   if (!catalogData?.catalog) throw new Error("Catalogo normalizado obrigatorio.");
   if (moduleKey !== "room-service") throw new Error("Esta ferramenta prepara apenas o modulo room-service.");
+  const hasRealBeforeState = Boolean(beforeState?.snapshot);
+  const hasExplicitGeneratedAt = Boolean(generatedAt);
+  if (hasRealBeforeState && !hasExplicitGeneratedAt) {
+    throw new Error("generatedAt explicito e obrigatorio para pacote executavel com before-state real.");
+  }
+  const normalizedGeneratedAt = hasExplicitGeneratedAt ? normalizeIsoUtcTimestamp(generatedAt) : new Date().toISOString();
+  const normalizedGeneratedAtSource = generatedAtSource || (hasExplicitGeneratedAt ? "explicit-cli" : "automatic-local");
+  const generatedAtExplicit = normalizedGeneratedAtSource === "explicit-cli" && hasExplicitGeneratedAt;
+  const reproduciblePackage = generatedAtExplicit && hasRealBeforeState;
 
-  const candidate = buildCandidateRows({ catalogData, hotelId, moduleKey, generatedAt });
+  const candidate = buildCandidateRows({ catalogData, hotelId, moduleKey, generatedAt: normalizedGeneratedAt });
   const baseline = normalizeSnapshot(baselineSnapshot);
   const duplicateNameGroups = buildDuplicateNameGroups(candidate.items);
   const realBeforeState = beforeState?.snapshot ? normalizeSnapshot(beforeState.snapshot) : null;
@@ -47,13 +58,13 @@ export function buildExecutableCatalogImportPackage({
   const candidateItemIds = new Set(candidate.items.map((item) => item.id));
   const itemIdsToArchive = [...activeBaselineItemIds].filter((id) => !candidateItemIds.has(id));
 
-  const applySql = buildApplySql({ candidate, hotelId, moduleKey, generatedAt, archiveMissing });
-  const fixtureRollbackSql = buildRollbackSql({ candidate, baseline, hotelId, moduleKey, generatedAt, rollbackKind: "fixture" });
+  const applySql = buildApplySql({ candidate, hotelId, moduleKey, generatedAt: normalizedGeneratedAt, archiveMissing });
+  const fixtureRollbackSql = buildRollbackSql({ candidate, baseline, hotelId, moduleKey, generatedAt: normalizedGeneratedAt, rollbackKind: "fixture" });
   const remoteRollbackSql = realBeforeState
-    ? buildRollbackSql({ candidate, baseline: realBeforeState, hotelId, moduleKey, generatedAt, rollbackKind: "remote" })
+    ? buildRollbackSql({ candidate, baseline: realBeforeState, hotelId, moduleKey, generatedAt: normalizedGeneratedAt, rollbackKind: "remote" })
     : null;
   const snapshotQuerySql = buildSnapshotQuerySql({ hotelId, moduleKey });
-  const validation = buildStaticValidation({ candidate, baseline: archiveBaseline, itemIdsToArchive });
+  const validation = buildStaticValidation({ candidate, baseline: archiveBaseline, itemIdsToArchive, generatedAt: normalizedGeneratedAt });
   const beforeExpected = buildBeforeExpected({ baseline: archiveBaseline, hotelId, moduleKey, source: realBeforeState ? "snapshot-real-anterior" : "fixture-ficticia-local" });
   const afterExpected = buildAfterExpected({ candidate, baseline: archiveBaseline, itemIdsToArchive, hotelId, moduleKey });
   const manifest = buildManifest({
@@ -62,7 +73,10 @@ export function buildExecutableCatalogImportPackage({
     duplicateNameGroups,
     itemIdsToArchive,
     inputHashes,
-    generatedAt,
+    generatedAt: normalizedGeneratedAt,
+    generatedAtSource: normalizedGeneratedAtSource,
+    generatedAtExplicit,
+    reproduciblePackage,
     gitHead,
     applySql,
     fixtureRollbackSql,
@@ -594,12 +608,12 @@ function buildRollbackSql({ candidate, baseline, hotelId, moduleKey, generatedAt
   return `${lines.join("\n")}\n`;
 }
 
-function buildStaticValidation({ candidate, baseline, itemIdsToArchive }) {
+function buildStaticValidation({ candidate, baseline, itemIdsToArchive, generatedAt }) {
   const itemIds = candidate.items.map((item) => item.id);
   const categoryIds = new Set(candidate.categories.map((category) => category.id));
   const duplicatedItemIds = duplicateCount(itemIds);
   return {
-    generated_at: new Date().toISOString(),
+    generated_at: generatedAt,
     errors: [
       ...candidate.items.filter((item) => !categoryIds.has(item.category_id)).map((item) => ({ code: "missing_category", id: item.id })),
       ...(duplicatedItemIds ? [{ code: "duplicate_item_ids", count: duplicatedItemIds }] : []),
@@ -654,6 +668,9 @@ function buildManifest({
   itemIdsToArchive,
   inputHashes,
   generatedAt,
+  generatedAtSource,
+  generatedAtExplicit,
+  reproduciblePackage,
   gitHead,
   applySql,
   fixtureRollbackSql,
@@ -688,6 +705,11 @@ function buildManifest({
     generated_at: generatedAt,
     tool_version: IMPORT_PACKAGE_VERSION,
     git_head: gitHead,
+    generation: {
+      generated_at: generatedAt,
+      generated_at_source: generatedAtSource,
+      reproducible: reproduciblePackage,
+    },
     remote_apply_ready: false,
     remote_rollback_ready: false,
     rollback_source: hasRealBeforeState ? "real-before-state-snapshot" : "fixture-validation-only",
@@ -756,6 +778,8 @@ function buildManifest({
       d1_file_compatible: d1FileCompatible,
       explicit_transaction_statements_absent: explicitTransactionStatementsAbsent,
       local_atomic_validation: true,
+      reproducible_package: reproduciblePackage,
+      generated_at_explicit: generatedAtExplicit,
     },
   };
 }

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -23,6 +24,8 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 const execFileAsync = promisify(execFile);
 const requireForSqlJs = createRequire(import.meta.url);
 const remoteTransactionWords = /\b(BEGIN|COMMIT|ROLLBACK|SAVEPOINT|RELEASE)\b/i;
+const testGeneratedAt = "2026-07-05T12:00:00.000Z";
+const alternateGeneratedAt = "2026-07-05T13:00:00.000Z";
 
 test("le CSV ficticio e normaliza catalogo multi-hotel/modulo", async () => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "muller-tool-"));
@@ -163,7 +166,7 @@ test("SQL executavel trata injecao como dado, remove links externos e preserva a
     inputHashes: [{ file_name: "catalogo.csv", sha256: "hash-ficticio" }],
     gitHead: "HEAD_FICTICIO",
     archiveMissing: true,
-    generatedAt: "2026-07-05T12:00:00.000Z",
+    generatedAt: testGeneratedAt,
   });
 
   assert.match(importPackage.applySql, /DROP TABLE orders; --/);
@@ -178,6 +181,11 @@ test("SQL executavel trata injecao como dado, remove links externos e preserva a
   assert.equal(importPackage.manifest.guarantees.d1_file_compatible, true);
   assert.equal(importPackage.manifest.guarantees.explicit_transaction_statements_absent, true);
   assert.equal(importPackage.manifest.guarantees.local_atomic_validation, true);
+  assert.equal(importPackage.manifest.guarantees.generated_at_explicit, true);
+  assert.equal(importPackage.manifest.guarantees.reproducible_package, false);
+  assert.equal(importPackage.manifest.generation.generated_at, testGeneratedAt);
+  assert.equal(importPackage.manifest.generation.generated_at_source, "explicit-cli");
+  assert.equal(importPackage.manifest.generation.reproducible, false);
   assertNoRemoteTransactionText(importPackage.applySql);
   assertNoRemoteTransactionText(importPackage.fixtureRollbackSql);
 });
@@ -197,7 +205,7 @@ test("pacote executavel e idempotente, preserva created_at, arquiva ausentes e f
     inputHashes: [{ file_name: "catalogo.csv", sha256: "hash-ficticio" }],
     gitHead: "HEAD_FICTICIO",
     archiveMissing: true,
-    generatedAt: "2026-07-05T12:00:00.000Z",
+    generatedAt: testGeneratedAt,
   });
   const validation = await validateCatalogImportPackage({
     applySql: importPackage.applySql,
@@ -257,6 +265,10 @@ test("sem before-state gera fixture rollback e bloqueia apply/rollback remoto", 
   assert.equal(manifest.remote_apply_ready, false);
   assert.equal(manifest.remote_rollback_ready, false);
   assert.equal(manifest.rollback_source, "fixture-validation-only");
+  assert.equal(manifest.generation.generated_at_source, "automatic-local");
+  assert.equal(manifest.generation.reproducible, false);
+  assert.equal(manifest.guarantees.generated_at_explicit, false);
+  assert.equal(manifest.guarantees.reproducible_package, false);
 });
 
 test("CLI com before-state libera remoto somente apos validacao local completa", async () => {
@@ -276,27 +288,7 @@ test("CLI com before-state libera remoto somente apos validacao local completa",
   );
   const output = `local-output/muller/test-before-ready-${Date.now()}`;
 
-  await execFileAsync(
-    process.execPath,
-    [
-      "tools/migration/muller-room-service/generate-import.js",
-      "--spreadsheet",
-      csv,
-      "--hotel",
-      "muller-fioreze",
-      "--module",
-      "room-service",
-      "--output-format",
-      "executable-sql",
-      "--archive-missing",
-      "--before-state",
-      beforeStatePath,
-      "--output",
-      output,
-      "--dry-run",
-    ],
-    { cwd: repoRoot },
-  );
+  await runExecutableCli({ csv, beforeStatePath, output, generatedAt: "2026-07-05T12:00:00Z" });
 
   const outputDir = path.join(repoRoot, output);
   const manifest = JSON.parse(await fs.readFile(path.join(outputDir, "catalog.manifest.json"), "utf8"));
@@ -311,12 +303,128 @@ test("CLI com before-state libera remoto somente apos validacao local completa",
   assert.equal(manifest.validation_summary.explicit_transaction_statements_absent_ok, true);
   assert.equal(manifest.validation_summary.d1_file_compatible_ok, true);
   assert.equal(manifest.validation_summary.local_atomic_validation_ok, true);
+  assert.equal(manifest.validation_summary.generated_at_explicit_ok, true);
+  assert.equal(manifest.validation_summary.reproducible_package_ok, true);
   assert.equal(manifest.guarantees.d1_file_compatible, true);
   assert.equal(manifest.guarantees.explicit_transaction_statements_absent, true);
   assert.equal(manifest.guarantees.local_atomic_validation, true);
+  assert.equal(manifest.guarantees.generated_at_explicit, true);
+  assert.equal(manifest.guarantees.reproducible_package, true);
+  assert.deepEqual(manifest.generation, {
+    generated_at: testGeneratedAt,
+    generated_at_source: "explicit-cli",
+    reproducible: true,
+  });
   assert.equal(validation.local_database.ok, true);
-  assertNoRemoteTransactionText(await fs.readFile(path.join(outputDir, "catalog.apply.sql"), "utf8"));
-  assertNoRemoteTransactionText(await fs.readFile(path.join(outputDir, "catalog.rollback.sql"), "utf8"));
+  const applySql = await fs.readFile(path.join(outputDir, "catalog.apply.sql"), "utf8");
+  const rollbackSql = await fs.readFile(path.join(outputDir, "catalog.rollback.sql"), "utf8");
+  assert.match(applySql, new RegExp(testGeneratedAt.replaceAll(".", "\\.")));
+  assert.match(rollbackSql, new RegExp(testGeneratedAt.replaceAll(".", "\\.")));
+  assertNoRemoteTransactionText(applySql);
+  assertNoRemoteTransactionText(rollbackSql);
+});
+
+test("CLI com before-state exige generated-at explicito e rejeita data invalida", async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "muller-tool-generated-at-"));
+  const csv = path.join(dir, "catalogo.csv");
+  await fs.writeFile(csv, "Categoria;Produto;Preco\nBebidas;Suco Demo;R$ 12,50\n", "utf8");
+  const catalog = normalizeCatalog([await readTabularFile(csv)], {});
+  const beforeStatePath = path.join(dir, "before-state.json");
+  await fs.writeFile(beforeStatePath, JSON.stringify(validBeforeStateFromCatalog(catalog), null, 2), "utf8");
+
+  const missingOutput = `local-output/muller/test-missing-generated-at-${Date.now()}`;
+  await assert.rejects(
+    () => runExecutableCli({ csv, beforeStatePath, output: missingOutput, generatedAt: undefined }),
+    /generated-at/i,
+  );
+  assert.equal(await exists(path.join(repoRoot, missingOutput, "catalog.manifest.json")), false);
+
+  const invalidOutput = `local-output/muller/test-invalid-generated-at-${Date.now()}`;
+  await assert.rejects(
+    () => runExecutableCli({ csv, beforeStatePath, output: invalidOutput, generatedAt: "2026-02-30T12:00:00.000Z" }),
+    /data UTC informada nao existe|generated-at invalido/i,
+  );
+  assert.equal(await exists(path.join(repoRoot, invalidOutput, "catalog.manifest.json")), false);
+
+  const offsetOutput = `local-output/muller/test-offset-generated-at-${Date.now()}`;
+  await assert.rejects(
+    () => runExecutableCli({ csv, beforeStatePath, output: offsetOutput, generatedAt: "2026-07-05T09:00:00.000-03:00" }),
+    /UTC|offsets/i,
+  );
+  assert.equal(await exists(path.join(repoRoot, offsetOutput, "catalog.manifest.json")), false);
+});
+
+test("pacote com before-state e generated-at explicito e reproduzivel byte a byte", async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "muller-tool-repro-"));
+  const csv = path.join(dir, "catalogo.csv");
+  await fs.writeFile(
+    csv,
+    "Categoria;Produto;Descricao;Preco;Disponivel\nBebidas;Suco Demo;Novo texto;R$ 12,50;sim\nLanches;Novo Produto;Novo item;R$ 25,00;sim\n",
+    "utf8",
+  );
+  const catalog = normalizeCatalog([await readTabularFile(csv)], {});
+  const beforeStatePath = path.join(dir, "before-state.json");
+  await fs.writeFile(
+    beforeStatePath,
+    JSON.stringify(validBeforeStateFromCatalog(catalog, { includeFirstItemOnly: true }), null, 2),
+    "utf8",
+  );
+  const suffix = `${Date.now()}-${process.pid}`;
+  const outputA = `local-output/muller/test-repro-a-${suffix}`;
+  const outputB = `local-output/muller/test-repro-b-${suffix}`;
+
+  await runExecutableCli({ csv, beforeStatePath, output: outputA, generatedAt: testGeneratedAt });
+  await runExecutableCli({ csv, beforeStatePath, output: outputB, generatedAt: testGeneratedAt });
+
+  const files = ["catalog.apply.sql", "catalog.rollback.sql", "catalog.fixture-rollback.sql", "catalog.manifest.json"];
+  const hashes = {};
+  for (const file of files) {
+    const first = await fs.readFile(path.join(repoRoot, outputA, file));
+    const second = await fs.readFile(path.join(repoRoot, outputB, file));
+    assert.deepEqual(first, second, `${file} deve ser identico byte a byte`);
+    hashes[file] = sha256Buffer(first);
+  }
+
+  const manifest = JSON.parse(await fs.readFile(path.join(repoRoot, outputA, "catalog.manifest.json"), "utf8"));
+  assert.match(manifest.git_head, /^[0-9a-f]{40}$/);
+  assert.equal(manifest.remote_apply_ready, true);
+  assert.equal(manifest.remote_rollback_ready, true);
+  assert.equal(manifest.guarantees.reproducible_package, true);
+  assert.equal(manifest.guarantees.generated_at_explicit, true);
+  assert.equal(hashes["catalog.apply.sql"], manifest.sql_hashes.apply_sha256);
+  assert.equal(hashes["catalog.rollback.sql"], manifest.sql_hashes.rollback_sha256);
+  assert.equal(hashes["catalog.fixture-rollback.sql"], manifest.sql_hashes.fixture_rollback_sha256);
+  assert.match(await fs.readFile(path.join(repoRoot, outputA, "catalog.apply.sql"), "utf8"), new RegExp(testGeneratedAt.replaceAll(".", "\\.")));
+  assertNoRemoteTransactionText(await fs.readFile(path.join(repoRoot, outputA, "catalog.apply.sql"), "utf8"));
+  assertNoRemoteTransactionText(await fs.readFile(path.join(repoRoot, outputA, "catalog.rollback.sql"), "utf8"));
+});
+
+test("timestamps explicitos diferentes alteram hashes do pacote", async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "muller-tool-different-time-"));
+  const csv = path.join(dir, "catalogo.csv");
+  await fs.writeFile(csv, "Categoria;Produto;Preco\nBebidas;Suco Demo;R$ 12,50\nBebidas;Produto Novo;R$ 13,00\n", "utf8");
+  const catalog = normalizeCatalog([await readTabularFile(csv)], {});
+  const beforeState = validateBeforeStateSnapshot(validBeforeStateFromCatalog(catalog, { includeFirstItemOnly: true }), {});
+  const first = buildExecutableCatalogImportPackage({
+    catalogData: catalog,
+    beforeState,
+    archiveMissing: true,
+    generatedAt: testGeneratedAt,
+    generatedAtSource: "explicit-cli",
+    gitHead: "HEAD_FICTICIO",
+  });
+  const second = buildExecutableCatalogImportPackage({
+    catalogData: catalog,
+    beforeState,
+    archiveMissing: true,
+    generatedAt: alternateGeneratedAt,
+    generatedAtSource: "explicit-cli",
+    gitHead: "HEAD_FICTICIO",
+  });
+
+  assert.notEqual(sha256Text(first.applySql), sha256Text(second.applySql));
+  assert.notEqual(sha256Text(first.remoteRollbackSql), sha256Text(second.remoteRollbackSql));
+  assert.notEqual(sha256Text(JSON.stringify(first.manifest, null, 2)), sha256Text(JSON.stringify(second.manifest, null, 2)));
 });
 
 test("before-state valido gera rollback remoto e valida restauracao real", async () => {
@@ -334,7 +442,8 @@ test("before-state valido gera rollback remoto e valida restauracao real", async
     catalogData: catalog,
     beforeState: validated,
     archiveMissing: true,
-    generatedAt: "2026-07-05T12:00:00.000Z",
+    generatedAt: testGeneratedAt,
+    generatedAtSource: "explicit-cli",
   });
 
   assert.equal(Boolean(importPackage.remoteRollbackSql), true);
@@ -342,6 +451,8 @@ test("before-state valido gera rollback remoto e valida restauracao real", async
   assert.equal(importPackage.manifest.remote_rollback_ready, false);
   assert.equal(importPackage.manifest.rollback_source, "real-before-state-snapshot");
   assert.equal(importPackage.manifest.before_state.sha256, validated.sha256);
+  assert.equal(importPackage.manifest.guarantees.reproducible_package, true);
+  assert.equal(importPackage.manifest.guarantees.generated_at_explicit, true);
   assert.match(importPackage.remoteRollbackSql, /Suco antigo/);
   assert.match(importPackage.remoteRollbackSql, /Item importado arquivado pela reversao/);
   assert.equal(hasExplicitTransactionStatements(importPackage.applySql), false);
@@ -386,7 +497,8 @@ test("rollback remoto remove disponibilidade criada para item antigo que nao tin
     catalogData: catalog,
     beforeState,
     archiveMissing: true,
-    generatedAt: "2026-07-05T12:00:00.000Z",
+    generatedAt: testGeneratedAt,
+    generatedAtSource: "explicit-cli",
   });
 
   assert.match(importPackage.remoteRollbackSql, /DELETE FROM catalog_item_availability/);
@@ -454,6 +566,36 @@ test("IDs permanecem estaveis e .gitignore bloqueia entradas e saidas reais", as
   assert.match(gitignore, /^local-input\/$/m);
   assert.match(gitignore, /^local-output\/$/m);
 });
+
+async function runExecutableCli({ csv, beforeStatePath, output, generatedAt }) {
+  const command = [
+    "tools/migration/muller-room-service/generate-import.js",
+    "--spreadsheet",
+    csv,
+    "--hotel",
+    "muller-fioreze",
+    "--module",
+    "room-service",
+    "--output-format",
+    "executable-sql",
+    "--archive-missing",
+    "--before-state",
+    beforeStatePath,
+    "--output",
+    output,
+    "--dry-run",
+  ];
+  if (generatedAt !== undefined) command.push(`--generated-at=${generatedAt}`);
+  await execFileAsync(process.execPath, command, { cwd: repoRoot });
+}
+
+function sha256Buffer(buffer) {
+  return crypto.createHash("sha256").update(buffer).digest("hex");
+}
+
+function sha256Text(value) {
+  return crypto.createHash("sha256").update(value).digest("hex");
+}
 
 async function exists(filePath) {
   try {

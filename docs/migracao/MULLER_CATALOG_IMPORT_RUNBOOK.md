@@ -24,6 +24,8 @@ node tools/migration/muller-room-service/generate-import.js \
 
 O pacote sem snapshot anterior real serve para revisao e validacao local. Ele nao libera aplicacao remota.
 
+Quando o pacote for destinado a uma aplicacao remota futura, a geracao com `--before-state` deve incluir tambem `--generated-at=<ISO-8601 UTC>`. Sem esse valor explicito, a ferramenta interrompe a geracao remota-ready para evitar hashes nao reprodutiveis.
+
 ## 2. Revisao
 
 Revisar estes arquivos locais, sem versiona-los:
@@ -44,6 +46,9 @@ Conferir obrigatoriamente:
 - `module_key=room-service`;
 - hashes dos arquivos de entrada;
 - HEAD do Git;
+- `generation.generated_at`;
+- `generation.generated_at_source`;
+- `generation.reproducible`;
 - quantidade de categorias;
 - quantidade de produtos;
 - produtos disponiveis e indisponiveis;
@@ -76,10 +81,13 @@ Antes de qualquer aplicacao remota futura:
 4. Obter snapshot ou exportacao aprovada do estado anterior em tarefa futura explicitamente autorizada.
 5. Guardar o snapshot em local seguro fora do Git.
 6. Gerar novamente o pacote com `--before-state`.
-7. Conferir `remote_apply_ready=true` e `remote_rollback_ready=true`.
-8. Conferir que `catalog.rollback.sql` foi gerado a partir do snapshot real antes do apply.
-9. Conferir que a validacao local marcou `availability_absence_restored_ok=true` e `rollback_functional_state_ok=true`.
-10. Conferir que a validacao local marcou `explicit_transaction_statements_absent_ok=true`, `d1_file_compatible_ok=true` e `local_atomic_validation_ok=true`.
+7. Usar `--generated-at=<ISO-8601 UTC>` explicito e registrar esse valor junto dos hashes revisados.
+8. Conferir `remote_apply_ready=true` e `remote_rollback_ready=true`.
+9. Conferir que `catalog.rollback.sql` foi gerado a partir do snapshot real antes do apply.
+10. Conferir que a validacao local marcou `availability_absence_restored_ok=true` e `rollback_functional_state_ok=true`.
+11. Conferir que a validacao local marcou `explicit_transaction_statements_absent_ok=true`, `d1_file_compatible_ok=true`, `local_atomic_validation_ok=true`, `generated_at_explicit_ok=true` e `reproducible_package_ok=true`.
+
+Os hashes de `catalog.apply.sql`, `catalog.rollback.sql`, `catalog.fixture-rollback.sql` e `catalog.manifest.json` so devem ser considerados reproduziveis quando commit Git, entradas, before-state, hotel, modulo, opcoes de geracao e `--generated-at` forem identicos.
 
 ## 4. Aplicacao Remota Futura
 
@@ -143,6 +151,8 @@ Parar antes de qualquer escrita se ocorrer qualquer uma destas condicoes:
 - manifest com `hotel_id` ou `module_key` incorretos;
 - `remote_apply_ready=false`;
 - `remote_rollback_ready=false`;
+- `generation.reproducible=false`;
+- `generated_at_explicit=false` ou `reproducible_package=false`;
 - `rollback_source` diferente de `real-before-state-snapshot` para aplicacao remota;
 - ausencia de `catalog.rollback.sql` antes da escrita remota;
 - SQL contendo `DELETE` em tabelas de catalogo;
