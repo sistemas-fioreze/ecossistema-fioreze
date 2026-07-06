@@ -3,13 +3,15 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import initSqlJs from "sql.js";
 import { BEFORE_STATE_FORMAT_VERSION, validateBeforeStateSnapshot } from "../lib/before-state.js";
 import { normalizeCatalog } from "../lib/catalog.js";
-import { buildExecutableCatalogImportPackage } from "../lib/catalog-import-package.js";
-import { validateCatalogImportPackage } from "../lib/catalog-import-validation.js";
+import { buildExecutableCatalogImportPackage, hasExplicitTransactionStatements } from "../lib/catalog-import-package.js";
+import { runSqlAtomically, validateCatalogImportPackage } from "../lib/catalog-import-validation.js";
 import { auditData } from "../lib/data-quality.js";
 import { buildImportPlan } from "../lib/import-plan.js";
 import { normalizeMoneyToCents, normalizeBoolean, normalizeDateToIso } from "../lib/normalize.js";
@@ -19,6 +21,8 @@ import { readTabularFile } from "../lib/spreadsheet.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
 const execFileAsync = promisify(execFile);
+const requireForSqlJs = createRequire(import.meta.url);
+const remoteTransactionWords = /\b(BEGIN|COMMIT|ROLLBACK|SAVEPOINT|RELEASE)\b/i;
 
 test("le CSV ficticio e normaliza catalogo multi-hotel/modulo", async () => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "muller-tool-"));
@@ -113,6 +117,31 @@ test("serializador SQLite escapa texto, JSON, Unicode e bloqueia NUL", () => {
   assert.throws(() => sqliteLiteral(12.5), /inteiros/);
 });
 
+test("runSqlAtomically reverte alteracao parcial quando uma instrucao falha", async () => {
+  const SQL = await initSqlJs({ locateFile: (file) => requireForSqlJs.resolve(`sql.js/dist/${file}`) });
+  const db = new SQL.Database();
+  db.run("CREATE TABLE demo (id TEXT PRIMARY KEY, value TEXT);");
+  db.run("INSERT INTO demo (id, value) VALUES ('a', 'inicial');");
+
+  assert.throws(
+    () => runSqlAtomically(
+      db,
+      [
+        "UPDATE demo SET value='alterado' WHERE id='a';",
+        "INSERT INTO tabela_inexistente (id) VALUES ('quebra');",
+        "UPDATE demo SET value='nunca' WHERE id='a';",
+      ].join("\n"),
+    ),
+    /no such table|tabela_inexistente/i,
+  );
+
+  const statement = db.prepare("SELECT value FROM demo WHERE id='a'");
+  assert.equal(statement.step(), true);
+  assert.equal(statement.getAsObject().value, "inicial");
+  statement.free();
+  db.close();
+});
+
 test("SQL executavel trata injecao como dado, remove links externos e preserva assets locais", async () => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "muller-tool-exec-"));
   const csv = path.join(dir, "catalogo.csv");
@@ -146,6 +175,11 @@ test("SQL executavel trata injecao como dado, remove links externos e preserva a
   assert.equal(importPackage.manifest.counts.duplicate_name_groups, 1);
   assert.equal(importPackage.manifest.counts.records_to_archive, 3);
   assert.equal(importPackage.manifest.guarantees.orders_untouched, true);
+  assert.equal(importPackage.manifest.guarantees.d1_file_compatible, true);
+  assert.equal(importPackage.manifest.guarantees.explicit_transaction_statements_absent, true);
+  assert.equal(importPackage.manifest.guarantees.local_atomic_validation, true);
+  assertNoRemoteTransactionText(importPackage.applySql);
+  assertNoRemoteTransactionText(importPackage.fixtureRollbackSql);
 });
 
 test("pacote executavel e idempotente, preserva created_at, arquiva ausentes e faz rollback logico", async () => {
@@ -184,6 +218,9 @@ test("pacote executavel e idempotente, preserva created_at, arquiva ausentes e f
   assert.equal(validation.checks.orders_untouched_ok, true);
   assert.equal(validation.checks.order_items_untouched_ok, true);
   assert.equal(validation.checks.rollback_functional_state_ok, true);
+  assert.equal(validation.checks.explicit_transaction_statements_absent_ok, true);
+  assert.equal(validation.checks.d1_file_compatible_ok, true);
+  assert.equal(validation.checks.local_atomic_validation_ok, true);
 });
 
 test("sem before-state gera fixture rollback e bloqueia apply/rollback remoto", async () => {
@@ -271,7 +308,15 @@ test("CLI com before-state libera remoto somente apos validacao local completa",
   assert.equal(manifest.validation_summary.local_database_ok, true);
   assert.equal(manifest.validation_summary.availability_absence_restored_ok, true);
   assert.equal(manifest.validation_summary.rollback_functional_state_ok, true);
+  assert.equal(manifest.validation_summary.explicit_transaction_statements_absent_ok, true);
+  assert.equal(manifest.validation_summary.d1_file_compatible_ok, true);
+  assert.equal(manifest.validation_summary.local_atomic_validation_ok, true);
+  assert.equal(manifest.guarantees.d1_file_compatible, true);
+  assert.equal(manifest.guarantees.explicit_transaction_statements_absent, true);
+  assert.equal(manifest.guarantees.local_atomic_validation, true);
   assert.equal(validation.local_database.ok, true);
+  assertNoRemoteTransactionText(await fs.readFile(path.join(outputDir, "catalog.apply.sql"), "utf8"));
+  assertNoRemoteTransactionText(await fs.readFile(path.join(outputDir, "catalog.rollback.sql"), "utf8"));
 });
 
 test("before-state valido gera rollback remoto e valida restauracao real", async () => {
@@ -298,7 +343,11 @@ test("before-state valido gera rollback remoto e valida restauracao real", async
   assert.equal(importPackage.manifest.rollback_source, "real-before-state-snapshot");
   assert.equal(importPackage.manifest.before_state.sha256, validated.sha256);
   assert.match(importPackage.remoteRollbackSql, /Suco antigo/);
-  assert.match(importPackage.remoteRollbackSql, /Rollback: item importado arquivado/);
+  assert.match(importPackage.remoteRollbackSql, /Item importado arquivado pela reversao/);
+  assert.equal(hasExplicitTransactionStatements(importPackage.applySql), false);
+  assert.equal(hasExplicitTransactionStatements(importPackage.remoteRollbackSql), false);
+  assertNoRemoteTransactionText(importPackage.applySql);
+  assertNoRemoteTransactionText(importPackage.remoteRollbackSql);
 
   const validation = await validateCatalogImportPackage({
     applySql: importPackage.applySql,
@@ -311,6 +360,9 @@ test("before-state valido gera rollback remoto e valida restauracao real", async
   assert.equal(validation.ok, true);
   assert.equal(validation.checks.availability_absence_restored_ok, true);
   assert.equal(validation.checks.rollback_functional_state_ok, true);
+  assert.equal(validation.checks.explicit_transaction_statements_absent_ok, true);
+  assert.equal(validation.checks.d1_file_compatible_ok, true);
+  assert.equal(validation.checks.local_atomic_validation_ok, true);
   assert.equal(validation.before.before_state_hash, validation.after_rollback.before_state_hash);
   assert.equal(validation.after_rollback.new_imported_active_products, 0);
 });
@@ -340,6 +392,8 @@ test("rollback remoto remove disponibilidade criada para item antigo que nao tin
   assert.match(importPackage.remoteRollbackSql, /DELETE FROM catalog_item_availability/);
   assert.match(importPackage.remoteRollbackSql, /hotel_id='muller-fioreze'/);
   assert.match(importPackage.remoteRollbackSql, /module_key='room-service'/);
+  assertNoRemoteTransactionText(importPackage.applySql);
+  assertNoRemoteTransactionText(importPackage.remoteRollbackSql);
   assert.doesNotMatch(importPackage.remoteRollbackSql, /DELETE FROM catalog_items/);
   assert.doesNotMatch(importPackage.remoteRollbackSql, /DELETE FROM catalogs/);
   assert.doesNotMatch(importPackage.remoteRollbackSql, /DELETE FROM categories/);
@@ -595,6 +649,11 @@ function beforeStateWithMissingAvailability(catalog) {
       ],
     },
   };
+}
+
+function assertNoRemoteTransactionText(sql) {
+  assert.equal(hasExplicitTransactionStatements(sql), false);
+  assert.equal(remoteTransactionWords.test(sql), false);
 }
 
 function createMinimalXlsx() {

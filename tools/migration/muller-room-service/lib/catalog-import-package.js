@@ -2,7 +2,9 @@ import crypto from "node:crypto";
 import { stableHash } from "./hash.js";
 import { insertOrUpdateSql, literalList, sqliteLiteral, updateSql } from "./sqlite-literals.js";
 
-export const IMPORT_PACKAGE_VERSION = "0.2.1";
+export const IMPORT_PACKAGE_VERSION = "0.2.2";
+
+export const EXPLICIT_TRANSACTION_STATEMENT_PATTERN = /^\s*(BEGIN(?:\s+TRANSACTION)?|COMMIT|END\s+TRANSACTION|ROLLBACK(?:\s+TO)?|SAVEPOINT|RELEASE)\b/im;
 
 export const AFFECTED_TABLES = ["catalogs", "categories", "catalog_items", "catalog_item_availability"];
 
@@ -17,6 +19,10 @@ export const PROHIBITED_TABLES = [
   "rooms",
   "hotel_settings",
 ];
+
+export function hasExplicitTransactionStatements(sql) {
+  return EXPLICIT_TRANSACTION_STATEMENT_PATTERN.test(sql);
+}
 
 export function buildExecutableCatalogImportPackage({
   catalogData,
@@ -309,7 +315,6 @@ function buildApplySql({ candidate, hotelId, moduleKey, generatedAt, archiveMiss
     "-- Catalog import apply SQL generated locally. Review before remote use.",
     "-- Scope: hotel_id=muller-fioreze, module_key=room-service.",
     "PRAGMA foreign_keys = ON;",
-    "BEGIN TRANSACTION;",
     insertOrUpdateSql(
       "catalogs",
       ["id", "hotel_id", "module_key", "name", "description", "status", "sort_order", "created_at", "updated_at", "archived_at"],
@@ -418,7 +423,6 @@ function buildApplySql({ candidate, hotelId, moduleKey, generatedAt, archiveMiss
     );
   }
 
-  lines.push("COMMIT;");
   return `${lines.join("\n")}\n`;
 }
 
@@ -447,13 +451,12 @@ function buildRollbackSql({ candidate, baseline, hotelId, moduleKey, generatedAt
   const baselineAvailabilityItemIds = new Set(baseline.availability.map((entry) => entry.catalog_item_id));
   const baselineItemsWithoutAvailabilityIds = baseline.items.map((item) => item.id).filter((id) => !baselineAvailabilityItemIds.has(id));
   const firstComment = rollbackKind === "fixture"
-    ? "-- Fixture rollback SQL for temporary SQLite validation only. Do not use on remote D1."
-    : "-- Remote rollback SQL generated from real before-state snapshot. Review before remote use.";
+    ? "-- Fixture undo SQL for temporary SQLite validation only. Do not use on remote D1."
+    : "-- Remote undo SQL generated with approved before-state snapshot. Review before remote use.";
   const lines = [
     firstComment,
-    "-- Logical rollback only; no order or order_items records are deleted.",
+    "-- Logical undo only; no order or order_items records are deleted.",
     "PRAGMA foreign_keys = ON;",
-    "BEGIN TRANSACTION;",
   ];
 
   for (const catalog of baseline.catalogs) {
@@ -582,13 +585,12 @@ function buildRollbackSql({ candidate, baseline, hotelId, moduleKey, generatedAt
       ),
       updateSql(
         "catalog_item_availability",
-        { is_available: 0, availability_label: "Rollback: item importado arquivado", updated_at: generatedAt },
+        { is_available: 0, availability_label: "Item importado arquivado pela reversao", updated_at: generatedAt },
         `hotel_id=${sqliteLiteral(hotelId)} AND catalog_item_id IN ${literalList(newItemIds)}`,
       ),
     );
   }
 
-  lines.push("COMMIT;");
   return `${lines.join("\n")}\n`;
 }
 
@@ -675,6 +677,10 @@ function buildManifest({
     candidate.categories.filter((category) => baselineCategoryIds.has(category.id)).length +
     candidate.items.filter((item) => baselineItemIds.has(item.id)).length +
     candidate.availability.filter((entry) => baselineItemIds.has(entry.catalog_item_id)).length;
+  const explicitTransactionStatementsAbsent = [applySql, fixtureRollbackSql, remoteRollbackSql]
+    .filter(Boolean)
+    .every((sql) => !hasExplicitTransactionStatements(sql));
+  const d1FileCompatible = explicitTransactionStatementsAbsent;
 
   return {
     hotel_id: candidate.hotel_id,
@@ -747,6 +753,9 @@ function buildManifest({
       aurora_demo_untouched: true,
       external_images_redacted: true,
       availability_absence_restored: Boolean(remoteRollbackSql),
+      d1_file_compatible: d1FileCompatible,
+      explicit_transaction_statements_absent: explicitTransactionStatementsAbsent,
+      local_atomic_validation: true,
     },
   };
 }

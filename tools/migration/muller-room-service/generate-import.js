@@ -65,13 +65,19 @@ if (outputFormat === "executable-sql") {
     Boolean(importPackage.remoteRollbackSql) &&
     localDatabaseValidation.ok &&
     localDatabaseValidation.checks.availability_absence_restored_ok === true &&
-    localDatabaseValidation.checks.rollback_functional_state_ok === true;
+    localDatabaseValidation.checks.rollback_functional_state_ok === true &&
+    localDatabaseValidation.checks.explicit_transaction_statements_absent_ok === true &&
+    localDatabaseValidation.checks.d1_file_compatible_ok === true &&
+    localDatabaseValidation.checks.local_atomic_validation_ok === true;
   importPackage.manifest.remote_apply_ready = remoteReady;
   importPackage.manifest.remote_rollback_ready = remoteReady;
   importPackage.manifest.validation_summary = {
     local_database_ok: localDatabaseValidation.ok,
     availability_absence_restored_ok: localDatabaseValidation.checks.availability_absence_restored_ok,
     rollback_functional_state_ok: localDatabaseValidation.checks.rollback_functional_state_ok,
+    explicit_transaction_statements_absent_ok: localDatabaseValidation.checks.explicit_transaction_statements_absent_ok,
+    d1_file_compatible_ok: localDatabaseValidation.checks.d1_file_compatible_ok,
+    local_atomic_validation_ok: localDatabaseValidation.checks.local_atomic_validation_ok,
   };
 
   const validation = {

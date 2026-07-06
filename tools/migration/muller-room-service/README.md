@@ -120,6 +120,8 @@ O dry-run gera SQL com placeholders (`?`) e parametros separados. A ferramenta n
 
 O modo `--output-format executable-sql` gera SQL SQLite revisavel para uma etapa futura. Ele usa apenas tabelas e colunas internas permitidas, serializa literais SQLite com escape de aspas, valida JSON, bloqueia caracteres NUL e trata formulas ou texto parecido com SQL como dados comuns. Nomes de tabela e coluna nunca vem da planilha.
 
+`catalog.apply.sql` e `catalog.rollback.sql` sao gerados para uso com `wrangler d1 execute --remote --file`. O Wrangler/D1 rejeita arquivos desse fluxo quando eles incluem `BEGIN TRANSACTION`, `SAVEPOINT` ou controles equivalentes, portanto os arquivos remotos nao contem comandos explicitos de transacao. Nao remova esses comandos manualmente de arquivos antigos: regenere sempre o pacote pela ferramenta.
+
 ### Idempotencia
 
 O `catalog.apply.sql` usa `INSERT ... ON CONFLICT ... DO UPDATE` e preserva `created_at` em registros existentes. Ele atualiza apenas campos permitidos de catalogo, categorias, produtos e disponibilidade. Com `--archive-missing`, itens ativos antigos do escopo `hotel_id=muller-fioreze` e `module_key=room-service` que nao estejam no catalogo importado sao arquivados logicamente, sem `DELETE`.
@@ -137,7 +139,7 @@ O rollback remoto nao apaga pedidos, nao altera `orders`, nao altera `order_item
 
 ### Validacao local
 
-O gerador cria um SQLite temporario em `local-output/muller/catalog-import/catalog-validation.sqlite`, aplica as migrations atuais, carrega uma fixture ficticia quando nao ha snapshot real, executa o apply, executa o apply novamente e depois executa o rollback adequado para o modo. O resultado resumido fica em `catalog.validation.json`.
+O gerador cria um SQLite temporario em `local-output/muller/catalog-import/catalog-validation.sqlite`, aplica as migrations atuais, carrega uma fixture ficticia quando nao ha snapshot real, executa o apply, executa o apply novamente e depois executa o rollback adequado para o modo. Mesmo sem comandos de transacao dentro dos arquivos remotos, a validacao local continua atomica via helper interno `runSqlAtomically(db, sql)`, que abre a transacao no sql.js, executa o SQL, confirma se tudo passar e desfaz se qualquer instrucao falhar. O resultado resumido fica em `catalog.validation.json`.
 
 Verificacoes feitas:
 
@@ -148,10 +150,13 @@ Verificacoes feitas:
 - Aurora intacto;
 - `orders` e `order_items` intactos;
 - restauracao da ausencia de disponibilidade para todos os `item_ids` do `--before-state`;
+- ausencia de comandos explicitos de transacao em `catalog.apply.sql` e `catalog.rollback.sql`;
+- compatibilidade do arquivo SQL com o fluxo `wrangler d1 execute --remote --file`;
+- validacao local atomica por sql.js;
 - rollback funcional para o estado ficticio inicial, quando sem `--before-state`;
 - rollback baseado no snapshot anterior validado, quando com `--before-state`.
 
-`remote_apply_ready=true` e `remote_rollback_ready=true` so podem aparecer quando ha `--before-state` valido, `catalog.rollback.sql` remoto real, validacao local aprovada, `availability_absence_restored_ok=true` e `rollback_functional_state_ok=true`.
+`remote_apply_ready=true` e `remote_rollback_ready=true` so podem aparecer quando ha `--before-state` valido, `catalog.rollback.sql` remoto real, validacao local aprovada, `availability_absence_restored_ok=true`, `rollback_functional_state_ok=true`, `explicit_transaction_statements_absent_ok=true`, `d1_file_compatible_ok=true` e `local_atomic_validation_ok=true`.
 
 ### Snapshot anterior
 
