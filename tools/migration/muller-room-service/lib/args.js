@@ -1,12 +1,18 @@
 export function parseArgs(argv = process.argv.slice(2)) {
   const args = {};
   for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-    if (!token.startsWith("--")) {
-      pushArg(args, "_", token);
+    const argument = argv[index];
+    if (!argument.startsWith("--")) {
+      pushArg(args, "_", argument);
       continue;
     }
-    const key = token.slice(2);
+    const rawKey = argument.slice(2);
+    const equalsIndex = rawKey.indexOf("=");
+    if (equalsIndex !== -1) {
+      pushArg(args, rawKey.slice(0, equalsIndex), rawKey.slice(equalsIndex + 1));
+      continue;
+    }
+    const key = rawKey;
     const next = argv[index + 1];
     if (!next || next.startsWith("--")) {
       args[key] = true;

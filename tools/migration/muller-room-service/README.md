@@ -82,10 +82,13 @@ node tools/migration/muller-room-service/generate-import.js \
   --output-format executable-sql \
   --archive-missing \
   --before-state local-input/muller/d1-before-state.json \
+  --generated-at=2026-07-06T20:00:00.000Z \
   --dry-run
 ```
 
 O arquivo `--before-state` deve conter somente o estado anterior das tabelas `catalogs`, `categories`, `catalog_items` e `catalog_item_availability`, limitado a `hotel_id=muller-fioreze` e `module_key=room-service`. Snapshots com pedidos, usuarios, sessoes, impressao, outros hoteis, outros modulos, URLs externas, dados pessoais ou segredos sao rejeitados.
+
+Pacotes destinados a uma aplicacao remota futura precisam usar `--generated-at=<ISO-8601 UTC>` junto com `--before-state`. O valor deve representar UTC, e a ferramenta normaliza para `toISOString()`. Sem timestamp explicito, o modo local sem snapshot continua permitido para revisao, mas o manifesto marca `generation.generated_at_source=automatic-local`, `generation.reproducible=false`, `generated_at_explicit=false`, `reproducible_package=false`, `remote_apply_ready=false` e `remote_rollback_ready=false`.
 
 ## Saidas locais
 
@@ -122,6 +125,19 @@ O modo `--output-format executable-sql` gera SQL SQLite revisavel para uma etapa
 
 `catalog.apply.sql` e `catalog.rollback.sql` sao gerados para uso com `wrangler d1 execute --remote --file`. O Wrangler/D1 rejeita arquivos desse fluxo quando eles incluem `BEGIN TRANSACTION`, `SAVEPOINT` ou controles equivalentes, portanto os arquivos remotos nao contem comandos explicitos de transacao. Nao remova esses comandos manualmente de arquivos antigos: regenere sempre o pacote pela ferramenta.
 
+### Reprodutibilidade
+
+Os hashes do pacote executavel sao reproduziveis somente quando estes fatores sao identicos:
+
+- commit Git (`git_head`);
+- arquivos de origem e seus hashes;
+- `--before-state`;
+- `hotel_id` e `module_key`;
+- opcoes de geracao, como `--archive-missing`;
+- valor explicito de `--generated-at`.
+
+O manifesto preserva `generated_at` e `git_head` e tambem inclui `generation.generated_at`, `generation.generated_at_source` e `generation.reproducible`. As garantias `generated_at_explicit=true` e `reproducible_package=true` so aparecem juntas quando o timestamp veio da CLI e existe snapshot real anterior validado.
+
 ### Idempotencia
 
 O `catalog.apply.sql` usa `INSERT ... ON CONFLICT ... DO UPDATE` e preserva `created_at` em registros existentes. Ele atualiza apenas campos permitidos de catalogo, categorias, produtos e disponibilidade. Com `--archive-missing`, itens ativos antigos do escopo `hotel_id=muller-fioreze` e `module_key=room-service` que nao estejam no catalogo importado sao arquivados logicamente, sem `DELETE`.
@@ -156,7 +172,7 @@ Verificacoes feitas:
 - rollback funcional para o estado ficticio inicial, quando sem `--before-state`;
 - rollback baseado no snapshot anterior validado, quando com `--before-state`.
 
-`remote_apply_ready=true` e `remote_rollback_ready=true` so podem aparecer quando ha `--before-state` valido, `catalog.rollback.sql` remoto real, validacao local aprovada, `availability_absence_restored_ok=true`, `rollback_functional_state_ok=true`, `explicit_transaction_statements_absent_ok=true`, `d1_file_compatible_ok=true` e `local_atomic_validation_ok=true`.
+`remote_apply_ready=true` e `remote_rollback_ready=true` so podem aparecer quando ha `--before-state` valido, `catalog.rollback.sql` remoto real, validacao local aprovada, `availability_absence_restored_ok=true`, `rollback_functional_state_ok=true`, `explicit_transaction_statements_absent_ok=true`, `d1_file_compatible_ok=true`, `local_atomic_validation_ok=true`, `generated_at_explicit=true` e `reproducible_package=true`.
 
 ### Snapshot anterior
 

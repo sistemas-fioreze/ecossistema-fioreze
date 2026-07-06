@@ -9,6 +9,7 @@ import { normalizeCatalog } from "./lib/catalog.js";
 import { buildExecutableCatalogImportPackage } from "./lib/catalog-import-package.js";
 import { validateCatalogImportPackage } from "./lib/catalog-import-validation.js";
 import { auditData } from "./lib/data-quality.js";
+import { normalizeGeneratedAtArg } from "./lib/generated-at.js";
 import { fileSha256 } from "./lib/hash.js";
 import { buildImportPlan } from "./lib/import-plan.js";
 import { normalizeOrders } from "./lib/orders.js";
@@ -25,7 +26,11 @@ const hotelId = stringArg(args.hotel, "muller-fioreze");
 const moduleKey = stringArg(args.module, "room-service");
 const outputFormat = stringArg(args["output-format"], "parameterized-preview");
 const defaultOutputDir = outputFormat === "executable-sql" ? "local-output/muller/catalog-import" : "local-output/muller";
-const outputDir = await ensureOutputDir(stringArg(args.output, defaultOutputDir));
+const outputDirArg = stringArg(args.output, defaultOutputDir);
+const beforeStatePath = stringArg(args["before-state"], "");
+const generatedAtOption = normalizeGeneratedAtArg(args["generated-at"], {
+  required: outputFormat === "executable-sql" && Boolean(beforeStatePath),
+});
 const workbooks = [];
 const inputHashes = [];
 for (const spreadsheet of spreadsheets) {
@@ -36,10 +41,10 @@ for (const spreadsheet of spreadsheets) {
 const catalogData = normalizeCatalog(workbooks, { hotelId, moduleKey });
 const orderData = normalizeOrders(workbooks, { hotelId, moduleKey });
 const audit = auditData({ workbooks, catalogData, orderData });
+const outputDir = await ensureOutputDir(outputDirArg);
 
 if (outputFormat === "executable-sql") {
   const repoRoot = await findRepoRoot(process.cwd());
-  const beforeStatePath = stringArg(args["before-state"], "");
   const beforeState = beforeStatePath
     ? await readBeforeStateSnapshot(beforeStatePath, { hotelId, moduleKey })
     : null;
@@ -50,6 +55,8 @@ if (outputFormat === "executable-sql") {
     inputHashes,
     gitHead: await getGitHead(repoRoot),
     archiveMissing: Boolean(args["archive-missing"]),
+    generatedAt: generatedAtOption.generatedAt,
+    generatedAtSource: generatedAtOption.generatedAtSource,
     beforeState,
   });
   const localDatabaseValidation = await validateCatalogImportPackage({
@@ -68,7 +75,9 @@ if (outputFormat === "executable-sql") {
     localDatabaseValidation.checks.rollback_functional_state_ok === true &&
     localDatabaseValidation.checks.explicit_transaction_statements_absent_ok === true &&
     localDatabaseValidation.checks.d1_file_compatible_ok === true &&
-    localDatabaseValidation.checks.local_atomic_validation_ok === true;
+    localDatabaseValidation.checks.local_atomic_validation_ok === true &&
+    importPackage.manifest.guarantees.generated_at_explicit === true &&
+    importPackage.manifest.guarantees.reproducible_package === true;
   importPackage.manifest.remote_apply_ready = remoteReady;
   importPackage.manifest.remote_rollback_ready = remoteReady;
   importPackage.manifest.validation_summary = {
@@ -78,6 +87,8 @@ if (outputFormat === "executable-sql") {
     explicit_transaction_statements_absent_ok: localDatabaseValidation.checks.explicit_transaction_statements_absent_ok,
     d1_file_compatible_ok: localDatabaseValidation.checks.d1_file_compatible_ok,
     local_atomic_validation_ok: localDatabaseValidation.checks.local_atomic_validation_ok,
+    generated_at_explicit_ok: importPackage.manifest.guarantees.generated_at_explicit === true,
+    reproducible_package_ok: importPackage.manifest.guarantees.reproducible_package === true,
   };
 
   const validation = {
