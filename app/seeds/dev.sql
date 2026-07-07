@@ -125,7 +125,7 @@ INSERT OR IGNORE INTO admin_permissions (id, permission_key, module_key, descrip
   ('perm-room-service-orders-write', 'room-service.orders.write', 'room-service', 'Permite atualizar status de pedidos ficticios de Room Service.', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z');
 
 INSERT INTO admin_users (id, display_name, email, password_hash, password_strategy, status, force_password_change, created_at, updated_at) VALUES
-  ('user-demo-admin', 'Usuario Admin Demo', 'admin-demo@example.invalid', 'pbkdf2$sha256$210000$ZmlvcmV6ZS1hZG1pbi1kZW1vLXNhbHQtMjAyNg==$pyDE+YfHY8oVHR16wprIcX1hEP9Ph9X6L+juKuD9U2U=', 'pbkdf2', 'active', 0, '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z')
+  ('user-demo-admin', 'Usuario Admin Demo', 'admin-demo@example.invalid', 'pbkdf2$sha256$100000$ZmlvcmV6ZS1hZG1pbi1kZW1vLXNhbHQtMjAyNg==$QPM6b/QnKHhfCwYXFU9kCd7KpgtlsLdGDELeiM9Ulgw=', 'pbkdf2', 'active', 0, '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z')
 ON CONFLICT(id) DO UPDATE SET
   display_name = excluded.display_name,
   email = excluded.email,
