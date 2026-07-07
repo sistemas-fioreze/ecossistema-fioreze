@@ -120,11 +120,27 @@ INSERT OR IGNORE INTO hotel_information (id, hotel_id, info_key, title, body, is
 INSERT OR IGNORE INTO admin_roles (id, role_key, name, description, created_at, updated_at) VALUES
   ('role-demo-manager', 'demo-manager', 'Gerente demo', 'Role ficticia sem acesso real.', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z');
 
-INSERT OR IGNORE INTO admin_users (id, display_name, email, password_hash, password_strategy, status, force_password_change, created_at, updated_at) VALUES
-  ('user-demo-admin', 'Usuario Admin Demo', 'admin-demo@example.invalid', 'PBKDF2_PLACEHOLDER_NOT_A_REAL_PASSWORD', 'pbkdf2-placeholder', 'disabled', 1, '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z');
+INSERT OR IGNORE INTO admin_permissions (id, permission_key, module_key, description, created_at, updated_at) VALUES
+  ('perm-room-service-orders-read', 'room-service.orders.read', 'room-service', 'Permite visualizar pedidos ficticios de Room Service.', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
+  ('perm-room-service-orders-write', 'room-service.orders.write', 'room-service', 'Permite atualizar status de pedidos ficticios de Room Service.', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z');
+
+INSERT INTO admin_users (id, display_name, email, password_hash, password_strategy, status, force_password_change, created_at, updated_at) VALUES
+  ('user-demo-admin', 'Usuario Admin Demo', 'admin-demo@example.invalid', 'pbkdf2$sha256$210000$ZmlvcmV6ZS1hZG1pbi1kZW1vLXNhbHQtMjAyNg==$pyDE+YfHY8oVHR16wprIcX1hEP9Ph9X6L+juKuD9U2U=', 'pbkdf2', 'active', 0, '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z')
+ON CONFLICT(id) DO UPDATE SET
+  display_name = excluded.display_name,
+  email = excluded.email,
+  password_hash = excluded.password_hash,
+  password_strategy = excluded.password_strategy,
+  status = excluded.status,
+  force_password_change = excluded.force_password_change,
+  updated_at = excluded.updated_at;
 
 INSERT OR IGNORE INTO admin_user_roles (user_id, role_id, created_at) VALUES
   ('user-demo-admin', 'role-demo-manager', '2026-07-04T00:00:00.000Z');
+
+INSERT OR IGNORE INTO admin_role_permissions (role_id, permission_id, created_at) VALUES
+  ('role-demo-manager', 'perm-room-service-orders-read', '2026-07-04T00:00:00.000Z'),
+  ('role-demo-manager', 'perm-room-service-orders-write', '2026-07-04T00:00:00.000Z');
 
 INSERT OR IGNORE INTO admin_hotel_access (user_id, hotel_id, access_level, created_at, updated_at) VALUES
   ('user-demo-admin', 'muller-fioreze', 'manager', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z');

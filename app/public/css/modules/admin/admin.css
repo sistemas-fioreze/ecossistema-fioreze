@@ -1,18 +1,26 @@
 .admin-shell {
   min-height: 100vh;
   min-height: 100dvh;
-  display: grid;
-  place-items: center;
   padding: 24px;
   background: var(--color-background);
+  color: var(--color-text);
+}
+
+.admin-shell [hidden] {
+  display: none !important;
+}
+
+.admin-login,
+.admin-loading {
+  min-height: calc(100vh - 48px);
+  display: grid;
+  place-items: center;
 }
 
 .admin-access-card {
   width: min(440px, 100%);
   display: grid;
-  gap: 12px;
-  justify-items: center;
-  text-align: center;
+  gap: 14px;
   padding: 28px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
@@ -20,7 +28,315 @@
   box-shadow: var(--shadow-soft);
 }
 
+.admin-access-card .brand-mark {
+  justify-self: center;
+}
+
 .admin-access-card h1 {
   margin: 0;
   font-size: 1.4rem;
+  text-align: center;
+}
+
+.admin-access-card .eyebrow {
+  text-align: center;
+}
+
+.admin-access-card label,
+.admin-filters label {
+  display: grid;
+  gap: 6px;
+  font-weight: 800;
+  color: var(--color-muted);
+}
+
+.admin-access-card input,
+.admin-filters input,
+.admin-filters select,
+.admin-detail-panel textarea {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fff;
+  color: var(--color-text);
+  font: inherit;
+}
+
+.admin-primary-button,
+.admin-session-box button,
+.admin-filters button,
+.admin-order-card,
+.admin-status-actions button {
+  border: 0;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.admin-primary-button {
+  min-height: 46px;
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.admin-primary-button[disabled],
+.admin-status-actions button[disabled] {
+  cursor: progress;
+  opacity: 0.65;
+}
+
+.admin-error {
+  min-height: 20px;
+  margin: 0;
+  color: #9b1c1c;
+  font-weight: 800;
+}
+
+.admin-dashboard {
+  width: min(1280px, 100%);
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+
+.admin-topbar,
+.admin-filters,
+.admin-orders-panel,
+.admin-detail-panel {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.admin-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px;
+}
+
+.admin-topbar h1,
+.admin-panel-heading h2,
+.admin-detail-panel h2,
+.admin-detail-panel h3 {
+  margin: 0;
+}
+
+.admin-topbar h1 {
+  font-size: 1.9rem;
+  line-height: 1.1;
+}
+
+.admin-panel-heading h2,
+.admin-detail-panel h2 {
+  font-size: 1.35rem;
+  line-height: 1.15;
+}
+
+.admin-detail-panel h3 {
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.admin-session-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 800;
+}
+
+.admin-session-box button,
+.admin-filters button {
+  min-height: 42px;
+  padding: 0 16px;
+  background: var(--color-secondary);
+  color: var(--color-primary);
+}
+
+.admin-filters {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(160px, 0.7fr) minmax(220px, 1.4fr) auto;
+  align-items: end;
+  gap: 12px;
+  padding: 14px;
+}
+
+.admin-workspace {
+  display: grid;
+  grid-template-columns: minmax(340px, 0.9fr) minmax(420px, 1.1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.admin-orders-panel,
+.admin-detail-panel {
+  padding: 14px;
+}
+
+.admin-panel-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.admin-orders-list {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-order-card {
+  width: 100%;
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  background: #fff;
+  color: var(--color-text);
+  text-align: left;
+}
+
+.admin-order-card[aria-current="true"] {
+  outline: 3px solid color-mix(in srgb, var(--color-primary), transparent 72%);
+  border-color: var(--color-primary);
+}
+
+.admin-order-main,
+.admin-order-meta,
+.admin-money-row,
+.admin-detail-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-order-meta,
+.admin-muted {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.admin-status {
+  display: inline-flex;
+  align-items: center;
+  width: max-content;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--color-secondary);
+  color: var(--color-primary);
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
+.admin-detail-panel {
+  min-height: 420px;
+}
+
+.admin-detail-empty,
+.admin-empty {
+  padding: 24px;
+  border: 1px dashed var(--color-border);
+  border-radius: 8px;
+  color: var(--color-muted);
+  text-align: center;
+  font-weight: 800;
+}
+
+.admin-detail-content {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.admin-info-box {
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: #fff;
+}
+
+.admin-info-box span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--color-muted);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.admin-items,
+.admin-history {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-line {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.admin-line:last-child {
+  border-bottom: 0;
+}
+
+.admin-status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-status-actions button {
+  min-height: 40px;
+  padding: 0 12px;
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.admin-status-actions .danger {
+  background: #9b1c1c;
+}
+
+@media (max-width: 920px) {
+  .admin-workspace,
+  .admin-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 560px) {
+  .admin-shell {
+    padding: 12px;
+  }
+
+  .admin-topbar h1 {
+    font-size: 1.85rem;
+  }
+
+  .admin-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-order-main,
+  .admin-order-meta,
+  .admin-detail-header {
+    flex-direction: column;
+  }
 }

@@ -67,7 +67,13 @@ Implementados:
 - `GET /api/v1/public/hotels/:hotel_slug/modules`
 - `GET /api/v1/public/hotels/:hotel_slug/room-service/products`
 - `POST /api/v1/public/hotels/:hotel_slug/room-service/orders`
-- `/api/v1/admin/*` protegido por autenticacao
+- `POST /api/v1/admin/login`
+- `POST /api/v1/admin/logout`
+- `GET /api/v1/admin/session`
+- `GET /api/v1/admin/hotels`
+- `GET /api/v1/admin/orders`
+- `GET /api/v1/admin/orders/:id`
+- `POST /api/v1/admin/orders/:id/status`
 
 Contratos futuros:
 
@@ -145,15 +151,86 @@ Os testes cobrem:
 - produto inexistente, indisponivel, arquivado, de outro hotel e de outro modulo;
 - isolamento por hotel;
 - rota admin sem autenticacao;
+- login, logout, sessao expirada e cookies administrativos;
+- listagem e detalhe de pedidos limitados aos hoteis permitidos;
+- transicoes de status, idempotencia, concorrencia, historico e auditoria;
 - impressao desativada.
 
 ## Autenticacao
 
-Login definitivo ainda nao existe. Todas as rotas administrativas retornam `401`. A estrategia futura usa WebCrypto, hash seguro de senha, hash de token de sessao, cookies seguros e acesso por hotel, role e permission.
+O MVP administrativo implementa login real para ambiente local e desenvolvimento controlado:
+
+- senha armazenada como PBKDF2-SHA-256 serializado em `admin_users.password_hash`;
+- token de sessao gerado com WebCrypto e armazenado somente como `token_hash`;
+- cookie `fioreze_admin_session` com `HttpOnly`, `SameSite=Lax` e `Secure` quando a requisicao usa HTTPS;
+- sessoes expiram e podem ser revogadas no logout;
+- o cabecalho `x-fioreze-test-now` so e aceito quando `ENVIRONMENT=test`;
+- POSTs administrativos autenticados exigem origem same-origin, quando `Origin` existir, e o cabecalho `x-fioreze-admin-action: erp-admin`;
+- acesso por hotel vem de `admin_hotel_access`;
+- permissoes usadas pelo MVP:
+  - `room-service.orders.read`;
+  - `room-service.orders.write`.
+
+Credenciais ficticias do seed local:
+
+```text
+E-mail: admin-demo@example.invalid
+Senha: DemoAdmin!2026
+```
+
+Essas credenciais sao somente para desenvolvimento local. Nao usar dados reais em seeds, testes ou documentacao.
+
+Quando `admin_users.force_password_change = 1`, o MVP bloqueia o login e nao cria sessao. A tela completa de redefinicao de senha ainda nao foi implementada; a resposta da API informa a necessidade de redefinir a senha sem expor hash, salt ou detalhes internos.
+
+Fluxo local:
+
+```bash
+npm run db:migrate:local
+npm run db:seed:local
+npm run dev
+```
+
+Depois acesse `http://localhost:8787/admin/`.
+
+## ERP Administrativo
+
+O shell `/admin/` exibe:
+
+- tela de login;
+- lista de pedidos de Room Service;
+- filtros por hotel, status e busca;
+- detalhe de pedido com itens, totais, historico e situacao de impressao;
+- mudanca de status controlada.
+
+Fluxo de status exposto pela API:
+
+```text
+received -> preparing -> ready -> completed
+received|preparing|ready -> cancelled
+```
+
+Por compatibilidade com o schema atual, `completed` e persistido em `orders.status` como `delivered` e traduzido de volta para `completed` nas APIs administrativas. Uma migration futura pode alinhar o CHECK do banco para aceitar `completed` diretamente.
+
+Cancelamento exige nota. Toda mudanca valida registra `order_status_history` e `admin_audit_log`. Repetir a mesma mudanca nao cria historico duplicado.
+
+As mudancas de status usam `UPDATE` otimista pelo status anterior. Historico e auditoria usam `INSERT ... SELECT` condicionados ao pedido estar no status alvo, no mesmo hotel/modulo e com `updated_at` igual ao horario daquela requisicao. A API tambem verifica `meta.changes` do `UPDATE`: se zero linhas forem alteradas, os inserts condicionais nao devem gravar nada e a rota rele o pedido.
+
+A migration `0007_admin_orders_guards.sql` adiciona o indice unico `uq_order_status_history_order_status` para garantir no banco que cada pedido tenha no maximo um historico por status. Antes de aplicar essa migration em qualquer D1 compartilhado, executar a pre-verificacao:
+
+```sql
+SELECT order_id, status, COUNT(*) AS total
+FROM order_status_history
+GROUP BY order_id, status
+HAVING COUNT(*) > 1;
+```
+
+Se duas requisicoes simultaneas solicitarem o mesmo status, a vencedora grava status, historico e auditoria; a perdedora rele o pedido e retorna `idempotent=true` quando o status ja estiver aplicado. Se duas requisicoes concorrentes solicitarem destinos diferentes, apenas a vencedora grava historico/auditoria e a perdedora recebe `409 conflict` com o status atual. Nenhuma rota de status cria `print_events`.
 
 ## Impressao
 
 Impressao permanece desativada com `IMPRESSION_ENABLED=false`. O `PrintProvider` e apenas uma interface inicial. Nenhuma rota chama servidor antigo, Python, localhost, impressora, Apps Script ou planilha.
+
+No ERP, a mensagem exibida e `Impressao desativada neste ambiente.`. Mudar status nao cria `print_events` nem aciona qualquer recurso externo.
 
 ## Ainda Falta Migrar
 
@@ -162,8 +239,8 @@ Impressao permanece desativada com `IMPRESSION_ENABLED=false`. O `PrintProvider`
 - Spa funcional;
 - Pacotes Romanticos funcionais;
 - ERP administrativo completo;
-- login e sessoes definitivas;
-- painel de pedidos;
+- filtros e painel de pedidos avancados;
+- usuarios, roles e permissoes editaveis pelo ERP;
 - integracao futura de impressao;
 - deploy Cloudflare;
 - dados reais via processo controlado de migracao.

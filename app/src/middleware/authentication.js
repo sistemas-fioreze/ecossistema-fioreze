@@ -1,5 +1,5 @@
-import { unauthorized } from "../core/errors.js";
+import { getCurrentAdminSession } from "../services/admin-auth.js";
 
-export async function requireAuthentication() {
-  throw unauthorized("Autenticacao administrativa ainda nao implementada.");
+export async function requireAuthentication({ request, env }) {
+  return getCurrentAdminSession({ request, env, required: true });
 }

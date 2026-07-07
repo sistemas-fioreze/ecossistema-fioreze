@@ -1,3 +1,5 @@
+import { requestNow } from "../../core/time.js";
+
 const WEEKDAY_TO_INDEX = {
   Sun: 0,
   Mon: 1,
@@ -44,12 +46,7 @@ export function evaluateServiceHours({ serviceHours = [], timezone = "America/Sa
 }
 
 export function getRequestDate(request, env) {
-  const injected = request.headers.get("X-Fioreze-Test-Now");
-  if (injected && String(env.ENVIRONMENT || "development") !== "production") {
-    const date = new Date(injected);
-    if (!Number.isNaN(date.getTime())) return date;
-  }
-  return new Date();
+  return new Date(requestNow({ request, env }));
 }
 
 export function getLocalClock(date, timezone) {
