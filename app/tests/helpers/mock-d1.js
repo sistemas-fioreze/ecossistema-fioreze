@@ -329,10 +329,11 @@ class MockD1Database {
         await sleep(this.adminStatusBatchDelayMs);
       }
       before = structuredClone(this.data);
+      const results = [];
       for (const statement of statements) {
-        await statement.run();
+        results.push(await statement.run());
       }
-      return statements.map(() => ({ success: true }));
+      return results;
     } catch (error) {
       if (before) Object.assign(this.data, before);
       throw error;
@@ -672,10 +673,48 @@ class MockD1Database {
         created_at,
         updated_at,
       });
-      return { success: true };
+      return d1Result(1);
     }
 
     if (normalized.startsWith("insert into order_status_history")) {
+      if (normalized.includes(" from orders o ")) {
+        const [
+          id,
+          status,
+          note,
+          actor_user_id,
+          created_at,
+          order_id,
+          hotel_id,
+          module_key,
+          targetStatus,
+          targetUpdatedAt,
+          historyStatus,
+        ] = params;
+        const order = this.data.orders.find(
+          (entry) =>
+            entry.id === order_id &&
+            entry.hotel_id === hotel_id &&
+            entry.module_key === module_key &&
+            entry.status === targetStatus &&
+            entry.updated_at === targetUpdatedAt,
+        );
+        if (!order) return d1Result(0);
+        if (this.data.orderStatusHistory.some((entry) => entry.order_id === order_id && entry.status === historyStatus)) {
+          return d1Result(0);
+        }
+        this.insertOrderStatusHistory({
+          id,
+          order_id,
+          hotel_id,
+          module_key,
+          status,
+          note,
+          actor_user_id,
+          created_at,
+        });
+        return d1Result(1);
+      }
       if (params.length === 5) {
         const [id, order_id, hotel_id, module_key, created_at] = params;
         this.insertOrderStatusHistory({
@@ -688,7 +727,7 @@ class MockD1Database {
           actor_user_id: null,
           created_at,
         });
-        return { success: true };
+        return d1Result(1);
       }
       const [id, order_id, hotel_id, module_key, status, note, actor_user_id, created_at] = params;
       this.insertOrderStatusHistory({
@@ -701,7 +740,7 @@ class MockD1Database {
         actor_user_id,
         created_at,
       });
-      return { success: true };
+      return d1Result(1);
     }
 
     if (normalized.startsWith("insert into order_items")) {
@@ -733,7 +772,7 @@ class MockD1Database {
         selected_options_snapshot,
         created_at,
       });
-      return { success: true };
+      return d1Result(1);
     }
 
     if (normalized.startsWith("insert into admin_sessions")) {
@@ -748,17 +787,19 @@ class MockD1Database {
         expires_at,
         revoked_at: null,
       });
-      return { success: true };
+      return d1Result(1);
     }
 
     if (normalized.startsWith("update admin_sessions")) {
+      let changes = 0;
       const [revoked_at, token_hash] = params;
       for (const session of this.data.adminSessions) {
         if (session.token_hash === token_hash && session.revoked_at == null) {
           session.revoked_at = revoked_at;
+          changes += 1;
         }
       }
-      return { success: true };
+      return d1Result(changes);
     }
 
     if (normalized.startsWith("update orders")) {
@@ -770,11 +811,54 @@ class MockD1Database {
         order.status = status;
         order.updated_at = updated_at;
         if (cancelStatus === "cancelled") order.cancelled_at = cancelled_at;
+        return d1Result(1);
       }
-      return { success: true };
+      return d1Result(0);
     }
 
     if (normalized.startsWith("insert into admin_audit_log")) {
+      if (normalized.includes(" from orders o ")) {
+        const [
+          id,
+          actor_user_id,
+          action,
+          entity_type,
+          metadata_json,
+          created_at,
+          order_id,
+          hotel_id,
+          module_key,
+          targetStatus,
+          targetUpdatedAt,
+          historyId,
+          historyStatus,
+        ] = params;
+        const order = this.data.orders.find(
+          (entry) =>
+            entry.id === order_id &&
+            entry.hotel_id === hotel_id &&
+            entry.module_key === module_key &&
+            entry.status === targetStatus &&
+            entry.updated_at === targetUpdatedAt,
+        );
+        if (!order) return d1Result(0);
+        const history = this.data.orderStatusHistory.find(
+          (entry) => entry.id === historyId && entry.order_id === order_id && entry.status === historyStatus,
+        );
+        if (!history) return d1Result(0);
+        this.data.adminAuditLog.push({
+          id,
+          hotel_id,
+          module_key,
+          actor_user_id,
+          action,
+          entity_type,
+          entity_id: order_id,
+          metadata_json,
+          created_at,
+        });
+        return d1Result(1);
+      }
       const [id, hotel_id, module_key, actor_user_id, action, entity_type, entity_id, metadata_json, created_at] = params;
       this.data.adminAuditLog.push({
         id,
@@ -787,7 +871,7 @@ class MockD1Database {
         metadata_json,
         created_at,
       });
-      return { success: true };
+      return d1Result(1);
     }
 
     throw new Error(`Unhandled run SQL: ${normalized}`);
@@ -843,6 +927,19 @@ function countInPlaceholders(normalizedSql, marker) {
   const close = normalizedSql.indexOf(")", open);
   if (open === -1 || close === -1) return 0;
   return normalizedSql.slice(open, close).split("?").length - 1;
+}
+
+function d1Result(changes, results = []) {
+  return {
+    success: true,
+    meta: {
+      changes,
+      changed_db: changes > 0,
+      rows_written: changes,
+      rows_read: 0,
+    },
+    results,
+  };
 }
 
 function sleep(ms) {

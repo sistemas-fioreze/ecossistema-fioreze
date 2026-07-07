@@ -138,6 +138,8 @@ export async function updateAdminOrderStatus({ request, env, session, orderId })
   }
 
   const createdAt = requestNow({ request, env });
+  const historyId = createPublicId("hist");
+  const auditId = createPublicId("audit");
   const historyNote = note || defaultStatusNote(normalizedTargetPublicStatus);
   const auditMetadata = {
     public_id: current.public_id,
@@ -146,8 +148,9 @@ export async function updateAdminOrderStatus({ request, env, session, orderId })
     storage_status: targetStorageStatus,
   };
 
+  let batchResults;
   try {
-    await batch(env, [
+    batchResults = await batch(env, [
       statement(
         env,
         `UPDATE orders
@@ -173,16 +176,32 @@ export async function updateAdminOrderStatus({ request, env, session, orderId })
         env,
         `INSERT INTO order_status_history (
            id, order_id, hotel_id, module_key, status, note, actor_user_id, created_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+         )
+         SELECT ?, o.id, o.hotel_id, o.module_key, ?, ?, ?, ?
+           FROM orders o
+          WHERE o.id = ?
+            AND o.hotel_id = ?
+            AND o.module_key = ?
+            AND o.status = ?
+            AND o.updated_at = ?
+            AND NOT EXISTS (
+              SELECT 1
+                FROM order_status_history h
+               WHERE h.order_id = o.id
+                 AND h.status = ?
+            )`,
         [
-          createPublicId("hist"),
-          current.id,
-          current.hotel_id,
-          MODULE_KEY,
+          historyId,
           normalizedTargetPublicStatus,
           historyNote,
           session.user.id,
           createdAt,
+          current.id,
+          current.hotel_id,
+          MODULE_KEY,
+          targetStorageStatus,
+          createdAt,
+          normalizedTargetPublicStatus,
         ],
       ),
       statement(
@@ -190,39 +209,70 @@ export async function updateAdminOrderStatus({ request, env, session, orderId })
         `INSERT INTO admin_audit_log (
            id, hotel_id, module_key, actor_user_id, action, entity_type,
            entity_id, metadata_json, created_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         )
+         SELECT ?, o.hotel_id, o.module_key, ?, ?, ?, o.id, ?, ?
+           FROM orders o
+          WHERE o.id = ?
+            AND o.hotel_id = ?
+            AND o.module_key = ?
+            AND o.status = ?
+            AND o.updated_at = ?
+            AND EXISTS (
+              SELECT 1
+                FROM order_status_history h
+               WHERE h.id = ?
+                 AND h.order_id = o.id
+                 AND h.status = ?
+            )`,
         [
-          createPublicId("audit"),
-          current.hotel_id,
-          MODULE_KEY,
+          auditId,
           session.user.id,
           "room-service.order.status_changed",
           "order",
-          current.id,
           JSON.stringify(auditMetadata),
           createdAt,
+          current.id,
+          current.hotel_id,
+          MODULE_KEY,
+          targetStorageStatus,
+          createdAt,
+          historyId,
+          normalizedTargetPublicStatus,
         ],
       ),
     ]);
   } catch (error) {
-    const fresh = await first(
-      env,
-      `SELECT id, public_id, hotel_id, module_key, status
-         FROM orders
-        WHERE id = ?
-          AND module_key = ?
-          AND hotel_id IN (${hotelPlaceholders})
-        LIMIT 1`,
-      [orderId, MODULE_KEY, ...session.hotel_ids],
-    );
-    if (fresh?.status === targetStorageStatus) {
-      const detail = await loadOrderDetail(env, orderId, session.hotel_ids);
-      return {
-        idempotent: true,
-        order: detail.order,
-      };
+    if (isOrderStatusUniqueConflict(error)) {
+      return handleLostStatusRace({
+        env,
+        orderId,
+        hotelIds: session.hotel_ids,
+        targetStorageStatus,
+        targetPublicStatus: normalizedTargetPublicStatus,
+      });
     }
     throw error;
+  }
+
+  const updateChanges = changesFromBatchResult(batchResults[0]);
+  const historyChanges = changesFromBatchResult(batchResults[1]);
+  const auditChanges = changesFromBatchResult(batchResults[2]);
+
+  if (updateChanges !== 1) {
+    if (historyChanges !== 0 || auditChanges !== 0) {
+      throw new Error("Status update guard failed: dependent inserts ran without a winning update.");
+    }
+    return handleLostStatusRace({
+      env,
+      orderId,
+      hotelIds: session.hotel_ids,
+      targetStorageStatus,
+      targetPublicStatus: normalizedTargetPublicStatus,
+    });
+  }
+
+  if (historyChanges !== 1 || auditChanges !== 1) {
+    throw new Error("Status update guard failed: winning update did not create exactly one history and audit record.");
   }
 
   const detail = await loadOrderDetail(env, orderId, session.hotel_ids);
@@ -230,6 +280,29 @@ export async function updateAdminOrderStatus({ request, env, session, orderId })
     idempotent: false,
     order: detail.order,
   };
+}
+
+async function handleLostStatusRace({ env, orderId, hotelIds, targetStorageStatus, targetPublicStatus }) {
+  const detail = await loadOrderDetail(env, orderId, hotelIds);
+  if (!detail) throw notFoundError("Pedido nao encontrado.");
+  if (detail.order.status === targetPublicStatus || detail.order.status === toPublicStatus(targetStorageStatus)) {
+    return {
+      idempotent: true,
+      order: detail.order,
+    };
+  }
+  throw conflict("Pedido ja foi atualizado por outra sessao.", {
+    current_status: detail.order.status,
+    target_status: targetPublicStatus,
+  });
+}
+
+function changesFromBatchResult(result) {
+  return Number(result?.meta?.changes ?? 0);
+}
+
+function isOrderStatusUniqueConflict(error) {
+  return /unique constraint failed: order_status_history\.order_id, order_status_history\.status/i.test(String(error?.message || error));
 }
 
 async function loadOrderDetail(env, orderId, hotelIds) {

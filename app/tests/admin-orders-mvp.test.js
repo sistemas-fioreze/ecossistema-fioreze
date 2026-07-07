@@ -366,6 +366,47 @@ test("mudanca de status concorrente registra uma unica transicao", async () => {
   assert.equal(env.__data.printEvents.length, 0);
 });
 
+test("mudanca concorrente para status diferentes nao cria historico fantasma", async () => {
+  const { json, env } = createWorkerTestContext();
+  const created = await createOrder(json, "/api/v1/public/hotels/muller-fioreze/room-service/orders", MULLER_ORDER);
+  const cookie = cookieFrom((await loginAdmin(json)).response);
+  env.DB.adminStatusBatchDelayMs = 10;
+
+  const attempts = await Promise.all([
+    changeStatus(json, cookie, created.body.data.id, "preparing"),
+    changeStatus(json, cookie, created.body.data.id, "cancelled", "Cancelamento concorrente de teste."),
+  ]);
+  const labelled = [
+    { target: "preparing", result: attempts[0] },
+    { target: "cancelled", result: attempts[1] },
+  ];
+  const winners = labelled.filter((entry) => entry.result.response.status === 200);
+  const losers = labelled.filter((entry) => entry.result.response.status === 409);
+  const winner = winners[0];
+  const loser = losers[0];
+  const order = env.__data.orders.find((entry) => entry.id === created.body.data.id);
+  const newHistory = env.__data.orderStatusHistory.filter(
+    (entry) => entry.order_id === created.body.data.id && entry.status !== "received",
+  );
+  const auditMetadata = JSON.parse(env.__data.adminAuditLog[0].metadata_json);
+
+  assert.equal(winners.length, 1);
+  assert.equal(losers.length, 1);
+  assert.equal(winner.result.body.data.idempotent, false);
+  assert.equal(loser.result.body.error.code, "conflict");
+  assert.equal(loser.result.body.error.details.current_status, winner.target);
+  assert.equal(order.status, storageStatus(winner.target));
+  assert.equal(newHistory.length, 1);
+  assert.equal(newHistory[0].status, winner.target);
+  assert.equal(env.__data.orderStatusHistory.some((entry) => entry.order_id === created.body.data.id && entry.status === loser.target), false);
+  assert.equal(env.__data.adminAuditLog.length, 1);
+  assert.equal(auditMetadata.target_status, winner.target);
+  assert.equal(auditMetadata.previous_status, "received");
+  assert.equal(auditMetadata.storage_status, storageStatus(winner.target));
+  assert.equal(env.__data.adminAuditLog.some((entry) => JSON.parse(entry.metadata_json).target_status === loser.target), false);
+  assert.equal(env.__data.printEvents.length, 0);
+});
+
 test("mudanca de status registra auditoria administrativa", async () => {
   const { json, env } = createWorkerTestContext();
   const created = await createOrder(json, "/api/v1/public/hotels/muller-fioreze/room-service/orders", MULLER_ORDER);
@@ -510,4 +551,8 @@ function withCookie(cookie, init = {}) {
 
 function cookieFrom(response) {
   return (response.headers.get("set-cookie") || "").split(";")[0];
+}
+
+function storageStatus(publicStatus) {
+  return publicStatus === "completed" ? "delivered" : publicStatus;
 }

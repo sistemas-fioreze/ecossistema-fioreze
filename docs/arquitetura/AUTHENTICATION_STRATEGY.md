@@ -98,7 +98,9 @@ GROUP BY order_id, status
 HAVING COUNT(*) > 1;
 ```
 
-O fluxo de status usa `UPDATE` otimista, historico e auditoria no mesmo batch. Em corrida concorrente, a requisicao perdedora rele o pedido e retorna `idempotent=true` quando o status alvo ja foi aplicado. Nenhuma mudanca de status cria `print_events` enquanto impressao estiver desativada.
+O fluxo de status usa `UPDATE` otimista, historico e auditoria no mesmo batch. Historico e auditoria sao gravados por `INSERT ... SELECT` condicionado ao pedido estar no status alvo, no hotel/modulo correto e com `updated_at` igual ao horario daquela requisicao. A rota confere `meta.changes` do `UPDATE`: quando zero linhas sao alteradas, os inserts condicionais devem permanecer em zero e o pedido e relido.
+
+Em corrida concorrente para o mesmo status, a requisicao perdedora retorna `idempotent=true` quando o status alvo ja foi aplicado. Em corrida concorrente para destinos diferentes, a perdedora recebe `409 conflict` com o status atual e nao grava historico nem auditoria. Nenhuma mudanca de status cria `print_events` enquanto impressao estiver desativada.
 
 ## Estado Atual
 

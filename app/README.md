@@ -213,7 +213,9 @@ Por compatibilidade com o schema atual, `completed` e persistido em `orders.stat
 
 Cancelamento exige nota. Toda mudanca valida registra `order_status_history` e `admin_audit_log`. Repetir a mesma mudanca nao cria historico duplicado.
 
-As mudancas de status usam `UPDATE` otimista pelo status anterior, seguido de historico e auditoria no mesmo batch. A migration `0007_admin_orders_guards.sql` adiciona o indice unico `uq_order_status_history_order_status` para garantir no banco que cada pedido tenha no maximo um historico por status. Antes de aplicar essa migration em qualquer D1 compartilhado, executar a pre-verificacao:
+As mudancas de status usam `UPDATE` otimista pelo status anterior. Historico e auditoria usam `INSERT ... SELECT` condicionados ao pedido estar no status alvo, no mesmo hotel/modulo e com `updated_at` igual ao horario daquela requisicao. A API tambem verifica `meta.changes` do `UPDATE`: se zero linhas forem alteradas, os inserts condicionais nao devem gravar nada e a rota rele o pedido.
+
+A migration `0007_admin_orders_guards.sql` adiciona o indice unico `uq_order_status_history_order_status` para garantir no banco que cada pedido tenha no maximo um historico por status. Antes de aplicar essa migration em qualquer D1 compartilhado, executar a pre-verificacao:
 
 ```sql
 SELECT order_id, status, COUNT(*) AS total
@@ -222,7 +224,7 @@ GROUP BY order_id, status
 HAVING COUNT(*) > 1;
 ```
 
-Se duas requisicoes simultaneas solicitarem o mesmo status, a vencedora grava status, historico e auditoria; a perdedora rele o pedido e retorna `idempotent=true` quando o status ja estiver aplicado. Nenhuma rota de status cria `print_events`.
+Se duas requisicoes simultaneas solicitarem o mesmo status, a vencedora grava status, historico e auditoria; a perdedora rele o pedido e retorna `idempotent=true` quando o status ja estiver aplicado. Se duas requisicoes concorrentes solicitarem destinos diferentes, apenas a vencedora grava historico/auditoria e a perdedora recebe `409 conflict` com o status atual. Nenhuma rota de status cria `print_events`.
 
 ## Impressao
 
