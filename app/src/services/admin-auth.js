@@ -1,10 +1,12 @@
 import { all, first, run } from "../core/database.js";
-import { badRequest, unauthorized } from "../core/errors.js";
+import { forbidden, unauthorized } from "../core/errors.js";
 import { createPublicId } from "../core/identifiers.js";
-import { nowIso } from "../core/time.js";
+import { requestNow } from "../core/time.js";
 import { readJson, requireString } from "../core/validation.js";
 
 export const ADMIN_SESSION_COOKIE = "fioreze_admin_session";
+export const ADMIN_MUTATION_HEADER = "x-fioreze-admin-action";
+export const ADMIN_MUTATION_HEADER_VALUE = "erp-admin";
 
 const SESSION_TTL_SECONDS = 60 * 60 * 8;
 const SESSION_TOKEN_BYTES = 32;
@@ -20,16 +22,24 @@ export async function loginAdmin({ request, env }) {
     throw unauthorized("Credenciais administrativas invalidas.");
   }
 
+  if (!isSupportedPasswordRecord(user)) {
+    throw unauthorized("Credenciais administrativas invalidas.");
+  }
+
   const verified = await verifyPassword(password, user.password_hash);
   if (!verified) {
     throw unauthorized("Credenciais administrativas invalidas.");
+  }
+
+  if (Number(user.force_password_change || 0) === 1) {
+    throw forbidden("Senha administrativa precisa ser redefinida antes do acesso.");
   }
 
   const token = createSessionToken();
   const tokenHash = await sha256Hex(token);
   const userAgentHash = await optionalHeaderHash(request, "user-agent");
   const ipHash = await optionalHeaderHash(request, "cf-connecting-ip");
-  const createdAt = requestNow(request);
+  const createdAt = requestNow({ request, env });
   const expiresAt = new Date(Date.parse(createdAt) + SESSION_TTL_SECONDS * 1000).toISOString();
 
   await run(
@@ -55,6 +65,7 @@ export async function loginAdmin({ request, env }) {
 }
 
 export async function logoutAdmin({ request, env }) {
+  assertAdminMutationAllowed({ request });
   const token = readCookie(request.headers.get("cookie") || "", ADMIN_SESSION_COOKIE);
   if (token) {
     await run(
@@ -63,7 +74,7 @@ export async function logoutAdmin({ request, env }) {
           SET revoked_at = ?
         WHERE token_hash = ?
           AND revoked_at IS NULL`,
-      [requestNow(request), await sha256Hex(token)],
+      [requestNow({ request, env }), await sha256Hex(token)],
     );
   }
 
@@ -91,7 +102,7 @@ export async function getCurrentAdminSession({ request, env, required = true }) 
         AND s.expires_at > ?
         AND u.status = 'active'
       LIMIT 1`,
-    [tokenHash, requestNow(request)],
+    [tokenHash, requestNow({ request, env })],
   );
 
   if (!sessionRow) {
@@ -125,6 +136,28 @@ export function toSessionPayload(session) {
     permissions: session.permissions,
     expires_at: session.expires_at,
   };
+}
+
+export function assertAdminMutationAllowed({ request }) {
+  const actionHeader = request.headers.get(ADMIN_MUTATION_HEADER);
+  if (actionHeader !== ADMIN_MUTATION_HEADER_VALUE) {
+    throw forbidden("Requisicao administrativa sem protecao de mutacao.");
+  }
+
+  const origin = request.headers.get("origin");
+  if (!origin) return;
+
+  let originUrl;
+  try {
+    originUrl = new URL(origin);
+  } catch {
+    throw forbidden("Origem administrativa invalida.");
+  }
+
+  const requestOrigin = new URL(request.url).origin;
+  if (originUrl.origin !== requestOrigin) {
+    throw forbidden("Origem administrativa nao autorizada.");
+  }
 }
 
 async function findUserByEmail(env, email) {
@@ -197,6 +230,10 @@ async function verifyPassword(password, storedHash) {
   return constantTimeEqual(new Uint8Array(derived), parsed.hash);
 }
 
+function isSupportedPasswordRecord(user) {
+  return user.password_strategy === PBKDF2_STRATEGY && Boolean(parsePasswordHash(user.password_hash));
+}
+
 function parsePasswordHash(storedHash) {
   if (typeof storedHash !== "string") return null;
   const [strategy, algorithm, iterationsText, saltText, hashText] = storedHash.split("$");
@@ -261,16 +298,6 @@ async function optionalHeaderHash(request, headerName) {
 async function sha256Hex(value) {
   const digest = await crypto.subtle.digest("SHA-256", encode(value));
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-function requestNow(request) {
-  const testNow = request.headers.get("x-fioreze-test-now");
-  if (testNow) {
-    const date = new Date(testNow);
-    if (Number.isNaN(date.getTime())) throw badRequest("x-fioreze-test-now invalido.");
-    return date.toISOString();
-  }
-  return nowIso();
 }
 
 function encode(value) {

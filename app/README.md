@@ -153,7 +153,7 @@ Os testes cobrem:
 - rota admin sem autenticacao;
 - login, logout, sessao expirada e cookies administrativos;
 - listagem e detalhe de pedidos limitados aos hoteis permitidos;
-- transicoes de status, idempotencia, historico e auditoria;
+- transicoes de status, idempotencia, concorrencia, historico e auditoria;
 - impressao desativada.
 
 ## Autenticacao
@@ -164,6 +164,8 @@ O MVP administrativo implementa login real para ambiente local e desenvolvimento
 - token de sessao gerado com WebCrypto e armazenado somente como `token_hash`;
 - cookie `fioreze_admin_session` com `HttpOnly`, `SameSite=Lax` e `Secure` quando a requisicao usa HTTPS;
 - sessoes expiram e podem ser revogadas no logout;
+- o cabecalho `x-fioreze-test-now` so e aceito quando `ENVIRONMENT=test`;
+- POSTs administrativos autenticados exigem origem same-origin, quando `Origin` existir, e o cabecalho `x-fioreze-admin-action: erp-admin`;
 - acesso por hotel vem de `admin_hotel_access`;
 - permissoes usadas pelo MVP:
   - `room-service.orders.read`;
@@ -177,6 +179,8 @@ Senha: DemoAdmin!2026
 ```
 
 Essas credenciais sao somente para desenvolvimento local. Nao usar dados reais em seeds, testes ou documentacao.
+
+Quando `admin_users.force_password_change = 1`, o MVP bloqueia o login e nao cria sessao. A tela completa de redefinicao de senha ainda nao foi implementada; a resposta da API informa a necessidade de redefinir a senha sem expor hash, salt ou detalhes internos.
 
 Fluxo local:
 
@@ -208,6 +212,17 @@ received|preparing|ready -> cancelled
 Por compatibilidade com o schema atual, `completed` e persistido em `orders.status` como `delivered` e traduzido de volta para `completed` nas APIs administrativas. Uma migration futura pode alinhar o CHECK do banco para aceitar `completed` diretamente.
 
 Cancelamento exige nota. Toda mudanca valida registra `order_status_history` e `admin_audit_log`. Repetir a mesma mudanca nao cria historico duplicado.
+
+As mudancas de status usam `UPDATE` otimista pelo status anterior, seguido de historico e auditoria no mesmo batch. A migration `0007_admin_orders_guards.sql` adiciona o indice unico `uq_order_status_history_order_status` para garantir no banco que cada pedido tenha no maximo um historico por status. Antes de aplicar essa migration em qualquer D1 compartilhado, executar a pre-verificacao:
+
+```sql
+SELECT order_id, status, COUNT(*) AS total
+FROM order_status_history
+GROUP BY order_id, status
+HAVING COUNT(*) > 1;
+```
+
+Se duas requisicoes simultaneas solicitarem o mesmo status, a vencedora grava status, historico e auditoria; a perdedora rele o pedido e retorna `idempotent=true` quando o status ja estiver aplicado. Nenhuma rota de status cria `print_events`.
 
 ## Impressao
 

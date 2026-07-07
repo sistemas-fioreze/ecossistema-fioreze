@@ -98,6 +98,26 @@ Indices iniciais cobrem:
 - pedidos por hotel, modulo e status;
 - eventos por hotel, status e horario.
 
+## Guardas Administrativas De Pedidos
+
+A migration `0007_admin_orders_guards.sql` prepara o indice unico:
+
+```sql
+CREATE UNIQUE INDEX IF NOT EXISTS uq_order_status_history_order_status
+ON order_status_history(order_id, status);
+```
+
+Antes de aplicar essa migration em qualquer D1 compartilhado, verificar duplicidades:
+
+```sql
+SELECT order_id, status, COUNT(*) AS total
+FROM order_status_history
+GROUP BY order_id, status
+HAVING COUNT(*) > 1;
+```
+
+Esse indice protege transicoes concorrentes no ERP: para um mesmo pedido, cada status pode aparecer no historico apenas uma vez.
+
 ## Migrations Incrementais
 
 A migration `0007_core_service_hours_media_assets.sql` e incremental porque `0001` a `0006` ja foram aplicadas no D1 remoto de desenvolvimento. Migrations ja aplicadas nao devem ser editadas, renomeadas ou reaplicadas; qualquer mudanca posterior de schema deve usar a proxima migration global disponivel.

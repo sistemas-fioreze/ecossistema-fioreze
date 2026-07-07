@@ -311,6 +311,7 @@ class MockD1Database {
   constructor(data) {
     this.data = data;
     this.failNextBatch = false;
+    this.adminStatusBatchDelayMs = 0;
   }
 
   prepare(sql) {
@@ -318,18 +319,22 @@ class MockD1Database {
   }
 
   async batch(statements) {
-    const before = structuredClone(this.data);
+    let before = null;
     try {
       if (this.failNextBatch) {
         this.failNextBatch = false;
         throw new Error("batch failed");
       }
+      if (this.adminStatusBatchDelayMs > 0 && statements.some((entry) => normalize(entry.sql).startsWith("update orders"))) {
+        await sleep(this.adminStatusBatchDelayMs);
+      }
+      before = structuredClone(this.data);
       for (const statement of statements) {
         await statement.run();
       }
       return statements.map(() => ({ success: true }));
     } catch (error) {
-      Object.assign(this.data, before);
+      if (before) Object.assign(this.data, before);
       throw error;
     }
   }
@@ -403,8 +408,13 @@ class MockD1Database {
     }
 
     if (normalized.includes("from orders o") && normalized.includes("join hotels h") && normalized.includes("where o.id = ?")) {
-      const [orderId, moduleKey] = params;
-      const order = this.data.orders.find((entry) => entry.id === orderId && entry.module_key === moduleKey);
+      const [orderId, moduleKey, ...hotelIds] = params;
+      const order = this.data.orders.find(
+        (entry) =>
+          entry.id === orderId &&
+          entry.module_key === moduleKey &&
+          (!hotelIds.length || hotelIds.includes(entry.hotel_id)),
+      );
       if (!order) return null;
       const hotel = this.data.hotels.find((entry) => entry.id === order.hotel_id);
       return {
@@ -416,8 +426,15 @@ class MockD1Database {
     }
 
     if (normalized.includes("from orders") && normalized.includes("where id = ?") && normalized.includes("and module_key = ?")) {
-      const [orderId, moduleKey] = params;
-      return this.data.orders.find((entry) => entry.id === orderId && entry.module_key === moduleKey) || null;
+      const [orderId, moduleKey, ...hotelIds] = params;
+      return (
+        this.data.orders.find(
+          (entry) =>
+            entry.id === orderId &&
+            entry.module_key === moduleKey &&
+            (!hotelIds.length || hotelIds.includes(entry.hotel_id)),
+        ) || null
+      );
     }
 
     if (normalized.includes("from hotel_features") && normalized.includes("hf.feature_key = ?")) {
@@ -661,7 +678,7 @@ class MockD1Database {
     if (normalized.startsWith("insert into order_status_history")) {
       if (params.length === 5) {
         const [id, order_id, hotel_id, module_key, created_at] = params;
-        this.data.orderStatusHistory.push({
+        this.insertOrderStatusHistory({
           id,
           order_id,
           hotel_id,
@@ -674,7 +691,7 @@ class MockD1Database {
         return { success: true };
       }
       const [id, order_id, hotel_id, module_key, status, note, actor_user_id, created_at] = params;
-      this.data.orderStatusHistory.push({
+      this.insertOrderStatusHistory({
         id,
         order_id,
         hotel_id,
@@ -779,6 +796,16 @@ class MockD1Database {
   findAvailability(catalogItemId, hotelId) {
     return this.data.availability.find((entry) => entry.catalog_item_id === catalogItemId && entry.hotel_id === hotelId);
   }
+
+  insertOrderStatusHistory(entry) {
+    const duplicate = this.data.orderStatusHistory.find(
+      (row) => row.order_id === entry.order_id && row.status === entry.status,
+    );
+    if (duplicate) {
+      throw new Error("UNIQUE constraint failed: order_status_history.order_id, order_status_history.status");
+    }
+    this.data.orderStatusHistory.push(entry);
+  }
 }
 
 class MockD1Statement {
@@ -816,4 +843,10 @@ function countInPlaceholders(normalizedSql, marker) {
   const close = normalizedSql.indexOf(")", open);
   if (open === -1 || close === -1) return 0;
   return normalizedSql.slice(open, close).split("?").length - 1;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }

@@ -4,8 +4,10 @@ import test from "node:test";
 import { publicAssetUrl } from "../src/services/media-service.js";
 
 const migration = fs.readFileSync("migrations/0007_core_service_hours_media_assets.sql", "utf8");
+const adminOrdersGuardsMigration = fs.readFileSync("migrations/0007_admin_orders_guards.sql", "utf8");
 const seed = fs.readFileSync("seeds/dev.sql", "utf8");
 const normalizedMigration = normalize(migration);
+const normalizedAdminOrdersGuardsMigration = normalize(adminOrdersGuardsMigration);
 
 test("migration 0007 cria service_hours e media_assets", () => {
   assert.match(normalizedMigration, /create table if not exists service_hours/);
@@ -50,6 +52,13 @@ test("media service aceita asset static e rejeita URL remota", () => {
   assert.throws(() => publicAssetUrl("https://example.invalid/logo.png"), /Assets remotos nao sao permitidos/);
   assert.match(seed, /insert or ignore into media_assets/i);
   assert.equal(/https?:\/\//i.test(seed), false);
+});
+
+test("migration de guardas administrativos cria unicidade no historico de status", () => {
+  assert.match(normalizedAdminOrdersGuardsMigration, /create unique index if not exists uq_order_status_history_order_status/);
+  assert.match(normalizedAdminOrdersGuardsMigration, /on order_status_history\(order_id, status\)/);
+  assert.match(normalizedAdminOrdersGuardsMigration, /select order_id, status, count\(\*\) as total/);
+  assert.match(normalizedAdminOrdersGuardsMigration, /having count\(\*\) > 1/);
 });
 
 function normalize(value) {

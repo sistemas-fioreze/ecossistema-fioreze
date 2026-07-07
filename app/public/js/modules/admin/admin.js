@@ -36,6 +36,9 @@ const STATUS_LABELS = {
   cancelled: "Cancelado",
 };
 
+const ADMIN_MUTATION_HEADER = "x-fioreze-admin-action";
+const ADMIN_MUTATION_HEADER_VALUE = "erp-admin";
+
 els.loginForm.addEventListener("submit", handleLogin);
 els.logoutButton.addEventListener("click", handleLogout);
 els.refreshButton.addEventListener("click", () => loadOrders());
@@ -218,8 +221,8 @@ function renderOrderDetail() {
         ${infoBox("Hotel", order.hotel_name)}
         ${infoBox("Origem", order.origin)}
         ${infoBox("Hospede", order.guest_name)}
-        ${infoBox("Acomodacao", order.delivery?.room_code || order.room_code)}
         ${infoBox("Local", order.delivery?.location)}
+        ${infoBox("Acomodacao", order.delivery?.room_code || order.room_code)}
         ${infoBox("Contato", order.delivery?.contact || "Nao informado")}
       </div>
 
@@ -240,7 +243,7 @@ function renderOrderDetail() {
 
       <section>
         <h3>Observacao</h3>
-        <div class="admin-info-box">${escapeHtml(order.notes || "Sem observacao.")}</div>
+        <div class="admin-info-box">${escapeHtml(order.delivery?.observation || "Sem observacao.")}</div>
       </section>
 
       <section>
@@ -325,6 +328,7 @@ async function api(path, options = {}) {
     headers: {
       accept: "application/json",
       ...(options.body ? { "content-type": "application/json" } : {}),
+      ...(initRequiresAdminMutationHeader(options) ? { [ADMIN_MUTATION_HEADER]: ADMIN_MUTATION_HEADER_VALUE } : {}),
     },
     body: options.body ? JSON.stringify(options.body) : undefined,
   };
@@ -336,6 +340,10 @@ async function api(path, options = {}) {
     throw error;
   }
   return payload;
+}
+
+function initRequiresAdminMutationHeader(options) {
+  return String(options.method || "GET").toUpperCase() !== "GET";
 }
 
 function showView(view) {

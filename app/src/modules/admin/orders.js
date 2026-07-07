@@ -1,9 +1,9 @@
 import { all, batch, first, statement } from "../../core/database.js";
 import { badRequest, conflict, notFoundError } from "../../core/errors.js";
 import { createPublicId } from "../../core/identifiers.js";
-import { nowIso } from "../../core/time.js";
+import { requestNow } from "../../core/time.js";
 import { optionalString, readJson, requireString } from "../../core/validation.js";
-import { requireAdminHotelAccess, requirePermission } from "../../services/admin-auth.js";
+import { assertAdminMutationAllowed, requireAdminHotelAccess, requirePermission } from "../../services/admin-auth.js";
 
 const MODULE_KEY = "room-service";
 const READ_PERMISSION = "room-service.orders.read";
@@ -85,36 +85,40 @@ export async function listAdminOrders({ env, session, url }) {
 
 export async function getAdminOrder({ env, session, orderId }) {
   requirePermission(session, READ_PERMISSION);
-  const detail = await loadOrderDetail(env, orderId);
+  const detail = await loadOrderDetail(env, orderId, session.hotel_ids);
   if (!detail) throw notFoundError("Pedido nao encontrado.");
-  requireAdminHotelAccess(session, detail.order.hotel_id);
   return detail;
 }
 
 export async function updateAdminOrderStatus({ request, env, session, orderId }) {
   requirePermission(session, WRITE_PERMISSION);
+  assertAdminMutationAllowed({ request });
   const payload = await readJson(request);
   const targetPublicStatus = requireString(payload.status, "status", { max: 40 });
   const note = optionalString(payload.note, "note", { max: 500 });
+
+  if (!session.hotel_ids.length) throw notFoundError("Pedido nao encontrado.");
+
+  const hotelPlaceholders = session.hotel_ids.map(() => "?").join(", ");
   const current = await first(
     env,
     `SELECT id, public_id, hotel_id, module_key, status
        FROM orders
       WHERE id = ?
         AND module_key = ?
+        AND hotel_id IN (${hotelPlaceholders})
       LIMIT 1`,
-    [orderId, MODULE_KEY],
+    [orderId, MODULE_KEY, ...session.hotel_ids],
   );
 
   if (!current) throw notFoundError("Pedido nao encontrado.");
-  requireAdminHotelAccess(session, current.hotel_id);
 
   const currentPublicStatus = toPublicStatus(current.status);
   const targetStorageStatus = toStorageStatus(targetPublicStatus);
   const normalizedTargetPublicStatus = toPublicStatus(targetStorageStatus);
 
   if (current.status === targetStorageStatus) {
-    const detail = await getAdminOrder({ env, session, orderId });
+    const detail = await loadOrderDetail(env, orderId, session.hotel_ids);
     return {
       idempotent: true,
       order: detail.order,
@@ -133,7 +137,7 @@ export async function updateAdminOrderStatus({ request, env, session, orderId })
     throw badRequest("Cancelamento exige uma nota.");
   }
 
-  const createdAt = requestNow(request);
+  const createdAt = requestNow({ request, env });
   const historyNote = note || defaultStatusNote(normalizedTargetPublicStatus);
   const auditMetadata = {
     public_id: current.public_id,
@@ -142,72 +146,95 @@ export async function updateAdminOrderStatus({ request, env, session, orderId })
     storage_status: targetStorageStatus,
   };
 
-  await batch(env, [
-    statement(
+  try {
+    await batch(env, [
+      statement(
+        env,
+        `UPDATE orders
+            SET status = ?,
+                updated_at = ?,
+                cancelled_at = CASE WHEN ? = 'cancelled' THEN ? ELSE cancelled_at END
+          WHERE id = ?
+            AND hotel_id = ?
+            AND module_key = ?
+            AND status = ?`,
+        [
+          targetStorageStatus,
+          createdAt,
+          targetStorageStatus,
+          createdAt,
+          current.id,
+          current.hotel_id,
+          MODULE_KEY,
+          current.status,
+        ],
+      ),
+      statement(
+        env,
+        `INSERT INTO order_status_history (
+           id, order_id, hotel_id, module_key, status, note, actor_user_id, created_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          createPublicId("hist"),
+          current.id,
+          current.hotel_id,
+          MODULE_KEY,
+          normalizedTargetPublicStatus,
+          historyNote,
+          session.user.id,
+          createdAt,
+        ],
+      ),
+      statement(
+        env,
+        `INSERT INTO admin_audit_log (
+           id, hotel_id, module_key, actor_user_id, action, entity_type,
+           entity_id, metadata_json, created_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          createPublicId("audit"),
+          current.hotel_id,
+          MODULE_KEY,
+          session.user.id,
+          "room-service.order.status_changed",
+          "order",
+          current.id,
+          JSON.stringify(auditMetadata),
+          createdAt,
+        ],
+      ),
+    ]);
+  } catch (error) {
+    const fresh = await first(
       env,
-      `UPDATE orders
-          SET status = ?,
-              updated_at = ?,
-              cancelled_at = CASE WHEN ? = 'cancelled' THEN ? ELSE cancelled_at END
+      `SELECT id, public_id, hotel_id, module_key, status
+         FROM orders
         WHERE id = ?
-          AND hotel_id = ?
           AND module_key = ?
-          AND status = ?`,
-      [
-        targetStorageStatus,
-        createdAt,
-        targetStorageStatus,
-        createdAt,
-        current.id,
-        current.hotel_id,
-        MODULE_KEY,
-        current.status,
-      ],
-    ),
-    statement(
-      env,
-      `INSERT INTO order_status_history (
-         id, order_id, hotel_id, module_key, status, note, actor_user_id, created_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        createPublicId("hist"),
-        current.id,
-        current.hotel_id,
-        MODULE_KEY,
-        normalizedTargetPublicStatus,
-        historyNote,
-        session.user.id,
-        createdAt,
-      ],
-    ),
-    statement(
-      env,
-      `INSERT INTO admin_audit_log (
-         id, hotel_id, module_key, actor_user_id, action, entity_type,
-         entity_id, metadata_json, created_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        createPublicId("audit"),
-        current.hotel_id,
-        MODULE_KEY,
-        session.user.id,
-        "room-service.order.status_changed",
-        "order",
-        current.id,
-        JSON.stringify(auditMetadata),
-        createdAt,
-      ],
-    ),
-  ]);
+          AND hotel_id IN (${hotelPlaceholders})
+        LIMIT 1`,
+      [orderId, MODULE_KEY, ...session.hotel_ids],
+    );
+    if (fresh?.status === targetStorageStatus) {
+      const detail = await loadOrderDetail(env, orderId, session.hotel_ids);
+      return {
+        idempotent: true,
+        order: detail.order,
+      };
+    }
+    throw error;
+  }
 
-  const detail = await getAdminOrder({ env, session, orderId });
+  const detail = await loadOrderDetail(env, orderId, session.hotel_ids);
   return {
     idempotent: false,
     order: detail.order,
   };
 }
 
-async function loadOrderDetail(env, orderId) {
+async function loadOrderDetail(env, orderId, hotelIds) {
+  if (!hotelIds.length) return null;
+  const hotelPlaceholders = hotelIds.map(() => "?").join(", ");
   const order = await first(
     env,
     `SELECT o.id, o.public_id, o.hotel_id, h.name AS hotel_name,
@@ -219,8 +246,9 @@ async function loadOrderDetail(env, orderId) {
        JOIN hotels h ON h.id = o.hotel_id
       WHERE o.id = ?
         AND o.module_key = ?
+        AND o.hotel_id IN (${hotelPlaceholders})
       LIMIT 1`,
-    [orderId, MODULE_KEY],
+    [orderId, MODULE_KEY, ...hotelIds],
   );
   if (!order) return null;
 
@@ -321,14 +349,49 @@ function formatOrderDetail(order, items, history, printEvents) {
 }
 
 function parseDelivery(notes, fallbackRoomCode) {
-  const lines = String(notes || "").split(/\r?\n/);
-  const localLine = lines.find((line) => line.toLowerCase().startsWith("local de entrega:"));
-  const contactLine = lines.find((line) => line.toLowerCase().startsWith("contato:"));
+  const segments = String(notes || "")
+    .split(/[;\r\n]+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const observation = [];
+  let location = "";
+  let contact = "";
+
+  for (const segment of segments) {
+    const normalized = normalizeLabel(segment);
+    if (normalized.startsWith("local de entrega:")) {
+      location = valueAfterColon(segment);
+      continue;
+    }
+    if (normalized.startsWith("contato:")) {
+      contact = valueAfterColon(segment);
+      continue;
+    }
+    if (normalized.startsWith("observacao:")) {
+      const value = valueAfterColon(segment);
+      if (value) observation.push(value);
+      continue;
+    }
+    observation.push(segment);
+  }
+
   return {
-    location: localLine ? localLine.split(":").slice(1).join(":").trim() : "Acomodacao",
+    location,
     room_code: fallbackRoomCode || "",
-    contact: contactLine ? contactLine.split(":").slice(1).join(":").trim() : "",
+    contact,
+    observation: observation.join(" ").trim(),
   };
+}
+
+function normalizeLabel(value) {
+  return String(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function valueAfterColon(value) {
+  return String(value).split(":").slice(1).join(":").trim();
 }
 
 function parseJson(value) {
@@ -359,14 +422,4 @@ function defaultStatusNote(status) {
     cancelled: "Pedido cancelado.",
   };
   return notes[status] || "Status atualizado.";
-}
-
-function requestNow(request) {
-  const testNow = request.headers.get("x-fioreze-test-now");
-  if (testNow) {
-    const date = new Date(testNow);
-    if (Number.isNaN(date.getTime())) throw badRequest("x-fioreze-test-now invalido.");
-    return date.toISOString();
-  }
-  return nowIso();
 }
