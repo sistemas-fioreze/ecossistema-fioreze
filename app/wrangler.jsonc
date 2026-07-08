@@ -19,6 +19,12 @@
       "migrations_pattern": "migrations/*.sql"
     }
   ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA_BUCKET",
+      "bucket_name": "fioreze-portais-media-dev"
+    }
+  ],
   "vars": {
     "ENVIRONMENT": "development",
     "IMPRESSION_ENABLED": "false",

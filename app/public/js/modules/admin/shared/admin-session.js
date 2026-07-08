@@ -1,4 +1,8 @@
 export const ROOM_SERVICE_READ_PERMISSION = "room-service.orders.read";
+export const PORTALS_MEDIA_READ_PERMISSION = "portals.media.read";
+export const PORTALS_MEDIA_UPLOAD_PERMISSION = "portals.media.upload";
+export const PORTALS_MEDIA_UPDATE_PERMISSION = "portals.media.update";
+export const PORTALS_MEDIA_ARCHIVE_PERMISSION = "portals.media.archive";
 const PORTALS_PERMISSION_PREFIXES = ["platform.", "portals."];
 
 export function hasPermission(session, permissionKey) {
@@ -16,6 +20,10 @@ export function canAccessRoomService(session) {
 
 export function canAccessPortals(session) {
   return hasPermissionPrefix(session, PORTALS_PERMISSION_PREFIXES);
+}
+
+export function canAccessMediaLibrary(session) {
+  return hasPermission(session, PORTALS_MEDIA_READ_PERMISSION);
 }
 
 export function getAuthorizedHotels(session) {

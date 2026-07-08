@@ -16,6 +16,7 @@ if (!validate(configForSchema)) {
 }
 
 const d1 = config.d1_databases?.[0] || {};
+const r2 = config.r2_buckets?.find((bucket) => bucket.binding === "MEDIA_BUCKET") || {};
 
 if (d1.binding !== "DB") {
   console.error("D1 binding deve ser DB.");
@@ -29,6 +30,16 @@ if (d1.migrations_dir !== "migrations" || d1.migrations_pattern !== "migrations/
 
 if (JSON.stringify(config).includes("--remote") || d1.remote === true) {
   console.error("Configuracao remota nao permitida nesta fase.");
+  process.exit(1);
+}
+
+if (r2.binding !== "MEDIA_BUCKET" || r2.bucket_name !== "fioreze-portais-media-dev") {
+  console.error("R2 binding MEDIA_BUCKET deve apontar para fioreze-portais-media-dev.");
+  process.exit(1);
+}
+
+if (r2.remote === true || /prod/i.test(r2.bucket_name || "")) {
+  console.error("R2 remoto ou bucket de producao nao permitido nesta fase.");
   process.exit(1);
 }
 

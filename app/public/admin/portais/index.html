@@ -54,7 +54,58 @@
           <div class="admin-panel-heading">
             <h2>Modulos da Central</h2>
           </div>
-          <div id="portalsModules" class="admin-module-grid" aria-label="Modulos da Central de Portais"></div>
+          <div id="portalsHome">
+            <div id="portalsModules" class="admin-module-grid" aria-label="Modulos da Central de Portais"></div>
+          </div>
+
+          <section id="mediaLibrary" class="admin-media-library" hidden>
+            <div class="admin-panel-heading">
+              <div>
+                <h2>Biblioteca de imagens</h2>
+                <p class="admin-muted">Assets privados no R2, publicados pela rota segura /media.</p>
+              </div>
+            </div>
+
+            <form id="mediaFilters" class="admin-filters admin-media-filters">
+              <label>
+                <span>Hotel</span>
+                <select id="mediaHotel" name="hotel_id" required></select>
+              </label>
+              <label>
+                <span>Modulo</span>
+                <input id="mediaModule" name="module_key" type="text" inputmode="latin" placeholder="room-service">
+              </label>
+              <label>
+                <span>Status</span>
+                <select id="mediaStatus" name="status">
+                  <option value="active">Ativas</option>
+                  <option value="inactive">Inativas</option>
+                  <option value="archived">Arquivadas</option>
+                </select>
+              </label>
+              <label>
+                <span>Busca</span>
+                <input id="mediaSearch" name="q" type="search" placeholder="arquivo ou texto alternativo">
+              </label>
+              <button type="submit">Filtrar</button>
+            </form>
+
+            <form id="mediaUploadForm" class="admin-media-upload" enctype="multipart/form-data" hidden>
+              <label>
+                <span>Imagem</span>
+                <input id="mediaFile" name="file" type="file" accept="image/jpeg,image/png,image/webp,image/avif" required>
+              </label>
+              <label>
+                <span>Texto alternativo</span>
+                <input id="mediaAltText" name="alt_text" type="text" maxlength="300">
+              </label>
+              <button id="mediaUploadButton" class="admin-primary-button" type="submit">Enviar imagem</button>
+              <p id="mediaUploadStatus" class="admin-muted" role="status" aria-live="polite"></p>
+            </form>
+
+            <p id="mediaError" class="admin-error" role="alert" aria-live="polite"></p>
+            <div id="mediaGrid" class="admin-media-grid" aria-live="polite"></div>
+          </section>
         </section>
       </section>
 
