@@ -11,6 +11,8 @@ export const ADMIN_MUTATION_HEADER_VALUE = "erp-admin";
 const SESSION_TTL_SECONDS = 60 * 60 * 8;
 const SESSION_TOKEN_BYTES = 32;
 const PBKDF2_STRATEGY = "pbkdf2";
+const PBKDF2_MIN_ITERATIONS = 100000;
+const PBKDF2_MAX_ITERATIONS = 100000;
 
 export async function loginAdmin({ request, env }) {
   const payload = await readJson(request);
@@ -238,7 +240,13 @@ function parsePasswordHash(storedHash) {
   if (typeof storedHash !== "string") return null;
   const [strategy, algorithm, iterationsText, saltText, hashText] = storedHash.split("$");
   const iterations = Number(iterationsText);
-  if (strategy !== PBKDF2_STRATEGY || algorithm !== "sha256" || !Number.isInteger(iterations) || iterations < 100000) {
+  if (
+    strategy !== PBKDF2_STRATEGY ||
+    algorithm !== "sha256" ||
+    !Number.isInteger(iterations) ||
+    iterations < PBKDF2_MIN_ITERATIONS ||
+    iterations > PBKDF2_MAX_ITERATIONS
+  ) {
     return null;
   }
   try {

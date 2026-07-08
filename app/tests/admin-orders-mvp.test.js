@@ -97,6 +97,19 @@ test("password_strategy incompativel nao autentica nem revela detalhes", async (
   assert.equal(env.__data.adminSessions.length, 0);
 });
 
+test("hash PBKDF2 acima do limite do Workers nao gera erro 500", async () => {
+  const { json, env } = createWorkerTestContext();
+  env.__data.adminUsers[0].password_hash =
+    "pbkdf2$sha256$210000$ZmlvcmV6ZS1hZG1pbi1kZW1vLXNhbHQtMjAyNg==$pyDE+YfHY8oVHR16wprIcX1hEP9Ph9X6L+juKuD9U2U=";
+
+  const { response, body } = await loginAdmin(json);
+
+  assert.equal(response.status, 401);
+  assert.equal(body.error.code, "unauthorized");
+  assert.doesNotMatch(body.error.message, /hash|salt|pbkdf|iteration/i);
+  assert.equal(env.__data.adminSessions.length, 0);
+});
+
 test("sessao ausente bloqueia APIs administrativas", async () => {
   const { json } = createWorkerTestContext();
   const { response, body } = await json("/api/v1/admin/orders");

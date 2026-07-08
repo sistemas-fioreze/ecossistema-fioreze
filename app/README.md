@@ -161,6 +161,7 @@ Os testes cobrem:
 O MVP administrativo implementa login real para ambiente local e desenvolvimento controlado:
 
 - senha armazenada como PBKDF2-SHA-256 serializado em `admin_users.password_hash`;
+- hashes administrativos devem usar exatamente 100000 iteracoes PBKDF2, limite aceito pelo runtime do Worker nesta implementacao;
 - token de sessao gerado com WebCrypto e armazenado somente como `token_hash`;
 - cookie `fioreze_admin_session` com `HttpOnly`, `SameSite=Lax` e `Secure` quando a requisicao usa HTTPS;
 - sessoes expiram e podem ser revogadas no logout;
@@ -181,6 +182,8 @@ Senha: DemoAdmin!2026
 Essas credenciais sao somente para desenvolvimento local. Nao usar dados reais em seeds, testes ou documentacao.
 
 Quando `admin_users.force_password_change = 1`, o MVP bloqueia o login e nao cria sessao. A tela completa de redefinicao de senha ainda nao foi implementada; a resposta da API informa a necessidade de redefinir a senha sem expor hash, salt ou detalhes internos.
+
+Hashes PBKDF2 com iteracoes fora do intervalo suportado sao tratados como credencial invalida antes da derivacao criptografica. Isso evita erro 500 em ambiente Workers e mantem a resposta sem detalhes sensiveis.
 
 Fluxo local:
 

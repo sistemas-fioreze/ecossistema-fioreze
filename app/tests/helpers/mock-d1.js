@@ -191,7 +191,7 @@ function createFixtureData() {
         display_name: "Usuario Admin Demo",
         email: "admin-demo@example.invalid",
         password_hash:
-          "pbkdf2$sha256$210000$ZmlvcmV6ZS1hZG1pbi1kZW1vLXNhbHQtMjAyNg==$pyDE+YfHY8oVHR16wprIcX1hEP9Ph9X6L+juKuD9U2U=",
+          "pbkdf2$sha256$100000$ZmlvcmV6ZS1hZG1pbi1kZW1vLXNhbHQtMjAyNg==$QPM6b/QnKHhfCwYXFU9kCd7KpgtlsLdGDELeiM9Ulgw=",
         password_strategy: "pbkdf2",
         status: "active",
         force_password_change: 0,
@@ -201,7 +201,7 @@ function createFixtureData() {
         display_name: "Usuario Aurora Demo",
         email: "aurora-demo@example.invalid",
         password_hash:
-          "pbkdf2$sha256$210000$ZmlvcmV6ZS1hZG1pbi1kZW1vLXNhbHQtMjAyNg==$pyDE+YfHY8oVHR16wprIcX1hEP9Ph9X6L+juKuD9U2U=",
+          "pbkdf2$sha256$100000$ZmlvcmV6ZS1hZG1pbi1kZW1vLXNhbHQtMjAyNg==$QPM6b/QnKHhfCwYXFU9kCd7KpgtlsLdGDELeiM9Ulgw=",
         password_strategy: "pbkdf2",
         status: "active",
         force_password_change: 0,
