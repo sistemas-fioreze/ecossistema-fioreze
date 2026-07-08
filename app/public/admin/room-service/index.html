@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <title>Central Administrativa Fioreze</title>
+    <title>ERP Room Service Fioreze</title>
     <link rel="stylesheet" href="/css/core/reset.css">
     <link rel="stylesheet" href="/css/core/tokens.css">
     <link rel="stylesheet" href="/css/core/layout.css">
@@ -15,7 +15,7 @@
       <section class="admin-login" data-view="login" hidden>
         <form id="loginForm" class="admin-access-card" autocomplete="on">
           <div class="brand-mark" aria-hidden="true"></div>
-          <p class="eyebrow">Ecossistema Fioreze</p>
+          <p class="eyebrow">ERP Fioreze</p>
           <h1>Acesso administrativo</h1>
           <label>
             <span>E-mail</span>
@@ -33,8 +33,9 @@
       <section class="admin-dashboard" data-view="dashboard" hidden>
         <header class="admin-topbar">
           <div>
-            <p class="eyebrow">Central administrativa</p>
-            <h1>Ecossistema Fioreze</h1>
+            <a class="admin-back-link" href="/admin/">Voltar para sistemas</a>
+            <p class="eyebrow">ERP Room Service</p>
+            <h1>Pedidos Room Service</h1>
           </div>
           <div class="admin-session-box">
             <span id="sessionUser"></span>
@@ -42,20 +43,42 @@
           </div>
         </header>
 
-        <section class="admin-launcher-grid" aria-label="Sistemas administrativos">
-          <article class="admin-launcher-panel">
-            <div class="admin-panel-heading">
-              <h2>Sistemas disponiveis</h2>
-            </div>
-            <div id="systemsList" class="admin-system-list"></div>
-            <p id="noSystemsMessage" class="admin-empty" hidden>Nenhum sistema administrativo disponivel para este usuario.</p>
-          </article>
+        <section class="admin-filters" aria-label="Filtros de pedidos">
+          <label>
+            <span>Hotel</span>
+            <select id="hotelFilter"></select>
+          </label>
+          <label>
+            <span>Status</span>
+            <select id="statusFilter">
+              <option value="">Todos</option>
+              <option value="received">Recebido</option>
+              <option value="preparing">Em preparo</option>
+              <option value="ready">Pronto</option>
+              <option value="completed">Concluido</option>
+              <option value="cancelled">Cancelado</option>
+            </select>
+          </label>
+          <label class="admin-search">
+            <span>Busca</span>
+            <input id="searchFilter" type="search" placeholder="Public ID, acomodacao ou nome">
+          </label>
+          <button id="refreshButton" type="button">Atualizar</button>
+        </section>
 
-          <aside class="admin-launcher-panel">
+        <p id="dashboardError" class="admin-error" role="alert" aria-live="polite"></p>
+
+        <section class="admin-workspace">
+          <section class="admin-orders-panel" aria-label="Lista de pedidos">
             <div class="admin-panel-heading">
-              <h2>Hoteis autorizados</h2>
+              <h2>Pedidos</h2>
+              <span id="ordersCount">0</span>
             </div>
-            <div id="authorizedHotels" class="admin-hotel-list"></div>
+            <div id="ordersList" class="admin-orders-list" aria-live="polite"></div>
+          </section>
+
+          <aside class="admin-detail-panel" aria-label="Detalhes do pedido">
+            <div id="orderDetail" class="admin-detail-empty">Selecione um pedido.</div>
           </aside>
         </section>
       </section>
@@ -67,6 +90,6 @@
         </div>
       </section>
     </main>
-    <script type="module" src="/js/modules/admin/admin.js"></script>
+    <script type="module" src="/js/modules/admin/room-service.js"></script>
   </body>
 </html>

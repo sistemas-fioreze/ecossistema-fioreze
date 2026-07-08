@@ -40,14 +40,15 @@ async function handleRequest(request, env, ctx) {
     return router.handle(request, env, ctx);
   }
 
-  if (url.pathname === "/admin") {
+  const adminAssetPath = resolveAdminAssetPath(url.pathname);
+  if (adminAssetPath?.redirectTo) {
     const canonicalUrl = new URL(request.url);
-    canonicalUrl.pathname = "/admin/";
+    canonicalUrl.pathname = adminAssetPath.redirectTo;
     return Response.redirect(canonicalUrl.toString(), 308);
   }
 
-  if (url.pathname.startsWith("/admin/")) {
-    return serveAsset(request, env, "/admin/");
+  if (adminAssetPath?.assetPath) {
+    return serveAsset(request, env, adminAssetPath.assetPath);
   }
 
   if (isDirectAsset(url.pathname)) {
@@ -64,6 +65,25 @@ function isDirectAsset(pathname) {
     pathname.startsWith("/assets/") ||
     pathname === "/favicon.ico"
   );
+}
+
+function resolveAdminAssetPath(pathname) {
+  const routes = [
+    { canonical: "/admin/room-service/", assetPath: "/admin/room-service/" },
+    { canonical: "/admin/portais/", assetPath: "/admin/portais/" },
+    { canonical: "/admin/", assetPath: "/admin/" },
+  ];
+
+  for (const route of routes) {
+    const withoutSlash = route.canonical.slice(0, -1);
+    if (pathname === withoutSlash) return { redirectTo: route.canonical };
+    if (pathname === route.canonical || pathname.startsWith(route.canonical)) {
+      return { assetPath: route.assetPath };
+    }
+  }
+
+  if (pathname.startsWith("/admin/")) return { assetPath: "/admin/index.html" };
+  return null;
 }
 
 async function serveAsset(request, env, overridePath = null) {

@@ -103,6 +103,8 @@
 }
 
 .admin-topbar,
+.admin-launcher-panel,
+.admin-access-denied,
 .admin-filters,
 .admin-orders-panel,
 .admin-detail-panel {
@@ -118,6 +120,22 @@
   justify-content: space-between;
   gap: 16px;
   padding: 18px;
+}
+
+.admin-back-link,
+.admin-secondary-link {
+  display: inline-flex;
+  width: max-content;
+  margin-bottom: 8px;
+  color: var(--color-primary);
+  font-size: 0.9rem;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.admin-back-link:hover,
+.admin-secondary-link:hover {
+  text-decoration: underline;
 }
 
 .admin-topbar h1,
@@ -164,6 +182,62 @@
   align-items: end;
   gap: 12px;
   padding: 14px;
+}
+
+.admin-launcher-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+  gap: 16px;
+}
+
+.admin-launcher-panel,
+.admin-access-denied {
+  padding: 18px;
+}
+
+.admin-system-list,
+.admin-hotel-list,
+.admin-module-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-module-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.admin-system-card,
+.admin-module-card,
+.admin-hotel-chip {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--color-text);
+}
+
+.admin-system-card {
+  text-decoration: none;
+}
+
+.admin-system-card:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary), transparent 84%);
+}
+
+.admin-system-card strong,
+.admin-module-card strong,
+.admin-hotel-chip strong {
+  font-size: 1rem;
+}
+
+.admin-system-card span,
+.admin-module-card span,
+.admin-hotel-chip span {
+  color: var(--color-muted);
+  font-size: 0.92rem;
 }
 
 .admin-workspace {
@@ -311,7 +385,9 @@
 
 @media (max-width: 920px) {
   .admin-workspace,
-  .admin-filters {
+  .admin-filters,
+  .admin-launcher-grid,
+  .admin-module-grid {
     grid-template-columns: 1fr;
   }
 
