@@ -23,13 +23,36 @@ function createAssetsBinding() {
   return {
     fetch(request) {
       const pathname = new URL(request.url).pathname;
-      if (pathname === "/admin/") {
-        return new Response(
-          '<!doctype html><html><body><h1>ERP Fioreze</h1><form id="loginForm"></form><div id="ordersList"></div></body></html>',
-          {
+      const htmlByPath = {
+        "/admin/":
+          '<!doctype html><html><body><h1>Ecossistema Fioreze</h1><form id="loginForm"></form><div id="systemsList"></div></body></html>',
+        "/admin/index.html":
+          '<!doctype html><html><body><h1>Ecossistema Fioreze</h1><form id="loginForm"></form><div id="systemsList"></div></body></html>',
+        "/admin/room-service/":
+          '<!doctype html><html><body><h1>Pedidos Room Service</h1><form id="loginForm"></form><div id="ordersList"></div></body></html>',
+        "/admin/room-service/index.html":
+          '<!doctype html><html><body><h1>Pedidos Room Service</h1><form id="loginForm"></form><div id="ordersList"></div></body></html>',
+        "/admin/portais/":
+          '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><div id="portalsDenied"></div></body></html>',
+        "/admin/portais/index.html":
+          '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><div id="portalsDenied"></div></body></html>',
+      };
+      if (htmlByPath[pathname]) {
+        return new Response(htmlByPath[pathname], {
           headers: { "content-type": "text/html; charset=utf-8" },
-          },
-        );
+        });
+      }
+
+      if (pathname.startsWith("/js/")) {
+        return new Response("export {};\n", {
+          headers: { "content-type": "application/javascript; charset=utf-8" },
+        });
+      }
+
+      if (pathname.startsWith("/css/")) {
+        return new Response("body{}\n", {
+          headers: { "content-type": "text/css; charset=utf-8" },
+        });
       }
 
       return new Response(`<html><body>${pathname}</body></html>`, {

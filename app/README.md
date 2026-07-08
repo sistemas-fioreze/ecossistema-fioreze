@@ -4,12 +4,14 @@ Aplicacao nova e compartilhada do ecossistema digital da Familia Fioreze.
 
 ## Visao
 
-Um unico Worker, um unico front-end publico, um unico ERP e um unico banco D1 multi-hotel. O Muller e Fioreze e o primeiro tenant e Room Service e o primeiro modulo funcional, mas a base suporta Portal do Hospede, Emporio, Spa, Pacotes Romanticos e modulos futuros.
+Um unico Worker, um unico front-end publico, uma unica autenticacao administrativa e um unico banco D1 multi-hotel. O Muller e Fioreze e o primeiro tenant e Room Service e o primeiro modulo funcional, mas a base suporta Portal do Hospede, Emporio, Spa, Pacotes Romanticos, Central de Portais e modulos futuros.
 
 ## Arquitetura
 
 - `public/index.html`: shell publico unico.
-- `public/admin/index.html`: shell administrativo unico.
+- `public/admin/index.html`: central de acesso administrativo.
+- `public/admin/room-service/index.html`: ERP operacional do Room Service.
+- `public/admin/portais/index.html`: fundacao visual da Central de Portais Fioreze.
 - `src/core/`: roteamento, D1, tenant, bootstrap, validacao, respostas e feature flags.
 - `src/middleware/`: autenticacao, autorizacao, modulo habilitado e headers.
 - `src/modules/`: regras e rotas por modulo.
@@ -21,6 +23,19 @@ Um unico Worker, um unico front-end publico, um unico ERP e um unico banco D1 mu
 ## Front-end
 
 O shell publico identifica o hotel pelo slug da URL, chama `/api/v1/public/hotels/:hotel_slug/bootstrap`, aplica branding, monta a navegacao e carrega o modulo. Ele nao baixa HTML remoto.
+
+As telas administrativas tambem compartilham o mesmo backend, usuario, cookie `fioreze_admin_session`, logout e endpoint `GET /api/v1/admin/session`. O frontend fica separado em duas aplicacoes administrativas independentes:
+
+- ERP Room Service, focado em operacao de pedidos e atendimento;
+- Central de Portais Fioreze, preparada para administracao de hoteis, portais, conteudos e usuarios.
+
+Rotas administrativas:
+
+- `/admin/`: central de acesso administrativo e selecao de sistemas;
+- `/admin/room-service/`: ERP operacional do Room Service;
+- `/admin/portais/`: Central de Portais Fioreze.
+
+Autorizacao visual usa `permission_key` retornada pela sessao e acesso por hotel retornado pelo backend. A barreira efetiva permanece nas APIs administrativas.
 
 Rotas publicas planejadas:
 
@@ -151,6 +166,7 @@ Os testes cobrem:
 - produto inexistente, indisponivel, arquivado, de outro hotel e de outro modulo;
 - isolamento por hotel;
 - rota admin sem autenticacao;
+- roteamento administrativo separado para central, Room Service e Portais;
 - login, logout, sessao expirada e cookies administrativos;
 - listagem e detalhe de pedidos limitados aos hoteis permitidos;
 - transicoes de status, idempotencia, concorrencia, historico e auditoria;
@@ -171,6 +187,8 @@ O MVP administrativo implementa login real para ambiente local e desenvolvimento
 - permissoes usadas pelo MVP:
   - `room-service.orders.read`;
   - `room-service.orders.write`.
+
+O cartao Room Service da central aparece para usuarios com `room-service.orders.read`. A Central de Portais aparece somente para usuarios com permissoes futuras prefixadas por `platform.` ou `portals.`. Nao ha autorizacao por e-mail, nome de usuario ou regra fixa no frontend.
 
 Credenciais ficticias do seed local:
 
@@ -197,13 +215,22 @@ Depois acesse `http://localhost:8787/admin/`.
 
 ## ERP Administrativo
 
-O shell `/admin/` exibe:
+O shell `/admin/` e uma central de acesso. Ele exibe, apos login:
+
+- nome do usuario;
+- hoteis autorizados;
+- sistemas disponiveis conforme permissoes;
+- logout compartilhado.
+
+O shell `/admin/room-service/` exibe:
 
 - tela de login;
 - lista de pedidos de Room Service;
 - filtros por hotel, status e busca;
 - detalhe de pedido com itens, totais, historico e situacao de impressao;
 - mudanca de status controlada.
+
+O shell `/admin/portais/` e a fundacao da Central de Portais Fioreze. Ele nao implementa CRUD nesta fase. Usuarios sem `platform.*` ou `portals.*` veem acesso negado seguro; usuarios autorizados futuramente verao estruturas iniciais para Visao geral, Hoteis, Portais e modulos, Conteudos, Usuarios e acessos, e Auditoria.
 
 Fluxo de status exposto pela API:
 

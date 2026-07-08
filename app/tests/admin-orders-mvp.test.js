@@ -489,7 +489,7 @@ test("rotas /admin e subrotas continuam entregando shell sem loop", async () => 
   const { fetch } = createWorkerTestContext();
   const redirect = await fetch("/admin", { redirect: "manual" });
   const admin = await fetch("/admin/", { redirect: "manual" });
-  const nested = await fetch("/admin/pedidos/abc", { redirect: "manual" });
+  const nested = await fetch("/admin/room-service/pedidos/abc", { redirect: "manual" });
 
   assert.equal(redirect.status, 308);
   assert.equal(new URL(redirect.headers.get("location")).pathname, "/admin/");
@@ -501,11 +501,11 @@ test("rotas /admin e subrotas continuam entregando shell sem loop", async () => 
 
 test("interface administrativa carrega login e area de pedidos", async () => {
   const { fetch } = createWorkerTestContext();
-  const response = await fetch("/admin/");
+  const response = await fetch("/admin/room-service/");
   const html = await response.text();
 
   assert.equal(response.status, 200);
-  assert.match(html, /ERP Fioreze/);
+  assert.match(html, /Pedidos Room Service/);
   assert.match(html, /loginForm/);
   assert.match(html, /ordersList/);
 });
