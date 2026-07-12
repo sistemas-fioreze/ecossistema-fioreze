@@ -25,8 +25,6 @@ import {
 } from "./shared/admin-session.js";
 import { debounce, escapeAttr, escapeHtml, formatDate } from "./shared/format.js";
 
-const SHORT_LINK_PUBLIC_ORIGIN = "https://go.hoteisfioreze.com.br";
-
 const els = {
   portalsNav: document.getElementById("portalsNav"),
   sectionEyebrow: document.getElementById("sectionEyebrow"),
@@ -987,7 +985,13 @@ function renderShortLinkAnalytics(analytics) {
 
 function updateShortLinkPreview() {
   const slug = currentShortLink?.slug || els.shortLinksForm.elements.slug.value.trim().toLowerCase();
-  els.shortLinksPreview.textContent = slug ? `${SHORT_LINK_PUBLIC_ORIGIN}/${slug}` : `${SHORT_LINK_PUBLIC_ORIGIN}/seu-link`;
+  els.shortLinksPreview.textContent = shortLinkPreviewUrl(slug);
+}
+
+function shortLinkPreviewUrl(slug) {
+  if (currentShortLink?.public_url && slug === currentShortLink.slug) return currentShortLink.public_url;
+  const safeSlug = slug || "seu-link";
+  return `${window.location.origin}/go/${safeSlug}`;
 }
 
 function renderMediaLibrary(session) {

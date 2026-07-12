@@ -34,11 +34,12 @@ test("migration 0011 cria links curtos, analytics agregada e permissoes sem asso
   assert.equal(/admin_role_permissions/i.test(migration), false);
 });
 
-test("wrangler executa Worker antes de assets para /go/*", () => {
+test("wrangler preserva Workers.dev e adia Custom Domain dos links", () => {
   const config = JSON.parse(fs.readFileSync("wrangler.jsonc", "utf8"));
+  assert.equal(config.workers_dev, true);
   assert.ok(config.assets.run_worker_first.includes("/go/*"));
-  assert.equal(config.vars.SHORT_LINK_PUBLIC_ORIGIN, SHORT_LINK_ORIGIN);
-  assert.deepEqual(config.routes, [{ pattern: "go.hoteisfioreze.com.br", custom_domain: true }]);
+  assert.equal(Object.hasOwn(config.vars || {}, "SHORT_LINK_PUBLIC_ORIGIN"), false);
+  assert.equal((config.routes || []).some((route) => route.pattern === "go.hoteisfioreze.com.br"), false);
 });
 
 test("normalizacao de slug aplica regras globais e palavras reservadas", () => {
@@ -278,7 +279,7 @@ test("admin cria link, rejeita duplicidade e nao grava destino completo no audit
   const audit = env.__data.adminAuditLog.at(-1);
 
   assert.equal(created.response.status, 200);
-  assert.match(created.body.data.link.public_url, /\/go\/whatsapp-demo$/);
+  assert.equal(created.body.data.link.public_url, `${ADMIN_ORIGIN}/go/whatsapp-demo`);
   assert.equal(duplicate.response.status, 409);
   assert.equal(audit.action, "short-link.create");
   assert.equal(audit.metadata_json.includes("wa.me"), false);
