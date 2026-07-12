@@ -6,6 +6,7 @@ import { getBootstrap, resolveTenantBySlug } from "./core/tenant.js";
 import { withSecurityHeaders } from "./middleware/security-headers.js";
 import { servePublicMedia } from "./modules/admin/media.js";
 import { registerAdminRoutes } from "./modules/admin/routes.js";
+import { registerEmbedRoutes } from "./modules/embed/public.js";
 
 const router = new Router();
 
@@ -33,6 +34,7 @@ router.get("/api/v1/public/hotels/:hotel_slug/modules", async ({ env, params }) 
 
 registerModuleRoutes(router);
 registerAdminRoutes(router);
+registerEmbedRoutes(router);
 
 router.get("/media/:id", async ({ request, env, params }) => servePublicMedia({ request, env, params }));
 router.head("/media/:id", async ({ request, env, params }) => servePublicMedia({ request, env, params, head: true }));
@@ -40,7 +42,7 @@ router.head("/media/:id", async ({ request, env, params }) => servePublicMedia({
 async function handleRequest(request, env, ctx) {
   const url = new URL(request.url);
 
-  if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/media/")) {
+  if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/media/") || url.pathname.startsWith("/embed/")) {
     return router.handle(request, env, ctx);
   }
 
@@ -109,17 +111,28 @@ async function serveAsset(request, env, overridePath = null) {
 
 export default {
   async fetch(request, env, ctx) {
+    const pathname = new URL(request.url).pathname;
     try {
       const response = await handleRequest(request, env, ctx);
-      return withSecurityHeaders(response);
+      return withSecurityHeaders(response, {
+        embed: pathname.startsWith("/embed/"),
+        admin: pathname.startsWith("/admin/"),
+      });
     } catch (error) {
       if (error instanceof AppError) {
-        return withSecurityHeaders(fail(error.status, error.code, error.message, error.details));
+        return withSecurityHeaders(fail(error.status, error.code, error.message, error.details), {
+          embed: pathname.startsWith("/embed/"),
+          admin: pathname.startsWith("/admin/"),
+        });
       }
       return withSecurityHeaders(
         fail(500, "internal_error", "Erro interno local da plataforma.", undefined, {
           requestId: crypto.randomUUID(),
         }),
+        {
+          embed: pathname.startsWith("/embed/"),
+          admin: pathname.startsWith("/admin/"),
+        },
       );
     }
   },
