@@ -6,11 +6,13 @@ import { publicAssetUrl } from "../src/services/media-service.js";
 const migration = fs.readFileSync("migrations/0007_core_service_hours_media_assets.sql", "utf8");
 const adminOrdersGuardsMigration = fs.readFileSync("migrations/0007_admin_orders_guards.sql", "utf8");
 const mediaLibraryMigration = fs.readFileSync("migrations/0008_media_library_foundation.sql", "utf8");
+const adminUnitsMigration = fs.readFileSync("migrations/0009_admin_units_management_permissions.sql", "utf8");
 const seed = fs.readFileSync("seeds/dev.sql", "utf8");
 const wranglerConfig = JSON.parse(fs.readFileSync("wrangler.jsonc", "utf8"));
 const normalizedMigration = normalize(migration);
 const normalizedAdminOrdersGuardsMigration = normalize(adminOrdersGuardsMigration);
 const normalizedMediaLibraryMigration = normalize(mediaLibraryMigration);
+const normalizedAdminUnitsMigration = normalize(adminUnitsMigration);
 
 test("migration 0007 cria service_hours e media_assets", () => {
   assert.match(normalizedMigration, /create table if not exists service_hours/);
@@ -89,6 +91,21 @@ test("Static Assets executa Worker antes de api, admin e media", () => {
   assert.equal(workerFirst.has("/api/*"), true);
   assert.equal(workerFirst.has("/admin/*"), true);
   assert.equal(workerFirst.has("/media/*"), true);
+});
+
+test("migration 0009 adiciona permissoes de unidades sem associar roles", () => {
+  for (const permission of [
+    "portals.hotels.read",
+    "portals.hotels.create",
+    "portals.hotels.update",
+    "portals.hotels.branding",
+    "portals.hotels.settings",
+    "portals.hotels.modules",
+    "portals.hotels.navigation",
+  ]) {
+    assert.match(normalizedAdminUnitsMigration, new RegExp(permission.replaceAll(".", "\\.")));
+  }
+  assert.equal(/admin_role_permissions/i.test(adminUnitsMigration), false);
 });
 
 function normalize(value) {

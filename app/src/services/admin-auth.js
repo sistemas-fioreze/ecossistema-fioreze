@@ -179,10 +179,9 @@ async function buildAdminSession(env, row) {
     env,
     `SELECT h.id AS hotel_id, h.slug, h.name, h.short_name,
             h.timezone, h.locale, h.currency, aha.access_level
-       FROM admin_hotel_access aha
-       JOIN hotels h ON h.id = aha.hotel_id
-      WHERE aha.user_id = ?
-        AND h.status = 'active'
+      FROM admin_hotel_access aha
+      JOIN hotels h ON h.id = aha.hotel_id
+     WHERE aha.user_id = ?
         AND h.archived_at IS NULL
       ORDER BY h.name`,
     [row.user_id],

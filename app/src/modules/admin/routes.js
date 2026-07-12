@@ -1,7 +1,23 @@
 import { requireAuthentication } from "../../middleware/authentication.js";
 import { loginAdmin, logoutAdmin, toSessionPayload } from "../../services/admin-auth.js";
+import {
+  archiveAdminHotelNavigation,
+  createAdminHotel,
+  createAdminHotelNavigation,
+  getAdminHotel,
+  getAdminHotelBranding,
+  getAdminHotelSettings,
+  listAdminHotelModules,
+  listAdminHotelNavigation,
+  listAdminHotels,
+  updateAdminHotel,
+  updateAdminHotelBranding,
+  updateAdminHotelModules,
+  updateAdminHotelNavigation,
+  updateAdminHotelSettings,
+} from "./hotels.js";
 import { archiveAdminMedia, getAdminMedia, listAdminMedia, updateAdminMedia, uploadAdminMedia } from "./media.js";
-import { getAdminOrder, listAdminHotels, listAdminOrders, updateAdminOrderStatus } from "./orders.js";
+import { getAdminOrder, listAdminHotels as listOrderHotels, listAdminOrders, updateAdminOrderStatus } from "./orders.js";
 import { ok } from "../../core/responses.js";
 import { notFoundError } from "../../core/errors.js";
 
@@ -23,7 +39,93 @@ export function registerAdminRoutes(router) {
 
   router.get("/api/v1/admin/hotels", async ({ request, env }) => {
     const session = await requireAuthentication({ request, env });
-    return ok(await listAdminHotels({ env, session }));
+    try {
+      return ok(await listAdminHotels({ env, session, url: new URL(request.url) }));
+    } catch (error) {
+      if (error?.code !== "unauthorized") throw error;
+      return ok(await listOrderHotels({ env, session }));
+    }
+  });
+
+  router.post("/api/v1/admin/hotels", async ({ request, env }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await createAdminHotel({ request, env, session }));
+  });
+
+  router.get("/api/v1/admin/hotels/:id", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await getAdminHotel({ env, session, hotelId: params.id }));
+  });
+
+  router.patch("/api/v1/admin/hotels/:id", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await updateAdminHotel({ request, env, session, hotelId: params.id }));
+  });
+
+  router.get("/api/v1/admin/hotels/:id/branding", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await getAdminHotelBranding({ env, session, hotelId: params.id }));
+  });
+
+  router.patch("/api/v1/admin/hotels/:id/branding", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await updateAdminHotelBranding({ request, env, session, hotelId: params.id }));
+  });
+
+  router.get("/api/v1/admin/hotels/:id/settings", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await getAdminHotelSettings({ env, session, hotelId: params.id }));
+  });
+
+  router.patch("/api/v1/admin/hotels/:id/settings", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await updateAdminHotelSettings({ request, env, session, hotelId: params.id }));
+  });
+
+  router.get("/api/v1/admin/hotels/:id/modules", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await listAdminHotelModules({ env, session, hotelId: params.id }));
+  });
+
+  router.patch("/api/v1/admin/hotels/:id/modules", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await updateAdminHotelModules({ request, env, session, hotelId: params.id }));
+  });
+
+  router.get("/api/v1/admin/hotels/:id/navigation", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await listAdminHotelNavigation({ env, session, hotelId: params.id }));
+  });
+
+  router.post("/api/v1/admin/hotels/:id/navigation", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await createAdminHotelNavigation({ request, env, session, hotelId: params.id }));
+  });
+
+  router.patch("/api/v1/admin/hotels/:id/navigation/:item_id", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(
+      await updateAdminHotelNavigation({
+        request,
+        env,
+        session,
+        hotelId: params.id,
+        itemId: params.item_id,
+      }),
+    );
+  });
+
+  router.delete("/api/v1/admin/hotels/:id/navigation/:item_id", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(
+      await archiveAdminHotelNavigation({
+        request,
+        env,
+        session,
+        hotelId: params.id,
+        itemId: params.item_id,
+      }),
+    );
   });
 
   router.get("/api/v1/admin/orders", async ({ request, env, url }) => {
