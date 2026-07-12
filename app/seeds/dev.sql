@@ -19,14 +19,14 @@ INSERT OR IGNORE INTO hotel_branding (hotel_id, logo_url, icon_url, primary_colo
 INSERT OR IGNORE INTO hotel_settings (id, hotel_id, setting_key, setting_value, value_type, is_public, created_at, updated_at) VALUES
   ('set-muller-rs-status', 'muller-fioreze', 'room_service.status', 'open', 'string', 1, '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
   ('set-muller-impression', 'muller-fioreze', 'room_service.impression_enabled', 'false', 'boolean', 0, '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
-  ('set-muller-embed-enabled', 'muller-fioreze', 'embed.enabled', 'true', 'boolean', 1, '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
-  ('set-muller-embed-origins', 'muller-fioreze', 'embed.allowed_origins', '[]', 'json', 1, '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
-  ('set-muller-embed-modules', 'muller-fioreze', 'embed.allowed_modules', '["guest-portal","room-service"]', 'json', 1, '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
-  ('set-muller-embed-theme', 'muller-fioreze', 'embed.default_theme', 'light', 'string', 1, '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
-  ('set-muller-embed-background', 'muller-fioreze', 'embed.default_background', 'default', 'string', 1, '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
-  ('set-muller-embed-header', 'muller-fioreze', 'embed.header', 'visible', 'string', 1, '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
-  ('set-muller-embed-height', 'muller-fioreze', 'embed.initial_height', '560', 'number', 1, '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
-  ('set-muller-embed-compact', 'muller-fioreze', 'embed.compact', 'false', 'boolean', 1, '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('set-muller-embed-enabled', 'muller-fioreze', 'embed.enabled', 'true', 'boolean', 0, '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('set-muller-embed-origins', 'muller-fioreze', 'embed.allowed_origins', '[]', 'json', 0, '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('set-muller-embed-modules', 'muller-fioreze', 'embed.allowed_modules', '["guest-portal","room-service"]', 'json', 0, '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('set-muller-embed-theme', 'muller-fioreze', 'embed.default_theme', 'light', 'string', 0, '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('set-muller-embed-background', 'muller-fioreze', 'embed.default_background', 'default', 'string', 0, '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('set-muller-embed-header', 'muller-fioreze', 'embed.header', 'visible', 'string', 0, '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('set-muller-embed-height', 'muller-fioreze', 'embed.initial_height', '560', 'number', 0, '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('set-muller-embed-compact', 'muller-fioreze', 'embed.compact', 'false', 'boolean', 0, '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
   ('set-aurora-rs-status', 'aurora-demo', 'room_service.status', 'open', 'string', 1, '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z');
 
 INSERT OR IGNORE INTO hotel_modules (hotel_id, module_key, enabled, is_public, public_name, navigation_label, sort_order, settings_json, created_at, updated_at) VALUES

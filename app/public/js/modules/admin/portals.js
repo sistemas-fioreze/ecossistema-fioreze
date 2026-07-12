@@ -627,25 +627,61 @@ async function saveModules() {
 }
 
 async function saveEmbed() {
-  if (!hasPermission(currentSession, PORTALS_EMBED_UPDATE_PERMISSION) || !currentUnit.hotel_id) return;
+  if (
+    !hasPermission(currentSession, PORTALS_EMBED_READ_PERMISSION) ||
+    !hasPermission(currentSession, PORTALS_EMBED_UPDATE_PERMISSION) ||
+    !currentUnit.hotel_id ||
+    !currentEmbed?.embed
+  ) {
+    return;
+  }
+  const enabledInput = els.unitEditorForm.elements["embed.enabled"];
+  const originsInput = els.unitEditorForm.elements["embed.allowed_origins"];
+  const themeInput = els.unitEditorForm.elements["embed.default_theme"];
+  const backgroundInput = els.unitEditorForm.elements["embed.default_background"];
+  const headerInput = els.unitEditorForm.elements["embed.header"];
+  const heightInput = els.unitEditorForm.elements["embed.initial_height"];
+  const compactInput = els.unitEditorForm.elements["embed.compact"];
+  if (!enabledInput || !originsInput || !themeInput || !backgroundInput || !headerInput || !heightInput || !compactInput) {
+    return;
+  }
   const modules = [...els.unitEditorForm.querySelectorAll("[name='embed.module']:checked")].map((input) => input.value);
   const body = {
-    enabled: Boolean(els.unitEditorForm.elements["embed.enabled"]?.checked),
-    allowed_origins: inputValue("embed.allowed_origins")
+    enabled: enabledInput.checked === true,
+    allowed_origins: originsInput.value
       .split(/\n/)
       .map((origin) => origin.trim())
       .filter(Boolean),
     allowed_modules: modules,
-    default_theme: inputValue("embed.default_theme") || "light",
-    default_background: inputValue("embed.default_background") || "default",
-    header: inputValue("embed.header") || "visible",
-    initial_height: Number(inputValue("embed.initial_height") || 520),
-    compact: Boolean(els.unitEditorForm.elements["embed.compact"]?.checked),
+    default_theme: themeInput.value || "light",
+    default_background: backgroundInput.value || "default",
+    header: headerInput.value || "visible",
+    initial_height: Number(heightInput.value),
+    compact: compactInput.checked === true,
   };
+  if (!embedFormChanged(body, currentEmbed.embed)) return;
   await adminApi(`/api/v1/admin/hotels/${encodeURIComponent(currentUnit.hotel_id)}/embed`, {
     method: "PATCH",
     body,
   });
+}
+
+function embedFormChanged(next, current) {
+  return (
+    next.enabled !== Boolean(current.enabled) ||
+    !sameStringList(next.allowed_origins, current.allowed_origins || []) ||
+    !sameStringList(next.allowed_modules, current.allowed_modules || []) ||
+    next.default_theme !== (current.default_theme || "light") ||
+    next.default_background !== (current.default_background || "default") ||
+    next.header !== (current.header || "visible") ||
+    next.initial_height !== Number(current.initial_height || 520) ||
+    next.compact !== Boolean(current.compact)
+  );
+}
+
+function sameStringList(left, right) {
+  if (left.length !== right.length) return false;
+  return left.every((value, index) => value === right[index]);
 }
 
 async function handleNavigationAction(button) {

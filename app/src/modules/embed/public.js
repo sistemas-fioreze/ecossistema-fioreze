@@ -93,8 +93,6 @@ export async function loadPublicEmbedConfig({ request, env, hotelSlug, moduleKey
   return {
     frameAncestors: buildFrameAncestors(settings.allowed_origins, env),
     publicConfig: {
-      embed_id: `fioreze-${row.slug}-${moduleKey}`,
-      hotel_id: row.hotel_id,
       hotel_slug: row.slug,
       module_key: moduleKey,
       module_name: row.public_name || row.navigation_label || moduleKey,
@@ -109,11 +107,9 @@ export async function loadPublicEmbedConfig({ request, env, hotelSlug, moduleKey
       service_hours: bootstrap.service_hours?.[moduleKey] || [],
       service_status: moduleKey === "room-service" ? bootstrap.service_status?.room_service || "closed" : "unknown",
       options,
-      allowed_origin_count: settings.allowed_origins.length,
       endpoints: {
         config: `/api/v1/public/hotels/${row.slug}/embed/${moduleKey}/config`,
         products: moduleKey === "room-service" ? `/api/v1/public/hotels/${row.slug}/room-service/products` : null,
-        orders: moduleKey === "room-service" ? `/api/v1/public/hotels/${row.slug}/room-service/orders` : null,
       },
     },
   };
@@ -130,11 +126,10 @@ export async function loadEmbedSettings(env, hotelId) {
     [hotelId, ...EMBED_KEYS],
   );
   const settings = Object.fromEntries(rows.map((row) => [row.setting_key, coerceSetting(row)]));
-  const allowedModules = normalizeModuleList(settings["embed.allowed_modules"]);
   return {
-    enabled: Boolean(settings["embed.enabled"]),
+    enabled: settings["embed.enabled"] === true,
     allowed_origins: normalizeAllowedOrigins(settings["embed.allowed_origins"], env),
-    allowed_modules: allowedModules.length ? allowedModules : ["guest-portal", "room-service"],
+    allowed_modules: normalizeModuleList(settings["embed.allowed_modules"]),
     default_theme: THEMES.has(settings["embed.default_theme"]) ? settings["embed.default_theme"] : "light",
     default_background: BACKGROUNDS.has(settings["embed.default_background"]) ? settings["embed.default_background"] : "default",
     header: HEADERS.has(settings["embed.header"]) ? settings["embed.header"] : "visible",
@@ -163,9 +158,9 @@ export function validateEmbedAdminPayload(payload, env = {}) {
   const unknown = Object.keys(payload).filter((key) => !allowed.has(key));
   if (unknown.length) throw badRequest("Campos nao permitidos.", { fields: unknown });
   const next = {};
-  if (Object.hasOwn(payload, "enabled")) next.enabled = Boolean(payload.enabled);
-  if (Object.hasOwn(payload, "allowed_origins")) next.allowed_origins = normalizeAllowedOrigins(payload.allowed_origins, env);
-  if (Object.hasOwn(payload, "allowed_modules")) next.allowed_modules = normalizeModuleList(payload.allowed_modules);
+  if (Object.hasOwn(payload, "enabled")) next.enabled = requireBoolean(payload.enabled, "enabled");
+  if (Object.hasOwn(payload, "allowed_origins")) next.allowed_origins = validateAllowedOrigins(payload.allowed_origins, env);
+  if (Object.hasOwn(payload, "allowed_modules")) next.allowed_modules = validateModuleList(payload.allowed_modules);
   if (Object.hasOwn(payload, "default_theme")) {
     if (!THEMES.has(payload.default_theme)) throw badRequest("Tema de incorporacao invalido.");
     next.default_theme = payload.default_theme;
@@ -178,8 +173,8 @@ export function validateEmbedAdminPayload(payload, env = {}) {
     if (!HEADERS.has(payload.header)) throw badRequest("Cabecalho de incorporacao invalido.");
     next.header = payload.header;
   }
-  if (Object.hasOwn(payload, "initial_height")) next.initial_height = clampHeight(Number(payload.initial_height));
-  if (Object.hasOwn(payload, "compact")) next.compact = Boolean(payload.compact);
+  if (Object.hasOwn(payload, "initial_height")) next.initial_height = validateInitialHeight(payload.initial_height);
+  if (Object.hasOwn(payload, "compact")) next.compact = requireBoolean(payload.compact, "compact");
   return next;
 }
 
@@ -192,7 +187,7 @@ export function embedSettingsToRows(hotelId, values, now) {
       setting_key: key,
       setting_value: type === "json" ? JSON.stringify(value) : String(value),
       value_type: type,
-      is_public: 1,
+      is_public: 0,
       created_at: now,
       updated_at: now,
     });
@@ -224,6 +219,31 @@ export function normalizeModuleList(value) {
     .map((entry) => String(entry || "").trim())
     .filter((entry, index, list) => isSafeIdentifier(entry) && entry !== "admin" && list.indexOf(entry) === index)
     .slice(0, 20);
+}
+
+export function validateAllowedOrigins(value, env = {}) {
+  if (!Array.isArray(value)) throw badRequest("allowed_origins deve ser uma lista de origens.");
+  if (value.length > 40) throw badRequest("allowed_origins excede o limite permitido.");
+  const origins = [];
+  for (const entry of value) {
+    if (typeof entry !== "string") throw badRequest("allowed_origins aceita somente textos.");
+    const origin = normalizeOrigin(entry, env);
+    if (!origin) throw badRequest("Origem de incorporacao invalida.");
+    if (!origins.includes(origin)) origins.push(origin);
+  }
+  return origins;
+}
+
+export function validateModuleList(value) {
+  if (!Array.isArray(value)) throw badRequest("allowed_modules deve ser uma lista de modulos.");
+  if (value.length > 20) throw badRequest("allowed_modules excede o limite permitido.");
+  const modules = [];
+  for (const entry of value) {
+    if (typeof entry !== "string" || !isSafeIdentifier(entry)) throw badRequest("Modulo de incorporacao invalido.");
+    if (entry === "admin") throw badRequest("Modulo administrativo nao pode ser incorporado.");
+    if (!modules.includes(entry)) modules.push(entry);
+  }
+  return modules;
 }
 
 export function normalizeOrigin(value, env = {}) {
@@ -291,7 +311,7 @@ function renderEmbedHtml(config) {
 function moduleScript(config) {
   return `import { initFiorezeEmbed } from "/js/core/embed-shell.js";
 initFiorezeEmbed(${JSON.stringify({
-    embed_id: config.embed_id,
+    embed_id: embedIdFor(config.hotel_slug, config.module_key),
     hotel_slug: config.hotel_slug,
     module_key: config.module_key,
     config_url: config.endpoints.config,
@@ -299,17 +319,19 @@ initFiorezeEmbed(${JSON.stringify({
   })});`;
 }
 
+function embedIdFor(hotelSlug, moduleKey) {
+  return `fioreze-${hotelSlug}-${moduleKey}`;
+}
+
 function hostScript() {
   return `(function(){
-  const frames = new Map();
-  function indexFrames(){
-    document.querySelectorAll("iframe[data-fioreze-embed]").forEach(function(frame){
-      const id = frame.getAttribute("data-fioreze-embed-id") || frame.id || frame.src;
-      if (id) frames.set(id, frame);
-    });
-  }
+  function frames(){ return Array.prototype.slice.call(document.querySelectorAll("iframe[data-fioreze-embed]")); }
   function trustedOrigin(frame, eventOrigin){
     try { return new URL(frame.src, window.location.href).origin === eventOrigin; } catch { return false; }
+  }
+  function matchesEmbedId(frame, embedId){
+    const expected = frame.getAttribute("data-fioreze-embed-id");
+    return !expected || expected === embedId;
   }
   function resize(frame, height){
     const next = Math.max(240, Math.min(2000, Number(height) || 0));
@@ -318,13 +340,11 @@ function hostScript() {
   window.addEventListener("message", function(event){
     if (!event || !event.data || typeof event.data !== "object") return;
     if (!["fioreze:embed:ready","fioreze:embed:resize"].includes(event.data.type)) return;
-    indexFrames();
-    const frame = frames.get(event.data.embed_id);
-    if (!frame || !trustedOrigin(frame, event.origin)) return;
+    const frame = frames().find(function(entry){ return entry.contentWindow === event.source; });
+    if (!frame || !trustedOrigin(frame, event.origin) || !matchesEmbedId(frame, event.data.embed_id)) return;
     if (event.data.type === "fioreze:embed:resize") resize(frame, event.data.height);
     if (event.data.type === "fioreze:embed:ready") frame.setAttribute("data-fioreze-ready", "true");
   });
-  document.addEventListener("DOMContentLoaded", indexFrames);
 })();`;
 }
 
@@ -364,6 +384,18 @@ function coerceSetting(row) {
 function clampHeight(value) {
   if (!Number.isFinite(value)) return 520;
   return Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, Math.round(value)));
+}
+
+function validateInitialHeight(value) {
+  if (!Number.isInteger(value) || value < MIN_HEIGHT || value > MAX_HEIGHT) {
+    throw badRequest("initial_height deve ser um inteiro entre 240 e 2000.");
+  }
+  return value;
+}
+
+function requireBoolean(value, field) {
+  if (value !== true && value !== false) throw badRequest(`${field} deve ser booleano.`);
+  return value;
 }
 
 function escapeHtml(value) {

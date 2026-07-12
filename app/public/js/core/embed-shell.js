@@ -7,7 +7,7 @@ export async function initFiorezeEmbed(runtime) {
     if (!configResponse.ok || configPayload.ok === false) {
       throw new Error(configPayload.error?.message || "Nao foi possivel carregar a incorporacao.");
     }
-    const config = configPayload.data;
+    const config = { ...configPayload.data, embed_id: runtime.embed_id };
     applyTheme(root, config);
     await renderModule(root, config, runtime);
     setupPostMessage(config);

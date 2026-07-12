@@ -445,6 +445,7 @@ export async function getAdminHotelEmbed({ env, session, hotelId }) {
 }
 
 export async function updateAdminHotelEmbed({ request, env, session, hotelId }) {
+  requirePermission(session, EMBED_READ_PERMISSION);
   requirePermission(session, EMBED_UPDATE_PERMISSION);
   assertAdminMutationAllowed({ request });
   requireAdminHotelAccess(session, hotelId);
@@ -454,10 +455,13 @@ export async function updateAdminHotelEmbed({ request, env, session, hotelId }) 
   const entries = Object.keys(normalized);
   if (!entries.length) return getAdminHotelEmbed({ env, session, hotelId });
 
-  if (normalized.allowed_modules) {
-    const publicModules = new Set((await listEmbeddableModules(env, hotelId)).map((moduleRow) => moduleRow.module_key));
-    const invalid = normalized.allowed_modules.filter((moduleKey) => !publicModules.has(moduleKey));
-    if (invalid.length) throw badRequest("Modulo nao publico ou inexistente para incorporacao.", { modules: invalid });
+  const current = await loadEmbedSettings(env, hotelId);
+  const next = { ...current, ...normalized };
+  const publicModules = new Set((await listEmbeddableModules(env, hotelId)).map((moduleRow) => moduleRow.module_key));
+  const invalid = next.allowed_modules.filter((moduleKey) => !publicModules.has(moduleKey));
+  if (invalid.length) throw badRequest("Modulo nao publico ou inexistente para incorporacao.", { modules: invalid });
+  if (next.enabled && !next.allowed_modules.length) {
+    throw badRequest("Incorporacao ativa exige ao menos um modulo publico.");
   }
 
   const now = requestNow({ request, env });

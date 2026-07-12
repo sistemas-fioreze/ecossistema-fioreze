@@ -25,7 +25,11 @@ A configuracao fica em `hotel_settings`:
 - `embed.initial_height`
 - `embed.compact`
 
+Essas chaves sao configuracoes administrativas privadas e devem permanecer com `is_public=0`. Elas nao entram no bootstrap publico geral do hotel.
+
 As origens autorizadas devem ser origens completas, como `https://site.example`, sem caminho, query string ou wildcard. `localhost` e permitido apenas em desenvolvimento.
+
+A configuracao publica do embed retorna apenas dados necessarios para renderizacao do iframe, como `hotel_slug`, `module_key`, nome publico do modulo, identidade visual, horarios, status do servico, opcoes visuais e endpoints publicos de leitura. Ela nao retorna allowlist, contagem de origens, IDs internos, usuarios, permissoes ou endpoints administrativos/transacionais.
 
 ## Exemplos
 
@@ -71,7 +75,7 @@ No WordPress ou Elementor, use um bloco HTML personalizado e cole o codigo gerad
 
 As rotas `/embed/*` removem `X-Frame-Options` e usam `Content-Security-Policy` com `frame-ancestors` calculado pela allowlist. Rotas normais e administrativas continuam protegidas contra iframe; `/admin/*` usa `frame-ancestors 'none'`.
 
-O script de autoaltura aceita somente mensagens `fioreze:embed:ready` e `fioreze:embed:resize`, valida `event.origin` contra o `src` do iframe e nao aceita comandos arbitrarios.
+O script de autoaltura aceita somente mensagens `fioreze:embed:ready` e `fioreze:embed:resize`, valida `event.origin` contra o `src` do iframe, associa a mensagem ao `contentWindow` do iframe correto e pode validar `data-fioreze-embed-id` quando o atributo estiver presente. Ele nao aceita comandos arbitrarios.
 
 ## Troubleshooting
 
