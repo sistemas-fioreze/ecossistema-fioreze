@@ -1118,6 +1118,8 @@ export class MockR2Bucket {
   constructor() {
     this.objects = new Map();
     this.failNextPut = false;
+    this.getCalls = 0;
+    this.headCalls = 0;
   }
 
   async put(key, value, options = {}) {
@@ -1140,6 +1142,7 @@ export class MockR2Bucket {
   }
 
   async get(key) {
+    this.getCalls += 1;
     const object = this.objects.get(key);
     if (!object) return null;
     return {
@@ -1149,6 +1152,7 @@ export class MockR2Bucket {
   }
 
   async head(key) {
+    this.headCalls += 1;
     const object = this.objects.get(key);
     if (!object) return null;
     return { ...object, body: undefined };

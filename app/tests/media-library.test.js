@@ -234,6 +234,8 @@ test("HEAD /media/:id retorna metadados sem corpo", async () => {
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") || "", /image\/webp/);
   assert.equal((await response.text()).length, 0);
+  assert.equal(env.MEDIA_BUCKET.headCalls, 1);
+  assert.equal(env.MEDIA_BUCKET.getCalls, 0);
 });
 
 test("objeto sem metadado D1 e binding ausente falham de forma segura", async () => {
@@ -248,6 +250,18 @@ test("objeto sem metadado D1 e binding ausente falham de forma segura", async ()
 
   assert.equal(noMetadata.status, 404);
   assert.equal(noBinding.status, 503);
+});
+
+test("midia inexistente passa pelo Worker e nao pelo fallback HTML", async () => {
+  const { fetch } = createWorkerTestContext();
+
+  const response = await fetch("/media/media-inexistente", { redirect: "manual" });
+  const body = await response.json();
+
+  assert.equal(response.status, 404);
+  assert.match(response.headers.get("content-type") || "", /application\/json/);
+  assert.doesNotMatch(response.headers.get("content-type") || "", /text\/html/);
+  assert.equal(body.error.code, "not_found");
 });
 
 test("rotas canonicas da biblioteca de imagens carregam shell da Central", async () => {

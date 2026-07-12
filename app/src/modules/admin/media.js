@@ -297,8 +297,8 @@ export async function servePublicMedia({ request, env, params, head = false }) {
   );
   if (!asset) throw notFoundError("Midia nao encontrada.");
 
-  const object = await bucket.get(asset.object_key);
-  if (!object?.body) throw notFoundError("Midia nao encontrada.");
+  const object = head ? await bucket.head(asset.object_key) : await bucket.get(asset.object_key);
+  if (!object || (!head && !object.body)) throw notFoundError("Midia nao encontrada.");
 
   const headers = new Headers({
     "content-type": object.httpMetadata?.contentType || asset.mime_type || "application/octet-stream",
@@ -481,7 +481,7 @@ function ascii(bytes, start, end) {
 }
 
 function requireMediaBucket(env) {
-  if (!env?.MEDIA_BUCKET?.put || !env.MEDIA_BUCKET.get || !env.MEDIA_BUCKET.delete) {
+  if (!env?.MEDIA_BUCKET?.put || !env.MEDIA_BUCKET.get || !env.MEDIA_BUCKET.head || !env.MEDIA_BUCKET.delete) {
     throw new AppError(503, "storage_unavailable", "Armazenamento de midia indisponivel.");
   }
   return env.MEDIA_BUCKET;

@@ -231,6 +231,8 @@ Permissoes administrativas:
 
 Arquivamento nao apaga o objeto R2. Imagens arquivadas retornam 404 em `/media/:id`. Falha de metadados D1 depois de um `put` no R2 aciona compensacao local, removendo o objeto recem-enviado antes de retornar erro seguro.
 
+Como Static Assets usa `not_found_handling: single-page-application`, o `wrangler.jsonc` precisa manter `/media/*` em `assets.run_worker_first`, junto de `/api/*` e `/admin/*`. Sem isso, a borda da Cloudflare poderia entregar o fallback HTML antes da rota do Worker. Os testes locais chamam o export do Worker diretamente, entao nao reproduzem completamente a precedencia da borda; por isso tambem existe teste de configuracao para garantir `/media/*` em `run_worker_first`.
+
 Comandos futuros, nao executados nesta implementacao:
 
 ```bash

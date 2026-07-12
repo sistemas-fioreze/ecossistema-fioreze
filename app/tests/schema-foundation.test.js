@@ -84,6 +84,13 @@ test("wrangler declara MEDIA_BUCKET privado de desenvolvimento", () => {
   assert.equal(/prod/i.test(bucket.bucket_name), false);
 });
 
+test("Static Assets executa Worker antes de api, admin e media", () => {
+  const workerFirst = new Set(wranglerConfig.assets.run_worker_first);
+  assert.equal(workerFirst.has("/api/*"), true);
+  assert.equal(workerFirst.has("/admin/*"), true);
+  assert.equal(workerFirst.has("/media/*"), true);
+});
+
 function normalize(value) {
   return value.replace(/\s+/g, " ").trim().toLowerCase();
 }

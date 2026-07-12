@@ -17,6 +17,7 @@ if (!validate(configForSchema)) {
 
 const d1 = config.d1_databases?.[0] || {};
 const r2 = config.r2_buckets?.find((bucket) => bucket.binding === "MEDIA_BUCKET") || {};
+const workerFirstRoutes = new Set(config.assets?.run_worker_first || []);
 
 if (d1.binding !== "DB") {
   console.error("D1 binding deve ser DB.");
@@ -41,6 +42,13 @@ if (r2.binding !== "MEDIA_BUCKET" || r2.bucket_name !== "fioreze-portais-media-d
 if (r2.remote === true || /prod/i.test(r2.bucket_name || "")) {
   console.error("R2 remoto ou bucket de producao nao permitido nesta fase.");
   process.exit(1);
+}
+
+for (const route of ["/api/*", "/admin/*", "/media/*"]) {
+  if (!workerFirstRoutes.has(route)) {
+    console.error(`Static Assets deve executar o Worker primeiro para ${route}.`);
+    process.exit(1);
+  }
 }
 
 console.log("wrangler-config: ok");
