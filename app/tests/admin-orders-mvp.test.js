@@ -493,25 +493,28 @@ test("rotas /admin e subrotas continuam entregando shell sem loop", async () => 
   const { fetch } = createWorkerTestContext();
   const redirect = await fetch("/admin", { redirect: "manual" });
   const admin = await fetch("/admin/", { redirect: "manual" });
-  const nested = await fetch("/admin/room-service/pedidos/abc", { redirect: "manual" });
+  const nested = await fetch("/erp/room-service/pedidos/abc", { redirect: "manual" });
+  const oldNested = await fetch("/admin/room-service/pedidos/abc", { redirect: "manual" });
 
   assert.equal(redirect.status, 308);
   assert.equal(new URL(redirect.headers.get("location")).pathname, "/admin/");
+  assert.equal(oldNested.status, 308);
+  assert.equal(new URL(oldNested.headers.get("location")).pathname, "/erp/room-service/pedidos/abc");
   assert.equal(admin.status, 200);
   assert.equal(nested.status, 200);
   assert.equal(admin.headers.has("location"), false);
   assert.equal(nested.headers.has("location"), false);
 });
 
-test("interface administrativa carrega login e area de pedidos", async () => {
+test("ERP Room Service oficial carrega login e shell proprio", async () => {
   const { fetch } = createWorkerTestContext();
-  const response = await fetch("/admin/room-service/");
+  const response = await fetch("/erp/room-service/");
   const html = await response.text();
 
   assert.equal(response.status, 200);
-  assert.match(html, /Pedidos Room Service/);
+  assert.match(html, /ERP Room Service Fioreze/);
   assert.match(html, /loginForm/);
-  assert.match(html, /ordersList/);
+  assert.match(html, /routeOutlet/);
 });
 
 async function loginAdmin(json, email = ADMIN_EMAIL, password = ADMIN_PASSWORD, headers = {}) {

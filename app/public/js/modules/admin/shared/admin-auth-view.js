@@ -4,7 +4,6 @@ import {
   canAccessMediaLibrary,
   canAccessPortals,
   canAccessRoles,
-  canAccessRoomService,
   canAccessUnits,
   canAccessUsers,
 } from "./admin-session.js";
@@ -13,12 +12,7 @@ const HELP_CONTENT = {
   home: {
     title: "Ajuda da Central",
     body: "Use a Central Administrativa para acessar as areas disponiveis para seu perfil e sua unidade.",
-    examples: ["Abra Pedidos para acompanhar o Room Service.", "Entre em Portais para cuidar de unidades, imagens e links."],
-  },
-  "room-service": {
-    title: "Ajuda de Pedidos",
-    body: "Acompanhe pedidos do Room Service, consulte detalhes e avance o status com seguranca.",
-    examples: ["Filtre por unidade e status.", "Abra um pedido para ver itens, historico e observacoes."],
+    examples: ["Entre em Portais para cuidar de unidades, imagens e links.", "Use Usuarios e Perfis para revisar acessos."],
   },
   portals: {
     title: "Ajuda de Portais",
@@ -205,7 +199,6 @@ function enhanceAdminExperience(session) {
 function renderGlobalNav(session, section) {
   const items = [
     ["home", "Inicio", "/admin/", "home", true],
-    ["room-service", "Pedidos", "/admin/room-service/", "orders", canAccessRoomService(session)],
     ["portals", "Portais", "/admin/portais/", "portal", canAccessPortals(session)],
     ["portals", "Unidades", "/admin/portais/unidades/", "units", canAccessUnits(session)],
     ["portals", "Imagens", "/admin/portais/media/", "image", canAccessMediaLibrary(session)],
@@ -232,7 +225,6 @@ function isActive(href, section) {
 function adminArea(section) {
   return {
     home: "Inicio",
-    "room-service": "Operacao",
     portals: "Experiencias digitais",
     users: "Equipe",
     roles: "Equipe",
@@ -263,7 +255,6 @@ function icon(name) {
     close: '<path d="m6 6 12 12M18 6 6 18"/>',
     help: '<path d="M9.5 9a2.5 2.5 0 1 1 4.7 1.2c-.8 1.1-2.2 1.2-2.2 2.8"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="9"/>',
     home: '<path d="m4 11 8-7 8 7"/><path d="M6 10v10h12V10"/>',
-    orders: '<path d="M7 4h10v16H7z"/><path d="M9 8h6M9 12h6M9 16h4"/>',
     portal: '<path d="M4 5h16v12H4z"/><path d="M8 21h8M12 17v4"/>',
     units: '<path d="M5 20V8l7-4 7 4v12"/><path d="M9 20v-6h6v6"/>',
     image: '<path d="M5 5h14v14H5z"/><path d="m7 16 4-4 3 3 2-2 3 3"/><circle cx="9" cy="9" r="1"/>',

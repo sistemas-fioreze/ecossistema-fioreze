@@ -114,7 +114,7 @@ function isDirectAsset(pathname) {
 
 function resolveAdminAssetPath(pathname) {
   const routes = [
-    { canonical: "/admin/room-service/", assetPath: "/admin/room-service/" },
+    { canonical: "/erp/room-service/", assetPath: "/erp/room-service/" },
     { canonical: "/admin/portais/unidades/", assetPath: "/admin/portais/" },
     { canonical: "/admin/portais/media/", assetPath: "/admin/portais/" },
     { canonical: "/admin/portais/links/", assetPath: "/admin/portais/" },
@@ -125,6 +125,10 @@ function resolveAdminAssetPath(pathname) {
     { canonical: "/admin/", assetPath: "/admin/" },
   ];
 
+  if (pathname === "/admin/room-service" || pathname.startsWith("/admin/room-service/")) {
+    return { redirectTo: pathname.replace(/^\/admin\/room-service\/?/, "/erp/room-service/") };
+  }
+
   for (const route of routes) {
     const withoutSlash = route.canonical.slice(0, -1);
     if (pathname === withoutSlash) return { redirectTo: route.canonical };
@@ -134,6 +138,7 @@ function resolveAdminAssetPath(pathname) {
   }
 
   if (pathname.startsWith("/admin/")) return { assetPath: "/admin/index.html" };
+  if (pathname.startsWith("/erp/")) return { assetPath: "/erp/room-service/index.html" };
   return null;
 }
 
@@ -161,14 +166,14 @@ export default {
       const response = await handleRequest(request, env, ctx);
       return withSecurityHeaders(response, {
         embed: pathname.startsWith("/embed/"),
-        admin: pathname.startsWith("/admin/"),
+        admin: pathname.startsWith("/admin/") || pathname.startsWith("/erp/"),
         shortLinkHost,
       });
     } catch (error) {
       if (error instanceof AppError) {
         return withSecurityHeaders(fail(error.status, error.code, error.message, error.details), {
           embed: pathname.startsWith("/embed/"),
-          admin: pathname.startsWith("/admin/"),
+          admin: pathname.startsWith("/admin/") || pathname.startsWith("/erp/"),
           shortLinkHost,
         });
       }
@@ -178,7 +183,7 @@ export default {
         }),
         {
           embed: pathname.startsWith("/embed/"),
-          admin: pathname.startsWith("/admin/"),
+          admin: pathname.startsWith("/admin/") || pathname.startsWith("/erp/"),
           shortLinkHost,
         },
       );

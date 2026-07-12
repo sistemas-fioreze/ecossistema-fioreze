@@ -30,10 +30,10 @@ function createAssetsBinding() {
           '<!doctype html><html><body><h1>Ecossistema Fioreze</h1><form id="loginForm"></form><div id="systemsList"></div></body></html>',
         "/admin/index.html":
           '<!doctype html><html><body><h1>Ecossistema Fioreze</h1><form id="loginForm"></form><div id="systemsList"></div></body></html>',
-        "/admin/room-service/":
-          '<!doctype html><html><body><h1>Pedidos Room Service</h1><form id="loginForm"></form><div id="ordersList"></div></body></html>',
-        "/admin/room-service/index.html":
-          '<!doctype html><html><body><h1>Pedidos Room Service</h1><form id="loginForm"></form><div id="ordersList"></div></body></html>',
+        "/erp/room-service/":
+          '<!doctype html><html><body data-erp="room-service"><h1>ERP Room Service Fioreze</h1><form id="loginForm"></form><div id="routeOutlet"></div><script type="module" src="/js/modules/room-service-erp/app.js"></script></body></html>',
+        "/erp/room-service/index.html":
+          '<!doctype html><html><body data-erp="room-service"><h1>ERP Room Service Fioreze</h1><form id="loginForm"></form><div id="routeOutlet"></div><script type="module" src="/js/modules/room-service-erp/app.js"></script></body></html>',
         "/admin/portais/":
           '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><div id="portalsDenied"></div><section id="mediaLibrary"></section><section id="unitsManager"></section><section id="shortLinksManager"></section></body></html>',
         "/admin/portais/index.html":

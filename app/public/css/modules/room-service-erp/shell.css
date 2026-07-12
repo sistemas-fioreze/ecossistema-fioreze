@@ -1,0 +1,350 @@
+body[data-erp="room-service"] {
+  margin: 0;
+  background: var(--rs-canvas);
+  color: var(--rs-text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: 0;
+}
+
+.rs-erp [hidden] {
+  display: none !important;
+}
+
+.rs-login,
+.rs-loading {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--rs-canvas);
+}
+
+.rs-login-card {
+  width: min(370px, 100%);
+  display: grid;
+  gap: 15px;
+  padding: 30px;
+  border: 1px solid var(--rs-line);
+  border-radius: var(--rs-radius-lg);
+  background: var(--rs-surface);
+  box-shadow: var(--rs-shadow);
+}
+
+.rs-login-mark,
+.rs-brand-seal {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--rs-radius-sm);
+  background: var(--rs-accent);
+  color: #fff;
+  font-weight: 950;
+}
+
+.rs-login-card .rs-login-mark {
+  justify-self: center;
+}
+
+.rs-kicker {
+  margin: 0;
+  color: var(--rs-muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.rs-login-card h1 {
+  margin: 0;
+  font-size: 1.45rem;
+  text-align: center;
+}
+
+.rs-login-card label,
+.rs-unit-picker {
+  display: grid;
+  gap: 6px;
+  color: var(--rs-muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.rs-login-card input,
+.rs-topbar input,
+.rs-topbar select,
+.rs-panel input,
+.rs-panel select,
+.rs-panel textarea {
+  min-height: 42px;
+  border: 1px solid var(--rs-line);
+  border-radius: var(--rs-radius-sm);
+  padding: 9px 11px;
+  background: var(--rs-surface);
+  color: var(--rs-text);
+  font: inherit;
+}
+
+.rs-primary-button,
+.rs-ghost-button,
+.rs-icon-button,
+.rs-store-status,
+.rs-account button,
+.rs-action-button {
+  border: 0;
+  border-radius: var(--rs-radius-sm);
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.rs-primary-button,
+.rs-action-button {
+  min-height: 42px;
+  padding: 0 14px;
+  background: var(--rs-accent);
+  color: #fff;
+}
+
+.rs-primary-button[disabled],
+.rs-action-button[disabled] {
+  cursor: progress;
+  opacity: 0.68;
+}
+
+.rs-error {
+  min-height: 20px;
+  margin: 0;
+  color: var(--rs-danger);
+  font-weight: 800;
+}
+
+.rs-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: 258px minmax(0, 1fr);
+  background: var(--rs-canvas);
+}
+
+.rs-shell.is-compact {
+  grid-template-columns: 84px minmax(0, 1fr);
+}
+
+.rs-sidebar {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 22px 16px;
+  border-right: 1px solid var(--rs-line);
+  background: var(--rs-surface);
+}
+
+.rs-brand {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--rs-text);
+  text-decoration: none;
+}
+
+.rs-brand-copy strong,
+.rs-brand-copy small {
+  display: block;
+}
+
+.rs-brand-copy small {
+  color: var(--rs-muted);
+  font-weight: 800;
+}
+
+.rs-shell.is-compact .rs-brand-copy,
+.rs-shell.is-compact .rs-nav span,
+.rs-shell.is-compact .rs-sidebar-footer {
+  display: none;
+}
+
+.rs-nav {
+  display: grid;
+  gap: 6px;
+}
+
+.rs-nav button {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: var(--rs-radius-sm);
+  padding: 0 12px;
+  background: transparent;
+  color: var(--rs-muted);
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.rs-nav button[aria-current="page"],
+.rs-nav button:hover {
+  background: var(--rs-accent);
+  color: #fff;
+}
+
+.rs-sidebar-footer {
+  display: grid;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.rs-ghost-button {
+  min-height: 38px;
+  padding: 0 12px;
+  background: var(--rs-soft);
+  color: var(--rs-accent);
+}
+
+.rs-main {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.rs-topbar {
+  min-height: 66px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 20px;
+  background: var(--rs-surface);
+}
+
+.rs-icon-button {
+  width: 40px;
+  height: 40px;
+  display: none;
+  place-items: center;
+  border: 1px solid var(--rs-line);
+  background: var(--rs-surface);
+  color: var(--rs-text);
+}
+
+.rs-unit-picker select {
+  min-width: 210px;
+}
+
+.rs-store-status {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 13px;
+  border: 1px solid var(--rs-line);
+  background: var(--rs-surface);
+  color: var(--rs-text);
+}
+
+.rs-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--rs-warning);
+}
+
+.rs-store-status[data-state="open"] .rs-live-dot {
+  background: var(--rs-success);
+}
+
+.rs-store-status[data-state="closed"] .rs-live-dot {
+  background: var(--rs-danger);
+}
+
+.rs-global-search {
+  min-width: min(360px, 32vw);
+  display: grid;
+  gap: 4px;
+  margin-left: auto;
+  color: var(--rs-muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.rs-account {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 900;
+}
+
+.rs-account button {
+  min-height: 36px;
+  padding: 0 12px;
+  background: var(--rs-soft);
+  color: var(--rs-accent);
+}
+
+.rs-canvas {
+  min-height: 0;
+  margin: 0 0 0 0;
+  padding: 22px;
+  border-top-left-radius: 14px;
+  background: var(--rs-canvas);
+  overflow: auto;
+}
+
+.rs-route-outlet {
+  display: grid;
+  gap: calc(18px * var(--rs-scale));
+}
+
+.rs-panel {
+  border: 1px solid var(--rs-line);
+  border-radius: var(--rs-radius-sm);
+  background: var(--rs-surface);
+  padding: 18px;
+}
+
+.rs-panel h1,
+.rs-panel h2,
+.rs-panel h3,
+.rs-panel p {
+  margin-top: 0;
+}
+
+.rs-muted {
+  color: var(--rs-muted);
+}
+
+.rs-drawer {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 30;
+  width: min(390px, calc(100vw - 32px));
+  padding: 18px;
+  border: 1px solid var(--rs-line);
+  border-radius: var(--rs-radius-lg);
+  background: var(--rs-surface);
+  box-shadow: var(--rs-shadow);
+}
+
+.rs-toast-region {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  display: grid;
+  gap: 10px;
+  z-index: 40;
+}
+
+.rs-toast {
+  padding: 12px 14px;
+  border-radius: var(--rs-radius-sm);
+  background: var(--rs-accent);
+  color: #fff;
+  font-weight: 900;
+}

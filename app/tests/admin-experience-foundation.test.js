@@ -5,7 +5,6 @@ import { createWorkerTestContext } from "./helpers/worker.js";
 
 const ADMIN_HTML = [
   ["home", "public/admin/index.html"],
-  ["room-service", "public/admin/room-service/index.html"],
   ["portals", "public/admin/portais/index.html"],
 ];
 
@@ -24,9 +23,9 @@ test("shell administrativo compartilhado possui navegacao, avatar, ajuda e SVG l
   assert.match(source, /admin-global-sidebar/);
   assert.match(source, /admin-help-drawer/);
   assert.match(source, /admin-avatar/);
-  assert.match(source, /canAccessRoomService/);
   assert.match(source, /canAccessPortals/);
   assert.match(source, /<svg class="admin-svg-icon"/);
+  assert.doesNotMatch(source, /Abra Pedidos|Ajuda de Pedidos|\/admin\/room-service/);
   assert.doesNotMatch(source, /https:\/\/|cdn|lucide|fontawesome/i);
 });
 
@@ -50,11 +49,19 @@ test("CSS administrativo contem drawer mobile, ajuda e reduced motion", () => {
 
 test("shells administrativos continuam respondendo sem fallback incorreto", async () => {
   const { fetch } = createWorkerTestContext();
-  for (const path of ["/admin/", "/admin/room-service/", "/admin/portais/", "/admin/portais/unidades/", "/admin/portais/media/", "/admin/portais/links/"]) {
+  for (const path of ["/admin/", "/admin/portais/", "/admin/portais/unidades/", "/admin/portais/media/", "/admin/portais/links/", "/erp/room-service/"]) {
     const response = await fetch(path, { redirect: "manual" });
     const html = await response.text();
     assert.equal(response.status, 200, path);
-    assert.match(html, /loginForm|ordersList|portalsContent|unitsManager|mediaLibrary|shortLinksManager/, path);
+    assert.match(html, /loginForm|routeOutlet|portalsContent|unitsManager|mediaLibrary|shortLinksManager/, path);
     assert.doesNotMatch(html, /"error"|Not Found/, path);
   }
+});
+
+test("ERP Room Service oficial nao usa CDN, webhook legado ou Postimg", () => {
+  const html = fs.readFileSync("public/erp/room-service/index.html", "utf8");
+  const app = fs.readFileSync("public/js/modules/room-service-erp/app.js", "utf8");
+  assert.match(html, /data-erp="room-service"/);
+  assert.match(html, /routeOutlet/);
+  assert.doesNotMatch(`${html}\n${app}`, /https:\/\/|cdn|postimg|script\.google|WEBHOOK|Sheets/i);
 });
