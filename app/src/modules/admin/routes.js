@@ -20,6 +20,14 @@ import {
 } from "./hotels.js";
 import { archiveAdminMedia, getAdminMedia, listAdminMedia, updateAdminMedia, uploadAdminMedia } from "./media.js";
 import { getAdminOrder, listAdminHotels as listOrderHotels, listAdminOrders, updateAdminOrderStatus } from "./orders.js";
+import {
+  archiveAdminShortLink,
+  createAdminShortLink,
+  getAdminShortLink,
+  getAdminShortLinkAnalytics,
+  listAdminShortLinks,
+  updateAdminShortLink,
+} from "./short-links.js";
 import { ok } from "../../core/responses.js";
 import { notFoundError } from "../../core/errors.js";
 
@@ -178,6 +186,36 @@ export function registerAdminRoutes(router) {
   router.delete("/api/v1/admin/media/:id", async ({ request, env, params }) => {
     const session = await requireAuthentication({ request, env });
     return ok(await archiveAdminMedia({ request, env, session, assetId: params.id }));
+  });
+
+  router.get("/api/v1/admin/short-links", async ({ request, env, url }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await listAdminShortLinks({ request, env, session, url }));
+  });
+
+  router.post("/api/v1/admin/short-links", async ({ request, env }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await createAdminShortLink({ request, env, session }));
+  });
+
+  router.get("/api/v1/admin/short-links/:id", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await getAdminShortLink({ request, env, session, linkId: params.id }));
+  });
+
+  router.patch("/api/v1/admin/short-links/:id", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await updateAdminShortLink({ request, env, session, linkId: params.id }));
+  });
+
+  router.delete("/api/v1/admin/short-links/:id", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await archiveAdminShortLink({ request, env, session, linkId: params.id }));
+  });
+
+  router.get("/api/v1/admin/short-links/:id/analytics", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await getAdminShortLinkAnalytics({ request, env, session, linkId: params.id }));
   });
 
   router.all("/api/v1/admin/*", async ({ request, env }) => {

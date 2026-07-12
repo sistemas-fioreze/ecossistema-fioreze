@@ -12,6 +12,11 @@ import {
   PORTALS_MEDIA_ARCHIVE_PERMISSION,
   PORTALS_MEDIA_UPDATE_PERMISSION,
   PORTALS_MEDIA_UPLOAD_PERMISSION,
+  PORTALS_LINKS_ANALYTICS_PERMISSION,
+  PORTALS_LINKS_ARCHIVE_PERMISSION,
+  PORTALS_LINKS_CREATE_PERMISSION,
+  PORTALS_LINKS_UPDATE_PERMISSION,
+  canAccessLinks,
   canAccessMediaLibrary,
   canAccessPortals,
   canAccessUnits,
@@ -60,11 +65,28 @@ const els = {
   mediaUploadStatus: document.getElementById("mediaUploadStatus"),
   mediaError: document.getElementById("mediaError"),
   mediaGrid: document.getElementById("mediaGrid"),
+  shortLinksManager: document.getElementById("shortLinksManager"),
+  shortLinksFilters: document.getElementById("shortLinksFilters"),
+  shortLinksHotel: document.getElementById("shortLinksHotel"),
+  shortLinksStatus: document.getElementById("shortLinksStatus"),
+  shortLinksSearch: document.getElementById("shortLinksSearch"),
+  shortLinksSort: document.getElementById("shortLinksSort"),
+  shortLinksMessage: document.getElementById("shortLinksMessage"),
+  shortLinksSummary: document.getElementById("shortLinksSummary"),
+  shortLinksList: document.getElementById("shortLinksList"),
+  shortLinksEditor: document.getElementById("shortLinksEditor"),
+  shortLinksEditorTitle: document.getElementById("shortLinksEditorTitle"),
+  shortLinksForm: document.getElementById("shortLinksForm"),
+  shortLinksPreview: document.getElementById("shortLinksPreview"),
+  shortLinksAnalytics: document.getElementById("shortLinksAnalytics"),
+  addShortLinkButton: document.getElementById("addShortLinkButton"),
+  cancelShortLinkButton: document.getElementById("cancelShortLinkButton"),
 };
 
 const portalCards = [
   ["unidades", "Unidades", "Cadastre hoteis, identidade visual, modulos e navegacao.", "/admin/portais/unidades/"],
   ["media", "Biblioteca de imagens", "Gerencie imagens publicas dos portais e modulos.", "/admin/portais/media/"],
+  ["links", "Links personalizados", "Crie enderecos curtos para campanhas, QR Codes e comunicacao.", "/admin/portais/links/"],
   ["conteudos", "Conteudos", "Paginas, eventos e informacoes dos hoteis.", "#preparacao"],
   ["modulos", "Modulos", "Ativacao e parametrizacao das experiencias.", "#preparacao"],
   ["navegacao", "Navegacao", "Menus e caminhos dos portais.", "#preparacao"],
@@ -111,6 +133,8 @@ const settingFields = [
 
 let currentSession = null;
 let currentAssets = [];
+let currentShortLinks = [];
+let currentShortLink = null;
 let currentUnits = [];
 let currentUnit = null;
 let currentModules = [];
@@ -133,6 +157,18 @@ els.mediaFilters.addEventListener("submit", (event) => {
 els.mediaSearch.addEventListener("input", debounce(() => loadMediaLibrary(), 300));
 els.mediaUploadForm.addEventListener("submit", handleMediaUpload);
 els.mediaGrid.addEventListener("click", handleMediaAction);
+els.shortLinksFilters.addEventListener("submit", (event) => {
+  event.preventDefault();
+  loadShortLinks();
+});
+els.shortLinksSearch.addEventListener("input", debounce(() => loadShortLinks(), 300));
+els.shortLinksStatus.addEventListener("change", () => loadShortLinks());
+els.shortLinksSort.addEventListener("change", () => loadShortLinks());
+els.addShortLinkButton.addEventListener("click", () => openShortLinkEditor());
+els.cancelShortLinkButton.addEventListener("click", () => closeShortLinkEditor());
+els.shortLinksForm.addEventListener("submit", saveShortLink);
+els.shortLinksForm.addEventListener("input", updateShortLinkPreview);
+els.shortLinksList.addEventListener("click", handleShortLinkAction);
 
 els.unitFilters.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -176,6 +212,10 @@ function renderPortals(session) {
     renderMediaLibrary(session);
     return;
   }
+  if (isLinksRoute()) {
+    renderShortLinksManager(session);
+    return;
+  }
   renderHome(session);
 }
 
@@ -190,6 +230,7 @@ function renderNav(session) {
     ["Inicio", "/admin/portais/", true],
     ["Unidades", "/admin/portais/unidades/", canAccessUnits(session)],
     ["Biblioteca", "/admin/portais/media/", canAccessMediaLibrary(session)],
+    ["Links", "/admin/portais/links/", canAccessLinks(session)],
   ];
   els.portalsNav.innerHTML = items
     .map(([label, href, enabled]) =>
@@ -204,12 +245,17 @@ function renderHome(session) {
   setHeading("Central de Portais Fioreze", "Gerencie unidades, experiencias digitais, conteudos e identidade visual.");
   els.portalsHome.hidden = false;
   els.mediaLibrary.hidden = true;
+  els.shortLinksManager.hidden = true;
   els.unitsManager.hidden = true;
   els.portalsModules.innerHTML = portalCards.map(([key, title, body, href]) => renderPortalCard(session, key, title, body, href)).join("");
 }
 
 function renderPortalCard(session, key, title, body, href) {
-  const enabled = (key === "unidades" && canAccessUnits(session)) || (key === "media" && canAccessMediaLibrary(session)) || href === "#preparacao";
+  const enabled =
+    (key === "unidades" && canAccessUnits(session)) ||
+    (key === "media" && canAccessMediaLibrary(session)) ||
+    (key === "links" && canAccessLinks(session)) ||
+    href === "#preparacao";
   const tag = href === "#preparacao" || !enabled ? "article" : "a";
   const attr = tag === "a" ? `href="${escapeAttr(href)}"` : "";
   return `
@@ -231,6 +277,7 @@ function renderUnitsRoute() {
   setHeading("Unidades", "Administre os hoteis, marcas, servicos e navegacao dos portais.");
   els.portalsHome.hidden = true;
   els.mediaLibrary.hidden = true;
+  els.shortLinksManager.hidden = true;
   els.unitsManager.hidden = false;
   const match = window.location.pathname.match(/^\/admin\/portais\/unidades\/([^/]+)\//);
   if (match) {
@@ -713,10 +760,239 @@ async function handleNavigationAction(button) {
   }
 }
 
+function renderShortLinksManager(session) {
+  setHeading("Links personalizados", "Crie enderecos curtos para campanhas, QR Codes, WhatsApp, mapas e motores de reserva.");
+  els.portalsHome.hidden = true;
+  els.unitsManager.hidden = true;
+  els.mediaLibrary.hidden = true;
+  const allowed = canAccessLinks(session);
+  els.shortLinksManager.hidden = !allowed;
+  els.portalsDenied.hidden = allowed;
+  if (!allowed) return;
+
+  populateShortLinksHotelSelect(session);
+  els.addShortLinkButton.hidden = !hasPermission(session, PORTALS_LINKS_CREATE_PERMISSION);
+  closeShortLinkEditor();
+  loadShortLinks();
+}
+
+function populateShortLinksHotelSelect(session) {
+  const hotels = getAuthorizedHotels(session);
+  els.shortLinksHotel.innerHTML = hotels
+    .map((hotel) => `<option value="${escapeAttr(hotel.hotel_id)}">${escapeHtml(hotel.short_name || hotel.name)}</option>`)
+    .join("");
+}
+
+async function loadShortLinks() {
+  if (!currentSession || !canAccessLinks(currentSession) || !els.shortLinksHotel.value) return;
+  els.shortLinksMessage.textContent = "Carregando links...";
+  els.shortLinksList.innerHTML = "";
+  const params = new URLSearchParams({
+    hotel_id: els.shortLinksHotel.value,
+    sort: els.shortLinksSort.value || "created",
+  });
+  if (els.shortLinksStatus.value) params.set("status", els.shortLinksStatus.value);
+  if (els.shortLinksSearch.value.trim()) params.set("q", els.shortLinksSearch.value.trim());
+
+  try {
+    const payload = await adminApi(`/api/v1/admin/short-links?${params.toString()}`);
+    currentShortLinks = payload.data.links || [];
+    els.shortLinksMessage.textContent = `${currentShortLinks.length} link(s) encontrado(s).`;
+    renderShortLinksSummary();
+    renderShortLinksList();
+  } catch (error) {
+    currentShortLinks = [];
+    els.shortLinksSummary.innerHTML = "";
+    els.shortLinksList.innerHTML = "";
+    els.shortLinksMessage.textContent = error.message || "Nao foi possivel carregar os links.";
+  }
+}
+
+function renderShortLinksSummary() {
+  const active = currentShortLinks.filter((link) => link.status === "active").length;
+  const paused = currentShortLinks.filter((link) => link.status === "paused").length;
+  const archived = currentShortLinks.filter((link) => link.status === "archived").length;
+  const clicks = currentShortLinks.reduce((sum, link) => sum + Number(link.total_clicks || 0), 0);
+  els.shortLinksSummary.innerHTML = [
+    ["Ativos", active],
+    ["Pausados", paused],
+    ["Arquivados", archived],
+    ["Cliques", clicks],
+  ]
+    .map(([label, value]) => `<article><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value))}</strong></article>`)
+    .join("");
+}
+
+function renderShortLinksList() {
+  if (!currentShortLinks.length) {
+    els.shortLinksList.innerHTML = '<div class="admin-empty">Nenhum link personalizado encontrado.</div>';
+    return;
+  }
+  els.shortLinksList.innerHTML = currentShortLinks.map(renderShortLinkRow).join("");
+}
+
+function renderShortLinkRow(link) {
+  const canUpdate = hasPermission(currentSession, PORTALS_LINKS_UPDATE_PERMISSION) && link.status !== "archived";
+  const canArchive = hasPermission(currentSession, PORTALS_LINKS_ARCHIVE_PERMISSION) && link.status !== "archived";
+  return `
+    <article class="admin-short-link-row">
+      <div>
+        <strong>${escapeHtml(link.internal_name)}</strong>
+        <span>${escapeHtml(link.public_url)}</span>
+        <small>${escapeHtml(link.destination_summary || link.destination_scheme)}</small>
+      </div>
+      <span class="admin-status">${escapeHtml(link.status)}</span>
+      <span>${escapeHtml(link.hotel_name || link.hotel_id)}</span>
+      <span>${Number(link.total_clicks || 0)} cliques</span>
+      <span>${link.last_clicked_at ? escapeHtml(formatDate(link.last_clicked_at, link.hotel_timezone)) : "Sem acesso"}</span>
+      <div class="admin-row-actions">
+        <button type="button" data-link-action="edit" data-link-id="${escapeAttr(link.id)}">Abrir</button>
+        <button type="button" data-link-action="copy" data-link-id="${escapeAttr(link.id)}">Copiar</button>
+        ${canUpdate ? `<button type="button" data-link-action="toggle" data-link-id="${escapeAttr(link.id)}">${link.status === "active" ? "Pausar" : "Reativar"}</button>` : ""}
+        ${canArchive ? `<button class="danger" type="button" data-link-action="archive" data-link-id="${escapeAttr(link.id)}">Arquivar</button>` : ""}
+      </div>
+    </article>
+  `;
+}
+
+function openShortLinkEditor(link = null) {
+  currentShortLink = link;
+  els.shortLinksEditor.hidden = false;
+  els.shortLinksEditorTitle.textContent = link ? "Editar link personalizado" : "Novo link personalizado";
+  const form = els.shortLinksForm;
+  form.elements.hotel_id.value = link?.hotel_id || els.shortLinksHotel.value || getAuthorizedHotels(currentSession)[0]?.hotel_id || "";
+  form.elements.internal_name.value = link?.internal_name || "";
+  form.elements.slug.value = link?.slug || "";
+  form.elements.slug.disabled = Boolean(link);
+  form.elements.destination_url.value = link?.destination_url || "";
+  form.elements.status.value = link?.status === "archived" ? "paused" : link?.status || "active";
+  form.elements.starts_at.value = toLocalDateTime(link?.starts_at);
+  form.elements.expires_at.value = toLocalDateTime(link?.expires_at);
+  form.elements.notes.value = link?.notes || "";
+  renderShortLinkAnalytics(null);
+  updateShortLinkPreview();
+  if (link && hasPermission(currentSession, PORTALS_LINKS_ANALYTICS_PERMISSION)) loadShortLinkAnalytics(link.id);
+}
+
+function closeShortLinkEditor() {
+  currentShortLink = null;
+  els.shortLinksEditor.hidden = true;
+  els.shortLinksForm.reset();
+  els.shortLinksPreview.textContent = "";
+  renderShortLinkAnalytics(null);
+}
+
+async function saveShortLink(event) {
+  event.preventDefault();
+  const form = els.shortLinksForm;
+  const body = {
+    hotel_id: form.elements.hotel_id.value,
+    internal_name: form.elements.internal_name.value,
+    destination_url: form.elements.destination_url.value,
+    status: form.elements.status.value,
+    starts_at: fromLocalDateTime(form.elements.starts_at.value),
+    expires_at: fromLocalDateTime(form.elements.expires_at.value),
+    notes: form.elements.notes.value,
+  };
+  if (!currentShortLink) body.slug = form.elements.slug.value;
+
+  try {
+    await adminApi(currentShortLink ? `/api/v1/admin/short-links/${encodeURIComponent(currentShortLink.id)}` : "/api/v1/admin/short-links", {
+      method: currentShortLink ? "PATCH" : "POST",
+      body,
+    });
+    closeShortLinkEditor();
+    await loadShortLinks();
+  } catch (error) {
+    els.shortLinksMessage.textContent = error.message || "Nao foi possivel salvar o link.";
+  }
+}
+
+async function handleShortLinkAction(event) {
+  const button = event.target.closest("[data-link-action]");
+  if (!button) return;
+  const link = currentShortLinks.find((entry) => entry.id === button.dataset.linkId);
+  if (!link) return;
+  const action = button.dataset.linkAction;
+
+  if (action === "edit") {
+    openShortLinkEditor(link);
+    return;
+  }
+  if (action === "copy") {
+    await navigator.clipboard?.writeText(link.public_url);
+    button.textContent = "Copiado";
+    return;
+  }
+  if (action === "toggle") {
+    await updateShortLinkStatus(link, link.status === "active" ? "paused" : "active");
+    return;
+  }
+  if (action === "archive") {
+    if (!window.confirm("Arquivar este link? O historico agregado de cliques sera preservado.")) return;
+    await archiveShortLink(link);
+  }
+}
+
+async function updateShortLinkStatus(link, status) {
+  try {
+    await adminApi(`/api/v1/admin/short-links/${encodeURIComponent(link.id)}`, {
+      method: "PATCH",
+      body: { status },
+    });
+    await loadShortLinks();
+  } catch (error) {
+    els.shortLinksMessage.textContent = error.message || "Nao foi possivel atualizar o status.";
+  }
+}
+
+async function archiveShortLink(link) {
+  try {
+    await adminApi(`/api/v1/admin/short-links/${encodeURIComponent(link.id)}`, {
+      method: "DELETE",
+      body: {},
+    });
+    closeShortLinkEditor();
+    await loadShortLinks();
+  } catch (error) {
+    els.shortLinksMessage.textContent = error.message || "Nao foi possivel arquivar o link.";
+  }
+}
+
+async function loadShortLinkAnalytics(linkId) {
+  try {
+    const payload = await adminApi(`/api/v1/admin/short-links/${encodeURIComponent(linkId)}/analytics`);
+    renderShortLinkAnalytics(payload.data.analytics);
+  } catch {
+    renderShortLinkAnalytics(null);
+  }
+}
+
+function renderShortLinkAnalytics(analytics) {
+  if (!analytics) {
+    els.shortLinksAnalytics.innerHTML = '<div class="admin-empty">Metricas agregadas aparecem aqui apos o primeiro acesso.</div>';
+    return;
+  }
+  els.shortLinksAnalytics.innerHTML = `
+    <div class="admin-short-link-analytics">
+      <article><span>Total</span><strong>${Number(analytics.total_clicks || 0)}</strong></article>
+      <article><span>7 dias</span><strong>${Number(analytics.last_7_days || 0)}</strong></article>
+      <article><span>30 dias</span><strong>${Number(analytics.last_30_days || 0)}</strong></article>
+      <article><span>Ultimo acesso</span><strong>${analytics.last_clicked_at ? escapeHtml(formatDate(analytics.last_clicked_at)) : "Nenhum"}</strong></article>
+    </div>
+  `;
+}
+
+function updateShortLinkPreview() {
+  const slug = currentShortLink?.slug || els.shortLinksForm.elements.slug.value.trim().toLowerCase();
+  els.shortLinksPreview.textContent = slug ? `${window.location.origin}/go/${slug}` : `${window.location.origin}/go/seu-link`;
+}
+
 function renderMediaLibrary(session) {
   setHeading("Biblioteca de imagens", "Assets privados no R2 publicados por rotas seguras do Worker.");
   els.portalsHome.hidden = true;
   els.unitsManager.hidden = true;
+  els.shortLinksManager.hidden = true;
   const allowed = canAccessMediaLibrary(session);
   els.mediaLibrary.hidden = !allowed;
   els.portalsDenied.hidden = allowed;
@@ -1099,6 +1375,10 @@ function isMediaRoute() {
   return window.location.pathname.startsWith("/admin/portais/media/");
 }
 
+function isLinksRoute() {
+  return window.location.pathname.startsWith("/admin/portais/links/");
+}
+
 function isUnitsRoute() {
   return window.location.pathname.startsWith("/admin/portais/unidades/");
 }
@@ -1121,6 +1401,7 @@ function featureIcon(key) {
   return {
     unidades: "U",
     media: "M",
+    links: "L",
     conteudos: "C",
     modulos: "D",
     navegacao: "N",
@@ -1145,4 +1426,19 @@ function formatBytes(value) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function toLocalDateTime(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const offset = date.getTimezoneOffset();
+  const local = new Date(date.getTime() - offset * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
+function fromLocalDateTime(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString();
 }
