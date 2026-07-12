@@ -20,6 +20,11 @@ const r2 = config.r2_buckets?.find((bucket) => bucket.binding === "MEDIA_BUCKET"
 const workerFirstRoutes = new Set(config.assets?.run_worker_first || []);
 const shortLinkRoute = (config.routes || []).find((route) => route.pattern === "go.hoteisfioreze.com.br");
 
+if (config.workers_dev !== true) {
+  console.error("workers_dev deve permanecer true enquanto o Custom Domain dos links estiver adiado.");
+  process.exit(1);
+}
+
 if (d1.binding !== "DB") {
   console.error("D1 binding deve ser DB.");
   process.exit(1);
@@ -52,13 +57,13 @@ for (const route of ["/api/*", "/admin/*", "/media/*", "/embed/*", "/go/*"]) {
   }
 }
 
-if (!shortLinkRoute || shortLinkRoute.custom_domain !== true) {
-  console.error("Custom Domain go.hoteisfioreze.com.br deve estar configurado com custom_domain=true.");
+if (shortLinkRoute) {
+  console.error("Custom Domain go.hoteisfioreze.com.br esta adiado e nao deve estar na configuracao padrao.");
   process.exit(1);
 }
 
-if (config.vars?.SHORT_LINK_PUBLIC_ORIGIN !== "https://go.hoteisfioreze.com.br") {
-  console.error("SHORT_LINK_PUBLIC_ORIGIN deve ser https://go.hoteisfioreze.com.br.");
+if (Object.hasOwn(config.vars || {}, "SHORT_LINK_PUBLIC_ORIGIN")) {
+  console.error("SHORT_LINK_PUBLIC_ORIGIN esta adiado e nao deve estar nas vars padrao.");
   process.exit(1);
 }
 

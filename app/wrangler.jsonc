@@ -3,18 +3,13 @@
   "name": "fioreze-portais-dev",
   "main": "src/index.js",
   "compatibility_date": "2026-07-04",
+  "workers_dev": true,
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*", "/admin/*", "/media/*", "/embed/*", "/go/*"]
   },
-  "routes": [
-    {
-      "pattern": "go.hoteisfioreze.com.br",
-      "custom_domain": true
-    }
-  ],
   "d1_databases": [
     {
       "binding": "DB",
@@ -34,7 +29,6 @@
   "vars": {
     "ENVIRONMENT": "development",
     "IMPRESSION_ENABLED": "false",
-    "DEFAULT_HOTEL_SLUG": "muller-fioreze",
-    "SHORT_LINK_PUBLIC_ORIGIN": "https://go.hoteisfioreze.com.br"
+    "DEFAULT_HOTEL_SLUG": "muller-fioreze"
   }
 }
