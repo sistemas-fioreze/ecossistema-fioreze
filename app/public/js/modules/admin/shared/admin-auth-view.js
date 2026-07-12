@@ -1,5 +1,13 @@
 import { adminApi } from "./admin-api.js";
-import { canAccessLinks, canAccessMediaLibrary, canAccessPortals, canAccessRoomService, canAccessUnits } from "./admin-session.js";
+import {
+  canAccessLinks,
+  canAccessMediaLibrary,
+  canAccessPortals,
+  canAccessRoles,
+  canAccessRoomService,
+  canAccessUnits,
+  canAccessUsers,
+} from "./admin-session.js";
 
 const HELP_CONTENT = {
   home: {
@@ -16,6 +24,21 @@ const HELP_CONTENT = {
     title: "Ajuda de Portais",
     body: "Gerencie as experiencias digitais das unidades Fioreze em um unico lugar.",
     examples: ["Atualize dados e identidade das unidades.", "Envie imagens e crie links curtos para campanhas."],
+  },
+  users: {
+    title: "Ajuda de Usuarios",
+    body: "Gerencie quem pode acessar a Central Administrativa e quais unidades cada pessoa acompanha.",
+    examples: ["Crie usuarios com senha temporaria.", "Desative acessos sem apagar historico."],
+  },
+  roles: {
+    title: "Ajuda de Perfis",
+    body: "Organize permissoes em perfis simples para cada tipo de trabalho.",
+    examples: ["Revise permissoes por grupo.", "Evite conceder acesso alem do necessario."],
+  },
+  account: {
+    title: "Ajuda da Conta",
+    body: "Atualize sua senha e encerre sessoes quando precisar proteger seu acesso.",
+    examples: ["Troque a senha com frequencia.", "Use sair de todos os dispositivos se perder acesso a algum aparelho."],
   },
 };
 
@@ -187,9 +210,9 @@ function renderGlobalNav(session, section) {
     ["portals", "Unidades", "/admin/portais/unidades/", "units", canAccessUnits(session)],
     ["portals", "Imagens", "/admin/portais/media/", "image", canAccessMediaLibrary(session)],
     ["portals", "Links", "/admin/portais/links/", "link", canAccessLinks(session)],
-    ["users", "Usuarios", "/admin/usuarios/", "users", false],
-    ["users", "Perfis e permissoes", "/admin/perfis/", "shield", false],
-    ["account", "Minha conta", "/admin/minha-conta/", "user", false],
+    ["users", "Usuarios", "/admin/usuarios/", "users", canAccessUsers(session)],
+    ["roles", "Perfis e permissoes", "/admin/perfis/", "shield", canAccessRoles(session)],
+    ["account", "Minha conta", "/admin/minha-conta/", "user", true],
   ];
   return `<nav class="admin-global-nav">${items
     .map(([area, label, href, iconName, enabled]) =>
@@ -211,6 +234,9 @@ function adminArea(section) {
     home: "Inicio",
     "room-service": "Operacao",
     portals: "Experiencias digitais",
+    users: "Equipe",
+    roles: "Equipe",
+    account: "Conta",
   }[section] || "Central Administrativa";
 }
 

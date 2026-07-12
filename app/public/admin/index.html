@@ -64,6 +64,54 @@
             </div>
           </aside>
         </section>
+
+        <section id="usersManager" class="admin-launcher-panel admin-management-panel" hidden>
+          <div class="admin-panel-heading">
+            <div>
+              <p class="eyebrow">Equipe</p>
+              <h2>Usuarios</h2>
+            </div>
+          </div>
+          <div id="usersSummary" class="admin-muted" aria-live="polite"></div>
+          <div id="usersList" class="admin-table-stack"></div>
+        </section>
+
+        <section id="rolesManager" class="admin-launcher-panel admin-management-panel" hidden>
+          <div class="admin-panel-heading">
+            <div>
+              <p class="eyebrow">Acessos</p>
+              <h2>Perfis e permissoes</h2>
+            </div>
+          </div>
+          <div id="rolesSummary" class="admin-muted" aria-live="polite"></div>
+          <div id="rolesList" class="admin-table-stack"></div>
+        </section>
+
+        <section id="accountManager" class="admin-launcher-panel admin-management-panel" hidden>
+          <div class="admin-panel-heading">
+            <div>
+              <p class="eyebrow">Conta</p>
+              <h2>Minha conta</h2>
+            </div>
+          </div>
+          <div id="accountDetails" class="admin-account-card"></div>
+          <form id="passwordForm" class="admin-form-grid">
+            <label>
+              <span>Senha atual</span>
+              <input id="currentPassword" name="current_password" type="password" autocomplete="current-password" required>
+            </label>
+            <label>
+              <span>Nova senha</span>
+              <input id="newPassword" name="new_password" type="password" autocomplete="new-password" minlength="12" required>
+            </label>
+            <label>
+              <span>Confirmar nova senha</span>
+              <input id="confirmPassword" name="confirm_password" type="password" autocomplete="new-password" minlength="12" required>
+            </label>
+            <button class="admin-primary-button" type="submit">Alterar senha</button>
+          </form>
+          <p id="accountMessage" class="admin-muted" role="status" aria-live="polite"></p>
+        </section>
       </section>
 
       <section class="admin-loading" data-view="loading">

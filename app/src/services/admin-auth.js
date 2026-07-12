@@ -10,9 +10,12 @@ export const ADMIN_MUTATION_HEADER_VALUE = "erp-admin";
 
 const SESSION_TTL_SECONDS = 60 * 60 * 8;
 const SESSION_TOKEN_BYTES = 32;
-const PBKDF2_STRATEGY = "pbkdf2";
-const PBKDF2_MIN_ITERATIONS = 100000;
-const PBKDF2_MAX_ITERATIONS = 100000;
+export const PBKDF2_STRATEGY = "pbkdf2";
+export const PBKDF2_ITERATIONS = 100000;
+const PBKDF2_MIN_ITERATIONS = PBKDF2_ITERATIONS;
+const PBKDF2_MAX_ITERATIONS = PBKDF2_ITERATIONS;
+const FULL_SESSION_TYPE = "full";
+const PASSWORD_CHANGE_SESSION_TYPE = "password_change_required";
 
 export async function loginAdmin({ request, env }) {
   const payload = await readJson(request);
@@ -33,9 +36,7 @@ export async function loginAdmin({ request, env }) {
     throw unauthorized("Credenciais administrativas invalidas.");
   }
 
-  if (Number(user.force_password_change || 0) === 1) {
-    throw forbidden("Senha administrativa precisa ser redefinida antes do acesso.");
-  }
+  const sessionType = Number(user.force_password_change || 0) === 1 ? PASSWORD_CHANGE_SESSION_TYPE : FULL_SESSION_TYPE;
 
   const token = createSessionToken();
   const tokenHash = await sha256Hex(token);
@@ -47,9 +48,9 @@ export async function loginAdmin({ request, env }) {
   await run(
     env,
     `INSERT INTO admin_sessions (
-       id, user_id, token_hash, user_agent_hash, ip_hash, created_at, expires_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [createPublicId("sess"), user.id, tokenHash, userAgentHash, ipHash, createdAt, expiresAt],
+       id, user_id, token_hash, user_agent_hash, ip_hash, session_type, created_at, expires_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [createPublicId("sess"), user.id, tokenHash, userAgentHash, ipHash, sessionType, createdAt, expiresAt],
   );
 
   const session = await buildAdminSession(env, {
@@ -57,6 +58,7 @@ export async function loginAdmin({ request, env }) {
     user_id: user.id,
     display_name: user.display_name,
     email: user.email,
+    session_type: sessionType,
     expires_at: expiresAt,
   });
 
@@ -95,7 +97,7 @@ export async function getCurrentAdminSession({ request, env, required = true }) 
   const tokenHash = await sha256Hex(token);
   const sessionRow = await first(
     env,
-    `SELECT s.id AS session_id, s.user_id, s.expires_at,
+    `SELECT s.id AS session_id, s.user_id, s.session_type, s.expires_at,
             u.display_name, u.email
        FROM admin_sessions s
        JOIN admin_users u ON u.id = s.user_id
@@ -116,6 +118,11 @@ export async function getCurrentAdminSession({ request, env, required = true }) 
 }
 
 export function requirePermission(session, permissionKey) {
+  if (session.password_change_required) {
+    throw forbidden("Troca de senha obrigatoria antes de acessar esta funcao.", {
+      reason: "password_change_required",
+    });
+  }
   if (!session.permissions.includes(permissionKey)) {
     throw unauthorized("Permissao administrativa insuficiente.");
   }
@@ -137,6 +144,7 @@ export function toSessionPayload(session) {
     hotels: session.hotels,
     permissions: session.permissions,
     expires_at: session.expires_at,
+    password_change_required: Boolean(session.password_change_required),
   };
 }
 
@@ -209,10 +217,12 @@ async function buildAdminSession(env, row) {
     hotel_ids: hotels.map((hotel) => hotel.hotel_id),
     permissions: permissions.map((permission) => permission.permission_key),
     expires_at: row.expires_at,
+    session_type: row.session_type || FULL_SESSION_TYPE,
+    password_change_required: row.session_type === PASSWORD_CHANGE_SESSION_TYPE,
   };
 }
 
-async function verifyPassword(password, storedHash) {
+export async function verifyPassword(password, storedHash) {
   const parsed = parsePasswordHash(storedHash);
   if (!parsed) return false;
 
@@ -229,6 +239,23 @@ async function verifyPassword(password, storedHash) {
   );
 
   return constantTimeEqual(new Uint8Array(derived), parsed.hash);
+}
+
+export async function hashPassword(password, { iterations = PBKDF2_ITERATIONS } = {}) {
+  const salt = new Uint8Array(16);
+  crypto.getRandomValues(salt);
+  const key = await crypto.subtle.importKey("raw", encode(password), "PBKDF2", false, ["deriveBits"]);
+  const derived = await crypto.subtle.deriveBits(
+    {
+      name: "PBKDF2",
+      hash: "SHA-256",
+      salt,
+      iterations,
+    },
+    key,
+    256,
+  );
+  return `${PBKDF2_STRATEGY}$sha256$${iterations}$${toBase64(salt)}$${toBase64(new Uint8Array(derived))}`;
 }
 
 function isSupportedPasswordRecord(user) {
@@ -274,7 +301,7 @@ function sessionCookieHeaders(token, request, env) {
   return headers;
 }
 
-function clearSessionCookieHeaders(request, env) {
+export function clearSessionCookieHeaders(request, env) {
   const headers = new Headers();
   headers.append(
     "set-cookie",
@@ -313,6 +340,10 @@ function encode(value) {
 
 function fromBase64(value) {
   return Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
+}
+
+function toBase64(bytes) {
+  return btoa(String.fromCharCode(...bytes));
 }
 
 function toBase64Url(bytes) {

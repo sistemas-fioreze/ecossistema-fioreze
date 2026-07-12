@@ -13,6 +13,7 @@ export async function createSessionCookie(env, userId = DEMO_USER_ID, overrides 
     token_hash: await sha256Hex(token),
     user_agent_hash: null,
     ip_hash: null,
+    session_type: "full",
     created_at: TEST_ADMIN_CREATED_AT,
     expires_at: TEST_ADMIN_EXPIRES_AT,
     revoked_at: null,

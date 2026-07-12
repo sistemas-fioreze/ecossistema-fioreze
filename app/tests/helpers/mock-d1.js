@@ -44,6 +44,12 @@ function createAssetsBinding() {
           '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><section id="unitsManager"></section></body></html>',
         "/admin/portais/links/":
           '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><section id="shortLinksManager"></section></body></html>',
+        "/admin/usuarios/":
+          '<!doctype html><html><body><h1>Central Administrativa Fioreze</h1><form id="loginForm"></form><section id="usersManager"></section></body></html>',
+        "/admin/perfis/":
+          '<!doctype html><html><body><h1>Central Administrativa Fioreze</h1><form id="loginForm"></form><section id="rolesManager"></section></body></html>',
+        "/admin/minha-conta/":
+          '<!doctype html><html><body><h1>Central Administrativa Fioreze</h1><form id="loginForm"></form><section id="accountManager"></section></body></html>',
       };
       if (htmlByPath[pathname]) {
         return new Response(htmlByPath[pathname], {
@@ -251,6 +257,9 @@ function createFixtureData() {
         password_strategy: "pbkdf2",
         status: "active",
         force_password_change: 0,
+        password_changed_at: null,
+        created_at: "2026-07-04T00:00:00.000Z",
+        updated_at: "2026-07-04T00:00:00.000Z",
       },
       {
         id: "user-aurora-admin",
@@ -261,9 +270,12 @@ function createFixtureData() {
         password_strategy: "pbkdf2",
         status: "active",
         force_password_change: 0,
+        password_changed_at: null,
+        created_at: "2026-07-04T00:00:00.000Z",
+        updated_at: "2026-07-04T00:00:00.000Z",
       },
     ],
-    adminRoles: [{ id: "role-demo-manager", role_key: "demo-manager", name: "Gerente demo" }],
+    adminRoles: [{ id: "role-demo-manager", role_key: "demo-manager", name: "Gerente demo", description: "Role ficticia." }],
     adminPermissions: [
       { id: "perm-orders-read", permission_key: "room-service.orders.read", module_key: "room-service" },
       { id: "perm-orders-write", permission_key: "room-service.orders.write", module_key: "room-service" },
@@ -285,6 +297,17 @@ function createFixtureData() {
       { id: "perm-portals-links-update", permission_key: "portals.links.update", module_key: null },
       { id: "perm-portals-links-archive", permission_key: "portals.links.archive", module_key: null },
       { id: "perm-portals-links-analytics", permission_key: "portals.links.analytics", module_key: null },
+      { id: "perm-admin-users-read", permission_key: "admin.users.read", module_key: "admin", description: "Ver usuarios" },
+      { id: "perm-admin-users-create", permission_key: "admin.users.create", module_key: "admin", description: "Criar usuarios" },
+      { id: "perm-admin-users-update", permission_key: "admin.users.update", module_key: "admin", description: "Editar usuarios" },
+      { id: "perm-admin-users-disable", permission_key: "admin.users.disable", module_key: "admin", description: "Desativar usuarios" },
+      { id: "perm-admin-users-password-reset", permission_key: "admin.users.password_reset", module_key: "admin", description: "Redefinir senhas" },
+      { id: "perm-admin-users-sessions-revoke", permission_key: "admin.users.sessions_revoke", module_key: "admin", description: "Encerrar sessoes" },
+      { id: "perm-admin-roles-read", permission_key: "admin.roles.read", module_key: "admin", description: "Ver perfis" },
+      { id: "perm-admin-roles-create", permission_key: "admin.roles.create", module_key: "admin", description: "Criar perfis" },
+      { id: "perm-admin-roles-update", permission_key: "admin.roles.update", module_key: "admin", description: "Editar perfis" },
+      { id: "perm-admin-roles-permissions", permission_key: "admin.roles.permissions", module_key: "admin", description: "Alterar permissoes" },
+      { id: "perm-admin-audit-read", permission_key: "admin.audit.read", module_key: "admin", description: "Ver auditoria" },
     ],
     adminUserRoles: [
       { user_id: "user-demo-admin", role_id: "role-demo-manager" },
@@ -293,6 +316,17 @@ function createFixtureData() {
     adminRolePermissions: [
       { role_id: "role-demo-manager", permission_id: "perm-orders-read" },
       { role_id: "role-demo-manager", permission_id: "perm-orders-write" },
+      { role_id: "role-demo-manager", permission_id: "perm-admin-users-read" },
+      { role_id: "role-demo-manager", permission_id: "perm-admin-users-create" },
+      { role_id: "role-demo-manager", permission_id: "perm-admin-users-update" },
+      { role_id: "role-demo-manager", permission_id: "perm-admin-users-disable" },
+      { role_id: "role-demo-manager", permission_id: "perm-admin-users-password-reset" },
+      { role_id: "role-demo-manager", permission_id: "perm-admin-users-sessions-revoke" },
+      { role_id: "role-demo-manager", permission_id: "perm-admin-roles-read" },
+      { role_id: "role-demo-manager", permission_id: "perm-admin-roles-create" },
+      { role_id: "role-demo-manager", permission_id: "perm-admin-roles-update" },
+      { role_id: "role-demo-manager", permission_id: "perm-admin-roles-permissions" },
+      { role_id: "role-demo-manager", permission_id: "perm-admin-audit-read" },
     ],
     adminHotelAccess: [
       { user_id: "user-demo-admin", hotel_id: "muller-fioreze", access_level: "manager" },
@@ -609,10 +643,40 @@ class MockD1Database {
       return {
         session_id: session.id,
         user_id: user.id,
+        session_type: session.session_type || "full",
         expires_at: session.expires_at,
         display_name: user.display_name,
         email: user.email,
       };
+    }
+
+    if (normalized.includes("from admin_users") && normalized.includes("where id = ?") && normalized.includes("limit 1")) {
+      const [userId] = params;
+      return this.data.adminUsers.find((user) => user.id === userId) || null;
+    }
+
+    if (normalized.includes("from admin_users") && normalized.includes("lower(email) = lower(?)") && normalized.includes("select id")) {
+      const [email] = params;
+      const user = this.data.adminUsers.find((entry) => entry.email.toLowerCase() === String(email).toLowerCase());
+      return user ? { id: user.id } : null;
+    }
+
+    if (normalized.includes("from admin_roles") && normalized.includes("where id = ?")) {
+      const [roleId] = params;
+      const role = this.data.adminRoles.find((entry) => entry.id === roleId);
+      return role ? { id: role.id } : null;
+    }
+
+    if (normalized.includes("from admin_permissions") && normalized.includes("where permission_key = ?")) {
+      const [permissionKey] = params;
+      const permission = this.data.adminPermissions.find((entry) => entry.permission_key === permissionKey);
+      return permission ? { id: permission.id } : null;
+    }
+
+    if (normalized.includes("from hotels") && normalized.includes("where id = ?") && normalized.includes("archived_at is null")) {
+      const [hotelId] = params;
+      const hotel = this.data.hotels.find((entry) => entry.id === hotelId && entry.archived_at == null);
+      return hotel ? { id: hotel.id } : null;
     }
 
     if (normalized.includes("from orders o") && normalized.includes("join hotels h") && normalized.includes("where o.id = ?")) {
@@ -841,6 +905,128 @@ class MockD1Database {
         })
         .filter(Boolean)
         .sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    if (normalized.includes("from admin_users u") && normalized.includes("group_concat") && normalized.includes("left join admin_user_roles")) {
+      const [now] = params;
+      return this.data.adminUsers
+        .map((user) => {
+          const roleIds = this.data.adminUserRoles.filter((entry) => entry.user_id === user.id).map((entry) => entry.role_id);
+          const roles = this.data.adminRoles.filter((entry) => roleIds.includes(entry.id));
+          const hotelAccess = this.data.adminHotelAccess.filter((entry) => entry.user_id === user.id);
+          const hotels = hotelAccess
+            .map((entry) => this.data.hotels.find((hotel) => hotel.id === entry.hotel_id))
+            .filter(Boolean);
+          const activeSessions = this.data.adminSessions.filter(
+            (entry) => entry.user_id === user.id && entry.revoked_at == null && entry.expires_at > now,
+          );
+          return {
+            id: user.id,
+            display_name: user.display_name,
+            email: user.email,
+            status: user.status,
+            force_password_change: user.force_password_change,
+            created_at: user.created_at,
+            updated_at: user.updated_at,
+            roles_text: roles.map((role) => `${role.id}:${role.name}`).join(","),
+            hotels_text: hotels.map((hotel) => `${hotel.id}:${hotel.short_name || hotel.name}`).join(","),
+            active_session_count: activeSessions.length,
+          };
+        })
+        .sort((a, b) => a.display_name.localeCompare(b.display_name));
+    }
+
+    if (normalized.includes("from admin_user_roles ur") && normalized.includes("join admin_roles r")) {
+      const [userId] = params;
+      const roleIds = this.data.adminUserRoles.filter((entry) => entry.user_id === userId).map((entry) => entry.role_id);
+      return this.data.adminRoles
+        .filter((role) => roleIds.includes(role.id))
+        .map((role) => ({ id: role.id, role_key: role.role_key, name: role.name }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    if (normalized.includes("from admin_sessions") && normalized.includes("where user_id = ?")) {
+      const [userId] = params;
+      return this.data.adminSessions
+        .filter((entry) => entry.user_id === userId)
+        .map(({ id, created_at, expires_at, revoked_at }) => ({ id, created_at, expires_at, revoked_at }))
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+        .slice(0, 20);
+    }
+
+    if (normalized.includes("from admin_roles r") && normalized.includes("group_concat")) {
+      return this.data.adminRoles
+        .map((role) => {
+          const userCount = this.data.adminUserRoles.filter((entry) => entry.role_id === role.id).length;
+          const permissionIds = this.data.adminRolePermissions
+            .filter((entry) => entry.role_id === role.id)
+            .map((entry) => entry.permission_id);
+          const permissions = this.data.adminPermissions
+            .filter((entry) => permissionIds.includes(entry.id))
+            .map((entry) => entry.permission_key)
+            .sort();
+          return {
+            id: role.id,
+            role_key: role.role_key,
+            name: role.name,
+            description: role.description || "",
+            user_count: userCount,
+            permissions_text: permissions.join(","),
+          };
+        })
+        .sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    if (normalized.includes("from admin_permissions") && normalized.includes("order by permission_key")) {
+      return this.data.adminPermissions
+        .map((permission) => ({
+          id: permission.id,
+          permission_key: permission.permission_key,
+          module_key: permission.module_key,
+          description: permission.description || permission.permission_key,
+        }))
+        .sort((a, b) => a.permission_key.localeCompare(b.permission_key));
+    }
+
+    if (normalized.includes("from admin_role_permissions rp") && normalized.includes("where rp.role_id in")) {
+      const roleIds = params;
+      const permissionIds = this.data.adminRolePermissions
+        .filter((entry) => roleIds.includes(entry.role_id))
+        .map((entry) => entry.permission_id);
+      return this.data.adminPermissions
+        .filter((entry) => permissionIds.includes(entry.id))
+        .map((entry) => ({ permission_key: entry.permission_key }))
+        .sort((a, b) => a.permission_key.localeCompare(b.permission_key));
+    }
+
+    if (normalized.includes("select user_id from admin_user_roles where role_id = ?")) {
+      const [roleId] = params;
+      return this.data.adminUserRoles.filter((entry) => entry.role_id === roleId).map((entry) => ({ user_id: entry.user_id }));
+    }
+
+    if (normalized.includes("select role_id from admin_user_roles where user_id = ?")) {
+      const [userId, excludedRoleId] = params;
+      return this.data.adminUserRoles
+        .filter((entry) => entry.user_id === userId && (!excludedRoleId || entry.role_id !== excludedRoleId))
+        .map((entry) => ({ role_id: entry.role_id }));
+    }
+
+    if (normalized.includes("from admin_users u") && normalized.includes("p.permission_key in")) {
+      const [excludeUserId] = params;
+      const capable = new Set();
+      for (const user of this.data.adminUsers.filter((entry) => entry.status === "active" && entry.id !== excludeUserId)) {
+        const roleIds = this.data.adminUserRoles.filter((entry) => entry.user_id === user.id).map((entry) => entry.role_id);
+        const permissionIds = this.data.adminRolePermissions
+          .filter((entry) => roleIds.includes(entry.role_id))
+          .map((entry) => entry.permission_id);
+        const permissionKeys = this.data.adminPermissions
+          .filter((entry) => permissionIds.includes(entry.id))
+          .map((entry) => entry.permission_key);
+        if (permissionKeys.includes("admin.users.update") || permissionKeys.includes("admin.roles.permissions")) {
+          capable.add(user.id);
+        }
+      }
+      return [...capable].map((id) => ({ id }));
     }
 
     if (normalized.includes("from admin_user_roles ur")) {
@@ -1141,17 +1327,81 @@ class MockD1Database {
     }
 
     if (normalized.startsWith("insert into admin_sessions")) {
-      const [id, user_id, token_hash, user_agent_hash, ip_hash, created_at, expires_at] = params;
+      let id;
+      let user_id;
+      let token_hash;
+      let user_agent_hash;
+      let ip_hash;
+      let session_type;
+      let created_at;
+      let expires_at;
+      if (params.length === 8) {
+        [id, user_id, token_hash, user_agent_hash, ip_hash, session_type, created_at, expires_at] = params;
+      } else {
+        [id, user_id, token_hash, user_agent_hash, ip_hash, created_at, expires_at] = params;
+        session_type = "full";
+      }
       this.data.adminSessions.push({
         id,
         user_id,
         token_hash,
         user_agent_hash,
         ip_hash,
+        session_type,
         created_at,
         expires_at,
         revoked_at: null,
       });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("insert into admin_users")) {
+      const [id, display_name, email, password_hash, created_at, updated_at] = params;
+      if (this.data.adminUsers.some((user) => user.email.toLowerCase() === String(email).toLowerCase())) {
+        throw new Error("UNIQUE constraint failed: admin_users.email");
+      }
+      this.data.adminUsers.push({
+        id,
+        display_name,
+        email,
+        password_hash,
+        password_strategy: "pbkdf2",
+        status: "active",
+        force_password_change: 1,
+        password_changed_at: null,
+        created_at,
+        updated_at,
+      });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("insert into admin_user_roles") || normalized.startsWith("insert or ignore into admin_user_roles")) {
+      const [user_id, role_id, created_at] = params;
+      if (!this.data.adminUserRoles.some((entry) => entry.user_id === user_id && entry.role_id === role_id)) {
+        this.data.adminUserRoles.push({ user_id, role_id, created_at });
+      }
+      return d1Result(1);
+    }
+
+    if (
+      (normalized.startsWith("insert into admin_role_permissions") ||
+        normalized.startsWith("insert or ignore into admin_role_permissions")) &&
+      normalized.includes("select ?, id")
+    ) {
+      const [role_id, created_at, permission_key] = params;
+      const permission = this.data.adminPermissions.find((entry) => entry.permission_key === permission_key);
+      if (permission && !this.data.adminRolePermissions.some((entry) => entry.role_id === role_id && entry.permission_id === permission.id)) {
+        this.data.adminRolePermissions.push({ role_id, permission_id: permission.id, created_at });
+      }
+      return d1Result(permission ? 1 : 0);
+    }
+
+    if (normalized.startsWith("insert into admin_roles")) {
+      const [id, role_key, name, description, created_at, updated_at] = params;
+      if (this.data.adminRoles.some((role) => role.role_key === role_key)) {
+        throw new Error("UNIQUE constraint failed: admin_roles.role_key");
+      }
+      this.data.adminRoles.push({ id, role_key, name, description, created_at, updated_at });
       return d1Result(1);
     }
 
@@ -1299,24 +1549,46 @@ class MockD1Database {
       return d1Result(1);
     }
 
-    if (normalized.startsWith("insert into admin_hotel_access")) {
+    if (normalized.startsWith("insert into admin_hotel_access") || normalized.startsWith("insert or ignore into admin_hotel_access")) {
       if (this.failNextAdminHotelAccessInsert) {
         this.failNextAdminHotelAccessInsert = false;
         throw new Error("admin hotel access insert failed");
       }
-      const [user_id, hotel_id, created_at, updated_at] = params;
-      this.data.adminHotelAccess.push({
-        user_id,
-        hotel_id,
-        access_level: "manager",
-        created_at,
-        updated_at,
-      });
+      let user_id;
+      let hotel_id;
+      let access_level;
+      let created_at;
+      let updated_at;
+      if (params.length === 5) {
+        [user_id, hotel_id, access_level, created_at, updated_at] = params;
+      } else {
+        [user_id, hotel_id, created_at, updated_at] = params;
+        access_level = "manager";
+      }
+      if (!this.data.adminHotelAccess.some((entry) => entry.user_id === user_id && entry.hotel_id === hotel_id)) {
+        this.data.adminHotelAccess.push({
+          user_id,
+          hotel_id,
+          access_level,
+          created_at,
+          updated_at,
+        });
+      }
       return d1Result(1);
     }
 
     if (normalized.startsWith("update admin_sessions")) {
       let changes = 0;
+      if (normalized.includes("where user_id = ?")) {
+        const [revoked_at, user_id] = params;
+        for (const session of this.data.adminSessions) {
+          if (session.user_id === user_id && session.revoked_at == null) {
+            session.revoked_at = revoked_at;
+            changes += 1;
+          }
+        }
+        return d1Result(changes);
+      }
       const [revoked_at, token_hash] = params;
       for (const session of this.data.adminSessions) {
         if (session.token_hash === token_hash && session.revoked_at == null) {
@@ -1325,6 +1597,73 @@ class MockD1Database {
         }
       }
       return d1Result(changes);
+    }
+
+    if (normalized.startsWith("update admin_users") && normalized.includes("set display_name = ?")) {
+      const [display_name, email, updated_at, id] = params;
+      const user = this.data.adminUsers.find((entry) => entry.id === id);
+      if (!user) return d1Result(0);
+      Object.assign(user, { display_name, email, updated_at });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update admin_users") && normalized.includes("set status = ?")) {
+      const [status, updated_at, id] = params;
+      const user = this.data.adminUsers.find((entry) => entry.id === id);
+      if (!user) return d1Result(0);
+      user.status = status;
+      user.updated_at = updated_at;
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update admin_users") && normalized.includes("password_hash = ?")) {
+      const password_hash = params[0];
+      const firstDate = params[1];
+      const secondDate = params.length === 4 ? params[2] : params[1];
+      const id = params.length === 4 ? params[3] : params[2];
+      const user = this.data.adminUsers.find((entry) => entry.id === id);
+      if (!user) return d1Result(0);
+      user.password_hash = password_hash;
+      user.password_strategy = "pbkdf2";
+      if (normalized.includes("force_password_change = 0")) {
+        user.force_password_change = 0;
+        user.password_changed_at = firstDate;
+        user.updated_at = secondDate;
+      } else {
+        user.force_password_change = 1;
+        user.password_changed_at = null;
+        user.updated_at = firstDate;
+      }
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update admin_roles")) {
+      const [name, description, updated_at, id] = params;
+      const role = this.data.adminRoles.find((entry) => entry.id === id);
+      if (!role) return d1Result(0);
+      Object.assign(role, { name, description, updated_at });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("delete from admin_user_roles")) {
+      const [user_id] = params;
+      const before = this.data.adminUserRoles.length;
+      this.data.adminUserRoles = this.data.adminUserRoles.filter((entry) => entry.user_id !== user_id);
+      return d1Result(before - this.data.adminUserRoles.length);
+    }
+
+    if (normalized.startsWith("delete from admin_hotel_access")) {
+      const [user_id] = params;
+      const before = this.data.adminHotelAccess.length;
+      this.data.adminHotelAccess = this.data.adminHotelAccess.filter((entry) => entry.user_id !== user_id);
+      return d1Result(before - this.data.adminHotelAccess.length);
+    }
+
+    if (normalized.startsWith("delete from admin_role_permissions")) {
+      const [role_id] = params;
+      const before = this.data.adminRolePermissions.length;
+      this.data.adminRolePermissions = this.data.adminRolePermissions.filter((entry) => entry.role_id !== role_id);
+      return d1Result(before - this.data.adminRolePermissions.length);
     }
 
     if (normalized.startsWith("update orders")) {
@@ -1626,6 +1965,21 @@ class MockD1Database {
           actor_user_id,
           action,
           entity_type: "short_link",
+          entity_id,
+          metadata_json,
+          created_at,
+        });
+        return d1Result(1);
+      }
+      if (normalized.includes("values (?, null, null")) {
+        const [id, actor_user_id, action, entity_type, entity_id, metadata_json, created_at] = params;
+        this.data.adminAuditLog.push({
+          id,
+          hotel_id: null,
+          module_key: null,
+          actor_user_id,
+          action,
+          entity_type,
           entity_id,
           metadata_json,
           created_at,
