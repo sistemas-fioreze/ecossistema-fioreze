@@ -1,0 +1,63 @@
+.rs-orders-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.82fr) minmax(0, 1.18fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.rs-order-list {
+  display: grid;
+  gap: 10px;
+}
+
+.rs-order-card {
+  width: 100%;
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--rs-line);
+  border-radius: var(--rs-radius-sm);
+  padding: 13px;
+  background: var(--rs-surface);
+  color: var(--rs-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.rs-order-card[aria-current="true"] {
+  border-color: var(--rs-accent);
+  box-shadow: inset 4px 0 0 var(--rs-accent);
+}
+
+.rs-order-row,
+.rs-detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rs-status-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  border-radius: 999px;
+  padding: 0 10px;
+  background: var(--rs-soft);
+  color: var(--rs-accent);
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.rs-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.rs-empty {
+  padding: 20px;
+  border: 1px dashed var(--rs-line);
+  border-radius: var(--rs-radius-sm);
+  color: var(--rs-muted);
+  font-weight: 800;
+  text-align: center;
+}

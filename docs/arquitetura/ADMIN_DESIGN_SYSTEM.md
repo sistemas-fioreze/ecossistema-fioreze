@@ -2,13 +2,13 @@
 
 ## Inventario do Admin Legado
 
-A Central Administrativa possuia tres shells visuais separados:
+A Central Administrativa possuia shells visuais separados:
 
 - `/admin/`: login, topbar, lista de sistemas e unidades autorizadas;
-- `/admin/room-service/`: login, topbar, filtros, lista e detalhe de pedidos;
-- `/admin/portais/`: login, sidebar propria, topbar, unidades, imagens e links.
+- `/admin/portais/`: login, sidebar propria, topbar, unidades, imagens e links;
+- `/erp/room-service/`: ERP operacional do Room Service, com login, topbar, filtros, lista e detalhe de pedidos.
 
-Os elementos duplicados eram login, marca, sessao do usuario, logout, topbar, estados de carregamento, mensagens de erro e acesso negado. O PR de fundacao preserva as rotas e os modulos existentes, mas adiciona uma camada compartilhada em `admin-auth-view.js` para navegação, identidade, avatar, menu mobile e ajuda contextual.
+Os elementos duplicados eram login, marca, sessao do usuario, logout, topbar, estados de carregamento, mensagens de erro e acesso negado. A Central Administrativa deixa de listar Pedidos como produto interno e passa a apontar o Room Service como ERP proprio em `/erp/room-service/`. A rota antiga `/admin/room-service/*` permanece apenas como redirecionamento de compatibilidade para a rota canonica.
 
 ## Identidade
 

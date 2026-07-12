@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>ERP Room Service Fioreze</title>
+    <link rel="stylesheet" href="/css/core/reset.css">
+    <link rel="stylesheet" href="/css/core/tokens.css">
+    <link rel="stylesheet" href="/css/core/layout.css">
+    <link rel="stylesheet" href="/css/core/components.css">
+    <link rel="stylesheet" href="/css/modules/room-service-erp/tokens.css">
+    <link rel="stylesheet" href="/css/modules/room-service-erp/shell.css">
+    <link rel="stylesheet" href="/css/modules/room-service-erp/dashboard.css">
+    <link rel="stylesheet" href="/css/modules/room-service-erp/orders.css">
+    <link rel="stylesheet" href="/css/modules/room-service-erp/pos.css">
+    <link rel="stylesheet" href="/css/modules/room-service-erp/guests.css">
+    <link rel="stylesheet" href="/css/modules/room-service-erp/billing.css">
+    <link rel="stylesheet" href="/css/modules/room-service-erp/catalog.css">
+    <link rel="stylesheet" href="/css/modules/room-service-erp/settings.css">
+    <link rel="stylesheet" href="/css/modules/room-service-erp/responsive.css">
+  </head>
+  <body data-erp="room-service">
+    <main id="roomServiceErp" class="rs-erp" data-state="loading">
+      <section class="rs-login" data-view="login" hidden>
+        <form id="loginForm" class="rs-login-card" autocomplete="on">
+          <div class="rs-login-mark" aria-hidden="true">F</div>
+          <p class="rs-kicker">ERP Room Service</p>
+          <h1>Acesso operacional</h1>
+          <label>
+            <span>E-mail</span>
+            <input id="loginEmail" name="email" type="email" autocomplete="username" required>
+          </label>
+          <label>
+            <span>Senha</span>
+            <input id="loginPassword" name="password" type="password" autocomplete="current-password" required>
+          </label>
+          <button id="loginButton" class="rs-primary-button" type="submit">Entrar</button>
+          <p id="loginError" class="rs-error" role="alert" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section class="rs-loading" data-view="loading">
+        <div class="rs-login-card">
+          <div class="rs-login-mark" aria-hidden="true">F</div>
+          <p id="erpStatus">Verificando sessao administrativa...</p>
+        </div>
+      </section>
+
+      <section class="rs-shell" data-view="app" hidden>
+        <aside class="rs-sidebar" aria-label="Navegacao do ERP Room Service">
+          <a class="rs-brand" href="/erp/room-service/" aria-label="Inicio do ERP Room Service">
+            <span id="hotelSeal" class="rs-brand-seal">F</span>
+            <span class="rs-brand-copy">
+              <strong id="hotelBrandName">Room Service</strong>
+              <small id="hotelBrandSubtitle">Unidade Fioreze</small>
+            </span>
+          </a>
+          <nav id="erpNav" class="rs-nav"></nav>
+          <div class="rs-sidebar-footer">
+            <button id="compactToggle" type="button" class="rs-ghost-button">Modo compacto</button>
+            <button id="themeToggle" type="button" class="rs-ghost-button">Tema escuro</button>
+          </div>
+        </aside>
+
+        <section class="rs-main">
+          <header class="rs-topbar">
+            <button id="mobileMenuButton" class="rs-icon-button" type="button" aria-label="Abrir menu">☰</button>
+            <div class="rs-unit-picker">
+              <label for="hotelSelect">Unidade</label>
+              <select id="hotelSelect"></select>
+            </div>
+            <button id="storeStatusButton" type="button" class="rs-store-status" aria-live="polite">
+              <span class="rs-live-dot" aria-hidden="true"></span>
+              <strong id="storeStatusText">Status indisponivel</strong>
+            </button>
+            <label class="rs-global-search">
+              <span>Busca global</span>
+              <input id="globalSearch" type="search" placeholder="Pedido, hospede, quarto">
+            </label>
+            <button id="notificationsButton" class="rs-icon-button" type="button" aria-label="Notificacoes">!</button>
+            <div class="rs-account">
+              <span id="sessionUser"></span>
+              <button id="logoutButton" type="button">Sair</button>
+            </div>
+          </header>
+
+          <section id="erpCanvas" class="rs-canvas" tabindex="-1">
+            <div id="routeOutlet" class="rs-route-outlet" aria-live="polite"></div>
+          </section>
+        </section>
+
+        <aside id="helpDrawer" class="rs-drawer" hidden aria-label="Ajuda contextual"></aside>
+        <div id="toastRegion" class="rs-toast-region" aria-live="polite" aria-atomic="true"></div>
+      </section>
+    </main>
+    <script type="module" src="/js/modules/room-service-erp/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,5 @@
+.rs-guest-list,
+.rs-billing-list {
+  display: grid;
+  gap: 10px;
+}

@@ -1,0 +1,15 @@
+.rs-pos-grid,
+.rs-catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 12px;
+}
+
+.rs-product-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--rs-line);
+  border-radius: var(--rs-radius-sm);
+  padding: 14px;
+  background: var(--rs-surface);
+}

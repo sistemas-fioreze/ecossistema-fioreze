@@ -1,6 +1,6 @@
 import { createAdminAuthView } from "./shared/admin-auth-view.js";
 import { adminApi } from "./shared/admin-api.js";
-import { canAccessPortals, canAccessRoles, canAccessRoomService, canAccessUsers, getAuthorizedHotels } from "./shared/admin-session.js";
+import { canAccessPortals, canAccessRoles, canAccessUsers, getAuthorizedHotels } from "./shared/admin-session.js";
 import { escapeAttr, escapeHtml } from "./shared/format.js";
 
 const section = currentSection();
@@ -53,13 +53,6 @@ function renderLauncher(session) {
 
 function buildSystems(session) {
   const systems = [];
-  if (canAccessRoomService(session)) {
-    systems.push({
-      title: "Room Service",
-      description: "Pedidos, operacao e atendimento",
-      href: "/admin/room-service/",
-    });
-  }
   if (canAccessPortals(session)) {
     systems.push({
       title: "Central de Portais",

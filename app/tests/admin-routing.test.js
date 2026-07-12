@@ -29,15 +29,24 @@ test("GET /admin/ entrega central de acesso administrativo", async () => {
   assert.equal(response.headers.has("location"), false);
 });
 
-test("GET /admin/room-service/ entrega ERP operacional do Room Service", async () => {
+test("GET /admin/room-service/ redireciona para a rota oficial do ERP", async () => {
   const { fetch } = createWorkerTestContext();
   const response = await fetch("/admin/room-service/", { redirect: "manual" });
+
+  assert.equal(response.status, 308);
+  assert.equal(new URL(response.headers.get("location")).pathname, "/erp/room-service/");
+});
+
+test("GET /erp/room-service/ entrega o ERP Room Service oficial", async () => {
+  const { fetch } = createWorkerTestContext();
+  const response = await fetch("/erp/room-service/", { redirect: "manual" });
   const text = await response.text();
 
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") || "", /text\/html/);
-  assert.match(text, /Pedidos Room Service/);
-  assert.match(text, /ordersList/);
+  assert.match(text, /ERP Room Service Fioreze/);
+  assert.match(text, /routeOutlet/);
+  assert.match(text, /js\/modules\/room-service-erp\/app\.js/);
   assert.equal(response.headers.has("location"), false);
 });
 
@@ -58,9 +67,10 @@ test("rotas administrativas sem barra final redirecionam para caminho canonico",
   const roomService = await fetch("/admin/room-service?x=1", { redirect: "manual" });
   const portals = await fetch("/admin/portais?x=1", { redirect: "manual" });
   const media = await fetch("/admin/portais/media?x=1", { redirect: "manual" });
+  const erp = await fetch("/erp/room-service?x=1", { redirect: "manual" });
 
   assert.equal(roomService.status, 308);
-  assert.equal(new URL(roomService.headers.get("location")).pathname, "/admin/room-service/");
+  assert.equal(new URL(roomService.headers.get("location")).pathname, "/erp/room-service/");
   assert.equal(new URL(roomService.headers.get("location")).search, "?x=1");
   assert.equal(portals.status, 308);
   assert.equal(new URL(portals.headers.get("location")).pathname, "/admin/portais/");
@@ -68,16 +78,22 @@ test("rotas administrativas sem barra final redirecionam para caminho canonico",
   assert.equal(media.status, 308);
   assert.equal(new URL(media.headers.get("location")).pathname, "/admin/portais/media/");
   assert.equal(new URL(media.headers.get("location")).search, "?x=1");
+  assert.equal(erp.status, 308);
+  assert.equal(new URL(erp.headers.get("location")).pathname, "/erp/room-service/");
+  assert.equal(new URL(erp.headers.get("location")).search, "?x=1");
 });
 
 test("subrotas administrativas entregam o shell correto ao atualizar pagina", async () => {
   const { fetch } = createWorkerTestContext();
-  const roomService = await fetch("/admin/room-service/pedidos/abc", { redirect: "manual" });
+  const roomService = await fetch("/erp/room-service/pedidos/abc", { redirect: "manual" });
+  const oldRoomService = await fetch("/admin/room-service/pedidos/abc", { redirect: "manual" });
   const portals = await fetch("/admin/portais/hoteis", { redirect: "manual" });
   const media = await fetch("/admin/portais/media/asset/demo", { redirect: "manual" });
 
+  assert.equal(oldRoomService.status, 308);
+  assert.equal(new URL(oldRoomService.headers.get("location")).pathname, "/erp/room-service/pedidos/abc");
   assert.equal(roomService.status, 200);
-  assert.match(await roomService.text(), /Pedidos Room Service/);
+  assert.match(await roomService.text(), /ERP Room Service Fioreze/);
   assert.equal(portals.status, 200);
   assert.match(await portals.text(), /Central de Portais Fioreze/);
   assert.equal(media.status, 200);
@@ -112,9 +128,10 @@ test("assets administrativos carregam fora do roteamento estatico de shells", as
   const { fetch } = createWorkerTestContext();
   const assets = [
     ["/js/modules/admin/admin.js", /javascript/],
-    ["/js/modules/admin/room-service.js", /javascript/],
+    ["/js/modules/room-service-erp/app.js", /javascript/],
     ["/js/modules/admin/portals.js", /javascript/],
     ["/css/modules/admin/admin.css", /text\/css/],
+    ["/css/modules/room-service-erp/shell.css", /text\/css/],
   ];
 
   for (const [path, contentType] of assets) {

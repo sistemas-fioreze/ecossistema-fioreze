@@ -459,13 +459,14 @@ test("arquivamento de navegacao desabilita sem apagar", async () => {
   assert.equal(env.__data.adminAuditLog.at(-1).action, "hotel.navigation.archive");
 });
 
-test("rotas da Central carregam shells sem quebrar admin, media e room-service", async () => {
+test("rotas da Central carregam shells sem quebrar admin, media e ERP Room Service", async () => {
   const { fetch, json } = createWorkerTestContext();
   const unitsRedirect = await fetch("/admin/portais/unidades", { redirect: "manual" });
   const units = await fetch("/admin/portais/unidades/", { redirect: "manual" });
   const unitsNested = await fetch("/admin/portais/unidades/muller-fioreze/", { redirect: "manual" });
   const media = await fetch("/admin/portais/media/", { redirect: "manual" });
-  const roomService = await fetch("/admin/room-service/", { redirect: "manual" });
+  const roomService = await fetch("/erp/room-service/", { redirect: "manual" });
+  const oldRoomService = await fetch("/admin/room-service/", { redirect: "manual" });
   const products = await json("/api/v1/public/hotels/muller-fioreze/room-service/products");
 
   assert.equal(unitsRedirect.status, 308);
@@ -474,6 +475,8 @@ test("rotas da Central carregam shells sem quebrar admin, media e room-service",
   assert.equal(unitsNested.status, 200);
   assert.match(await units.text(), /unitsManager/);
   assert.equal(media.status, 200);
+  assert.equal(oldRoomService.status, 308);
+  assert.equal(new URL(oldRoomService.headers.get("location")).pathname, "/erp/room-service/");
   assert.equal(roomService.status, 200);
   assert.equal(products.response.status, 200);
 });

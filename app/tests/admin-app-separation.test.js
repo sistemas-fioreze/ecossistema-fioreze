@@ -10,7 +10,7 @@ import {
 } from "../public/js/modules/admin/shared/admin-session.js";
 import { createWorkerTestContext } from "./helpers/worker.js";
 
-test("usuario com room-service.orders.read ve Room Service e nao ganha Portais por inferencia", () => {
+test("usuario com room-service.orders.read acessa ERP direto e nao ganha Portais por inferencia", () => {
   const session = {
     permissions: ["room-service.orders.read", "room-service.orders.write"],
     hotels: [{ hotel_id: "muller-fioreze" }],
@@ -53,4 +53,5 @@ test("ausencia de sessao na central nao entrega conteudo operacional de pedidos"
   assert.match(html, /loginForm/);
   assert.doesNotMatch(html, /ordersList/);
   assert.doesNotMatch(html, /Detalhes do pedido/);
+  assert.doesNotMatch(html, /Room Service/);
 });
