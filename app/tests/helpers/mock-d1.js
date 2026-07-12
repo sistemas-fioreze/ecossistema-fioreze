@@ -3,6 +3,7 @@ export function createTestEnv(overrides = {}) {
   return {
     DB: new MockD1Database(data),
     ASSETS: createAssetsBinding(),
+    MEDIA_BUCKET: new MockR2Bucket(),
     ENVIRONMENT: "test",
     IMPRESSION_ENABLED: "false",
     DEFAULT_HOTEL_SLUG: "muller-fioreze",
@@ -33,9 +34,11 @@ function createAssetsBinding() {
         "/admin/room-service/index.html":
           '<!doctype html><html><body><h1>Pedidos Room Service</h1><form id="loginForm"></form><div id="ordersList"></div></body></html>',
         "/admin/portais/":
-          '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><div id="portalsDenied"></div></body></html>',
+          '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><div id="portalsDenied"></div><section id="mediaLibrary"></section></body></html>',
         "/admin/portais/index.html":
-          '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><div id="portalsDenied"></div></body></html>',
+          '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><div id="portalsDenied"></div><section id="mediaLibrary"></section></body></html>',
+        "/admin/portais/media/":
+          '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><section id="mediaLibrary"></section></body></html>',
       };
       if (htmlByPath[pathname]) {
         return new Response(htmlByPath[pathname], {
@@ -158,6 +161,15 @@ function createFixtureData() {
         alt_text: "Logo demo",
         mime_type: "image/png",
         status: "active",
+        created_at: "2026-07-04T00:00:00.000Z",
+        updated_at: "2026-07-04T00:00:00.000Z",
+        archived_at: null,
+        original_filename: "logo.png",
+        size_bytes: 1024,
+        checksum_sha256: null,
+        storage_etag: null,
+        uploaded_by_user_id: null,
+        archived_by_user_id: null,
       },
     ],
     navigation: [
@@ -234,6 +246,10 @@ function createFixtureData() {
     adminPermissions: [
       { id: "perm-orders-read", permission_key: "room-service.orders.read", module_key: "room-service" },
       { id: "perm-orders-write", permission_key: "room-service.orders.write", module_key: "room-service" },
+      { id: "perm-portals-media-read", permission_key: "portals.media.read", module_key: null },
+      { id: "perm-portals-media-upload", permission_key: "portals.media.upload", module_key: null },
+      { id: "perm-portals-media-update", permission_key: "portals.media.update", module_key: null },
+      { id: "perm-portals-media-archive", permission_key: "portals.media.archive", module_key: null },
     ],
     adminUserRoles: [
       { user_id: "user-demo-admin", role_id: "role-demo-manager" },
@@ -334,6 +350,7 @@ class MockD1Database {
   constructor(data) {
     this.data = data;
     this.failNextBatch = false;
+    this.failNextMediaAssetInsert = false;
     this.adminStatusBatchDelayMs = 0;
   }
 
@@ -379,6 +396,11 @@ class MockD1Database {
     if (normalized.includes("from hotel_modules") && normalized.includes("where hotel_id = ? and module_key = ?")) {
       const [hotelId, moduleKey] = params;
       return this.data.hotelModules.find((module) => module.hotel_id === hotelId && module.module_key === moduleKey) || null;
+    }
+
+    if (normalized.includes("from modules") && normalized.includes("where module_key = ?")) {
+      const [moduleKey] = params;
+      return this.data.modules.find((moduleRow) => moduleRow.module_key === moduleKey) || null;
     }
 
     if (normalized.includes("from rooms")) {
@@ -468,6 +490,20 @@ class MockD1Database {
         (entry) => entry.hotel_id === hotelId && entry.feature_key === featureKey && entry.enabled === 1,
       );
       return feature && hotelFeature ? { enabled: hotelFeature.enabled } : null;
+    }
+
+    if (normalized.includes("from media_assets") && normalized.includes("storage_provider = 'r2'")) {
+      const [assetId] = params;
+      return (
+        this.data.mediaAssets.find(
+          (entry) => entry.id === assetId && entry.storage_provider === "r2" && entry.status === "active",
+        ) || null
+      );
+    }
+
+    if (normalized.includes("from media_assets") && normalized.includes("where id = ?") && normalized.includes("hotel_id in")) {
+      const [assetId, ...hotelIds] = params;
+      return this.data.mediaAssets.find((entry) => entry.id === assetId && hotelIds.includes(entry.hotel_id)) || null;
     }
 
     throw new Error(`Unhandled first SQL: ${normalized}`);
@@ -653,6 +689,29 @@ class MockD1Database {
         .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id));
     }
 
+    if (normalized.includes("from media_assets") && normalized.includes("order by created_at desc")) {
+      const [hotelId, status] = params;
+      let cursor = 2;
+      const hasModule = normalized.includes("module_key = ?");
+      const moduleKey = hasModule ? params[cursor++] : "";
+      const hasSearch = normalized.includes("original_filename");
+      const search = hasSearch ? String(params[cursor++] || "").replaceAll("%", "").toLowerCase() : "";
+      if (hasSearch) cursor += 1;
+      const limit = Number(params[cursor++] || 24);
+      const offset = Number(params[cursor++] || 0);
+      return this.data.mediaAssets
+        .filter((asset) => asset.hotel_id === hotelId && asset.status === status)
+        .filter((asset) => !moduleKey || asset.module_key === moduleKey)
+        .filter((asset) => {
+          if (!search) return true;
+          return [asset.original_filename, asset.alt_text]
+            .filter(Boolean)
+            .some((value) => String(value).toLowerCase().includes(search));
+        })
+        .sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id))
+        .slice(offset, offset + limit);
+    }
+
     throw new Error(`Unhandled all SQL: ${normalized}`);
   }
 
@@ -813,6 +872,50 @@ class MockD1Database {
       return d1Result(1);
     }
 
+    if (normalized.startsWith("insert into media_assets")) {
+      if (this.failNextMediaAssetInsert) {
+        this.failNextMediaAssetInsert = false;
+        throw new Error("media asset insert failed");
+      }
+      const [
+        id,
+        hotel_id,
+        module_key,
+        object_key,
+        public_url,
+        alt_text,
+        mime_type,
+        created_at,
+        updated_at,
+        original_filename,
+        size_bytes,
+        checksum_sha256,
+        storage_etag,
+        uploaded_by_user_id,
+      ] = params;
+      this.data.mediaAssets.push({
+        id,
+        hotel_id,
+        module_key,
+        storage_provider: "r2",
+        object_key,
+        public_url,
+        alt_text,
+        mime_type,
+        status: "active",
+        created_at,
+        updated_at,
+        archived_at: null,
+        original_filename,
+        size_bytes,
+        checksum_sha256,
+        storage_etag,
+        uploaded_by_user_id,
+        archived_by_user_id: null,
+      });
+      return d1Result(1);
+    }
+
     if (normalized.startsWith("update admin_sessions")) {
       let changes = 0;
       const [revoked_at, token_hash] = params;
@@ -837,6 +940,31 @@ class MockD1Database {
         return d1Result(1);
       }
       return d1Result(0);
+    }
+
+    if (normalized.startsWith("update media_assets") && normalized.includes("set alt_text = ?")) {
+      const [alt_text, module_key, updated_at, id, hotel_id] = params;
+      const asset = this.data.mediaAssets.find(
+        (entry) => entry.id === id && entry.hotel_id === hotel_id && entry.status !== "archived",
+      );
+      if (!asset) return d1Result(0);
+      asset.alt_text = alt_text;
+      asset.module_key = module_key;
+      asset.updated_at = updated_at;
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update media_assets") && normalized.includes("set status = 'archived'")) {
+      const [archived_at, archived_by_user_id, updated_at, id, hotel_id] = params;
+      const asset = this.data.mediaAssets.find(
+        (entry) => entry.id === id && entry.hotel_id === hotel_id && entry.status !== "archived",
+      );
+      if (!asset) return d1Result(0);
+      asset.status = "archived";
+      asset.archived_at = archived_at;
+      asset.archived_by_user_id = archived_by_user_id;
+      asset.updated_at = updated_at;
+      return d1Result(1);
     }
 
     if (normalized.startsWith("insert into admin_audit_log")) {
@@ -877,6 +1005,21 @@ class MockD1Database {
           action,
           entity_type,
           entity_id: order_id,
+          metadata_json,
+          created_at,
+        });
+        return d1Result(1);
+      }
+      if (normalized.includes("'media_asset'")) {
+        const [id, hotel_id, module_key, actor_user_id, action, entity_id, metadata_json, created_at] = params;
+        this.data.adminAuditLog.push({
+          id,
+          hotel_id,
+          module_key,
+          actor_user_id,
+          action,
+          entity_type: "media_asset",
+          entity_id,
           metadata_json,
           created_at,
         });
@@ -969,4 +1112,57 @@ function sleep(ms) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+export class MockR2Bucket {
+  constructor() {
+    this.objects = new Map();
+    this.failNextPut = false;
+    this.getCalls = 0;
+    this.headCalls = 0;
+  }
+
+  async put(key, value, options = {}) {
+    if (this.failNextPut) {
+      this.failNextPut = false;
+      throw new Error("r2 put failed");
+    }
+    const bytes = value instanceof Uint8Array ? value : new Uint8Array(await new Response(value).arrayBuffer());
+    const etag = `"mock-${key.length}-${bytes.byteLength}"`;
+    this.objects.set(key, {
+      key,
+      bytes,
+      size: bytes.byteLength,
+      etag,
+      httpEtag: etag,
+      httpMetadata: options.httpMetadata || {},
+      customMetadata: options.customMetadata || {},
+    });
+    return { key, etag, httpEtag: etag };
+  }
+
+  async get(key) {
+    this.getCalls += 1;
+    const object = this.objects.get(key);
+    if (!object) return null;
+    return {
+      ...object,
+      body: new Blob([object.bytes]).stream(),
+    };
+  }
+
+  async head(key) {
+    this.headCalls += 1;
+    const object = this.objects.get(key);
+    if (!object) return null;
+    return { ...object, body: undefined };
+  }
+
+  async delete(key) {
+    this.objects.delete(key);
+  }
+
+  async list() {
+    return { objects: [...this.objects.values()].map(({ body, ...object }) => object) };
+  }
 }

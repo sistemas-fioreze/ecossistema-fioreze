@@ -18,6 +18,7 @@ const required = [
   "src/core/tenant.js",
   "src/core/module-registry.js",
   "src/modules/room-service/routes.js",
+  "src/modules/admin/media.js",
   "migrations/0001_core_initial.sql",
   "migrations/0002_core_admin.sql",
   "migrations/0003_guest_portal_foundation.sql",
@@ -25,6 +26,7 @@ const required = [
   "migrations/0005_spa_foundation.sql",
   "migrations/0006_romantic_packages_foundation.sql",
   "migrations/0007_core_service_hours_media_assets.sql",
+  "migrations/0008_media_library_foundation.sql",
   "seeds/dev.sql",
   "wrangler.jsonc",
   ".dev.vars.example",
@@ -42,7 +44,9 @@ for (const dir of forbiddenDirs) {
 }
 
 const wrangler = fs.readFileSync(path.join(root, "wrangler.jsonc"), "utf8");
-const databaseId = JSON.parse(wrangler).d1_databases?.[0]?.database_id || "";
+const wranglerConfig = JSON.parse(wrangler);
+const databaseId = wranglerConfig.d1_databases?.[0]?.database_id || "";
+const mediaBucket = wranglerConfig.r2_buckets?.find((bucket) => bucket.binding === "MEDIA_BUCKET");
 const idMatches = databaseId ? countOccurrences(wrangler, databaseId) : [];
 const otherFilesWithDatabaseId = listFiles(root).filter((file) => {
   const relative = path.relative(root, file).replaceAll("\\", "/");
@@ -53,6 +57,10 @@ const otherFilesWithDatabaseId = listFiles(root).filter((file) => {
 });
 if (!databaseId || idMatches !== 1) failures.push("database_id deve aparecer uma vez em wrangler.jsonc");
 if (otherFilesWithDatabaseId.length) failures.push("database_id apareceu fora do wrangler.jsonc");
+if (!mediaBucket || mediaBucket.bucket_name !== "fioreze-portais-media-dev") {
+  failures.push("MEDIA_BUCKET deve existir e apontar para fioreze-portais-media-dev");
+}
+if (mediaBucket?.remote === true) failures.push("MEDIA_BUCKET nao deve usar remote=true");
 
 if (failures.length) {
   console.error(failures.join("\n"));

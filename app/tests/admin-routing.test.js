@@ -57,6 +57,7 @@ test("rotas administrativas sem barra final redirecionam para caminho canonico",
   const { fetch } = createWorkerTestContext();
   const roomService = await fetch("/admin/room-service?x=1", { redirect: "manual" });
   const portals = await fetch("/admin/portais?x=1", { redirect: "manual" });
+  const media = await fetch("/admin/portais/media?x=1", { redirect: "manual" });
 
   assert.equal(roomService.status, 308);
   assert.equal(new URL(roomService.headers.get("location")).pathname, "/admin/room-service/");
@@ -64,17 +65,23 @@ test("rotas administrativas sem barra final redirecionam para caminho canonico",
   assert.equal(portals.status, 308);
   assert.equal(new URL(portals.headers.get("location")).pathname, "/admin/portais/");
   assert.equal(new URL(portals.headers.get("location")).search, "?x=1");
+  assert.equal(media.status, 308);
+  assert.equal(new URL(media.headers.get("location")).pathname, "/admin/portais/media/");
+  assert.equal(new URL(media.headers.get("location")).search, "?x=1");
 });
 
 test("subrotas administrativas entregam o shell correto ao atualizar pagina", async () => {
   const { fetch } = createWorkerTestContext();
   const roomService = await fetch("/admin/room-service/pedidos/abc", { redirect: "manual" });
   const portals = await fetch("/admin/portais/hoteis", { redirect: "manual" });
+  const media = await fetch("/admin/portais/media/asset/demo", { redirect: "manual" });
 
   assert.equal(roomService.status, 200);
   assert.match(await roomService.text(), /Pedidos Room Service/);
   assert.equal(portals.status, 200);
   assert.match(await portals.text(), /Central de Portais Fioreze/);
+  assert.equal(media.status, 200);
+  assert.match(await media.text(), /Central de Portais Fioreze/);
 });
 
 test("GET /api/v1/admin/session permanece API protegida em JSON", async () => {
@@ -106,6 +113,7 @@ test("assets administrativos carregam fora do roteamento estatico de shells", as
   const assets = [
     ["/js/modules/admin/admin.js", /javascript/],
     ["/js/modules/admin/room-service.js", /javascript/],
+    ["/js/modules/admin/portals.js", /javascript/],
     ["/css/modules/admin/admin.css", /text\/css/],
   ];
 

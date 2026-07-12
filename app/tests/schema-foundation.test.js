@@ -5,9 +5,12 @@ import { publicAssetUrl } from "../src/services/media-service.js";
 
 const migration = fs.readFileSync("migrations/0007_core_service_hours_media_assets.sql", "utf8");
 const adminOrdersGuardsMigration = fs.readFileSync("migrations/0007_admin_orders_guards.sql", "utf8");
+const mediaLibraryMigration = fs.readFileSync("migrations/0008_media_library_foundation.sql", "utf8");
 const seed = fs.readFileSync("seeds/dev.sql", "utf8");
+const wranglerConfig = JSON.parse(fs.readFileSync("wrangler.jsonc", "utf8"));
 const normalizedMigration = normalize(migration);
 const normalizedAdminOrdersGuardsMigration = normalize(adminOrdersGuardsMigration);
+const normalizedMediaLibraryMigration = normalize(mediaLibraryMigration);
 
 test("migration 0007 cria service_hours e media_assets", () => {
   assert.match(normalizedMigration, /create table if not exists service_hours/);
@@ -59,6 +62,33 @@ test("migration de guardas administrativos cria unicidade no historico de status
   assert.match(normalizedAdminOrdersGuardsMigration, /on order_status_history\(order_id, status\)/);
   assert.match(normalizedAdminOrdersGuardsMigration, /select order_id, status, count\(\*\) as total/);
   assert.match(normalizedAdminOrdersGuardsMigration, /having count\(\*\) > 1/);
+});
+
+test("migration 0008 prepara biblioteca de imagens sem gravar binarios", () => {
+  assert.match(normalizedMediaLibraryMigration, /alter table media_assets add column original_filename text/);
+  assert.match(normalizedMediaLibraryMigration, /alter table media_assets add column checksum_sha256 text/);
+  assert.match(normalizedMediaLibraryMigration, /idx_media_assets_hotel_status_created/);
+  assert.match(normalizedMediaLibraryMigration, /idx_media_assets_checksum/);
+  assert.match(normalizedMediaLibraryMigration, /idx_media_assets_uploaded_by/);
+  assert.match(normalizedMediaLibraryMigration, /portals\.media\.read/);
+  assert.match(normalizedMediaLibraryMigration, /portals\.media\.upload/);
+  assert.match(normalizedMediaLibraryMigration, /portals\.media\.update/);
+  assert.match(normalizedMediaLibraryMigration, /portals\.media\.archive/);
+  assert.equal(/\bblob\b|\bbinary\b/i.test(mediaLibraryMigration), false);
+});
+
+test("wrangler declara MEDIA_BUCKET privado de desenvolvimento", () => {
+  const bucket = wranglerConfig.r2_buckets.find((entry) => entry.binding === "MEDIA_BUCKET");
+  assert.equal(bucket.bucket_name, "fioreze-portais-media-dev");
+  assert.equal(bucket.remote, undefined);
+  assert.equal(/prod/i.test(bucket.bucket_name), false);
+});
+
+test("Static Assets executa Worker antes de api, admin e media", () => {
+  const workerFirst = new Set(wranglerConfig.assets.run_worker_first);
+  assert.equal(workerFirst.has("/api/*"), true);
+  assert.equal(workerFirst.has("/admin/*"), true);
+  assert.equal(workerFirst.has("/media/*"), true);
 });
 
 function normalize(value) {

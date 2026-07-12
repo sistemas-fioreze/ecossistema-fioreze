@@ -7,7 +7,7 @@
     "directory": "./public",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/admin/*"]
+    "run_worker_first": ["/api/*", "/admin/*", "/media/*"]
   },
   "d1_databases": [
     {
@@ -17,6 +17,12 @@
       "preview_database_id": "fioreze-portais-db-dev-local",
       "migrations_dir": "migrations",
       "migrations_pattern": "migrations/*.sql"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA_BUCKET",
+      "bucket_name": "fioreze-portais-media-dev"
     }
   ],
   "vars": {

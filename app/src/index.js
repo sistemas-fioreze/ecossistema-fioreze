@@ -4,6 +4,7 @@ import { Router } from "./core/router.js";
 import { fail, ok } from "./core/responses.js";
 import { getBootstrap, resolveTenantBySlug } from "./core/tenant.js";
 import { withSecurityHeaders } from "./middleware/security-headers.js";
+import { servePublicMedia } from "./modules/admin/media.js";
 import { registerAdminRoutes } from "./modules/admin/routes.js";
 
 const router = new Router();
@@ -33,10 +34,13 @@ router.get("/api/v1/public/hotels/:hotel_slug/modules", async ({ env, params }) 
 registerModuleRoutes(router);
 registerAdminRoutes(router);
 
+router.get("/media/:id", async ({ request, env, params }) => servePublicMedia({ request, env, params }));
+router.head("/media/:id", async ({ request, env, params }) => servePublicMedia({ request, env, params, head: true }));
+
 async function handleRequest(request, env, ctx) {
   const url = new URL(request.url);
 
-  if (url.pathname.startsWith("/api/")) {
+  if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/media/")) {
     return router.handle(request, env, ctx);
   }
 
@@ -70,6 +74,7 @@ function isDirectAsset(pathname) {
 function resolveAdminAssetPath(pathname) {
   const routes = [
     { canonical: "/admin/room-service/", assetPath: "/admin/room-service/" },
+    { canonical: "/admin/portais/media/", assetPath: "/admin/portais/" },
     { canonical: "/admin/portais/", assetPath: "/admin/portais/" },
     { canonical: "/admin/", assetPath: "/admin/" },
   ];
