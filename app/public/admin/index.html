@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="/css/core/components.css">
     <link rel="stylesheet" href="/css/modules/admin/admin.css">
   </head>
-  <body>
+  <body data-admin-section="home">
     <main id="adminApp" class="admin-shell" data-state="loading">
       <section class="admin-login" data-view="login" hidden>
         <form id="loginForm" class="admin-access-card" autocomplete="on">
@@ -34,7 +34,8 @@
         <header class="admin-topbar">
           <div>
             <p class="eyebrow">Central administrativa</p>
-            <h1>Ecossistema Fioreze</h1>
+            <h1 id="welcomeTitle">Bem-vindo ao Ecossistema Fioreze</h1>
+            <p class="admin-muted">Escolha uma area para cuidar da operacao e das experiencias digitais.</p>
           </div>
           <div class="admin-session-box">
             <span id="sessionUser"></span>
@@ -45,7 +46,7 @@
         <section class="admin-launcher-grid" aria-label="Sistemas administrativos">
           <article class="admin-launcher-panel">
             <div class="admin-panel-heading">
-              <h2>Sistemas disponiveis</h2>
+              <h2>Atalhos rapidos</h2>
             </div>
             <div id="systemsList" class="admin-system-list"></div>
             <p id="noSystemsMessage" class="admin-empty" hidden>Nenhum sistema administrativo disponivel para este usuario.</p>
@@ -53,9 +54,14 @@
 
           <aside class="admin-launcher-panel">
             <div class="admin-panel-heading">
-              <h2>Hoteis autorizados</h2>
+              <h2>Suas unidades</h2>
             </div>
             <div id="authorizedHotels" class="admin-hotel-list"></div>
+            <div class="admin-info-box">
+              <span>Impressao</span>
+              <strong>Desativada neste ambiente</strong>
+              <p class="admin-muted">Pedidos nao sao enviados para impressoras reais durante o desenvolvimento.</p>
+            </div>
           </aside>
         </section>
       </section>

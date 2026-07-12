@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="/css/core/components.css">
     <link rel="stylesheet" href="/css/modules/admin/admin.css">
   </head>
-  <body>
+  <body data-admin-section="portals">
     <main id="adminApp" class="admin-shell" data-state="loading">
       <section class="admin-login" data-view="login" hidden>
         <form id="loginForm" class="admin-access-card" autocomplete="on">
@@ -56,8 +56,8 @@
             </header>
 
             <section id="portalsDenied" class="admin-access-denied" hidden>
-              <h2>Acesso nao disponivel</h2>
-              <p>Seu usuario ainda nao possui permissao para a Central de Portais.</p>
+              <h2>Voce nao tem acesso a esta funcao.</h2>
+              <p>Peça a um administrador para liberar esta area para seu perfil.</p>
               <a class="admin-secondary-link" href="/admin/">Voltar para sistemas</a>
             </section>
 
@@ -65,11 +65,11 @@
               <div id="portalsHome">
                 <div class="admin-panel-heading">
                   <div>
-                    <h2>Modulos da Central</h2>
-                    <p class="admin-muted">Acesse os produtos administrativos do ecossistema digital.</p>
+                    <h2>Areas da Central</h2>
+                    <p class="admin-muted">Acesse as funcoes administrativas do ecossistema digital.</p>
                   </div>
                 </div>
-                <div id="portalsModules" class="admin-module-grid admin-feature-grid" aria-label="Modulos da Central de Portais"></div>
+                <div id="portalsModules" class="admin-module-grid admin-feature-grid" aria-label="Areas da Central de Portais"></div>
               </div>
 
               <section id="unitsManager" class="admin-units-manager" hidden>
@@ -107,7 +107,7 @@
                     <div>
                       <p class="admin-breadcrumbs"><a href="/admin/portais/unidades/">Unidades</a> / <span id="unitEditorCrumb">Editor</span></p>
                       <h2 id="unitEditorTitle">Nova unidade</h2>
-                      <p id="unitDirtyState" class="admin-muted">Sem alteracoes pendentes.</p>
+                      <p id="unitDirtyState" class="admin-muted">Tudo salvo.</p>
                     </div>
                     <div class="admin-toolbar-actions">
                       <button id="backToUnitsButton" type="button">Voltar</button>
@@ -121,7 +121,7 @@
                         <button type="button" data-unit-tab="branding">Identidade</button>
                         <button type="button" data-unit-tab="contact">Contatos</button>
                         <button type="button" data-unit-tab="hosting">Hospedagem</button>
-                        <button type="button" data-unit-tab="modules">Modulos</button>
+                        <button type="button" data-unit-tab="modules">Areas</button>
                         <button type="button" data-unit-tab="navigation">Navegacao</button>
                         <button type="button" data-unit-tab="embed">Incorporacao</button>
                         <button type="button" data-unit-tab="seo">SEO</button>
@@ -163,7 +163,7 @@
 
             <form id="shortLinksFilters" class="admin-filters admin-short-links-filters">
               <label>
-                <span>Hotel</span>
+                <span>Unidade</span>
                 <select id="shortLinksHotel" name="hotel_id" required></select>
               </label>
               <label>
@@ -208,7 +208,7 @@
                   <input name="internal_name" type="text" maxlength="160" required>
                 </label>
                 <label class="admin-field">
-                  <span>Slug</span>
+                  <span>Endereco personalizado</span>
                   <input name="slug" type="text" minlength="2" maxlength="64" pattern="[a-z0-9-]+" required>
                   <small id="shortLinksPreview">/go/seu-link</small>
                 </label>
@@ -250,17 +250,17 @@
             <div class="admin-panel-heading">
               <div>
                 <h2>Biblioteca de imagens</h2>
-                <p class="admin-muted">Assets privados no R2, publicados pela rota segura /media.</p>
+                <p class="admin-muted">Imagens privadas no R2, publicadas por uma rota segura.</p>
               </div>
             </div>
 
             <form id="mediaFilters" class="admin-filters admin-media-filters">
               <label>
-                <span>Hotel</span>
+                <span>Unidade</span>
                 <select id="mediaHotel" name="hotel_id" required></select>
               </label>
               <label>
-                <span>Modulo</span>
+                <span>Area do sistema</span>
                 <input id="mediaModule" name="module_key" type="text" inputmode="latin" placeholder="room-service">
               </label>
               <label>
