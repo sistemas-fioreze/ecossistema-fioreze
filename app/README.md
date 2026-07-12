@@ -267,10 +267,12 @@ O MVP administrativo implementa login real para ambiente local e desenvolvimento
 - permissoes usadas pelo MVP:
   - `room-service.orders.read`;
   - `room-service.orders.write`;
-  - `portals.media.read`;
-  - `portals.media.upload`;
-  - `portals.media.update`;
-  - `portals.media.archive`.
+- `portals.media.read`;
+- `portals.media.upload`;
+- `portals.media.update`;
+- `portals.media.archive`;
+- `portals.embed.read`;
+- `portals.embed.update`.
 
 As permissoes de midia sao cadastradas pela migration `0008`, mas nao sao associadas automaticamente a nenhum role. A liberacao de usuarios no D1 de desenvolvimento deve ser uma etapa operacional separada e autorizada.
 
@@ -325,9 +327,40 @@ O shell `/admin/portais/` e a Central de Portais Fioreze. O MVP atual inclui a a
 - configuracoes publicas de contato, hospedagem e SEO em `hotel_settings`;
 - ativacao de modulos por hotel em `hotel_modules`;
 - navegacao publica por hotel em `navigation_items`;
+- configuracao oficial de incorporacao publica em `hotel_settings`;
 - auditoria administrativa em `admin_audit_log`.
 
 As APIs de Unidades exigem sessao administrativa, permissoes `portals.hotels.*`, acesso explicito ao hotel, protecao de origem e header administrativo para mutacoes. A migration `0009_admin_units_management_permissions.sql` cadastra as permissoes, mas nao associa roles automaticamente. O seed local pode liberar essas permissoes para o usuario ficticio de desenvolvimento.
+
+## Incorporacao Publica
+
+O modo embed publica modulos publicos em iframes controlados, sem expor a Central Administrativa:
+
+- `/embed/:hotel_slug/:module_key/`;
+- `/embed/:hotel_slug/:module_key/embed.js`;
+- `/embed/:hotel_slug/:module_key/config`;
+- `/embed/fioreze-embed.js`;
+- `/api/v1/public/hotels/:hotel_slug/embed/:module_key/config`.
+
+A configuracao fica em `hotel_settings` usando chaves `embed.*`. A allowlist aceita somente origens completas, sem caminho e sem wildcard. `localhost` e permitido apenas em desenvolvimento/testes. O modulo `admin` nunca e incorporavel.
+
+As respostas `/embed/*` nao usam `X-Frame-Options`; elas usam `Content-Security-Policy` com `frame-ancestors` derivado das origens autorizadas. Rotas `/admin/*` continuam protegidas contra iframe.
+
+O script de autoaltura envia apenas `fioreze:embed:ready` e `fioreze:embed:resize` via `postMessage`. O script hospedeiro valida `event.origin`, `event.data.type` e `embed_id` antes de ajustar altura.
+
+Exemplo local:
+
+```html
+<iframe
+  data-fioreze-embed
+  data-fioreze-embed-id="fioreze-muller-fioreze-room-service"
+  src="http://localhost:8787/embed/muller-fioreze/room-service/"
+  width="100%"
+  height="560"
+  loading="lazy"
+  style="border:0;width:100%;max-width:100%;"></iframe>
+<script src="http://localhost:8787/embed/fioreze-embed.js" defer></script>
+```
 
 Fluxo de status exposto pela API:
 

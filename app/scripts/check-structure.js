@@ -29,6 +29,7 @@ const required = [
   "migrations/0007_core_service_hours_media_assets.sql",
   "migrations/0008_media_library_foundation.sql",
   "migrations/0009_admin_units_management_permissions.sql",
+  "migrations/0010_embed_permissions.sql",
   "seeds/dev.sql",
   "wrangler.jsonc",
   ".dev.vars.example",

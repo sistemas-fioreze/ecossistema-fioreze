@@ -10,6 +10,8 @@ export const PORTALS_HOTELS_BRANDING_PERMISSION = "portals.hotels.branding";
 export const PORTALS_HOTELS_SETTINGS_PERMISSION = "portals.hotels.settings";
 export const PORTALS_HOTELS_MODULES_PERMISSION = "portals.hotels.modules";
 export const PORTALS_HOTELS_NAVIGATION_PERMISSION = "portals.hotels.navigation";
+export const PORTALS_EMBED_READ_PERMISSION = "portals.embed.read";
+export const PORTALS_EMBED_UPDATE_PERMISSION = "portals.embed.update";
 const PORTALS_PERMISSION_PREFIXES = ["platform.", "portals."];
 
 export function hasPermission(session, permissionKey) {
