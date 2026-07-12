@@ -11,11 +11,15 @@ export function renderHotelOptions(select, hotels, selectedHotelId) {
     .join("");
 }
 
-export function updateBranding({ hotel, elements }) {
+export function updateBranding({ hotel, branding = null, elements }) {
   const name = hotel?.short_name || hotel?.name || "Room Service";
   elements.brandName.textContent = name;
   elements.brandSubtitle.textContent = hotel?.name ? "ERP operacional" : "Unidade Fioreze";
   elements.seal.textContent = initials(name);
+  const root = document.documentElement;
+  if (branding?.primary_color) root.style.setProperty("--rs-accent", branding.primary_color);
+  if (branding?.secondary_color) root.style.setProperty("--rs-accent-muted", branding.secondary_color);
+  if (branding?.font_family) root.style.setProperty("--rs-font-family", branding.font_family);
 }
 
 function initials(value) {

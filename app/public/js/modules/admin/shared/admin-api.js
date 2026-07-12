@@ -10,6 +10,7 @@ export async function adminApi(path, options = {}) {
       accept: "application/json",
       ...(options.body && !isFormData ? { "content-type": "application/json" } : {}),
       ...(requiresAdminMutationHeader(options) ? { [ADMIN_MUTATION_HEADER]: ADMIN_MUTATION_HEADER_VALUE } : {}),
+      ...(options.headers || {}),
     },
     body: options.body ? (isFormData ? options.body : JSON.stringify(options.body)) : undefined,
   };

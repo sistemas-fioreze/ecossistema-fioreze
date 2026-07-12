@@ -25,7 +25,21 @@ O ERP nao usa o shell visual da Central Administrativa. A sessao continua sendo 
 - Editor de Cardapio
 - Configuracoes
 
-No PR 1, apenas a fundacao e o shell estao completos. Os fluxos profundos entram no PR da plataforma operacional.
+PR 1 criou a fundacao visual e a rota canonica. PR 2 adiciona os contratos administrativos iniciais do ERP para contexto, dashboard, pedidos, PDV, hospedes, faturamento e catalogo, reutilizando o schema atual.
+
+## APIs do ERP
+
+- `GET /api/v1/admin/room-service/context`
+- `GET /api/v1/admin/room-service/dashboard`
+- `GET /api/v1/admin/room-service/orders`
+- `POST /api/v1/admin/room-service/orders`
+- `GET /api/v1/admin/room-service/orders/:id`
+- `POST /api/v1/admin/room-service/orders/:id/status`
+- `GET /api/v1/admin/room-service/guests`
+- `GET /api/v1/admin/room-service/billing`
+- `GET /api/v1/admin/room-service/catalog`
+
+As rotas usam a sessao administrativa, validam acesso por unidade e mantem a impressao desativada.
 
 ## Principios
 

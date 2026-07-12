@@ -12,11 +12,13 @@ import { createShell } from "./shell.js";
 import { NAV_ITEMS } from "./static-config.js";
 import { clearIncompatibleCache, readPreferences, savePreferences } from "./storage.js";
 import { notify } from "./notifications.js";
+import { getBilling, getCatalog, getContext, getDashboard, getGuests } from "./api.js";
 
 const state = {
   session: null,
   preferences: readPreferences(),
   hotelContext: { hotels: [], current: null },
+  erpContext: null,
   orders: [],
   selectedOrder: null,
   shell: null,
@@ -73,7 +75,7 @@ async function bootApplication() {
   }
 
   renderHotelOptions(els.hotelSelect, state.hotelContext.hotels, state.hotelContext.current?.hotel_id);
-  updateBranding({ hotel: state.hotelContext.current, elements: brandingElements() });
+  await refreshContext();
   updateStoreStatus("unknown");
 
   state.shell = createShell({
@@ -97,6 +99,7 @@ async function navigate(route) {
     outlet: els.outlet,
     session: state.session,
     hotel: state.hotelContext.current,
+    erpContext: state.erpContext,
     orders: state.orders,
     selectedOrder: state.selectedOrder,
     preferences: state.preferences,
@@ -107,11 +110,26 @@ async function switchHotel(hotelId) {
   const next = state.hotelContext.hotels.find((hotel) => hotel.hotel_id === hotelId);
   if (!next) return;
   state.hotelContext.current = next;
+  state.erpContext = null;
   state.selectedOrder = null;
   state.preferences = savePreferences({ ...state.preferences, preferredHotelId: next.hotel_id });
-  updateBranding({ hotel: next, elements: brandingElements() });
+  await refreshContext();
   await refreshOrders();
   await navigate(state.preferences.route);
+}
+
+async function refreshContext() {
+  if (!state.hotelContext.current) return;
+  try {
+    const payload = await getContext({ hotelId: state.hotelContext.current.hotel_id });
+    state.erpContext = payload.data;
+    state.hotelContext.current = { ...state.hotelContext.current, ...(payload.data.hotel || {}) };
+    updateBranding({ hotel: state.hotelContext.current, branding: payload.data.branding, elements: brandingElements() });
+  } catch {
+    state.erpContext = null;
+    updateBranding({ hotel: state.hotelContext.current, elements: brandingElements() });
+    notify("Nao foi possivel carregar o contexto da unidade.");
+  }
 }
 
 async function refreshOrders() {
@@ -130,7 +148,8 @@ async function refreshOrders() {
 }
 
 async function renderDashboardRoute(context) {
-  renderDashboard(context);
+  const payload = await getDashboard({ hotelId: state.hotelContext.current?.hotel_id });
+  renderDashboard({ ...context, dashboard: payload.data });
 }
 
 async function renderOrdersRoute(context) {
@@ -144,19 +163,30 @@ async function renderOrdersRoute(context) {
 }
 
 async function renderPosRoute(context) {
-  renderPos(context);
+  const payload = await getCatalog({ hotelId: state.hotelContext.current?.hotel_id });
+  renderPos({
+    ...context,
+    catalog: payload.data,
+    onOrderCreated: async () => {
+      await refreshOrders();
+      await navigate("orders");
+    },
+  });
 }
 
 async function renderGuestsRoute(context) {
-  renderGuests(context);
+  const payload = await getGuests({ hotelId: state.hotelContext.current?.hotel_id });
+  renderGuests({ ...context, guestsData: payload.data });
 }
 
 async function renderBillingRoute(context) {
-  renderBilling(context);
+  const payload = await getBilling({ hotelId: state.hotelContext.current?.hotel_id });
+  renderBilling({ ...context, billing: payload.data });
 }
 
 async function renderCatalogRoute(context) {
-  renderCatalog(context);
+  const payload = await getCatalog({ hotelId: state.hotelContext.current?.hotel_id });
+  renderCatalog({ ...context, catalog: payload.data });
 }
 
 async function renderSettingsRoute(context) {

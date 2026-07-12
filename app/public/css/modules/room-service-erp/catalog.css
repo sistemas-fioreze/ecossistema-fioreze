@@ -5,3 +5,12 @@
   align-items: center;
   justify-content: space-between;
 }
+
+.rs-catalog-category + .rs-catalog-category {
+  margin-top: 18px;
+}
+
+.rs-catalog-items {
+  display: grid;
+  gap: 8px;
+}

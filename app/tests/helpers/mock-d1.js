@@ -814,6 +814,13 @@ class MockD1Database {
         .sort((a, b) => a.setting_key.localeCompare(b.setting_key));
     }
 
+    if (normalized.includes("from rooms") && normalized.includes("order by code")) {
+      const [hotelId] = params;
+      return this.data.rooms
+        .filter((room) => room.hotel_id === hotelId && room.status === "active")
+        .sort((a, b) => a.code.localeCompare(b.code));
+    }
+
     if (normalized.includes("from hotel_modules hm")) {
       const [hotelId, publicOnly] = params;
       return this.data.hotelModules

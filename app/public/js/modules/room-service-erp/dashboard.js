@@ -1,15 +1,16 @@
 import { STATUS_LABELS } from "./static-config.js";
 
-export function renderDashboard({ outlet, orders, hotel }) {
-  const todayOrders = orders || [];
-  const total = todayOrders.reduce((sum, order) => sum + Number(order.total_cents || 0), 0);
-  const active = todayOrders.filter((order) => ["received", "preparing", "ready"].includes(order.status)).length;
-  const completed = todayOrders.filter((order) => order.status === "completed").length;
-  const cancelled = todayOrders.filter((order) => order.status === "cancelled").length;
+export function renderDashboard({ outlet, orders, hotel, dashboard }) {
+  const todayOrders = dashboard?.recent_orders || orders || [];
+  const summary = dashboard?.summary || {};
+  const total = summary.revenue_cents ?? todayOrders.reduce((sum, order) => sum + Number(order.total_cents || 0), 0);
+  const active = summary.active_orders ?? todayOrders.filter((order) => ["received", "preparing", "ready"].includes(order.status)).length;
+  const completed = summary.completed_orders ?? todayOrders.filter((order) => order.status === "completed").length;
+  const cancelled = summary.cancelled_orders ?? todayOrders.filter((order) => order.status === "cancelled").length;
   const byStatus = Object.keys(STATUS_LABELS).map((status) => ({
     status,
     label: STATUS_LABELS[status],
-    total: todayOrders.filter((order) => order.status === status).length,
+    total: dashboard?.by_status?.[status] ?? todayOrders.filter((order) => order.status === status).length,
   }));
 
   outlet.innerHTML = `
@@ -19,7 +20,7 @@ export function renderDashboard({ outlet, orders, hotel }) {
       <p class="rs-muted">Resumo inicial calculado a partir dos pedidos disponiveis para a sessao.</p>
     </section>
     <section class="rs-dashboard-grid">
-      ${stat("Pedidos", todayOrders.length)}
+      ${stat("Pedidos", summary.total_orders ?? todayOrders.length)}
       ${stat("Em andamento", active)}
       ${stat("Concluidos", completed)}
       ${stat("Cancelados", cancelled)}
@@ -27,7 +28,7 @@ export function renderDashboard({ outlet, orders, hotel }) {
     <section class="rs-panel">
       <h2>Faturamento visivel</h2>
       <strong>${formatMoney(total)}</strong>
-      <p class="rs-muted">Indicadores completos e intervalos entram no PR da plataforma operacional.</p>
+      <p class="rs-muted">Indicadores calculados pelo Worker para a unidade selecionada.</p>
     </section>
     <section class="rs-panel">
       <h2>Pedidos por status</h2>
