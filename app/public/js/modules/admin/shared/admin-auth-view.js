@@ -171,7 +171,7 @@ function enhanceAdminExperience(session) {
   if (sessionBox && !sessionBox.querySelector(".admin-avatar")) {
     sessionBox.insertAdjacentHTML(
       "afterbegin",
-      `<span class="admin-avatar" aria-hidden="true">${escapeHtml(initials(userName))}</span><span class="admin-user-meta"><small>${escapeHtml(hotels.length ? `${hotels.length} unidade(s)` : "Acesso administrativo")}</small></span>`,
+      `${renderAvatar(session?.user, userName)}<span class="admin-user-meta"><small>${escapeHtml(hotels.length ? `${hotels.length} unidade(s)` : "Acesso administrativo")}</small></span>`,
     );
   }
 
@@ -250,6 +250,13 @@ function initials(name) {
     .toUpperCase();
 }
 
+function renderAvatar(user, fallbackName) {
+  if (user?.avatar?.url) {
+    return `<img class="admin-avatar admin-avatar-image" src="${escapeAttr(user.avatar.url)}" alt="Foto de perfil de ${escapeAttr(user.display_name || fallbackName)}">`;
+  }
+  return `<span class="admin-avatar" aria-hidden="true">${escapeHtml(initials(fallbackName))}</span>`;
+}
+
 function icon(name) {
   const paths = {
     menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
@@ -274,4 +281,8 @@ function escapeHtml(value) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
+
+function escapeAttr(value) {
+  return escapeHtml(value).replaceAll("`", "&#096;");
 }

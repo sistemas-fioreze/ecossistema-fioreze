@@ -95,6 +95,16 @@
             </div>
           </div>
           <div id="accountDetails" class="admin-account-card"></div>
+          <form id="avatarForm" class="admin-form-grid" enctype="multipart/form-data">
+            <label>
+              <span>Foto de perfil</span>
+              <input id="avatarFile" name="avatar" type="file" accept="image/jpeg,image/png,image/webp,image/avif">
+            </label>
+            <div class="admin-inline-actions">
+              <button class="admin-primary-button" type="submit">Atualizar foto</button>
+              <button id="deleteAvatarButton" type="button">Remover foto</button>
+            </div>
+          </form>
           <form id="passwordForm" class="admin-form-grid">
             <label>
               <span>Senha atual</span>
