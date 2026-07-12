@@ -13,7 +13,8 @@ export function createTestEnv(overrides = {}) {
 }
 
 export function createRequest(path, init = {}) {
-  return new Request(`https://local.test${path}`, init);
+  const url = /^https?:\/\//.test(path) ? path : `https://local.test${path}`;
+  return new Request(url, init);
 }
 
 export async function readJson(response) {

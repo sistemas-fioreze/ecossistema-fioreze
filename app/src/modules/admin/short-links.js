@@ -82,7 +82,7 @@ export async function createAdminShortLink({ request, env, session }) {
   const startsAt = normalizeOptionalDate(payload.starts_at, "starts_at");
   const expiresAt = normalizeOptionalDate(payload.expires_at, "expires_at");
   assertDateWindow(startsAt, expiresAt);
-  const destination = validateDestinationUrl(payload.destination_url, { request, slug });
+  const destination = validateDestinationUrl(payload.destination_url, { request, env, slug });
   const notes = optionalString(payload.notes, "notes", { max: 1000 }) || null;
 
   const duplicate = await first(env, "SELECT id FROM short_links WHERE lower(slug) = lower(?) LIMIT 1", [slug]);
@@ -150,7 +150,7 @@ export async function updateAdminShortLink({ request, env, session, linkId }) {
     if (internalName !== current.internal_name) changedFields.push("internal_name");
   }
   if (Object.hasOwn(payload, "destination_url")) {
-    const destination = validateDestinationUrl(payload.destination_url, { request, slug: current.slug });
+    const destination = validateDestinationUrl(payload.destination_url, { request, env, slug: current.slug });
     destinationUrl = destination.url;
     destinationScheme = destination.scheme;
     warnings = destination.warnings;

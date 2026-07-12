@@ -18,6 +18,7 @@ if (!validate(configForSchema)) {
 const d1 = config.d1_databases?.[0] || {};
 const r2 = config.r2_buckets?.find((bucket) => bucket.binding === "MEDIA_BUCKET") || {};
 const workerFirstRoutes = new Set(config.assets?.run_worker_first || []);
+const shortLinkRoute = (config.routes || []).find((route) => route.pattern === "go.hoteisfioreze.com.br");
 
 if (d1.binding !== "DB") {
   console.error("D1 binding deve ser DB.");
@@ -49,6 +50,16 @@ for (const route of ["/api/*", "/admin/*", "/media/*", "/embed/*", "/go/*"]) {
     console.error(`Static Assets deve executar o Worker primeiro para ${route}.`);
     process.exit(1);
   }
+}
+
+if (!shortLinkRoute || shortLinkRoute.custom_domain !== true) {
+  console.error("Custom Domain go.hoteisfioreze.com.br deve estar configurado com custom_domain=true.");
+  process.exit(1);
+}
+
+if (config.vars?.SHORT_LINK_PUBLIC_ORIGIN !== "https://go.hoteisfioreze.com.br") {
+  console.error("SHORT_LINK_PUBLIC_ORIGIN deve ser https://go.hoteisfioreze.com.br.");
+  process.exit(1);
 }
 
 console.log("wrangler-config: ok");

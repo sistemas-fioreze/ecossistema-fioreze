@@ -17,6 +17,10 @@ export function withSecurityHeaders(response, options = {}) {
   if (!headers.has("cache-control")) {
     headers.set("cache-control", "no-store");
   }
+  if (options.shortLinkHost) {
+    headers.set("x-robots-tag", "noindex, nofollow");
+    headers.set("cache-control", "no-store");
+  }
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
