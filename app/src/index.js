@@ -7,6 +7,7 @@ import { withSecurityHeaders } from "./middleware/security-headers.js";
 import { servePublicMedia } from "./modules/admin/media.js";
 import { registerAdminRoutes } from "./modules/admin/routes.js";
 import { registerEmbedRoutes } from "./modules/embed/public.js";
+import { redirectShortLink } from "./modules/short-links/public.js";
 
 const router = new Router();
 
@@ -38,11 +39,18 @@ registerEmbedRoutes(router);
 
 router.get("/media/:id", async ({ request, env, params }) => servePublicMedia({ request, env, params }));
 router.head("/media/:id", async ({ request, env, params }) => servePublicMedia({ request, env, params, head: true }));
+router.get("/go/:slug", async ({ request, env, ctx, params }) => redirectShortLink({ request, env, ctx, params }));
+router.head("/go/:slug", async ({ request, env, params }) => redirectShortLink({ request, env, params, head: true }));
 
 async function handleRequest(request, env, ctx) {
   const url = new URL(request.url);
 
-  if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/media/") || url.pathname.startsWith("/embed/")) {
+  if (
+    url.pathname.startsWith("/api/") ||
+    url.pathname.startsWith("/media/") ||
+    url.pathname.startsWith("/embed/") ||
+    url.pathname.startsWith("/go/")
+  ) {
     return router.handle(request, env, ctx);
   }
 
@@ -78,6 +86,7 @@ function resolveAdminAssetPath(pathname) {
     { canonical: "/admin/room-service/", assetPath: "/admin/room-service/" },
     { canonical: "/admin/portais/unidades/", assetPath: "/admin/portais/" },
     { canonical: "/admin/portais/media/", assetPath: "/admin/portais/" },
+    { canonical: "/admin/portais/links/", assetPath: "/admin/portais/" },
     { canonical: "/admin/portais/", assetPath: "/admin/portais/" },
     { canonical: "/admin/", assetPath: "/admin/" },
   ];

@@ -152,6 +152,100 @@
                 </div>
               </section>
 
+          <section id="shortLinksManager" class="admin-short-links-manager" hidden>
+            <div class="admin-panel-heading">
+              <div>
+                <h2>Links personalizados</h2>
+                <p class="admin-muted">Enderecos curtos seguros para campanhas, QR Codes, WhatsApp, mapas e reservas.</p>
+              </div>
+              <button id="addShortLinkButton" class="admin-primary-button" type="button">Novo link</button>
+            </div>
+
+            <form id="shortLinksFilters" class="admin-filters admin-short-links-filters">
+              <label>
+                <span>Hotel</span>
+                <select id="shortLinksHotel" name="hotel_id" required></select>
+              </label>
+              <label>
+                <span>Status</span>
+                <select id="shortLinksStatus" name="status">
+                  <option value="">Todos</option>
+                  <option value="active">Ativos</option>
+                  <option value="paused">Pausados</option>
+                  <option value="archived">Arquivados</option>
+                </select>
+              </label>
+              <label>
+                <span>Ordenar</span>
+                <select id="shortLinksSort" name="sort">
+                  <option value="created">Criacao</option>
+                  <option value="updated">Atualizacao</option>
+                  <option value="clicks">Cliques</option>
+                </select>
+              </label>
+              <label>
+                <span>Busca</span>
+                <input id="shortLinksSearch" name="q" type="search" placeholder="nome interno, slug ou notas">
+              </label>
+              <button type="submit">Filtrar</button>
+            </form>
+
+            <p id="shortLinksMessage" class="admin-muted" role="status" aria-live="polite"></p>
+            <div id="shortLinksSummary" class="admin-short-links-summary"></div>
+
+            <div id="shortLinksEditor" class="admin-short-links-editor" hidden>
+              <div class="admin-panel-heading">
+                <div>
+                  <h3 id="shortLinksEditorTitle">Novo link personalizado</h3>
+                  <p class="admin-muted">O slug nao muda depois da criacao. Altere o destino para reapontar campanhas futuras.</p>
+                </div>
+                <button id="cancelShortLinkButton" type="button">Fechar</button>
+              </div>
+              <form id="shortLinksForm" class="admin-short-links-form">
+                <input name="hotel_id" type="hidden">
+                <label class="admin-field">
+                  <span>Nome interno</span>
+                  <input name="internal_name" type="text" maxlength="160" required>
+                </label>
+                <label class="admin-field">
+                  <span>Slug</span>
+                  <input name="slug" type="text" minlength="2" maxlength="64" pattern="[a-z0-9-]+" required>
+                  <small id="shortLinksPreview">/go/seu-link</small>
+                </label>
+                <label class="admin-field admin-field-wide">
+                  <span>Destino</span>
+                  <input name="destination_url" type="url" maxlength="4096" placeholder="https://wa.me/5500000000000" required>
+                  <small>HTTP e permitido, mas HTTPS e recomendado. URLs com tokens devem ser evitadas.</small>
+                </label>
+                <div class="admin-form-grid">
+                  <label class="admin-field">
+                    <span>Status</span>
+                    <select name="status">
+                      <option value="active">Ativo</option>
+                      <option value="paused">Pausado</option>
+                    </select>
+                  </label>
+                  <label class="admin-field">
+                    <span>Inicio</span>
+                    <input name="starts_at" type="datetime-local">
+                  </label>
+                  <label class="admin-field">
+                    <span>Expira em</span>
+                    <input name="expires_at" type="datetime-local">
+                  </label>
+                </div>
+                <label class="admin-field admin-field-wide">
+                  <span>Notas internas</span>
+                  <textarea name="notes" rows="3" maxlength="1000"></textarea>
+                </label>
+                <button class="admin-primary-button" type="submit">Salvar link</button>
+              </form>
+              <div id="shortLinksAnalytics" class="admin-short-links-analytics-panel"></div>
+            </div>
+
+            <div id="shortLinksList" class="admin-short-links-list" aria-live="polite"></div>
+          </section>
+
           <section id="mediaLibrary" class="admin-media-library" hidden>
             <div class="admin-panel-heading">
               <div>

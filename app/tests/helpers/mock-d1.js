@@ -34,13 +34,15 @@ function createAssetsBinding() {
         "/admin/room-service/index.html":
           '<!doctype html><html><body><h1>Pedidos Room Service</h1><form id="loginForm"></form><div id="ordersList"></div></body></html>',
         "/admin/portais/":
-          '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><div id="portalsDenied"></div><section id="mediaLibrary"></section><section id="unitsManager"></section></body></html>',
+          '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><div id="portalsDenied"></div><section id="mediaLibrary"></section><section id="unitsManager"></section><section id="shortLinksManager"></section></body></html>',
         "/admin/portais/index.html":
-          '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><div id="portalsDenied"></div><section id="mediaLibrary"></section><section id="unitsManager"></section></body></html>',
+          '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><div id="portalsDenied"></div><section id="mediaLibrary"></section><section id="unitsManager"></section><section id="shortLinksManager"></section></body></html>',
         "/admin/portais/media/":
           '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><section id="mediaLibrary"></section></body></html>',
         "/admin/portais/unidades/":
           '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><section id="unitsManager"></section></body></html>',
+        "/admin/portais/links/":
+          '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><section id="shortLinksManager"></section></body></html>',
       };
       if (htmlByPath[pathname]) {
         return new Response(htmlByPath[pathname], {
@@ -277,6 +279,11 @@ function createFixtureData() {
       { id: "perm-portals-hotels-navigation", permission_key: "portals.hotels.navigation", module_key: null },
       { id: "perm-portals-embed-read", permission_key: "portals.embed.read", module_key: null },
       { id: "perm-portals-embed-update", permission_key: "portals.embed.update", module_key: null },
+      { id: "perm-portals-links-read", permission_key: "portals.links.read", module_key: null },
+      { id: "perm-portals-links-create", permission_key: "portals.links.create", module_key: null },
+      { id: "perm-portals-links-update", permission_key: "portals.links.update", module_key: null },
+      { id: "perm-portals-links-archive", permission_key: "portals.links.archive", module_key: null },
+      { id: "perm-portals-links-analytics", permission_key: "portals.links.analytics", module_key: null },
     ],
     adminUserRoles: [
       { user_id: "user-demo-admin", role_id: "role-demo-manager" },
@@ -292,6 +299,69 @@ function createFixtureData() {
     ],
     adminSessions: [],
     adminAuditLog: [],
+    shortLinks: [
+      {
+        id: "link-muller-reservas",
+        hotel_id: "muller-fioreze",
+        slug: "reservas",
+        internal_name: "Reservas demo",
+        destination_url: "https://booking.example/muller?origem=link#quartos",
+        destination_scheme: "https",
+        status: "active",
+        starts_at: null,
+        expires_at: null,
+        notes: "Link ficticio.",
+        total_clicks: 0,
+        last_clicked_at: null,
+        created_by_user_id: "user-demo-admin",
+        updated_by_user_id: "user-demo-admin",
+        archived_by_user_id: null,
+        created_at: "2026-07-04T00:00:00.000Z",
+        updated_at: "2026-07-04T00:00:00.000Z",
+        archived_at: null,
+      },
+      {
+        id: "link-muller-pausado",
+        hotel_id: "muller-fioreze",
+        slug: "pausado",
+        internal_name: "Pausado demo",
+        destination_url: "https://example.invalid/pausado",
+        destination_scheme: "https",
+        status: "paused",
+        starts_at: null,
+        expires_at: null,
+        notes: null,
+        total_clicks: 0,
+        last_clicked_at: null,
+        created_by_user_id: "user-demo-admin",
+        updated_by_user_id: "user-demo-admin",
+        archived_by_user_id: null,
+        created_at: "2026-07-04T00:00:00.000Z",
+        updated_at: "2026-07-04T00:00:00.000Z",
+        archived_at: null,
+      },
+      {
+        id: "link-aurora-reservas",
+        hotel_id: "aurora-demo",
+        slug: "aurora-reservas",
+        internal_name: "Aurora reservas demo",
+        destination_url: "https://booking.example/aurora",
+        destination_scheme: "https",
+        status: "active",
+        starts_at: null,
+        expires_at: null,
+        notes: null,
+        total_clicks: 0,
+        last_clicked_at: null,
+        created_by_user_id: "user-aurora-admin",
+        updated_by_user_id: "user-aurora-admin",
+        archived_by_user_id: null,
+        created_at: "2026-07-04T00:00:00.000Z",
+        updated_at: "2026-07-04T00:00:00.000Z",
+        archived_at: null,
+      },
+    ],
+    shortLinkClicksDaily: [],
     orders: [],
     orderItems: [],
     orderStatusHistory: [],
@@ -610,6 +680,19 @@ class MockD1Database {
       );
     }
 
+    if (normalized.includes("from short_links") && normalized.includes("lower(slug) = lower(?)")) {
+      const [slug] = params;
+      return this.data.shortLinks.find((link) => link.slug.toLowerCase() === String(slug).toLowerCase()) || null;
+    }
+
+    if (normalized.includes("from short_links sl") && normalized.includes("where sl.id = ?") && normalized.includes("sl.hotel_id in")) {
+      const [linkId, ...hotelIds] = params;
+      const link = this.data.shortLinks.find((entry) => entry.id === linkId && hotelIds.includes(entry.hotel_id));
+      if (!link) return null;
+      const hotel = this.data.hotels.find((entry) => entry.id === link.hotel_id) || {};
+      return { ...link, hotel_name: hotel.name, hotel_timezone: hotel.timezone };
+    }
+
     if (normalized.includes("from navigation_items") && normalized.includes("where id = ? and hotel_id = ?")) {
       const [itemId, hotelId] = params;
       return this.data.navigation.find((entry) => entry.id === itemId && entry.hotel_id === hotelId) || null;
@@ -848,6 +931,46 @@ class MockD1Database {
         .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id));
     }
 
+    if (normalized.includes("from short_links sl") && normalized.includes("join hotels h")) {
+      const [hotelId] = params;
+      let cursor = 1;
+      const hasStatus = normalized.includes("sl.status = ?");
+      const status = hasStatus ? params[cursor++] : "";
+      const hasSearch = normalized.includes("lower(sl.internal_name) like ?");
+      const search = hasSearch ? String(params[cursor++] || "").replaceAll("%", "").toLowerCase() : "";
+      if (hasSearch) cursor += 2;
+      const limit = Number(params[cursor++] || 25);
+      const offset = Number(params[cursor++] || 0);
+      let rows = this.data.shortLinks
+        .filter((link) => link.hotel_id === hotelId)
+        .filter((link) => !status || link.status === status)
+        .filter((link) => {
+          if (!search) return true;
+          return [link.internal_name, link.slug, link.notes]
+            .filter(Boolean)
+            .some((value) => String(value).toLowerCase().includes(search));
+        })
+        .map((link) => {
+          const hotel = this.data.hotels.find((entry) => entry.id === link.hotel_id) || {};
+          return { ...link, hotel_name: hotel.name, hotel_timezone: hotel.timezone };
+        });
+      if (normalized.includes("order by total_clicks desc")) {
+        rows = rows.sort((a, b) => b.total_clicks - a.total_clicks || b.updated_at.localeCompare(a.updated_at));
+      } else if (normalized.includes("order by updated_at desc")) {
+        rows = rows.sort((a, b) => b.updated_at.localeCompare(a.updated_at) || b.id.localeCompare(a.id));
+      } else {
+        rows = rows.sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id));
+      }
+      return rows.slice(offset, offset + limit);
+    }
+
+    if (normalized.includes("from short_link_clicks_daily") && normalized.includes("where short_link_id = ?")) {
+      const [linkId] = params;
+      return this.data.shortLinkClicksDaily
+        .filter((entry) => entry.short_link_id === linkId)
+        .sort((a, b) => a.click_date.localeCompare(b.click_date));
+    }
+
     if (normalized.includes("from media_assets") && normalized.includes("order by created_at desc")) {
       const [hotelId, status] = params;
       let cursor = 2;
@@ -1075,6 +1198,70 @@ class MockD1Database {
       return d1Result(1);
     }
 
+    if (normalized.startsWith("insert into short_links")) {
+      const [
+        id,
+        hotel_id,
+        slug,
+        internal_name,
+        destination_url,
+        destination_scheme,
+        status,
+        starts_at,
+        expires_at,
+        notes,
+        created_by_user_id,
+        updated_by_user_id,
+        created_at,
+        updated_at,
+      ] = params;
+      if (this.data.shortLinks.some((link) => link.slug.toLowerCase() === String(slug).toLowerCase())) {
+        throw new Error("UNIQUE constraint failed: short_links.slug");
+      }
+      this.data.shortLinks.push({
+        id,
+        hotel_id,
+        slug,
+        internal_name,
+        destination_url,
+        destination_scheme,
+        status,
+        starts_at,
+        expires_at,
+        notes,
+        total_clicks: 0,
+        last_clicked_at: null,
+        created_by_user_id,
+        updated_by_user_id,
+        archived_by_user_id: null,
+        created_at,
+        updated_at,
+        archived_at: null,
+      });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("insert into short_link_clicks_daily")) {
+      const [short_link_id, hotel_id, click_date, first_clicked_at, last_clicked_at] = params;
+      const existing = this.data.shortLinkClicksDaily.find(
+        (entry) => entry.short_link_id === short_link_id && entry.click_date === click_date,
+      );
+      if (existing) {
+        existing.click_count += 1;
+        existing.last_clicked_at = last_clicked_at;
+      } else {
+        this.data.shortLinkClicksDaily.push({
+          short_link_id,
+          hotel_id,
+          click_date,
+          click_count: 1,
+          first_clicked_at,
+          last_clicked_at,
+        });
+      }
+      return d1Result(1);
+    }
+
     if (normalized.startsWith("insert into hotels")) {
       const [id, slug, name, short_name, timezone, locale, currency, created_at, updated_at] = params;
       this.data.hotels.push({
@@ -1175,6 +1362,57 @@ class MockD1Database {
       asset.archived_at = archived_at;
       asset.archived_by_user_id = archived_by_user_id;
       asset.updated_at = updated_at;
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update short_links") && normalized.includes("total_clicks = total_clicks + 1")) {
+      const [last_clicked_at, id] = params;
+      const link = this.data.shortLinks.find((entry) => entry.id === id);
+      if (!link) return d1Result(0);
+      link.total_clicks += 1;
+      link.last_clicked_at = last_clicked_at;
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update short_links") && normalized.includes("set internal_name = ?")) {
+      const [
+        internal_name,
+        destination_url,
+        destination_scheme,
+        status,
+        starts_at,
+        expires_at,
+        notes,
+        updated_by_user_id,
+        updated_at,
+        id,
+        hotel_id,
+      ] = params;
+      const link = this.data.shortLinks.find((entry) => entry.id === id && entry.hotel_id === hotel_id && entry.status !== "archived");
+      if (!link) return d1Result(0);
+      Object.assign(link, {
+        internal_name,
+        destination_url,
+        destination_scheme,
+        status,
+        starts_at,
+        expires_at,
+        notes,
+        updated_by_user_id,
+        updated_at,
+      });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update short_links") && normalized.includes("set status = 'archived'")) {
+      const [archived_at, archived_by_user_id, updated_by_user_id, updated_at, id, hotel_id] = params;
+      const link = this.data.shortLinks.find((entry) => entry.id === id && entry.hotel_id === hotel_id && entry.status !== "archived");
+      if (!link) return d1Result(0);
+      link.status = "archived";
+      link.archived_at = archived_at;
+      link.archived_by_user_id = archived_by_user_id;
+      link.updated_by_user_id = updated_by_user_id;
+      link.updated_at = updated_at;
       return d1Result(1);
     }
 
@@ -1372,6 +1610,21 @@ class MockD1Database {
           actor_user_id,
           action,
           entity_type: "hotel",
+          entity_id,
+          metadata_json,
+          created_at,
+        });
+        return d1Result(1);
+      }
+      if (normalized.includes("'short_link'")) {
+        const [id, hotel_id, actor_user_id, action, entity_id, metadata_json, created_at] = params;
+        this.data.adminAuditLog.push({
+          id,
+          hotel_id,
+          module_key: null,
+          actor_user_id,
+          action,
+          entity_type: "short_link",
           entity_id,
           metadata_json,
           created_at,

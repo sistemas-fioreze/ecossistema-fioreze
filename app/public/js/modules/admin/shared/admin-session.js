@@ -3,6 +3,11 @@ export const PORTALS_MEDIA_READ_PERMISSION = "portals.media.read";
 export const PORTALS_MEDIA_UPLOAD_PERMISSION = "portals.media.upload";
 export const PORTALS_MEDIA_UPDATE_PERMISSION = "portals.media.update";
 export const PORTALS_MEDIA_ARCHIVE_PERMISSION = "portals.media.archive";
+export const PORTALS_LINKS_READ_PERMISSION = "portals.links.read";
+export const PORTALS_LINKS_CREATE_PERMISSION = "portals.links.create";
+export const PORTALS_LINKS_UPDATE_PERMISSION = "portals.links.update";
+export const PORTALS_LINKS_ARCHIVE_PERMISSION = "portals.links.archive";
+export const PORTALS_LINKS_ANALYTICS_PERMISSION = "portals.links.analytics";
 export const PORTALS_HOTELS_READ_PERMISSION = "portals.hotels.read";
 export const PORTALS_HOTELS_CREATE_PERMISSION = "portals.hotels.create";
 export const PORTALS_HOTELS_UPDATE_PERMISSION = "portals.hotels.update";
@@ -33,6 +38,10 @@ export function canAccessPortals(session) {
 
 export function canAccessMediaLibrary(session) {
   return hasPermission(session, PORTALS_MEDIA_READ_PERMISSION);
+}
+
+export function canAccessLinks(session) {
+  return hasPermission(session, PORTALS_LINKS_READ_PERMISSION);
 }
 
 export function canAccessUnits(session) {

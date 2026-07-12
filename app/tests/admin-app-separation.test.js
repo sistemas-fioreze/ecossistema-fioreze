@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   canAccessPortals,
   canAccessMediaLibrary,
+  canAccessLinks,
   canAccessRoomService,
   getAuthorizedHotels,
   hasPermission,
@@ -26,6 +27,7 @@ test("Central de Portais exige permissao platform ou portals", () => {
   assert.equal(canAccessPortals({ permissions: ["platform.hotels.read"] }), true);
   assert.equal(canAccessPortals({ permissions: ["portals.content.read"] }), true);
   assert.equal(canAccessPortals({ permissions: ["portals.media.read"] }), true);
+  assert.equal(canAccessPortals({ permissions: ["portals.links.read"] }), true);
   assert.equal(canAccessPortals({ permissions: ["room-service.orders.read"] }), false);
   assert.equal(canAccessPortals({ permissions: [] }), false);
 });
@@ -34,6 +36,12 @@ test("Biblioteca de imagens exige permissao especifica de leitura", () => {
   assert.equal(canAccessMediaLibrary({ permissions: ["portals.media.read"] }), true);
   assert.equal(canAccessMediaLibrary({ permissions: ["portals.media.upload"] }), false);
   assert.equal(canAccessMediaLibrary({ permissions: ["platform.hotels.read"] }), false);
+});
+
+test("Links personalizados exigem permissao especifica de leitura", () => {
+  assert.equal(canAccessLinks({ permissions: ["portals.links.read"] }), true);
+  assert.equal(canAccessLinks({ permissions: ["portals.links.create"] }), false);
+  assert.equal(canAccessLinks({ permissions: ["platform.hotels.read"] }), false);
 });
 
 test("ausencia de sessao na central nao entrega conteudo operacional de pedidos", async () => {

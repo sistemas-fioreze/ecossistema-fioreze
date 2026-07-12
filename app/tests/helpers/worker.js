@@ -3,8 +3,11 @@ import { createRequest, createTestEnv, readJson } from "./mock-d1.js";
 
 export function createWorkerTestContext(overrides = {}) {
   const env = createTestEnv(overrides);
+  const waitUntilPromises = [];
   const ctx = {
-    waitUntil() {},
+    waitUntil(promise) {
+      waitUntilPromises.push(Promise.resolve(promise));
+    },
   };
 
   return {
@@ -19,6 +22,9 @@ export function createWorkerTestContext(overrides = {}) {
         response,
         body: await readJson(response),
       };
+    },
+    async flushWaitUntil() {
+      await Promise.all(waitUntilPromises.splice(0));
     },
   };
 }

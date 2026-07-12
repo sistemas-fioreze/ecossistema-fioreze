@@ -7,12 +7,14 @@ const migration = fs.readFileSync("migrations/0007_core_service_hours_media_asse
 const adminOrdersGuardsMigration = fs.readFileSync("migrations/0007_admin_orders_guards.sql", "utf8");
 const mediaLibraryMigration = fs.readFileSync("migrations/0008_media_library_foundation.sql", "utf8");
 const adminUnitsMigration = fs.readFileSync("migrations/0009_admin_units_management_permissions.sql", "utf8");
+const shortLinksMigration = fs.readFileSync("migrations/0011_short_links_foundation.sql", "utf8");
 const seed = fs.readFileSync("seeds/dev.sql", "utf8");
 const wranglerConfig = JSON.parse(fs.readFileSync("wrangler.jsonc", "utf8"));
 const normalizedMigration = normalize(migration);
 const normalizedAdminOrdersGuardsMigration = normalize(adminOrdersGuardsMigration);
 const normalizedMediaLibraryMigration = normalize(mediaLibraryMigration);
 const normalizedAdminUnitsMigration = normalize(adminUnitsMigration);
+const normalizedShortLinksMigration = normalize(shortLinksMigration);
 
 test("migration 0007 cria service_hours e media_assets", () => {
   assert.match(normalizedMigration, /create table if not exists service_hours/);
@@ -86,11 +88,13 @@ test("wrangler declara MEDIA_BUCKET privado de desenvolvimento", () => {
   assert.equal(/prod/i.test(bucket.bucket_name), false);
 });
 
-test("Static Assets executa Worker antes de api, admin e media", () => {
+test("Static Assets executa Worker antes de api, admin, media, embed e go", () => {
   const workerFirst = new Set(wranglerConfig.assets.run_worker_first);
   assert.equal(workerFirst.has("/api/*"), true);
   assert.equal(workerFirst.has("/admin/*"), true);
   assert.equal(workerFirst.has("/media/*"), true);
+  assert.equal(workerFirst.has("/embed/*"), true);
+  assert.equal(workerFirst.has("/go/*"), true);
 });
 
 test("migration 0009 adiciona permissoes de unidades sem associar roles", () => {
@@ -106,6 +110,16 @@ test("migration 0009 adiciona permissoes de unidades sem associar roles", () => 
     assert.match(normalizedAdminUnitsMigration, new RegExp(permission.replaceAll(".", "\\.")));
   }
   assert.equal(/admin_role_permissions/i.test(adminUnitsMigration), false);
+});
+
+test("migration 0011 adiciona links personalizados e analytics agregada sem dados pessoais", () => {
+  assert.match(normalizedShortLinksMigration, /create table if not exists short_links/);
+  assert.match(normalizedShortLinksMigration, /create table if not exists short_link_clicks_daily/);
+  assert.match(normalizedShortLinksMigration, /uq_short_links_slug/);
+  assert.match(normalizedShortLinksMigration, /short_link_id, click_date/);
+  assert.match(normalizedShortLinksMigration, /portals\.links\.read/);
+  assert.match(normalizedShortLinksMigration, /portals\.links\.analytics/);
+  assert.equal(/user_agent|ip_address|referrer|cookie/i.test(shortLinksMigration), false);
 });
 
 function normalize(value) {
