@@ -88,7 +88,7 @@ const portalCards = [
   ["media", "Biblioteca de imagens", "Gerencie imagens publicas dos portais e modulos.", "/admin/portais/media/"],
   ["links", "Links personalizados", "Crie enderecos curtos para campanhas, QR Codes e comunicacao.", "/admin/portais/links/"],
   ["conteudos", "Conteudos", "Paginas, eventos e informacoes dos hoteis.", "#preparacao"],
-  ["modulos", "Modulos", "Ativacao e parametrizacao das experiencias.", "#preparacao"],
+  ["modulos", "Areas", "Ativacao e ajustes das experiencias.", "#preparacao"],
   ["navegacao", "Navegacao", "Menus e caminhos dos portais.", "#preparacao"],
   ["auditoria", "Auditoria", "Historico administrativo em preparacao.", "#preparacao"],
 ];
@@ -416,9 +416,9 @@ function renderUnitEditor() {
 function renderTabPanels() {
   const blockedMessage = '<div class="admin-empty">Salve os dados gerais para continuar.</div>';
   panel("general").innerHTML = `
-    ${field("Nome oficial", "name", currentUnit.name, "text", "Hotel Fioreze Demo")}
+    ${field("Nome oficial", "name", currentUnit.name, "text", "Unidade Fioreze Demo")}
     ${field("Nome curto", "short_name", currentUnit.short_name, "text", "Fioreze Demo")}
-    ${field("Slug", "slug", currentUnit.slug, "text", "hotel-demo", currentUnit.hotel_id ? "" : "Sera usado como hotel_id inicial.")}
+    ${field("Endereco personalizado", "slug", currentUnit.slug, "text", "unidade-demo", currentUnit.hotel_id ? "" : "Define o endereco publico da unidade.")}
     <div class="admin-form-grid">
       ${selectField("Status", "status", currentUnit.status, ["active", "inactive", "archived"])}
       ${field("Timezone", "timezone", currentUnit.timezone || "America/Sao_Paulo")}
@@ -995,7 +995,7 @@ function shortLinkPreviewUrl(slug) {
 }
 
 function renderMediaLibrary(session) {
-  setHeading("Biblioteca de imagens", "Assets privados no R2 publicados por rotas seguras do Worker.");
+  setHeading("Biblioteca de imagens", "Imagens privadas publicadas por rotas seguras do Worker.");
   els.portalsHome.hidden = true;
   els.unitsManager.hidden = true;
   els.shortLinksManager.hidden = true;
@@ -1198,7 +1198,7 @@ function renderNavigationComposer() {
     <div class="admin-navigation-composer">
       ${field("Rotulo", "nav.label", "")}
       ${field("Destino interno", "nav.path", `/${currentUnit.slug}`)}
-      ${field("Modulo", "nav.module_key", "guest-portal")}
+      ${field("Area do sistema", "nav.module_key", "guest-portal")}
       ${selectField("Icone", "nav.icon_key", "home", ["home", "utensils", "shopping-bag", "sparkles", "calendar", "map-pin", "image", "info", "phone"])}
       ${field("Ordem", "nav.sort_order", "100", "number")}
       <button class="admin-primary-button" type="button" data-nav-action="create">Criar item</button>
@@ -1208,7 +1208,7 @@ function renderNavigationComposer() {
 
 function renderEmbedPanel() {
   if (!hasPermission(currentSession, PORTALS_EMBED_READ_PERMISSION)) {
-    return '<div class="admin-empty">Seu usuario nao possui permissao para visualizar incorporacao.</div>';
+    return '<div class="admin-empty">Voce nao tem acesso a esta funcao.</div>';
   }
   const embed = currentEmbed?.embed || {};
   const modules = currentEmbed?.modules || currentModules.filter((moduleRow) => moduleRow.enabled && moduleRow.is_public);
@@ -1233,8 +1233,8 @@ function renderEmbedPanel() {
     </label>
     <div class="admin-module-toggle">
       <div>
-        <strong>Modulos incorporaveis</strong>
-        <span>Apenas modulos publicos e ativos podem ser selecionados.</span>
+        <strong>Areas incorporaveis</strong>
+        <span>Apenas areas publicas e ativas podem ser selecionadas.</span>
       </div>
       <div class="admin-embed-module-list">
         ${modules
@@ -1353,7 +1353,7 @@ function setMessage(message) {
 }
 
 function updateDirtyState() {
-  els.unitDirtyState.textContent = dirty ? "Alteracoes nao salvas." : "Sem alteracoes pendentes.";
+  els.unitDirtyState.textContent = dirty ? "Alteracoes nao salvas." : "Tudo salvo.";
 }
 
 function updatePreview() {

@@ -3,6 +3,7 @@ import { canAccessPortals, canAccessRoomService, getAuthorizedHotels } from "./s
 import { escapeAttr, escapeHtml } from "./shared/format.js";
 
 const els = {
+  welcomeTitle: document.getElementById("welcomeTitle"),
   systemsList: document.getElementById("systemsList"),
   authorizedHotels: document.getElementById("authorizedHotels"),
   noSystemsMessage: document.getElementById("noSystemsMessage"),
@@ -18,6 +19,8 @@ auth.boot();
 
 function renderLauncher(session) {
   const systems = buildSystems(session);
+  const firstName = String(session?.user?.display_name || "Usuario").split(/\s+/)[0] || "Usuario";
+  els.welcomeTitle.textContent = `Ola, ${firstName}.`;
   els.systemsList.innerHTML = systems.map(renderSystemCard).join("");
   els.noSystemsMessage.hidden = systems.length > 0;
   els.authorizedHotels.innerHTML = renderHotels(getAuthorizedHotels(session));
@@ -35,7 +38,7 @@ function buildSystems(session) {
   if (canAccessPortals(session)) {
     systems.push({
       title: "Central de Portais",
-      description: "Hoteis, portais, conteudos e usuarios",
+      description: "Unidades, portais, conteudos e equipe",
       href: "/admin/portais/",
     });
   }
