@@ -122,7 +122,14 @@ INSERT OR IGNORE INTO admin_roles (id, role_key, name, description, created_at, 
 
 INSERT OR IGNORE INTO admin_permissions (id, permission_key, module_key, description, created_at, updated_at) VALUES
   ('perm-room-service-orders-read', 'room-service.orders.read', 'room-service', 'Permite visualizar pedidos ficticios de Room Service.', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
-  ('perm-room-service-orders-write', 'room-service.orders.write', 'room-service', 'Permite atualizar status de pedidos ficticios de Room Service.', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z');
+  ('perm-room-service-orders-write', 'room-service.orders.write', 'room-service', 'Permite atualizar status de pedidos ficticios de Room Service.', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
+  ('perm-portals-hotels-read', 'portals.hotels.read', NULL, 'Visualizar unidades ficticias.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('perm-portals-hotels-create', 'portals.hotels.create', NULL, 'Criar unidades ficticias.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('perm-portals-hotels-update', 'portals.hotels.update', NULL, 'Editar unidades ficticias.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('perm-portals-hotels-branding', 'portals.hotels.branding', NULL, 'Editar identidade ficticia.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('perm-portals-hotels-settings', 'portals.hotels.settings', NULL, 'Editar configuracoes ficticias.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('perm-portals-hotels-modules', 'portals.hotels.modules', NULL, 'Gerenciar modulos ficticios.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('perm-portals-hotels-navigation', 'portals.hotels.navigation', NULL, 'Gerenciar navegacao ficticia.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z');
 
 INSERT INTO admin_users (id, display_name, email, password_hash, password_strategy, status, force_password_change, created_at, updated_at) VALUES
   ('user-demo-admin', 'Usuario Admin Demo', 'admin-demo@example.invalid', 'pbkdf2$sha256$100000$ZmlvcmV6ZS1hZG1pbi1kZW1vLXNhbHQtMjAyNg==$QPM6b/QnKHhfCwYXFU9kCd7KpgtlsLdGDELeiM9Ulgw=', 'pbkdf2', 'active', 0, '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z')
@@ -140,7 +147,14 @@ INSERT OR IGNORE INTO admin_user_roles (user_id, role_id, created_at) VALUES
 
 INSERT OR IGNORE INTO admin_role_permissions (role_id, permission_id, created_at) VALUES
   ('role-demo-manager', 'perm-room-service-orders-read', '2026-07-04T00:00:00.000Z'),
-  ('role-demo-manager', 'perm-room-service-orders-write', '2026-07-04T00:00:00.000Z');
+  ('role-demo-manager', 'perm-room-service-orders-write', '2026-07-04T00:00:00.000Z'),
+  ('role-demo-manager', 'perm-portals-hotels-read', '2026-07-12T00:00:00.000Z'),
+  ('role-demo-manager', 'perm-portals-hotels-create', '2026-07-12T00:00:00.000Z'),
+  ('role-demo-manager', 'perm-portals-hotels-update', '2026-07-12T00:00:00.000Z'),
+  ('role-demo-manager', 'perm-portals-hotels-branding', '2026-07-12T00:00:00.000Z'),
+  ('role-demo-manager', 'perm-portals-hotels-settings', '2026-07-12T00:00:00.000Z'),
+  ('role-demo-manager', 'perm-portals-hotels-modules', '2026-07-12T00:00:00.000Z'),
+  ('role-demo-manager', 'perm-portals-hotels-navigation', '2026-07-12T00:00:00.000Z');
 
 INSERT OR IGNORE INTO admin_hotel_access (user_id, hotel_id, access_level, created_at, updated_at) VALUES
   ('user-demo-admin', 'muller-fioreze', 'manager', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z');

@@ -74,6 +74,7 @@ function isDirectAsset(pathname) {
 function resolveAdminAssetPath(pathname) {
   const routes = [
     { canonical: "/admin/room-service/", assetPath: "/admin/room-service/" },
+    { canonical: "/admin/portais/unidades/", assetPath: "/admin/portais/" },
     { canonical: "/admin/portais/media/", assetPath: "/admin/portais/" },
     { canonical: "/admin/portais/", assetPath: "/admin/portais/" },
     { canonical: "/admin/", assetPath: "/admin/" },
