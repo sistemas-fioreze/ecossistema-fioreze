@@ -258,6 +258,9 @@ function createFixtureData() {
         status: "active",
         force_password_change: 0,
         password_changed_at: null,
+        avatar_object_key: null,
+        avatar_mime_type: null,
+        avatar_updated_at: null,
         created_at: "2026-07-04T00:00:00.000Z",
         updated_at: "2026-07-04T00:00:00.000Z",
       },
@@ -271,6 +274,9 @@ function createFixtureData() {
         status: "active",
         force_password_change: 0,
         password_changed_at: null,
+        avatar_object_key: null,
+        avatar_mime_type: null,
+        avatar_updated_at: null,
         created_at: "2026-07-04T00:00:00.000Z",
         updated_at: "2026-07-04T00:00:00.000Z",
       },
@@ -647,6 +653,9 @@ class MockD1Database {
         expires_at: session.expires_at,
         display_name: user.display_name,
         email: user.email,
+        avatar_object_key: user.avatar_object_key,
+        avatar_mime_type: user.avatar_mime_type,
+        avatar_updated_at: user.avatar_updated_at,
       };
     }
 
@@ -1369,6 +1378,9 @@ class MockD1Database {
         status: "active",
         force_password_change: 1,
         password_changed_at: null,
+        avatar_object_key: null,
+        avatar_mime_type: null,
+        avatar_updated_at: null,
         created_at,
         updated_at,
       });
@@ -1634,6 +1646,27 @@ class MockD1Database {
         user.password_changed_at = null;
         user.updated_at = firstDate;
       }
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update admin_users") && normalized.includes("avatar_object_key = ?")) {
+      const [avatar_object_key, avatar_mime_type, avatar_updated_at, updated_at, id] = params;
+      const user = this.data.adminUsers.find((entry) => entry.id === id);
+      if (!user) return d1Result(0);
+      Object.assign(user, { avatar_object_key, avatar_mime_type, avatar_updated_at, updated_at });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update admin_users") && normalized.includes("avatar_object_key = null")) {
+      const [updated_at, id] = params;
+      const user = this.data.adminUsers.find((entry) => entry.id === id);
+      if (!user) return d1Result(0);
+      Object.assign(user, {
+        avatar_object_key: null,
+        avatar_mime_type: null,
+        avatar_updated_at: null,
+        updated_at,
+      });
       return d1Result(1);
     }
 

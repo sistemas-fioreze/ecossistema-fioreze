@@ -59,3 +59,8 @@ O shell inclui foco visivel herdado do navegador, botoes com `aria-label`, area 
 
 - PR 2: usuarios, perfis, permissoes, senhas e sessoes;
 - PR 3: Minha conta, avatar privado em R2, dashboard final e polimento visual.
+
+## Minha Conta
+
+A area Minha conta usa os mesmos tokens visuais do shell e exibe avatar privado quando existir.
+Sem foto, o fallback usa iniciais do nome em um bloco neutro, sem servico externo.

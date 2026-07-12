@@ -402,6 +402,10 @@
   font-weight: 950;
 }
 
+.admin-avatar-image {
+  object-fit: cover;
+}
+
 .admin-user-meta small {
   display: block;
   color: var(--color-muted);
@@ -1203,6 +1207,22 @@
 .admin-account-identity span,
 .admin-account-identity small {
   display: block;
+}
+
+.admin-profile-photo {
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  object-fit: cover;
+  border: 1px solid var(--color-border);
+  background: var(--color-secondary);
+}
+
+.admin-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
 }
 
 .admin-form-grid label {

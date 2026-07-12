@@ -32,6 +32,7 @@ import {
   changeOwnPassword,
   createAdminRole,
   createAdminUser,
+  deleteOwnAvatar,
   getAdminMe,
   getAdminRole,
   getAdminUser,
@@ -41,10 +42,12 @@ import {
   resetAdminUserPassword,
   revokeAdminUserSessions,
   revokeOwnSessions,
+  serveAdminUserAvatar,
   setAdminUserStatus,
   updateAdminRole,
   updateAdminRolePermissions,
   updateAdminUser,
+  uploadOwnAvatar,
 } from "./users.js";
 import { ok } from "../../core/responses.js";
 import { notFoundError } from "../../core/errors.js";
@@ -76,6 +79,26 @@ export function registerAdminRoutes(router) {
     return ok(result.data, { headers: result.headers });
   });
 
+  router.get("/api/v1/admin/me/avatar", async ({ request, env }) => {
+    const session = await requireAuthentication({ request, env });
+    return serveAdminUserAvatar({ env, session, userId: session.user.id });
+  });
+
+  router.head("/api/v1/admin/me/avatar", async ({ request, env }) => {
+    const session = await requireAuthentication({ request, env });
+    return serveAdminUserAvatar({ env, session, userId: session.user.id, head: true });
+  });
+
+  router.post("/api/v1/admin/me/avatar", async ({ request, env }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await uploadOwnAvatar({ request, env, session }));
+  });
+
+  router.delete("/api/v1/admin/me/avatar", async ({ request, env }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await deleteOwnAvatar({ request, env, session }));
+  });
+
   router.post("/api/v1/admin/me/sessions/revoke", async ({ request, env }) => {
     const session = await requireAuthentication({ request, env });
     const result = await revokeOwnSessions({ request, env, session });
@@ -95,6 +118,16 @@ export function registerAdminRoutes(router) {
   router.get("/api/v1/admin/users/:id", async ({ request, env, params }) => {
     const session = await requireAuthentication({ request, env });
     return ok(await getAdminUser({ env, session, userId: params.id }));
+  });
+
+  router.get("/api/v1/admin/users/:id/avatar", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return serveAdminUserAvatar({ env, session, userId: params.id });
+  });
+
+  router.head("/api/v1/admin/users/:id/avatar", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return serveAdminUserAvatar({ env, session, userId: params.id, head: true });
   });
 
   router.patch("/api/v1/admin/users/:id", async ({ request, env, params }) => {

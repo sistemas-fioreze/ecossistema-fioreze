@@ -58,6 +58,9 @@ export async function loginAdmin({ request, env }) {
     user_id: user.id,
     display_name: user.display_name,
     email: user.email,
+    avatar_object_key: user.avatar_object_key,
+    avatar_mime_type: user.avatar_mime_type,
+    avatar_updated_at: user.avatar_updated_at,
     session_type: sessionType,
     expires_at: expiresAt,
   });
@@ -98,7 +101,8 @@ export async function getCurrentAdminSession({ request, env, required = true }) 
   const sessionRow = await first(
     env,
     `SELECT s.id AS session_id, s.user_id, s.session_type, s.expires_at,
-            u.display_name, u.email
+            u.display_name, u.email,
+            u.avatar_object_key, u.avatar_mime_type, u.avatar_updated_at
        FROM admin_sessions s
        JOIN admin_users u ON u.id = s.user_id
       WHERE s.token_hash = ?
@@ -174,7 +178,8 @@ async function findUserByEmail(env, email) {
   return first(
     env,
     `SELECT id, display_name, email, password_hash, password_strategy,
-            status, force_password_change
+            status, force_password_change,
+            avatar_object_key, avatar_mime_type, avatar_updated_at
        FROM admin_users
       WHERE lower(email) = lower(?)
       LIMIT 1`,
@@ -212,6 +217,13 @@ async function buildAdminSession(env, row) {
       id: row.user_id,
       display_name: row.display_name,
       email: row.email,
+      avatar: row.avatar_object_key
+        ? {
+            url: "/api/v1/admin/me/avatar",
+            mime_type: row.avatar_mime_type,
+            updated_at: row.avatar_updated_at,
+          }
+        : null,
     },
     hotels,
     hotel_ids: hotels.map((hotel) => hotel.hotel_id),

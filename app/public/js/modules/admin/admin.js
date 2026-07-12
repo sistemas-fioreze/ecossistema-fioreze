@@ -19,6 +19,9 @@ const els = {
   rolesList: document.getElementById("rolesList"),
   accountManager: document.getElementById("accountManager"),
   accountDetails: document.getElementById("accountDetails"),
+  avatarForm: document.getElementById("avatarForm"),
+  avatarFile: document.getElementById("avatarFile"),
+  deleteAvatarButton: document.getElementById("deleteAvatarButton"),
   passwordForm: document.getElementById("passwordForm"),
   currentPassword: document.getElementById("currentPassword"),
   newPassword: document.getElementById("newPassword"),
@@ -122,7 +125,7 @@ async function renderAccount(session) {
     const user = payload.data.user;
     els.accountDetails.innerHTML = `
       <div class="admin-account-identity">
-        <span class="admin-avatar">${escapeHtml(initials(user.display_name))}</span>
+        ${renderAccountAvatar(user)}
         <div>
           <strong>${escapeHtml(user.display_name)}</strong>
           <span>${escapeHtml(user.email)}</span>
@@ -151,6 +154,36 @@ els.passwordForm?.addEventListener("submit", async (event) => {
     els.accountMessage.textContent = "Senha alterada. Entre novamente para continuar.";
   } catch (error) {
     els.accountMessage.textContent = error.message || "Nao foi possivel alterar a senha.";
+  }
+});
+
+els.avatarForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!els.avatarFile.files?.[0]) {
+    els.accountMessage.textContent = "Escolha uma imagem para atualizar sua foto.";
+    return;
+  }
+  els.accountMessage.textContent = "Atualizando foto...";
+  const form = new FormData();
+  form.append("avatar", els.avatarFile.files[0]);
+  try {
+    await adminApi("/api/v1/admin/me/avatar", { method: "POST", body: form });
+    els.avatarForm.reset();
+    els.accountMessage.textContent = "Foto atualizada.";
+    await renderAccount();
+  } catch (error) {
+    els.accountMessage.textContent = error.message || "Nao foi possivel atualizar a foto.";
+  }
+});
+
+els.deleteAvatarButton?.addEventListener("click", async () => {
+  els.accountMessage.textContent = "Removendo foto...";
+  try {
+    await adminApi("/api/v1/admin/me/avatar", { method: "DELETE", body: {} });
+    els.accountMessage.textContent = "Foto removida.";
+    await renderAccount();
+  } catch (error) {
+    els.accountMessage.textContent = error.message || "Nao foi possivel remover a foto.";
   }
 });
 
@@ -205,6 +238,13 @@ function renderRoleRow(role) {
       <span class="admin-status-chip">${Number(role.user_count || 0)} usuario(s)</span>
     </article>
   `;
+}
+
+function renderAccountAvatar(user) {
+  if (user.avatar?.url) {
+    return `<img class="admin-profile-photo" src="${escapeAttr(user.avatar.url)}" alt="Foto de perfil de ${escapeAttr(user.display_name)}">`;
+  }
+  return `<span class="admin-avatar">${escapeHtml(initials(user.display_name))}</span>`;
 }
 
 function setPanelVisibility(activeSection) {

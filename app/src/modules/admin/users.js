@@ -1,5 +1,5 @@
 import { all, batch, first, run, statement } from "../../core/database.js";
-import { badRequest, conflict, forbidden, notFoundError } from "../../core/errors.js";
+import { AppError, badRequest, conflict, forbidden, notFoundError } from "../../core/errors.js";
 import { createPublicId, isSafeIdentifier } from "../../core/identifiers.js";
 import { requestNow } from "../../core/time.js";
 import { optionalString, readJson, requireArray, requireString } from "../../core/validation.js";
@@ -25,6 +25,15 @@ export const ADMIN_AUDIT_READ = "admin.audit.read";
 
 const PASSWORD_MIN_LENGTH = 12;
 const PASSWORD_MAX_LENGTH = 300;
+const MAX_AVATAR_BYTES = 3 * 1024 * 1024;
+const AVATAR_CACHE_CONTROL = "private, max-age=300";
+const AVATAR_PREFIX = "admin-avatars";
+const AVATAR_TYPES = {
+  "image/jpeg": { extension: "jpg" },
+  "image/png": { extension: "png" },
+  "image/webp": { extension: "webp" },
+  "image/avif": { extension: "avif" },
+};
 const ACTIVE_STATUS = new Set(["active", "disabled"]);
 const ROLE_GROUPS = [
   ["room-service.", "Pedidos"],
@@ -404,6 +413,122 @@ export async function getAdminMe({ env, session }) {
   return { user: await loadUserDetail(env, session.user.id), session: { expires_at: session.expires_at } };
 }
 
+export async function serveAdminUserAvatar({ env, session, userId, head = false }) {
+  if (userId !== session.user.id) requirePermission(session, ADMIN_USERS_READ);
+  const user = await getUserBase(env, userId);
+  if (!user) throw notFoundError("Usuario administrativo nao encontrado.");
+  if (!user.avatar_object_key) return fallbackAvatarResponse(user, head);
+  const bucket = requireAvatarBucket(env);
+  const object = head ? await bucket.head(user.avatar_object_key) : await bucket.get(user.avatar_object_key);
+  if (!object) return fallbackAvatarResponse(user, head);
+  return new Response(head ? null : object.body, {
+    status: 200,
+    headers: {
+      "content-type": user.avatar_mime_type || object.httpMetadata?.contentType || "application/octet-stream",
+      "cache-control": AVATAR_CACHE_CONTROL,
+      "content-length": object.size ? String(object.size) : "0",
+    },
+  });
+}
+
+export async function uploadOwnAvatar({ request, env, session }) {
+  assertAdminMutationAllowed({ request });
+  const bucket = requireAvatarBucket(env);
+  const form = await request.formData().catch(() => {
+    throw badRequest("Envie a imagem como multipart/form-data.");
+  });
+  const file = form.get("avatar");
+  const validated = await validateAvatarFile(file);
+  const current = await getUserBase(env, session.user.id);
+  if (!current) throw notFoundError("Usuario administrativo nao encontrado.");
+
+  const now = requestNow({ request, env });
+  const objectKey = `${AVATAR_PREFIX}/${session.user.id}/${createPublicId("avatar")}.${validated.extension}`;
+  try {
+    await bucket.put(objectKey, validated.bytes, {
+      httpMetadata: {
+        contentType: validated.mimeType,
+        cacheControl: AVATAR_CACHE_CONTROL,
+      },
+      customMetadata: {
+        user_id: session.user.id,
+        scope: "admin-avatar",
+      },
+    });
+  } catch {
+    throw new AppError(503, "storage_unavailable", "Armazenamento de avatar indisponivel.");
+  }
+
+  try {
+    await batch(env, [
+      statement(
+        env,
+        `UPDATE admin_users
+            SET avatar_object_key = ?,
+                avatar_mime_type = ?,
+                avatar_updated_at = ?,
+                updated_at = ?
+          WHERE id = ?`,
+        [objectKey, validated.mimeType, now, now, session.user.id],
+      ),
+      auditStatement(env, {
+        actorUserId: session.user.id,
+        action: "admin-user.avatar-update",
+        entityType: "admin_user",
+        entityId: session.user.id,
+        metadata: { mime_type: validated.mimeType, size_bytes: validated.sizeBytes },
+        createdAt: now,
+      }),
+    ]);
+  } catch {
+    await bucket.delete(objectKey).catch(() => null);
+    throw new AppError(500, "avatar_metadata_failed", "Avatar enviado, mas os metadados nao puderam ser salvos.");
+  }
+
+  if (current.avatar_object_key && current.avatar_object_key !== objectKey) {
+    await bucket.delete(current.avatar_object_key).catch(() => null);
+  }
+
+  return {
+    avatar: {
+      url: `/api/v1/admin/me/avatar?ts=${encodeURIComponent(now)}`,
+      mime_type: validated.mimeType,
+      updated_at: now,
+    },
+  };
+}
+
+export async function deleteOwnAvatar({ request, env, session }) {
+  assertAdminMutationAllowed({ request });
+  const bucket = requireAvatarBucket(env);
+  const current = await getUserBase(env, session.user.id);
+  if (!current) throw notFoundError("Usuario administrativo nao encontrado.");
+  const oldObjectKey = current.avatar_object_key;
+  const now = requestNow({ request, env });
+  await batch(env, [
+    statement(
+      env,
+      `UPDATE admin_users
+          SET avatar_object_key = NULL,
+              avatar_mime_type = NULL,
+              avatar_updated_at = NULL,
+              updated_at = ?
+        WHERE id = ?`,
+      [now, session.user.id],
+    ),
+    auditStatement(env, {
+      actorUserId: session.user.id,
+      action: "admin-user.avatar-delete",
+      entityType: "admin_user",
+      entityId: session.user.id,
+      metadata: {},
+      createdAt: now,
+    }),
+  ]);
+  if (oldObjectKey) await bucket.delete(oldObjectKey).catch(() => null);
+  return { avatar_deleted: true };
+}
+
 export async function changeOwnPassword({ request, env, session }) {
   assertAdminMutationAllowed({ request });
   const payload = await readJson(request);
@@ -506,6 +631,13 @@ async function loadUserDetail(env, userId) {
     status: base.status,
     force_password_change: Number(base.force_password_change || 0) === 1,
     password_changed_at: base.password_changed_at || null,
+    avatar: base.avatar_object_key
+      ? {
+          url: `/api/v1/admin/users/${base.id}/avatar`,
+          mime_type: base.avatar_mime_type,
+          updated_at: base.avatar_updated_at,
+        }
+      : null,
     created_at: base.created_at,
     updated_at: base.updated_at,
     roles,
@@ -523,7 +655,9 @@ function getUserBase(env, userId) {
   return first(
     env,
     `SELECT id, display_name, email, password_hash, password_strategy,
-            status, force_password_change, password_changed_at, created_at, updated_at
+            status, force_password_change, password_changed_at,
+            avatar_object_key, avatar_mime_type, avatar_updated_at,
+            created_at, updated_at
        FROM admin_users
       WHERE id = ?
       LIMIT 1`,
@@ -687,6 +821,66 @@ function validatePasswordPolicy(password, user) {
   const namePart = String(user.display_name || "").split(/\s+/)[0]?.toLowerCase() || "";
   if (emailUser && lower === emailUser) throw badRequest("A senha nao pode ser baseada apenas no e-mail.");
   if (namePart && lower === namePart) throw badRequest("A senha nao pode ser baseada apenas no nome.");
+}
+
+function requireAvatarBucket(env) {
+  if (!env.MEDIA_BUCKET) throw new AppError(503, "storage_unavailable", "Armazenamento de avatar indisponivel.");
+  return env.MEDIA_BUCKET;
+}
+
+async function validateAvatarFile(file) {
+  if (!file || typeof file.arrayBuffer !== "function") throw badRequest("Arquivo de avatar obrigatorio.");
+  const mimeType = String(file.type || "").toLowerCase();
+  const config = AVATAR_TYPES[mimeType];
+  if (!config) throw badRequest("Formato de avatar nao permitido.");
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (!bytes.byteLength) throw badRequest("Arquivo de avatar vazio.");
+  if (bytes.byteLength > MAX_AVATAR_BYTES) throw badRequest("Avatar excede 3 MB.");
+  if (!hasAvatarMagicBytes(bytes, mimeType)) throw badRequest("Conteudo do avatar nao corresponde ao formato informado.");
+  return {
+    bytes,
+    mimeType,
+    extension: config.extension,
+    sizeBytes: bytes.byteLength,
+  };
+}
+
+function hasAvatarMagicBytes(bytes, mimeType) {
+  if (mimeType === "image/jpeg") return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  if (mimeType === "image/png") return bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+  if (mimeType === "image/webp") return text(bytes.slice(0, 4)) === "RIFF" && text(bytes.slice(8, 12)) === "WEBP";
+  if (mimeType === "image/avif") return text(bytes.slice(4, 8)) === "ftyp" && ["avif", "avis"].includes(text(bytes.slice(8, 12)));
+  return false;
+}
+
+function fallbackAvatarResponse(user, head) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96"><rect width="96" height="96" rx="24" fill="#f4f1e8"/><text x="48" y="57" text-anchor="middle" font-family="Arial,sans-serif" font-size="30" font-weight="700" fill="#5b4b2b">${escapeSvg(initials(user.display_name))}</text></svg>`;
+  return new Response(head ? null : svg, {
+    status: 200,
+    headers: {
+      "content-type": "image/svg+xml; charset=utf-8",
+      "cache-control": AVATAR_CACHE_CONTROL,
+      "content-length": head ? "0" : String(new TextEncoder().encode(svg).byteLength),
+    },
+  });
+}
+
+function initials(name) {
+  return String(name || "Usuario")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
+
+function escapeSvg(value) {
+  return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+}
+
+function text(bytes) {
+  return String.fromCharCode(...bytes);
 }
 
 function normalizeEmail(email) {
