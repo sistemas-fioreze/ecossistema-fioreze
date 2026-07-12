@@ -128,6 +128,14 @@ function createFixtureData() {
     settings: [
       setting("muller-fioreze", "room_service.status", "open"),
       setting("muller-fioreze", "currency.symbol", "R$"),
+      setting("muller-fioreze", "embed.enabled", "true", "boolean"),
+      setting("muller-fioreze", "embed.allowed_origins", JSON.stringify(["https://example.invalid", "http://localhost:8787"]), "json"),
+      setting("muller-fioreze", "embed.allowed_modules", JSON.stringify(["guest-portal", "room-service"]), "json"),
+      setting("muller-fioreze", "embed.default_theme", "light"),
+      setting("muller-fioreze", "embed.default_background", "default"),
+      setting("muller-fioreze", "embed.header", "visible"),
+      setting("muller-fioreze", "embed.initial_height", "560", "number"),
+      setting("muller-fioreze", "embed.compact", "false", "boolean"),
       setting("aurora-demo", "room_service.status", "open"),
       setting("aurora-demo", "currency.symbol", "R$"),
       setting("aurora-demo", "internal.note", "hidden", "string", 0),
@@ -267,6 +275,8 @@ function createFixtureData() {
       { id: "perm-portals-hotels-settings", permission_key: "portals.hotels.settings", module_key: null },
       { id: "perm-portals-hotels-modules", permission_key: "portals.hotels.modules", module_key: null },
       { id: "perm-portals-hotels-navigation", permission_key: "portals.hotels.navigation", module_key: null },
+      { id: "perm-portals-embed-read", permission_key: "portals.embed.read", module_key: null },
+      { id: "perm-portals-embed-update", permission_key: "portals.embed.update", module_key: null },
     ],
     adminUserRoles: [
       { user_id: "user-demo-admin", role_id: "role-demo-manager" },
@@ -416,6 +426,33 @@ class MockD1Database {
     if (normalized.includes("from hotels") && normalized.includes("where slug = ?")) {
       const [slug] = params;
       return this.data.hotels.find((hotel) => hotel.slug === slug && hotel.archived_at == null) || null;
+    }
+
+    if (normalized.includes("from hotels h") && normalized.includes("join hotel_modules hm") && normalized.includes("h.slug = ?")) {
+      const [slug, moduleKey] = params;
+      const hotel = this.data.hotels.find((entry) => entry.slug === slug && entry.status === "active" && entry.archived_at == null);
+      if (!hotel) return null;
+      const hotelModuleRow = this.data.hotelModules.find(
+        (entry) =>
+          entry.hotel_id === hotel.id &&
+          entry.module_key === moduleKey &&
+          entry.enabled === 1 &&
+          entry.is_public === 1 &&
+          entry.module_key !== "admin",
+      );
+      if (!hotelModuleRow) return null;
+      return {
+        hotel_id: hotel.id,
+        slug: hotel.slug,
+        name: hotel.name,
+        short_name: hotel.short_name,
+        timezone: hotel.timezone,
+        locale: hotel.locale,
+        currency: hotel.currency,
+        module_key: hotelModuleRow.module_key,
+        public_name: hotelModuleRow.public_name,
+        navigation_label: hotelModuleRow.navigation_label,
+      };
     }
 
     if (normalized.includes("from hotels") && normalized.includes("where slug = ? limit 1")) {
