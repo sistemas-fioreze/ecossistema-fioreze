@@ -233,6 +233,37 @@ body[data-erp="room-service"] {
   color: var(--rs-text);
 }
 
+.rs-window-controls {
+  display: none;
+  align-items: center;
+  gap: 6px;
+}
+
+body[data-fioreze-desktop="electron"] .rs-window-controls {
+  display: inline-flex;
+}
+
+.rs-window-button {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--rs-line);
+  border-radius: var(--rs-radius-sm);
+  background: var(--rs-surface);
+  color: var(--rs-text);
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.rs-window-button:hover {
+  background: var(--rs-soft);
+}
+
+.rs-window-button-danger:hover {
+  background: var(--rs-danger);
+  color: #fff;
+}
+
 .rs-unit-picker select {
   min-width: 210px;
 }

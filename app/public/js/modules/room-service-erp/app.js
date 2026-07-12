@@ -13,6 +13,7 @@ import { NAV_ITEMS } from "./static-config.js";
 import { clearIncompatibleCache, readPreferences, savePreferences } from "./storage.js";
 import { notify } from "./notifications.js";
 import { getBilling, getCatalog, getContext, getDashboard, getGuests } from "./api.js";
+import { setupDesktopControls } from "./desktop-adapter.js";
 
 const state = {
   session: null,
@@ -37,6 +38,7 @@ const els = {
 };
 
 clearIncompatibleCache();
+setupDesktopControls();
 
 const router = createRouter({
   routes: {
