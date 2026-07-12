@@ -34,11 +34,13 @@ function createAssetsBinding() {
         "/admin/room-service/index.html":
           '<!doctype html><html><body><h1>Pedidos Room Service</h1><form id="loginForm"></form><div id="ordersList"></div></body></html>',
         "/admin/portais/":
-          '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><div id="portalsDenied"></div><section id="mediaLibrary"></section></body></html>',
+          '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><div id="portalsDenied"></div><section id="mediaLibrary"></section><section id="unitsManager"></section></body></html>',
         "/admin/portais/index.html":
-          '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><div id="portalsDenied"></div><section id="mediaLibrary"></section></body></html>',
+          '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><div id="portalsDenied"></div><section id="mediaLibrary"></section><section id="unitsManager"></section></body></html>',
         "/admin/portais/media/":
           '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><section id="mediaLibrary"></section></body></html>',
+        "/admin/portais/unidades/":
+          '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><section id="unitsManager"></section></body></html>',
       };
       if (htmlByPath[pathname]) {
         return new Response(htmlByPath[pathname], {
@@ -77,6 +79,8 @@ function createFixtureData() {
         locale: "pt-BR",
         currency: "BRL",
         status: "active",
+        created_at: "2026-07-04T00:00:00.000Z",
+        updated_at: "2026-07-04T00:00:00.000Z",
         archived_at: null,
       },
       {
@@ -88,6 +92,8 @@ function createFixtureData() {
         locale: "pt-BR",
         currency: "BRL",
         status: "active",
+        created_at: "2026-07-04T00:00:00.000Z",
+        updated_at: "2026-07-04T00:00:00.000Z",
         archived_at: null,
       },
     ],
@@ -102,6 +108,8 @@ function createFixtureData() {
         background_color: "#f7f4ee",
         text_color: "#202124",
         font_family: "system-ui",
+        custom_css_json: "{}",
+        updated_at: "2026-07-04T00:00:00.000Z",
       },
       {
         hotel_id: "aurora-demo",
@@ -113,6 +121,8 @@ function createFixtureData() {
         background_color: "#f8f9fa",
         text_color: "#1d1d1d",
         font_family: "system-ui",
+        custom_css_json: "{}",
+        updated_at: "2026-07-04T00:00:00.000Z",
       },
     ],
     settings: [
@@ -250,6 +260,13 @@ function createFixtureData() {
       { id: "perm-portals-media-upload", permission_key: "portals.media.upload", module_key: null },
       { id: "perm-portals-media-update", permission_key: "portals.media.update", module_key: null },
       { id: "perm-portals-media-archive", permission_key: "portals.media.archive", module_key: null },
+      { id: "perm-portals-hotels-read", permission_key: "portals.hotels.read", module_key: null },
+      { id: "perm-portals-hotels-create", permission_key: "portals.hotels.create", module_key: null },
+      { id: "perm-portals-hotels-update", permission_key: "portals.hotels.update", module_key: null },
+      { id: "perm-portals-hotels-branding", permission_key: "portals.hotels.branding", module_key: null },
+      { id: "perm-portals-hotels-settings", permission_key: "portals.hotels.settings", module_key: null },
+      { id: "perm-portals-hotels-modules", permission_key: "portals.hotels.modules", module_key: null },
+      { id: "perm-portals-hotels-navigation", permission_key: "portals.hotels.navigation", module_key: null },
     ],
     adminUserRoles: [
       { user_id: "user-demo-admin", role_id: "role-demo-manager" },
@@ -294,7 +311,19 @@ function hotelModule(hotelId, moduleKey, enabled, isPublic, publicName, navigati
 }
 
 function nav(hotelId, moduleKey, label, path, sortOrder, enabled = 1) {
-  return { hotel_id: hotelId, module_key: moduleKey, label, path, icon_key: moduleKey, sort_order: sortOrder, enabled, is_public: 1 };
+  return {
+    id: `nav-${hotelId}-${moduleKey}-${sortOrder}`,
+    hotel_id: hotelId,
+    module_key: moduleKey,
+    label,
+    path,
+    icon_key: moduleKey,
+    sort_order: sortOrder,
+    enabled,
+    is_public: 1,
+    created_at: "2026-07-04T00:00:00.000Z",
+    updated_at: "2026-07-04T00:00:00.000Z",
+  };
 }
 
 function weekHours(hotelId, moduleKey, opensAt, closesAt) {
@@ -386,6 +415,30 @@ class MockD1Database {
     if (normalized.includes("from hotels") && normalized.includes("where slug = ?")) {
       const [slug] = params;
       return this.data.hotels.find((hotel) => hotel.slug === slug && hotel.archived_at == null) || null;
+    }
+
+    if (normalized.includes("from hotels") && normalized.includes("where slug = ? limit 1")) {
+      const [slug] = params;
+      return this.data.hotels.find((hotel) => hotel.slug === slug) || null;
+    }
+
+    if (normalized.includes("from hotels h") && normalized.includes("left join hotel_branding") && normalized.includes("where h.id = ?")) {
+      const [userId, hotelId, ...hotelIds] = params;
+      const access = this.data.adminHotelAccess.find((entry) => entry.user_id === userId && entry.hotel_id === hotelId);
+      const hotel = this.data.hotels.find((entry) => entry.id === hotelId && hotelIds.includes(entry.id));
+      if (!hotel || !access) return null;
+      const branding = this.data.branding.find((entry) => entry.hotel_id === hotel.id) || {};
+      return {
+        ...hotel,
+        ...branding,
+        access_level: access.access_level,
+        active_module_count: this.data.hotelModules.filter((entry) => entry.hotel_id === hotel.id && entry.enabled === 1).length,
+      };
+    }
+
+    if (normalized.includes("select id, slug from hotels where slug = ?")) {
+      const [slug] = params;
+      return this.data.hotels.find((hotel) => hotel.slug === slug) || null;
     }
 
     if (normalized.includes("from hotel_branding")) {
@@ -506,16 +559,63 @@ class MockD1Database {
       return this.data.mediaAssets.find((entry) => entry.id === assetId && hotelIds.includes(entry.hotel_id)) || null;
     }
 
+    if (normalized.includes("from media_assets") && normalized.includes("and (hotel_id = ? or hotel_id is null)")) {
+      const [assetId, hotelId] = params;
+      return (
+        this.data.mediaAssets.find(
+          (entry) =>
+            entry.id === assetId &&
+            entry.status === "active" &&
+            ["r2", "static"].includes(entry.storage_provider) &&
+            (entry.hotel_id === hotelId || entry.hotel_id == null),
+        ) || null
+      );
+    }
+
+    if (normalized.includes("from navigation_items") && normalized.includes("where id = ? and hotel_id = ?")) {
+      const [itemId, hotelId] = params;
+      return this.data.navigation.find((entry) => entry.id === itemId && entry.hotel_id === hotelId) || null;
+    }
+
     throw new Error(`Unhandled first SQL: ${normalized}`);
   }
 
   selectAll(sql, params) {
     const normalized = normalize(sql);
 
+    if (normalized.includes("from hotels h") && normalized.includes("join admin_hotel_access aha") && normalized.includes("left join hotel_branding")) {
+      const [userId, ...rest] = params;
+      const hotelIds = rest.slice(0, countInPlaceholders(normalized, "h.id in"));
+      let cursor = hotelIds.length;
+      const statusFilter = normalized.includes("h.status = ?");
+      const status = statusFilter ? rest[cursor++] : "";
+      const hasSearch = normalized.includes("lower(h.name) like ?");
+      const search = hasSearch ? String(rest[cursor] || "").replaceAll("%", "").toLowerCase() : "";
+      return this.data.hotels
+        .filter((hotel) => hotelIds.includes(hotel.id))
+        .filter((hotel) => this.data.adminHotelAccess.some((entry) => entry.user_id === userId && entry.hotel_id === hotel.id))
+        .filter((hotel) => !status || hotel.status === status)
+        .filter((hotel) => {
+          if (!search) return true;
+          return [hotel.name, hotel.short_name, hotel.slug].some((value) => String(value).toLowerCase().includes(search));
+        })
+        .map((hotel) => {
+          const branding = this.data.branding.find((entry) => entry.hotel_id === hotel.id) || {};
+          const access = this.data.adminHotelAccess.find((entry) => entry.user_id === userId && entry.hotel_id === hotel.id);
+          return {
+            ...hotel,
+            ...branding,
+            access_level: access?.access_level,
+            active_module_count: this.data.hotelModules.filter((entry) => entry.hotel_id === hotel.id && entry.enabled === 1).length,
+          };
+        })
+        .sort((a, b) => a.name.localeCompare(b.name));
+    }
+
     if (normalized.includes("from hotel_settings")) {
       const [hotelId] = params;
       return this.data.settings
-        .filter((settingRow) => settingRow.hotel_id === hotelId && settingRow.is_public === 1)
+        .filter((settingRow) => settingRow.hotel_id === hotelId && (normalized.includes("is_public") ? settingRow.is_public === 1 : true))
         .sort((a, b) => a.setting_key.localeCompare(b.setting_key));
     }
 
@@ -531,10 +631,31 @@ class MockD1Database {
         .sort((a, b) => a.sort_order - b.sort_order || a.module_key.localeCompare(b.module_key));
     }
 
+    if (normalized.includes("from modules m") && normalized.includes("left join hotel_modules hm")) {
+      const [hotelId] = params;
+      return this.data.modules
+        .map((moduleRow) => {
+          const hotelModuleRow = this.data.hotelModules.find(
+            (entry) => entry.hotel_id === hotelId && entry.module_key === moduleRow.module_key,
+          );
+          return {
+            ...moduleRow,
+            enabled: hotelModuleRow?.enabled ?? 0,
+            is_public: hotelModuleRow?.is_public ?? 1,
+            public_name: hotelModuleRow?.public_name ?? null,
+            navigation_label: hotelModuleRow?.navigation_label ?? null,
+            sort_order: hotelModuleRow?.sort_order ?? 100,
+            settings_json: hotelModuleRow?.settings_json ?? "{}",
+          };
+        })
+        .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
+    }
+
     if (normalized.includes("from navigation_items")) {
       const [hotelId] = params;
       return this.data.navigation
-        .filter((entry) => entry.hotel_id === hotelId && entry.enabled === 1 && entry.is_public === 1)
+        .filter((entry) => entry.hotel_id === hotelId)
+        .filter((entry) => (normalized.includes("enabled = 1") ? entry.enabled === 1 && entry.is_public === 1 : true))
         .sort((a, b) => a.sort_order - b.sort_order || a.label.localeCompare(b.label));
     }
 
@@ -916,6 +1037,42 @@ class MockD1Database {
       return d1Result(1);
     }
 
+    if (normalized.startsWith("insert into hotels")) {
+      const [id, slug, name, short_name, timezone, locale, currency, created_at, updated_at] = params;
+      this.data.hotels.push({
+        id,
+        slug,
+        name,
+        short_name,
+        timezone,
+        locale,
+        currency,
+        status: "inactive",
+        created_at,
+        updated_at,
+        archived_at: null,
+      });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("insert into hotel_branding")) {
+      const [hotel_id, custom_css_json, updated_at] = params;
+      this.data.branding.push({
+        hotel_id,
+        logo_url: null,
+        icon_url: null,
+        primary_color: "#513b2d",
+        secondary_color: "#f4f1ef",
+        accent_color: "#c1a94c",
+        background_color: "#fbf8f4",
+        text_color: "#202124",
+        font_family: "Effra, Inter, system-ui, sans-serif",
+        custom_css_json,
+        updated_at,
+      });
+      return d1Result(1);
+    }
+
     if (normalized.startsWith("update admin_sessions")) {
       let changes = 0;
       const [revoked_at, token_hash] = params;
@@ -964,6 +1121,133 @@ class MockD1Database {
       asset.archived_at = archived_at;
       asset.archived_by_user_id = archived_by_user_id;
       asset.updated_at = updated_at;
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update hotels")) {
+      const [name, short_name, slug, timezone, locale, currency, status, updated_at, archiveStatus, archived_at, id] = params;
+      const hotel = this.data.hotels.find((entry) => entry.id === id);
+      if (!hotel) return d1Result(0);
+      Object.assign(hotel, {
+        name,
+        short_name,
+        slug,
+        timezone,
+        locale,
+        currency,
+        status,
+        updated_at,
+        archived_at: archiveStatus === "archived" ? hotel.archived_at || archived_at : null,
+      });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update hotel_branding")) {
+      const [
+        logo_url,
+        icon_url,
+        primary_color,
+        secondary_color,
+        accent_color,
+        background_color,
+        text_color,
+        font_family,
+        custom_css_json,
+        updated_at,
+        hotel_id,
+      ] = params;
+      const branding = this.data.branding.find((entry) => entry.hotel_id === hotel_id);
+      if (!branding) return d1Result(0);
+      Object.assign(branding, {
+        logo_url,
+        icon_url,
+        primary_color,
+        secondary_color,
+        accent_color,
+        background_color,
+        text_color,
+        font_family,
+        custom_css_json,
+        updated_at,
+      });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("insert into hotel_settings")) {
+      const [id, hotel_id, setting_key, setting_value, value_type, is_public, created_at, updated_at] = params;
+      const existing = this.data.settings.find((entry) => entry.hotel_id === hotel_id && entry.setting_key === setting_key);
+      if (existing) {
+        Object.assign(existing, { setting_value, value_type, is_public, updated_at });
+      } else {
+        this.data.settings.push({ id, hotel_id, setting_key, setting_value, value_type, is_public, created_at, updated_at });
+      }
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("insert into hotel_modules")) {
+      const [
+        hotel_id,
+        module_key,
+        enabled,
+        is_public,
+        public_name,
+        navigation_label,
+        sort_order,
+        created_at,
+        updated_at,
+      ] = params;
+      const existing = this.data.hotelModules.find((entry) => entry.hotel_id === hotel_id && entry.module_key === module_key);
+      if (existing) {
+        Object.assign(existing, { enabled, is_public, public_name, navigation_label, sort_order, updated_at });
+      } else {
+        this.data.hotelModules.push({
+          hotel_id,
+          module_key,
+          enabled,
+          is_public,
+          public_name,
+          navigation_label,
+          sort_order,
+          settings_json: "{}",
+          created_at,
+          updated_at,
+        });
+      }
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("insert into navigation_items")) {
+      const [id, hotel_id, module_key, label, path, icon_key, sort_order, is_public, enabled, created_at, updated_at] = params;
+      this.data.navigation.push({
+        id,
+        hotel_id,
+        module_key,
+        label,
+        path,
+        icon_key,
+        sort_order,
+        is_public,
+        enabled,
+        created_at,
+        updated_at,
+      });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update navigation_items") && normalized.includes("set module_key = ?")) {
+      const [module_key, label, path, icon_key, sort_order, is_public, enabled, updated_at, id, hotel_id] = params;
+      const item = this.data.navigation.find((entry) => entry.id === id && entry.hotel_id === hotel_id);
+      if (!item) return d1Result(0);
+      Object.assign(item, { module_key, label, path, icon_key, sort_order, is_public, enabled, updated_at });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update navigation_items") && normalized.includes("set enabled = 0")) {
+      const [updated_at, id, hotel_id] = params;
+      const item = this.data.navigation.find((entry) => entry.id === id && entry.hotel_id === hotel_id);
+      if (!item) return d1Result(0);
+      item.enabled = 0;
+      item.updated_at = updated_at;
       return d1Result(1);
     }
 
