@@ -380,6 +380,7 @@ class MockD1Database {
     this.data = data;
     this.failNextBatch = false;
     this.failNextMediaAssetInsert = false;
+    this.failNextAdminHotelAccessInsert = false;
     this.adminStatusBatchDelayMs = 0;
   }
 
@@ -560,11 +561,11 @@ class MockD1Database {
     }
 
     if (normalized.includes("from media_assets") && normalized.includes("and (hotel_id = ? or hotel_id is null)")) {
-      const [assetId, hotelId] = params;
+      const [assetRef, publicUrlRef, hotelId] = params;
       return (
         this.data.mediaAssets.find(
           (entry) =>
-            entry.id === assetId &&
+            (entry.id === assetRef || entry.public_url === publicUrlRef) &&
             entry.status === "active" &&
             ["r2", "static"].includes(entry.storage_provider) &&
             (entry.hotel_id === hotelId || entry.hotel_id == null),
@@ -703,7 +704,7 @@ class MockD1Database {
       return this.data.adminHotelAccess
         .filter((entry) => entry.user_id === userId)
         .map((entry) => {
-          const hotel = this.data.hotels.find((hotelRow) => hotelRow.id === entry.hotel_id && hotelRow.status === "active");
+          const hotel = this.data.hotels.find((hotelRow) => hotelRow.id === entry.hotel_id && hotelRow.archived_at == null);
           return hotel
             ? {
                 hotel_id: hotel.id,
@@ -1073,6 +1074,22 @@ class MockD1Database {
       return d1Result(1);
     }
 
+    if (normalized.startsWith("insert into admin_hotel_access")) {
+      if (this.failNextAdminHotelAccessInsert) {
+        this.failNextAdminHotelAccessInsert = false;
+        throw new Error("admin hotel access insert failed");
+      }
+      const [user_id, hotel_id, created_at, updated_at] = params;
+      this.data.adminHotelAccess.push({
+        user_id,
+        hotel_id,
+        access_level: "manager",
+        created_at,
+        updated_at,
+      });
+      return d1Result(1);
+    }
+
     if (normalized.startsWith("update admin_sessions")) {
       let changes = 0;
       const [revoked_at, token_hash] = params;
@@ -1303,6 +1320,21 @@ class MockD1Database {
           actor_user_id,
           action,
           entity_type: "media_asset",
+          entity_id,
+          metadata_json,
+          created_at,
+        });
+        return d1Result(1);
+      }
+      if (normalized.includes("'hotel'")) {
+        const [id, hotel_id, module_key, actor_user_id, action, entity_id, metadata_json, created_at] = params;
+        this.data.adminAuditLog.push({
+          id,
+          hotel_id,
+          module_key,
+          actor_user_id,
+          action,
+          entity_type: "hotel",
           entity_id,
           metadata_json,
           created_at,

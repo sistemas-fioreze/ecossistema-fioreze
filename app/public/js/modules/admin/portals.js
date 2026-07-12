@@ -344,8 +344,12 @@ async function openExistingUnit(hotelId) {
 function renderUnitEditor() {
   els.unitEditorTitle.textContent = currentUnit.hotel_id ? currentUnit.name : "Nova unidade";
   els.unitEditorCrumb.textContent = currentUnit.slug || "Nova unidade";
+  if (!currentUnit.hotel_id && activeUnitTab !== "general") activeUnitTab = "general";
   updateDirtyState();
   for (const button of els.unitEditorForm.querySelectorAll("[data-unit-tab]")) {
+    const blocked = isNewUnitBlockedTab(button.dataset.unitTab);
+    button.disabled = blocked;
+    button.setAttribute("aria-disabled", String(blocked));
     button.setAttribute("aria-selected", String(button.dataset.unitTab === activeUnitTab));
   }
   for (const panel of els.unitEditorForm.querySelectorAll("[data-tab-panel]")) {
@@ -356,6 +360,7 @@ function renderUnitEditor() {
 }
 
 function renderTabPanels() {
+  const blockedMessage = '<div class="admin-empty">Salve os dados gerais para continuar.</div>';
   panel("general").innerHTML = `
     ${field("Nome oficial", "name", currentUnit.name, "text", "Hotel Fioreze Demo")}
     ${field("Nome curto", "short_name", currentUnit.short_name, "text", "Fioreze Demo")}
@@ -371,7 +376,9 @@ function renderTabPanels() {
     ${field("Inauguracao", "general.opened_at", setting("general.opened_at"), "date")}
     <button type="button" class="admin-copy-button" data-copy-slug>Copiar slug e URL</button>
   `;
-  panel("branding").innerHTML = `
+  panel("branding").innerHTML = isNewUnitBlockedTab("branding")
+    ? blockedMessage
+    : `
     <div class="admin-form-grid">
       ${colorField("Cor primaria", "primary_color")}
       ${colorField("Cor secundaria", "secondary_color")}
@@ -387,7 +394,9 @@ function renderTabPanels() {
     </div>
     ${field("Fonte", "font_family", currentUnit.branding?.font_family || "Effra, Inter, system-ui, sans-serif")}
   `;
-  panel("contact").innerHTML = `
+  panel("contact").innerHTML = isNewUnitBlockedTab("contact")
+    ? blockedMessage
+    : `
     <div class="admin-form-grid">
       ${field("Endereco", "contact.address", setting("contact.address"))}
       ${field("Numero", "contact.number", setting("contact.number"))}
@@ -406,7 +415,9 @@ function renderTabPanels() {
       ${field("Google Maps ou Place", "contact.maps_url", setting("contact.maps_url"))}
     </div>
   `;
-  panel("hosting").innerHTML = `
+  panel("hosting").innerHTML = isNewUnitBlockedTab("hosting")
+    ? blockedMessage
+    : `
     <div class="admin-form-grid">
       ${field("Check-in", "hosting.check_in", setting("hosting.check_in"), "time")}
       ${field("Check-out", "hosting.check_out", setting("hosting.check_out"), "time")}
@@ -428,7 +439,9 @@ function renderTabPanels() {
     <div class="admin-navigation-list">${currentNavigation.map(renderNavigationItem).join("") || '<div class="admin-empty">Nenhum item cadastrado.</div>'}</div>
     ${currentUnit.hotel_id ? renderNavigationComposer() : ""}
   `;
-  panel("seo").innerHTML = `
+  panel("seo").innerHTML = isNewUnitBlockedTab("seo")
+    ? blockedMessage
+    : `
     ${field("Titulo do portal", "seo.title", setting("seo.title"))}
     ${textarea("Descricao para buscadores", "seo.description")}
     ${mediaPicker("seo.social_image_asset_id", "Imagem social")}
@@ -441,6 +454,10 @@ function renderTabPanels() {
 function handleUnitEditorClick(event) {
   const tab = event.target.closest("[data-unit-tab]");
   if (tab) {
+    if (isNewUnitBlockedTab(tab.dataset.unitTab)) {
+      setMessage("Salve os dados gerais para continuar.");
+      return;
+    }
     activeUnitTab = tab.dataset.unitTab;
     renderUnitEditor();
     return;
@@ -549,7 +566,11 @@ async function saveBranding() {
     ...mediaFields,
   ]) {
     const value = inputValue(fieldName);
-    if (value) body[fieldName] = value;
+    if (mediaFields.includes(fieldName)) {
+      body[fieldName] = value;
+    } else if (value) {
+      body[fieldName] = value;
+    }
   }
   if (Object.keys(body).length) {
     await adminApi(`/api/v1/admin/hotels/${encodeURIComponent(currentUnit.hotel_id)}/branding`, {
@@ -905,6 +926,10 @@ function inputValue(name) {
 function setInputValue(name, value) {
   const input = els.unitEditorForm.elements[name];
   if (input) input.value = value || "";
+}
+
+function isNewUnitBlockedTab(tab) {
+  return !currentUnit?.hotel_id && !["general", "modules", "navigation"].includes(tab);
 }
 
 function setMessage(message) {

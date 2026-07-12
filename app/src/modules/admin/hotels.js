@@ -78,7 +78,23 @@ const BRANDING_MEDIA_FIELDS = new Set([
   "cover_image_url",
   "social_image_url",
 ]);
-const SAFE_ICONS = new Set(["home", "utensils", "shopping-bag", "sparkles", "calendar", "map-pin", "image", "info", "phone"]);
+const SAFE_ICONS = new Set([
+  "home",
+  "utensils",
+  "shopping-bag",
+  "sparkles",
+  "calendar",
+  "map-pin",
+  "image",
+  "info",
+  "phone",
+  "guest-portal",
+  "room-service",
+  "emporio",
+  "spa",
+  "romantic-packages",
+  "admin",
+]);
 
 export async function listAdminHotels({ env, session, url }) {
   requirePermission(session, HOTELS_READ_PERMISSION);
@@ -157,6 +173,12 @@ export async function createAdminHotel({ request, env, session }) {
                'Effra, Inter, system-ui, sans-serif', ?, ?)`,
       [hotelId, JSON.stringify(defaultBrandingJson()), now],
     ),
+    statement(
+      env,
+      `INSERT INTO admin_hotel_access (user_id, hotel_id, access_level, created_at, updated_at)
+       VALUES (?, ?, 'manager', ?, ?)`,
+      [session.user.id, hotelId, now, now],
+    ),
     auditStatement(env, {
       hotelId,
       actorUserId: session.user.id,
@@ -191,7 +213,7 @@ export async function createAdminHotel({ request, env, session }) {
         access_level: null,
         active_module_count: 0,
       }),
-      access_pending: true,
+      access_pending: false,
     },
   };
 }
@@ -538,8 +560,12 @@ export async function updateAdminHotelNavigation({ request, env, session, hotelI
   const current = await loadNavigationItem(env, hotelId, itemId);
   if (!current) throw notFoundError("Item de navegacao nao encontrado.");
   const payload = await readJson(request);
-  const item = await validateNavigationPayload(env, { ...current, ...payload }, { partial: false });
-  const changedFields = Object.keys(payload).filter((key) => key in item);
+  rejectUnknown(payload, NAVIGATION_MUTABLE_FIELDS);
+  const currentEditable = projectNavigationEditable(current);
+  const item = await validateNavigationPayload(env, { ...currentEditable, ...payload }, { partial: false, reject: false });
+  const changedFields = diffFields(currentEditable, item, [...NAVIGATION_MUTABLE_FIELDS]).filter((key) =>
+    Object.hasOwn(payload, key),
+  );
   const now = requestNow({ request, env });
   await batch(env, [
     statement(
@@ -659,19 +685,18 @@ async function loadNavigationItem(env, hotelId, itemId) {
 }
 
 async function validateMediaSelection(env, hotelId, value) {
-  const assetId = optionalString(value, "media_asset", { max: 160 });
-  if (!assetId) return null;
-  if (assetId.startsWith("/assets/")) return assetId;
+  const assetRef = optionalString(value, "media_asset", { max: 260 });
+  if (!assetRef) return null;
   const asset = await first(
     env,
-    `SELECT id, hotel_id, storage_provider, public_url, status
+     `SELECT id, hotel_id, storage_provider, public_url, status
        FROM media_assets
-      WHERE id = ?
+      WHERE (id = ? OR public_url = ?)
         AND status = 'active'
         AND storage_provider IN ('r2', 'static')
         AND (hotel_id = ? OR hotel_id IS NULL)
       LIMIT 1`,
-    [assetId, hotelId],
+    [assetRef, assetRef, hotelId],
   );
   if (!asset) throw badRequest("Midia selecionada invalida.");
   return asset.public_url;
@@ -842,9 +867,10 @@ function validateSafeUrl(value) {
   if (!["https:", "http:"].includes(parsed.protocol)) throw badRequest("URL com esquema inseguro.");
 }
 
-async function validateNavigationPayload(env, payload, { partial }) {
-  const allowed = new Set(["module_key", "label", "path", "icon_key", "sort_order", "is_public", "enabled"]);
-  rejectUnknown(payload, allowed);
+const NAVIGATION_MUTABLE_FIELDS = new Set(["module_key", "label", "path", "icon_key", "sort_order", "is_public", "enabled"]);
+
+async function validateNavigationPayload(env, payload, { partial, reject = true }) {
+  if (reject) rejectUnknown(payload, NAVIGATION_MUTABLE_FIELDS);
   const required = partial ? optionalString : requireString;
   const moduleKey = validateModuleKey(required(payload.module_key, "module_key", { max: 80 }));
   const moduleExists = await first(env, "SELECT module_key FROM modules WHERE module_key = ? LIMIT 1", [moduleKey]);
@@ -862,6 +888,18 @@ async function validateNavigationPayload(env, payload, { partial }) {
     sort_order: validateSortOrder(payload.sort_order ?? 100),
     is_public: Object.hasOwn(payload, "is_public") ? toBooleanInteger(payload.is_public) : 1,
     enabled: Object.hasOwn(payload, "enabled") ? toBooleanInteger(payload.enabled) : 1,
+  };
+}
+
+function projectNavigationEditable(item) {
+  return {
+    module_key: item.module_key,
+    label: item.label,
+    path: item.path,
+    icon_key: item.icon_key,
+    sort_order: item.sort_order,
+    is_public: item.is_public,
+    enabled: item.enabled,
   };
 }
 

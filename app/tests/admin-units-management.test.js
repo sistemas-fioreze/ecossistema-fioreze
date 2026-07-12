@@ -88,7 +88,68 @@ test("criacao de unidade valida slug, ignora hotel_id do cliente e registra audi
   assert.equal(valid.response.status, 200);
   assert.equal(valid.body.data.hotel.hotel_id, "demo-norte");
   assert.equal(valid.body.data.hotel.status, "inactive");
+  assert.equal(valid.body.data.hotel.access_pending, false);
+  assert.deepEqual(
+    env.__data.adminHotelAccess
+      .filter((entry) => entry.hotel_id === "demo-norte")
+      .map((entry) => `${entry.user_id}:${entry.access_level}`),
+    ["user-demo-admin:manager"],
+  );
   assert.equal(env.__data.adminAuditLog.at(-1).action, "hotel.create");
+});
+
+test("criador acessa nova unidade imediatamente sem liberar outros usuarios", async () => {
+  const { json, env } = createWorkerTestContext();
+  grantPermissions(env);
+  const creatorCookie = await createSessionCookie(env);
+
+  const created = await json("/api/v1/admin/hotels", withCookie(creatorCookie, adminJson("POST", unitPayload({ slug: "demo-serra" }))));
+  const freshCreatorCookie = await createSessionCookie(env);
+  const otherCookie = await createSessionCookie(env, AURORA_USER_ID);
+  const list = await json("/api/v1/admin/hotels", withCookie(freshCreatorCookie));
+  const detail = await json("/api/v1/admin/hotels/demo-serra", withCookie(freshCreatorCookie));
+  const branding = await json(
+    "/api/v1/admin/hotels/demo-serra/branding",
+    withCookie(freshCreatorCookie, adminJson("PATCH", { primary_color: "#334455" })),
+  );
+  const settings = await json(
+    "/api/v1/admin/hotels/demo-serra/settings",
+    withCookie(freshCreatorCookie, adminJson("PATCH", { "contact.city": "Cidade Ficticia" })),
+  );
+  const modules = await json(
+    "/api/v1/admin/hotels/demo-serra/modules",
+    withCookie(freshCreatorCookie, adminJson("PATCH", { modules: [{ module_key: "guest-portal", enabled: true }] })),
+  );
+  const navigation = await json(
+    "/api/v1/admin/hotels/demo-serra/navigation",
+    withCookie(freshCreatorCookie, adminJson("POST", { module_key: "guest-portal", label: "Inicio", path: "/demo-serra" })),
+  );
+  const otherDetail = await json("/api/v1/admin/hotels/demo-serra", withCookie(otherCookie));
+
+  assert.equal(created.response.status, 200);
+  assert.equal(list.body.data.hotels.some((hotel) => hotel.hotel_id === "demo-serra"), true);
+  assert.equal(detail.response.status, 200);
+  assert.equal(branding.response.status, 200);
+  assert.equal(settings.response.status, 200);
+  assert.equal(modules.response.status, 200);
+  assert.equal(navigation.response.status, 200);
+  assert.equal(otherDetail.response.status, 401);
+  assert.equal(env.__data.adminHotelAccess.filter((entry) => entry.hotel_id === "demo-serra").length, 1);
+});
+
+test("falha atomica na criacao nao deixa unidade orfa", async () => {
+  const { json, env } = createWorkerTestContext();
+  grantPermissions(env);
+  const cookie = await createSessionCookie(env);
+  env.DB.failNextAdminHotelAccessInsert = true;
+
+  const failed = await json("/api/v1/admin/hotels", withCookie(cookie, adminJson("POST", unitPayload({ slug: "demo-falha" }))));
+
+  assert.equal(failed.response.status, 500);
+  assert.equal(env.__data.hotels.some((hotel) => hotel.id === "demo-falha"), false);
+  assert.equal(env.__data.branding.some((branding) => branding.hotel_id === "demo-falha"), false);
+  assert.equal(env.__data.adminHotelAccess.some((access) => access.hotel_id === "demo-falha"), false);
+  assert.equal(env.__data.adminAuditLog.some((entry) => entry.entity_id === "demo-falha"), false);
 });
 
 test("slug duplicado e slug reservado sao rejeitados", async () => {
@@ -174,6 +235,81 @@ test("branding valida cores e midia ativa do hotel", async () => {
   assert.equal(env.__data.adminAuditLog.at(-1).action, "hotel.branding.update");
 });
 
+test("branding faz round-trip por public_url e remove referencias sem excluir midia", async () => {
+  const { json, env } = createWorkerTestContext();
+  grantPermissions(env);
+  const cookie = await createSessionCookie(env);
+  env.__data.mediaAssets.push({
+    id: "media-aurora-private",
+    hotel_id: "aurora-demo",
+    module_key: null,
+    storage_provider: "r2",
+    object_key: "hotels/aurora-demo/shared/2026/07/private.png",
+    public_url: "/media/media-aurora-private",
+    alt_text: "Imagem de outro hotel",
+    mime_type: "image/png",
+    status: "active",
+    created_at: "2026-07-04T00:00:00.000Z",
+    updated_at: "2026-07-04T00:00:00.000Z",
+  });
+
+  const byId = await json(
+    "/api/v1/admin/hotels/muller-fioreze/branding",
+    withCookie(
+      cookie,
+      adminJson("PATCH", {
+        logo_url: "media-muller-logo",
+        icon_url: "media-muller-logo",
+        horizontal_logo_url: "media-muller-logo",
+        favicon_url: "media-muller-logo",
+        cover_image_url: "media-muller-logo",
+        social_image_url: "media-muller-logo",
+      }),
+    ),
+  );
+  const detailAfterId = await json("/api/v1/admin/hotels/muller-fioreze/branding", withCookie(cookie));
+  const byPublicUrl = await json(
+    "/api/v1/admin/hotels/muller-fioreze/branding",
+    withCookie(cookie, adminJson("PATCH", { logo_url: detailAfterId.body.data.branding.logo_url })),
+  );
+  const otherHotel = await json(
+    "/api/v1/admin/hotels/muller-fioreze/branding",
+    withCookie(cookie, adminJson("PATCH", { logo_url: "media-aurora-private" })),
+  );
+  const arbitraryAssetPath = await json(
+    "/api/v1/admin/hotels/muller-fioreze/branding",
+    withCookie(cookie, adminJson("PATCH", { logo_url: "/assets/hotels/muller-fioreze/nao-registrado.png" })),
+  );
+  const removed = await json(
+    "/api/v1/admin/hotels/muller-fioreze/branding",
+    withCookie(
+      cookie,
+      adminJson("PATCH", {
+        logo_url: "",
+        icon_url: "",
+        horizontal_logo_url: "",
+        favicon_url: "",
+        cover_image_url: "",
+        social_image_url: "",
+      }),
+    ),
+  );
+
+  assert.equal(byId.response.status, 200);
+  assert.equal(detailAfterId.body.data.branding.logo_url, "/assets/hotels/muller-fioreze/logo.png");
+  assert.equal(byPublicUrl.response.status, 200);
+  assert.equal(otherHotel.response.status, 400);
+  assert.equal(arbitraryAssetPath.response.status, 400);
+  assert.equal(removed.response.status, 200);
+  assert.equal(removed.body.data.branding.logo_url, null);
+  assert.equal(removed.body.data.branding.icon_url, null);
+  assert.equal(removed.body.data.branding.horizontal_logo_url, null);
+  assert.equal(removed.body.data.branding.favicon_url, null);
+  assert.equal(removed.body.data.branding.cover_image_url, null);
+  assert.equal(removed.body.data.branding.social_image_url, null);
+  assert.equal(env.__data.mediaAssets.find((asset) => asset.id === "media-muller-logo").status, "active");
+});
+
 test("settings valida texto seguro, horarios, email e URLs", async () => {
   const { json, env } = createWorkerTestContext();
   grantPermissions(env);
@@ -253,6 +389,60 @@ test("navegacao cria, ordena e bloqueia URL insegura", async () => {
   assert.equal(created.response.status, 200);
   assert.equal(list.body.data.navigation.some((entry) => entry.label === "Eventos"), true);
   assert.equal(env.__data.adminAuditLog.at(-1).action, "hotel.navigation.create");
+});
+
+test("navegacao aceita PATCH parcial e audita somente campos alterados", async () => {
+  const { json, env } = createWorkerTestContext();
+  grantPermissions(env);
+  const cookie = await createSessionCookie(env);
+  const item = env.__data.navigation.find((entry) => entry.hotel_id === "muller-fioreze" && entry.module_key === "guest-portal");
+  const otherHotelItem = env.__data.navigation.find((entry) => entry.hotel_id === "aurora-demo");
+
+  const label = await json(
+    `/api/v1/admin/hotels/muller-fioreze/navigation/${item.id}`,
+    withCookie(cookie, adminJson("PATCH", { label: "Boas-vindas" })),
+  );
+  const path = await json(
+    `/api/v1/admin/hotels/muller-fioreze/navigation/${item.id}`,
+    withCookie(cookie, adminJson("PATCH", { path: "/muller-fioreze/boas-vindas" })),
+  );
+  const order = await json(
+    `/api/v1/admin/hotels/muller-fioreze/navigation/${item.id}`,
+    withCookie(cookie, adminJson("PATCH", { sort_order: 88 })),
+  );
+  const partial = await json(
+    `/api/v1/admin/hotels/muller-fioreze/navigation/${item.id}`,
+    withCookie(cookie, adminJson("PATCH", { enabled: false })),
+  );
+  const unknown = await json(
+    `/api/v1/admin/hotels/muller-fioreze/navigation/${item.id}`,
+    withCookie(cookie, adminJson("PATCH", { hotel_id: "muller-fioreze" })),
+  );
+  const missingModule = await json(
+    `/api/v1/admin/hotels/muller-fioreze/navigation/${item.id}`,
+    withCookie(cookie, adminJson("PATCH", { module_key: "modulo-inexistente" })),
+  );
+  const unsafe = await json(
+    `/api/v1/admin/hotels/muller-fioreze/navigation/${item.id}`,
+    withCookie(cookie, adminJson("PATCH", { path: "javascript:alert(1)" })),
+  );
+  const otherHotel = await json(
+    `/api/v1/admin/hotels/muller-fioreze/navigation/${otherHotelItem.id}`,
+    withCookie(cookie, adminJson("PATCH", { label: "Nao pode" })),
+  );
+
+  assert.equal(label.response.status, 200);
+  assert.equal(path.response.status, 200);
+  assert.equal(order.response.status, 200);
+  assert.equal(partial.response.status, 200);
+  assert.equal(partial.body.data.item.enabled, false);
+  assert.equal(unknown.response.status, 400);
+  assert.equal(missingModule.response.status, 400);
+  assert.equal(unsafe.response.status, 400);
+  assert.equal(otherHotel.response.status, 404);
+  const lastAudit = env.__data.adminAuditLog.at(-1);
+  assert.equal(lastAudit.action, "hotel.navigation.update");
+  assert.deepEqual(JSON.parse(lastAudit.metadata_json).changed_fields, ["enabled"]);
 });
 
 test("arquivamento de navegacao desabilita sem apagar", async () => {
