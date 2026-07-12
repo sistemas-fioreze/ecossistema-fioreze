@@ -7,6 +7,7 @@ import {
   getAdminHotel,
   getAdminHotelBranding,
   getAdminHotelSettings,
+  getAdminHotelEmbed,
   listAdminHotelModules,
   listAdminHotelNavigation,
   listAdminHotels,
@@ -15,6 +16,7 @@ import {
   updateAdminHotelModules,
   updateAdminHotelNavigation,
   updateAdminHotelSettings,
+  updateAdminHotelEmbed,
 } from "./hotels.js";
 import { archiveAdminMedia, getAdminMedia, listAdminMedia, updateAdminMedia, uploadAdminMedia } from "./media.js";
 import { getAdminOrder, listAdminHotels as listOrderHotels, listAdminOrders, updateAdminOrderStatus } from "./orders.js";
@@ -80,6 +82,16 @@ export function registerAdminRoutes(router) {
   router.patch("/api/v1/admin/hotels/:id/settings", async ({ request, env, params }) => {
     const session = await requireAuthentication({ request, env });
     return ok(await updateAdminHotelSettings({ request, env, session, hotelId: params.id }));
+  });
+
+  router.get("/api/v1/admin/hotels/:id/embed", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await getAdminHotelEmbed({ env, session, hotelId: params.id }));
+  });
+
+  router.patch("/api/v1/admin/hotels/:id/embed", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await updateAdminHotelEmbed({ request, env, session, hotelId: params.id }));
   });
 
   router.get("/api/v1/admin/hotels/:id/modules", async ({ request, env, params }) => {

@@ -7,6 +7,8 @@ import {
   PORTALS_HOTELS_NAVIGATION_PERMISSION,
   PORTALS_HOTELS_SETTINGS_PERMISSION,
   PORTALS_HOTELS_UPDATE_PERMISSION,
+  PORTALS_EMBED_READ_PERMISSION,
+  PORTALS_EMBED_UPDATE_PERMISSION,
   PORTALS_MEDIA_ARCHIVE_PERMISSION,
   PORTALS_MEDIA_UPDATE_PERMISSION,
   PORTALS_MEDIA_UPLOAD_PERMISSION,
@@ -113,6 +115,7 @@ let currentUnits = [];
 let currentUnit = null;
 let currentModules = [];
 let currentNavigation = [];
+let currentEmbed = null;
 let activeUnitTab = "general";
 let dirty = false;
 
@@ -322,7 +325,7 @@ async function openExistingUnit(hotelId) {
   els.unitEditorView.hidden = false;
   els.unitEditorTitle.textContent = "Carregando unidade...";
   try {
-    const [hotel, modules, navigation] = await Promise.all([
+    const [hotel, modules, navigation, embed] = await Promise.all([
       adminApi(`/api/v1/admin/hotels/${encodeURIComponent(hotelId)}`),
       hasPermission(currentSession, PORTALS_HOTELS_MODULES_PERMISSION)
         ? adminApi(`/api/v1/admin/hotels/${encodeURIComponent(hotelId)}/modules`)
@@ -330,10 +333,14 @@ async function openExistingUnit(hotelId) {
       hasPermission(currentSession, PORTALS_HOTELS_NAVIGATION_PERMISSION)
         ? adminApi(`/api/v1/admin/hotels/${encodeURIComponent(hotelId)}/navigation`)
         : Promise.resolve({ data: { navigation: [] } }),
+      hasPermission(currentSession, PORTALS_EMBED_READ_PERMISSION)
+        ? adminApi(`/api/v1/admin/hotels/${encodeURIComponent(hotelId)}/embed`)
+        : Promise.resolve({ data: { embed: null, modules: [] } }),
     ]);
     currentUnit = hotel.data.hotel;
     currentModules = modules.data.modules || [];
     currentNavigation = navigation.data.navigation || [];
+    currentEmbed = embed.data;
     dirty = false;
     renderUnitEditor();
   } catch (error) {
@@ -439,6 +446,9 @@ function renderTabPanels() {
     <div class="admin-navigation-list">${currentNavigation.map(renderNavigationItem).join("") || '<div class="admin-empty">Nenhum item cadastrado.</div>'}</div>
     ${currentUnit.hotel_id ? renderNavigationComposer() : ""}
   `;
+  panel("embed").innerHTML = isNewUnitBlockedTab("embed")
+    ? blockedMessage
+    : renderEmbedPanel();
   panel("seo").innerHTML = isNewUnitBlockedTab("seo")
     ? blockedMessage
     : `
@@ -485,6 +495,10 @@ function handleUnitEditorClick(event) {
   }
   const navButton = event.target.closest("[data-nav-action]");
   if (navButton) handleNavigationAction(navButton);
+  const copyEmbed = event.target.closest("[data-copy-embed]");
+  if (copyEmbed) {
+    copyEmbedSnippet(copyEmbed.dataset.copyEmbed);
+  }
 }
 
 async function openMediaSelector(fieldName) {
@@ -526,6 +540,7 @@ async function saveCurrentUnit() {
       await saveBranding();
       await saveSettings();
       await saveModules();
+      await saveEmbed();
     }
     dirty = false;
     setMessage("Unidade salva com sucesso.");
@@ -608,6 +623,28 @@ async function saveModules() {
   await adminApi(`/api/v1/admin/hotels/${encodeURIComponent(currentUnit.hotel_id)}/modules`, {
     method: "PATCH",
     body: { modules },
+  });
+}
+
+async function saveEmbed() {
+  if (!hasPermission(currentSession, PORTALS_EMBED_UPDATE_PERMISSION) || !currentUnit.hotel_id) return;
+  const modules = [...els.unitEditorForm.querySelectorAll("[name='embed.module']:checked")].map((input) => input.value);
+  const body = {
+    enabled: Boolean(els.unitEditorForm.elements["embed.enabled"]?.checked),
+    allowed_origins: inputValue("embed.allowed_origins")
+      .split(/\n/)
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+    allowed_modules: modules,
+    default_theme: inputValue("embed.default_theme") || "light",
+    default_background: inputValue("embed.default_background") || "default",
+    header: inputValue("embed.header") || "visible",
+    initial_height: Number(inputValue("embed.initial_height") || 520),
+    compact: Boolean(els.unitEditorForm.elements["embed.compact"]?.checked),
+  };
+  await adminApi(`/api/v1/admin/hotels/${encodeURIComponent(currentUnit.hotel_id)}/embed`, {
+    method: "PATCH",
+    body,
   });
 }
 
@@ -849,6 +886,67 @@ function renderNavigationComposer() {
       <button class="admin-primary-button" type="button" data-nav-action="create">Criar item</button>
     </div>
   `;
+}
+
+function renderEmbedPanel() {
+  if (!hasPermission(currentSession, PORTALS_EMBED_READ_PERMISSION)) {
+    return '<div class="admin-empty">Seu usuario nao possui permissao para visualizar incorporacao.</div>';
+  }
+  const embed = currentEmbed?.embed || {};
+  const modules = currentEmbed?.modules || currentModules.filter((moduleRow) => moduleRow.enabled && moduleRow.is_public);
+  const selected = new Set(embed.allowed_modules || []);
+  const defaultModule = selected.has("room-service") ? "room-service" : modules[0]?.module_key || "guest-portal";
+  const baseUrl = `${window.location.origin}/embed/${currentUnit.slug}/${defaultModule}/`;
+  const fixed = `<iframe src="${baseUrl}" width="100%" height="${embed.initial_height || 520}" loading="lazy" style="border:0;width:100%;max-width:100%;"></iframe>`;
+  const autoHeight = `<iframe data-fioreze-embed data-fioreze-embed-id="fioreze-${currentUnit.slug}-${defaultModule}" src="${baseUrl}" width="100%" height="${embed.initial_height || 520}" loading="lazy" style="border:0;width:100%;max-width:100%;"></iframe>\n<script src="${window.location.origin}/embed/fioreze-embed.js" defer></script>`;
+  return `
+    <div class="admin-form-grid">
+      <label class="admin-field"><span>Permitir incorporacao</span><input name="embed.enabled" type="checkbox" ${embed.enabled ? "checked" : ""}></label>
+      ${selectField("Tema padrao", "embed.default_theme", embed.default_theme || "light", ["light", "auto"])}
+      ${selectField("Fundo padrao", "embed.default_background", embed.default_background || "default", ["default", "transparent"])}
+      ${selectField("Cabecalho", "embed.header", embed.header || "visible", ["visible", "hidden"])}
+      ${field("Altura inicial", "embed.initial_height", embed.initial_height || 520, "number")}
+      <label class="admin-field"><span>Compacto</span><input name="embed.compact" type="checkbox" ${embed.compact ? "checked" : ""}></label>
+    </div>
+    <label class="admin-field admin-field-wide">
+      <span>Dominios autorizados</span>
+      <textarea name="embed.allowed_origins" rows="4" placeholder="https://site-autorizado.example">${escapeHtml((embed.allowed_origins || []).join("\n"))}</textarea>
+      <small>Use origens completas HTTPS, sem caminho. Localhost e permitido apenas no desenvolvimento.</small>
+    </label>
+    <div class="admin-module-toggle">
+      <div>
+        <strong>Modulos incorporaveis</strong>
+        <span>Apenas modulos publicos e ativos podem ser selecionados.</span>
+      </div>
+      <div class="admin-embed-module-list">
+        ${modules
+          .map(
+            (moduleRow) =>
+              `<label><input name="embed.module" type="checkbox" value="${escapeAttr(moduleRow.module_key)}" ${selected.has(moduleRow.module_key) ? "checked" : ""}> ${escapeHtml(moduleRow.navigation_label || moduleRow.name || moduleRow.module_key)}</label>`,
+          )
+          .join("")}
+      </div>
+    </div>
+    <div class="admin-navigation-composer">
+      <strong>Preview</strong>
+      <iframe title="Preview de incorporacao" src="${escapeAttr(baseUrl)}" height="${escapeAttr(embed.initial_height || 520)}" loading="lazy"></iframe>
+    </div>
+    <div class="admin-navigation-composer">
+      <strong>Codigo para copiar</strong>
+      <textarea readonly rows="3">${escapeHtml(fixed)}</textarea>
+      <button type="button" data-copy-embed="fixed">Copiar iframe simples</button>
+      <textarea readonly rows="5">${escapeHtml(autoHeight)}</textarea>
+      <button type="button" data-copy-embed="auto">Copiar iframe com autoaltura</button>
+    </div>
+  `;
+}
+
+function copyEmbedSnippet(kind) {
+  const textareas = [...els.unitEditorForm.querySelectorAll('[data-tab-panel="embed"] textarea[readonly]')];
+  const value = kind === "auto" ? textareas[1]?.value : textareas[0]?.value;
+  if (!value) return;
+  navigator.clipboard?.writeText(value);
+  setMessage("Codigo de incorporacao copiado.");
 }
 
 function field(label, name, value = "", type = "text", help = "") {

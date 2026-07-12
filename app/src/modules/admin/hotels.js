@@ -4,6 +4,13 @@ import { createPublicId, isSafeIdentifier } from "../../core/identifiers.js";
 import { requestNow } from "../../core/time.js";
 import { optionalString, readJson, requireString } from "../../core/validation.js";
 import {
+  EMBED_READ_PERMISSION,
+  EMBED_UPDATE_PERMISSION,
+  embedSettingsToRows,
+  loadEmbedSettings,
+  validateEmbedAdminPayload,
+} from "../embed/public.js";
+import {
   assertAdminMutationAllowed,
   requireAdminHotelAccess,
   requirePermission,
@@ -16,6 +23,7 @@ export const HOTELS_BRANDING_PERMISSION = "portals.hotels.branding";
 export const HOTELS_SETTINGS_PERMISSION = "portals.hotels.settings";
 export const HOTELS_MODULES_PERMISSION = "portals.hotels.modules";
 export const HOTELS_NAVIGATION_PERMISSION = "portals.hotels.navigation";
+export { EMBED_READ_PERMISSION, EMBED_UPDATE_PERMISSION };
 
 const RESERVED_SLUGS = new Set(["admin", "api", "media", "assets", "css", "js", "favicon"]);
 const HOTEL_STATUSES = new Set(["active", "inactive", "archived"]);
@@ -428,6 +436,68 @@ export async function updateAdminHotelSettings({ request, env, session, hotelId 
   return { settings: await loadSettings(env, hotelId), changed_fields: changedFields };
 }
 
+export async function getAdminHotelEmbed({ env, session, hotelId }) {
+  requirePermission(session, EMBED_READ_PERMISSION);
+  requireAdminHotelAccess(session, hotelId);
+  await ensureHotelVisible(env, session, hotelId);
+  const [settings, modules] = await Promise.all([loadEmbedSettings(env, hotelId), listEmbeddableModules(env, hotelId)]);
+  return { embed: settings, modules };
+}
+
+export async function updateAdminHotelEmbed({ request, env, session, hotelId }) {
+  requirePermission(session, EMBED_UPDATE_PERMISSION);
+  assertAdminMutationAllowed({ request });
+  requireAdminHotelAccess(session, hotelId);
+  await ensureHotelVisible(env, session, hotelId);
+  const payload = await readJson(request);
+  const normalized = validateEmbedAdminPayload(payload, env);
+  const entries = Object.keys(normalized);
+  if (!entries.length) return getAdminHotelEmbed({ env, session, hotelId });
+
+  if (normalized.allowed_modules) {
+    const publicModules = new Set((await listEmbeddableModules(env, hotelId)).map((moduleRow) => moduleRow.module_key));
+    const invalid = normalized.allowed_modules.filter((moduleKey) => !publicModules.has(moduleKey));
+    if (invalid.length) throw badRequest("Modulo nao publico ou inexistente para incorporacao.", { modules: invalid });
+  }
+
+  const now = requestNow({ request, env });
+  const rows = embedSettingsToRows(hotelId, normalized, now);
+  const statements = rows.map((row) =>
+    statement(
+      env,
+      `INSERT INTO hotel_settings (id, hotel_id, setting_key, setting_value, value_type, is_public, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(hotel_id, setting_key) DO UPDATE SET
+         setting_value = excluded.setting_value,
+         value_type = excluded.value_type,
+         is_public = excluded.is_public,
+         updated_at = excluded.updated_at`,
+      [
+        row.id,
+        row.hotel_id,
+        row.setting_key,
+        row.setting_value,
+        row.value_type,
+        row.is_public,
+        row.created_at,
+        row.updated_at,
+      ],
+    ),
+  );
+  statements.push(
+    auditStatement(env, {
+      hotelId,
+      actorUserId: session.user.id,
+      action: "hotel.embed.update",
+      entityId: hotelId,
+      metadata: { changed_fields: entries.map((entry) => `embed.${entry}`) },
+      createdAt: now,
+    }),
+  );
+  await batch(env, statements);
+  return { ...(await getAdminHotelEmbed({ env, session, hotelId })), changed_fields: entries };
+}
+
 export async function listAdminHotelModules({ env, session, hotelId }) {
   requirePermission(session, HOTELS_MODULES_PERMISSION);
   requireAdminHotelAccess(session, hotelId);
@@ -444,6 +514,26 @@ export async function listAdminHotelModules({ env, session, hotelId }) {
     [hotelId],
   );
   return { modules: rows.map(formatHotelModule) };
+}
+
+async function listEmbeddableModules(env, hotelId) {
+  const rows = await all(
+    env,
+    `SELECT hm.module_key, COALESCE(hm.public_name, m.name) AS name, hm.navigation_label
+       FROM hotel_modules hm
+       JOIN modules m ON m.module_key = hm.module_key
+      WHERE hm.hotel_id = ?
+        AND hm.enabled = 1
+        AND hm.is_public = 1
+        AND hm.module_key <> 'admin'
+      ORDER BY hm.sort_order, hm.module_key`,
+    [hotelId],
+  );
+  return rows.map((row) => ({
+    module_key: row.module_key,
+    name: row.name || row.module_key,
+    navigation_label: row.navigation_label || row.name || row.module_key,
+  }));
 }
 
 export async function updateAdminHotelModules({ request, env, session, hotelId }) {

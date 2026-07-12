@@ -19,6 +19,14 @@ INSERT OR IGNORE INTO hotel_branding (hotel_id, logo_url, icon_url, primary_colo
 INSERT OR IGNORE INTO hotel_settings (id, hotel_id, setting_key, setting_value, value_type, is_public, created_at, updated_at) VALUES
   ('set-muller-rs-status', 'muller-fioreze', 'room_service.status', 'open', 'string', 1, '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
   ('set-muller-impression', 'muller-fioreze', 'room_service.impression_enabled', 'false', 'boolean', 0, '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
+  ('set-muller-embed-enabled', 'muller-fioreze', 'embed.enabled', 'true', 'boolean', 1, '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('set-muller-embed-origins', 'muller-fioreze', 'embed.allowed_origins', '[]', 'json', 1, '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('set-muller-embed-modules', 'muller-fioreze', 'embed.allowed_modules', '["guest-portal","room-service"]', 'json', 1, '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('set-muller-embed-theme', 'muller-fioreze', 'embed.default_theme', 'light', 'string', 1, '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('set-muller-embed-background', 'muller-fioreze', 'embed.default_background', 'default', 'string', 1, '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('set-muller-embed-header', 'muller-fioreze', 'embed.header', 'visible', 'string', 1, '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('set-muller-embed-height', 'muller-fioreze', 'embed.initial_height', '560', 'number', 1, '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('set-muller-embed-compact', 'muller-fioreze', 'embed.compact', 'false', 'boolean', 1, '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
   ('set-aurora-rs-status', 'aurora-demo', 'room_service.status', 'open', 'string', 1, '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z');
 
 INSERT OR IGNORE INTO hotel_modules (hotel_id, module_key, enabled, is_public, public_name, navigation_label, sort_order, settings_json, created_at, updated_at) VALUES
@@ -129,7 +137,9 @@ INSERT OR IGNORE INTO admin_permissions (id, permission_key, module_key, descrip
   ('perm-portals-hotels-branding', 'portals.hotels.branding', NULL, 'Editar identidade ficticia.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
   ('perm-portals-hotels-settings', 'portals.hotels.settings', NULL, 'Editar configuracoes ficticias.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
   ('perm-portals-hotels-modules', 'portals.hotels.modules', NULL, 'Gerenciar modulos ficticios.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
-  ('perm-portals-hotels-navigation', 'portals.hotels.navigation', NULL, 'Gerenciar navegacao ficticia.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z');
+  ('perm-portals-hotels-navigation', 'portals.hotels.navigation', NULL, 'Gerenciar navegacao ficticia.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('perm-portals-embed-read', 'portals.embed.read', NULL, 'Visualizar configuracao ficticia de incorporacao.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('perm-portals-embed-update', 'portals.embed.update', NULL, 'Editar configuracao ficticia de incorporacao.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z');
 
 INSERT INTO admin_users (id, display_name, email, password_hash, password_strategy, status, force_password_change, created_at, updated_at) VALUES
   ('user-demo-admin', 'Usuario Admin Demo', 'admin-demo@example.invalid', 'pbkdf2$sha256$100000$ZmlvcmV6ZS1hZG1pbi1kZW1vLXNhbHQtMjAyNg==$QPM6b/QnKHhfCwYXFU9kCd7KpgtlsLdGDELeiM9Ulgw=', 'pbkdf2', 'active', 0, '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z')
@@ -154,7 +164,9 @@ INSERT OR IGNORE INTO admin_role_permissions (role_id, permission_id, created_at
   ('role-demo-manager', 'perm-portals-hotels-branding', '2026-07-12T00:00:00.000Z'),
   ('role-demo-manager', 'perm-portals-hotels-settings', '2026-07-12T00:00:00.000Z'),
   ('role-demo-manager', 'perm-portals-hotels-modules', '2026-07-12T00:00:00.000Z'),
-  ('role-demo-manager', 'perm-portals-hotels-navigation', '2026-07-12T00:00:00.000Z');
+  ('role-demo-manager', 'perm-portals-hotels-navigation', '2026-07-12T00:00:00.000Z'),
+  ('role-demo-manager', 'perm-portals-embed-read', '2026-07-12T00:00:00.000Z'),
+  ('role-demo-manager', 'perm-portals-embed-update', '2026-07-12T00:00:00.000Z');
 
 INSERT OR IGNORE INTO admin_hotel_access (user_id, hotel_id, access_level, created_at, updated_at) VALUES
   ('user-demo-admin', 'muller-fioreze', 'manager', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z');
