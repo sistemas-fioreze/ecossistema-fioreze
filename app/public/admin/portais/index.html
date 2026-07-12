@@ -31,32 +31,124 @@
       </section>
 
       <section class="admin-dashboard" data-view="dashboard" hidden>
-        <header class="admin-topbar">
-          <div>
-            <a class="admin-back-link" href="/admin/">Voltar para sistemas</a>
-            <p class="eyebrow">Central administrativa</p>
-            <h1>Central de Portais Fioreze</h1>
-            <p class="admin-muted">Gerencie hoteis, experiencias digitais, conteudos e acessos.</p>
-          </div>
-          <div class="admin-session-box">
-            <span id="sessionUser"></span>
-            <button id="logoutButton" type="button">Sair</button>
-          </div>
-        </header>
+        <div class="admin-portal-layout">
+          <aside class="admin-portal-sidebar" aria-label="Navegacao da Central de Portais">
+            <a class="admin-back-link" href="/admin/">Voltar</a>
+            <div class="admin-sidebar-brand">
+              <div class="brand-mark" aria-hidden="true"></div>
+              <strong>Portais Fioreze</strong>
+              <span>Central administrativa</span>
+            </div>
+            <nav id="portalsNav" class="admin-sidebar-nav"></nav>
+          </aside>
 
-        <section id="portalsDenied" class="admin-access-denied" hidden>
-          <h2>Acesso nao disponivel</h2>
-          <p>Seu usuario ainda nao possui permissao para a Central de Portais.</p>
-          <a class="admin-secondary-link" href="/admin/">Voltar para sistemas</a>
-        </section>
+          <div class="admin-portal-main">
+            <header class="admin-topbar">
+              <div>
+                <p id="sectionEyebrow" class="eyebrow">Central administrativa</p>
+                <h1 id="sectionTitle">Central de Portais Fioreze</h1>
+                <p id="sectionSubtitle" class="admin-muted">Gerencie unidades, experiencias digitais, conteudos e identidade visual.</p>
+              </div>
+              <div class="admin-session-box">
+                <span id="sessionUser"></span>
+                <button id="logoutButton" type="button">Sair</button>
+              </div>
+            </header>
 
-        <section id="portalsContent" class="admin-launcher-panel" hidden>
-          <div class="admin-panel-heading">
-            <h2>Modulos da Central</h2>
-          </div>
-          <div id="portalsHome">
-            <div id="portalsModules" class="admin-module-grid" aria-label="Modulos da Central de Portais"></div>
-          </div>
+            <section id="portalsDenied" class="admin-access-denied" hidden>
+              <h2>Acesso nao disponivel</h2>
+              <p>Seu usuario ainda nao possui permissao para a Central de Portais.</p>
+              <a class="admin-secondary-link" href="/admin/">Voltar para sistemas</a>
+            </section>
+
+            <section id="portalsContent" class="admin-launcher-panel admin-portals-surface" hidden>
+              <div id="portalsHome">
+                <div class="admin-panel-heading">
+                  <div>
+                    <h2>Modulos da Central</h2>
+                    <p class="admin-muted">Acesse os produtos administrativos do ecossistema digital.</p>
+                  </div>
+                </div>
+                <div id="portalsModules" class="admin-module-grid admin-feature-grid" aria-label="Modulos da Central de Portais"></div>
+              </div>
+
+              <section id="unitsManager" class="admin-units-manager" hidden>
+                <div id="unitsListView">
+                  <div class="admin-panel-heading">
+                    <div>
+                      <p class="admin-breadcrumbs"><a href="/admin/portais/">Portais</a> / Unidades</p>
+                      <h2>Unidades</h2>
+                      <p class="admin-muted">Cadastre e mantenha as unidades que aparecem nos portais digitais.</p>
+                    </div>
+                    <button id="addUnitButton" class="admin-primary-button" type="button">Adicionar unidade</button>
+                  </div>
+                  <form id="unitFilters" class="admin-filters admin-unit-filters">
+                    <label>
+                      <span>Busca</span>
+                      <input id="unitSearch" type="search" placeholder="Nome, slug ou cidade">
+                    </label>
+                    <label>
+                      <span>Status</span>
+                      <select id="unitStatus">
+                        <option value="">Todos</option>
+                        <option value="active">Ativas</option>
+                        <option value="inactive">Inativas</option>
+                        <option value="archived">Arquivadas</option>
+                      </select>
+                    </label>
+                    <button type="submit">Filtrar</button>
+                  </form>
+                  <p id="unitsMessage" class="admin-muted" role="status" aria-live="polite"></p>
+                  <div id="unitsList" class="admin-units-list"></div>
+                </div>
+
+                <div id="unitEditorView" hidden>
+                  <div class="admin-panel-heading admin-sticky-heading">
+                    <div>
+                      <p class="admin-breadcrumbs"><a href="/admin/portais/unidades/">Unidades</a> / <span id="unitEditorCrumb">Editor</span></p>
+                      <h2 id="unitEditorTitle">Nova unidade</h2>
+                      <p id="unitDirtyState" class="admin-muted">Sem alteracoes pendentes.</p>
+                    </div>
+                    <div class="admin-toolbar-actions">
+                      <button id="backToUnitsButton" type="button">Voltar</button>
+                      <button id="saveUnitButton" class="admin-primary-button" type="button">Salvar</button>
+                    </div>
+                  </div>
+                  <div class="admin-editor-layout">
+                    <form id="unitEditorForm" class="admin-unit-form">
+                      <div class="admin-tabs" role="tablist" aria-label="Abas da unidade">
+                        <button type="button" data-unit-tab="general" aria-selected="true">Geral</button>
+                        <button type="button" data-unit-tab="branding">Identidade</button>
+                        <button type="button" data-unit-tab="contact">Contatos</button>
+                        <button type="button" data-unit-tab="hosting">Hospedagem</button>
+                        <button type="button" data-unit-tab="modules">Modulos</button>
+                        <button type="button" data-unit-tab="navigation">Navegacao</button>
+                        <button type="button" data-unit-tab="seo">SEO</button>
+                      </div>
+
+                      <section data-tab-panel="general" class="admin-tab-panel"></section>
+                      <section data-tab-panel="branding" class="admin-tab-panel" hidden></section>
+                      <section data-tab-panel="contact" class="admin-tab-panel" hidden></section>
+                      <section data-tab-panel="hosting" class="admin-tab-panel" hidden></section>
+                      <section data-tab-panel="modules" class="admin-tab-panel" hidden></section>
+                      <section data-tab-panel="navigation" class="admin-tab-panel" hidden></section>
+                      <section data-tab-panel="seo" class="admin-tab-panel" hidden></section>
+                    </form>
+                    <aside class="admin-live-preview">
+                      <div id="brandingPreview" class="admin-preview-card">
+                        <div class="admin-preview-header">
+                          <img id="previewLogo" alt="" hidden>
+                          <strong id="previewName">Unidade Fioreze</strong>
+                        </div>
+                        <h3>Seu portal, com a identidade da unidade.</h3>
+                        <p>Preview ao vivo de cores, logo, cartao e botao principal.</p>
+                        <button type="button">Botao principal</button>
+                        <div class="admin-preview-mini-card">Cartao de servico</div>
+                      </div>
+                    </aside>
+                  </div>
+                </div>
+              </section>
 
           <section id="mediaLibrary" class="admin-media-library" hidden>
             <div class="admin-panel-heading">
@@ -106,7 +198,9 @@
             <p id="mediaError" class="admin-error" role="alert" aria-live="polite"></p>
             <div id="mediaGrid" class="admin-media-grid" aria-live="polite"></div>
           </section>
-        </section>
+            </section>
+          </div>
+        </div>
       </section>
 
       <section class="admin-loading" data-view="loading">

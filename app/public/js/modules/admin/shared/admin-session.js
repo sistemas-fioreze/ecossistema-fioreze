@@ -3,6 +3,13 @@ export const PORTALS_MEDIA_READ_PERMISSION = "portals.media.read";
 export const PORTALS_MEDIA_UPLOAD_PERMISSION = "portals.media.upload";
 export const PORTALS_MEDIA_UPDATE_PERMISSION = "portals.media.update";
 export const PORTALS_MEDIA_ARCHIVE_PERMISSION = "portals.media.archive";
+export const PORTALS_HOTELS_READ_PERMISSION = "portals.hotels.read";
+export const PORTALS_HOTELS_CREATE_PERMISSION = "portals.hotels.create";
+export const PORTALS_HOTELS_UPDATE_PERMISSION = "portals.hotels.update";
+export const PORTALS_HOTELS_BRANDING_PERMISSION = "portals.hotels.branding";
+export const PORTALS_HOTELS_SETTINGS_PERMISSION = "portals.hotels.settings";
+export const PORTALS_HOTELS_MODULES_PERMISSION = "portals.hotels.modules";
+export const PORTALS_HOTELS_NAVIGATION_PERMISSION = "portals.hotels.navigation";
 const PORTALS_PERMISSION_PREFIXES = ["platform.", "portals."];
 
 export function hasPermission(session, permissionKey) {
@@ -24,6 +31,10 @@ export function canAccessPortals(session) {
 
 export function canAccessMediaLibrary(session) {
   return hasPermission(session, PORTALS_MEDIA_READ_PERMISSION);
+}
+
+export function canAccessUnits(session) {
+  return hasPermission(session, PORTALS_HOTELS_READ_PERMISSION);
 }
 
 export function getAuthorizedHotels(session) {

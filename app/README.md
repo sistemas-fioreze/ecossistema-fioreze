@@ -316,7 +316,18 @@ O shell `/admin/room-service/` exibe:
 - detalhe de pedido com itens, totais, historico e situacao de impressao;
 - mudanca de status controlada.
 
-O shell `/admin/portais/` e a fundacao da Central de Portais Fioreze. Ele nao implementa CRUD nesta fase. Usuarios sem `platform.*` ou `portals.*` veem acesso negado seguro; usuarios autorizados futuramente verao estruturas iniciais para Visao geral, Hoteis, Portais e modulos, Conteudos, Usuarios e acessos, e Auditoria.
+O shell `/admin/portais/` e a Central de Portais Fioreze. O MVP atual inclui a area `/admin/portais/unidades/` para administrar unidades/hoteis de forma multi-hotel, com:
+
+- listagem filtrada pelos hoteis autorizados ao usuario;
+- criacao de unidade com `hotel_id` derivado do slug, sem aceitar `hotel_id` enviado pelo cliente;
+- edicao de dados gerais, status e arquivamento logico;
+- identidade visual com selecao de midias ja cadastradas na Biblioteca de Imagens;
+- configuracoes publicas de contato, hospedagem e SEO em `hotel_settings`;
+- ativacao de modulos por hotel em `hotel_modules`;
+- navegacao publica por hotel em `navigation_items`;
+- auditoria administrativa em `admin_audit_log`.
+
+As APIs de Unidades exigem sessao administrativa, permissoes `portals.hotels.*`, acesso explicito ao hotel, protecao de origem e header administrativo para mutacoes. A migration `0009_admin_units_management_permissions.sql` cadastra as permissoes, mas nao associa roles automaticamente. O seed local pode liberar essas permissoes para o usuario ficticio de desenvolvimento.
 
 Fluxo de status exposto pela API:
 
