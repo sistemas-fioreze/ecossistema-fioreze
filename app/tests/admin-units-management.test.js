@@ -1,10 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { ADMIN_ORIGIN, AURORA_USER_ID, createSessionCookie, withCookie } from "./helpers/admin-session.js";
 import { createWorkerTestContext } from "./helpers/worker.js";
 
-const ADMIN_ORIGIN = "https://local.test";
-const DEMO_USER_ID = "user-demo-admin";
-const AURORA_USER_ID = "user-aurora-admin";
 const UNIT_PERMISSIONS = [
   "portals.hotels.read",
   "portals.hotels.create",
@@ -505,16 +503,6 @@ function adminJson(method, body) {
   };
 }
 
-function withCookie(cookie, init = {}) {
-  return {
-    ...init,
-    headers: {
-      ...(init.headers || {}),
-      cookie,
-    },
-  };
-}
-
 function grantPermissions(env, permissions = UNIT_PERMISSIONS) {
   for (const permissionKey of permissions) {
     const permission = env.__data.adminPermissions.find((entry) => entry.permission_key === permissionKey);
@@ -524,24 +512,4 @@ function grantPermissions(env, permissions = UNIT_PERMISSIONS) {
     );
     if (!exists) env.__data.adminRolePermissions.push({ role_id: "role-demo-manager", permission_id: permission.id });
   }
-}
-
-async function createSessionCookie(env, userId = DEMO_USER_ID) {
-  const token = `test-session-${crypto.randomUUID()}`;
-  env.__data.adminSessions.push({
-    id: `sess-${crypto.randomUUID()}`,
-    user_id: userId,
-    token_hash: await sha256Hex(token),
-    user_agent_hash: null,
-    ip_hash: null,
-    created_at: "2026-07-12T11:00:00.000Z",
-    expires_at: "2026-07-12T13:00:00.000Z",
-    revoked_at: null,
-  });
-  return `fioreze_admin_session=${token}`;
-}
-
-async function sha256Hex(value) {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
