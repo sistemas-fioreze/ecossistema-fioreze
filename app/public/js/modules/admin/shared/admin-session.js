@@ -17,6 +17,8 @@ export const PORTALS_HOTELS_MODULES_PERMISSION = "portals.hotels.modules";
 export const PORTALS_HOTELS_NAVIGATION_PERMISSION = "portals.hotels.navigation";
 export const PORTALS_EMBED_READ_PERMISSION = "portals.embed.read";
 export const PORTALS_EMBED_UPDATE_PERMISSION = "portals.embed.update";
+export const ADMIN_USERS_READ_PERMISSION = "admin.users.read";
+export const ADMIN_ROLES_READ_PERMISSION = "admin.roles.read";
 const PORTALS_PERMISSION_PREFIXES = ["platform.", "portals."];
 
 export function hasPermission(session, permissionKey) {
@@ -46,6 +48,14 @@ export function canAccessLinks(session) {
 
 export function canAccessUnits(session) {
   return hasPermission(session, PORTALS_HOTELS_READ_PERMISSION);
+}
+
+export function canAccessUsers(session) {
+  return hasPermission(session, ADMIN_USERS_READ_PERMISSION);
+}
+
+export function canAccessRoles(session) {
+  return hasPermission(session, ADMIN_ROLES_READ_PERMISSION);
 }
 
 export function getAuthorizedHotels(session) {

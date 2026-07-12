@@ -72,17 +72,21 @@ test("login administrativo invalido retorna 401 sem criar sessao", async () => {
   assert.equal(env.__data.adminSessions.length, 0);
 });
 
-test("force_password_change bloqueia login sem criar sessao", async () => {
+test("force_password_change cria sessao restrita sem liberar modulos", async () => {
   const { json, env } = createWorkerTestContext();
   env.__data.adminUsers[0].force_password_change = 1;
 
   const { response, body } = await loginAdmin(json);
+  const cookie = cookieFrom(response);
+  const orders = await json("/api/v1/admin/orders", withCookie(cookie));
 
-  assert.equal(response.status, 403);
-  assert.equal(body.error.code, "forbidden");
-  assert.match(body.error.message, /senha/i);
-  assert.doesNotMatch(body.error.message, /hash|salt|pbkdf/i);
-  assert.equal(env.__data.adminSessions.length, 0);
+  assert.equal(response.status, 200);
+  assert.equal(body.data.password_change_required, true);
+  assert.doesNotMatch(JSON.stringify(body), /hash|salt|pbkdf/i);
+  assert.equal(env.__data.adminSessions.length, 1);
+  assert.equal(env.__data.adminSessions[0].session_type, "password_change_required");
+  assert.equal(orders.response.status, 403);
+  assert.match(orders.body.error.message, /senha/i);
 });
 
 test("password_strategy incompativel nao autentica nem revela detalhes", async () => {

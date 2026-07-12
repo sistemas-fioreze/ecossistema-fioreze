@@ -28,6 +28,24 @@ import {
   listAdminShortLinks,
   updateAdminShortLink,
 } from "./short-links.js";
+import {
+  changeOwnPassword,
+  createAdminRole,
+  createAdminUser,
+  getAdminMe,
+  getAdminRole,
+  getAdminUser,
+  listAdminPermissions,
+  listAdminRoles,
+  listAdminUsers,
+  resetAdminUserPassword,
+  revokeAdminUserSessions,
+  revokeOwnSessions,
+  setAdminUserStatus,
+  updateAdminRole,
+  updateAdminRolePermissions,
+  updateAdminUser,
+} from "./users.js";
 import { ok } from "../../core/responses.js";
 import { notFoundError } from "../../core/errors.js";
 
@@ -45,6 +63,93 @@ export function registerAdminRoutes(router) {
   router.get("/api/v1/admin/session", async ({ request, env }) => {
     const session = await requireAuthentication({ request, env });
     return ok(toSessionPayload(session));
+  });
+
+  router.get("/api/v1/admin/me", async ({ request, env }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await getAdminMe({ env, session }));
+  });
+
+  router.post("/api/v1/admin/me/password", async ({ request, env }) => {
+    const session = await requireAuthentication({ request, env });
+    const result = await changeOwnPassword({ request, env, session });
+    return ok(result.data, { headers: result.headers });
+  });
+
+  router.post("/api/v1/admin/me/sessions/revoke", async ({ request, env }) => {
+    const session = await requireAuthentication({ request, env });
+    const result = await revokeOwnSessions({ request, env, session });
+    return ok(result.data, { headers: result.headers });
+  });
+
+  router.get("/api/v1/admin/users", async ({ request, env, url }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await listAdminUsers({ env, session, url }));
+  });
+
+  router.post("/api/v1/admin/users", async ({ request, env }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await createAdminUser({ request, env, session }), { status: 201 });
+  });
+
+  router.get("/api/v1/admin/users/:id", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await getAdminUser({ env, session, userId: params.id }));
+  });
+
+  router.patch("/api/v1/admin/users/:id", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await updateAdminUser({ request, env, session, userId: params.id }));
+  });
+
+  router.post("/api/v1/admin/users/:id/disable", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await setAdminUserStatus({ request, env, session, userId: params.id, status: "disabled" }));
+  });
+
+  router.post("/api/v1/admin/users/:id/activate", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await setAdminUserStatus({ request, env, session, userId: params.id, status: "active" }));
+  });
+
+  router.post("/api/v1/admin/users/:id/password-reset", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await resetAdminUserPassword({ request, env, session, userId: params.id }));
+  });
+
+  router.post("/api/v1/admin/users/:id/sessions/revoke", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await revokeAdminUserSessions({ request, env, session, userId: params.id }));
+  });
+
+  router.get("/api/v1/admin/roles", async ({ request, env }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await listAdminRoles({ env, session }));
+  });
+
+  router.post("/api/v1/admin/roles", async ({ request, env }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await createAdminRole({ request, env, session }), { status: 201 });
+  });
+
+  router.get("/api/v1/admin/roles/:id", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await getAdminRole({ env, session, roleId: params.id }));
+  });
+
+  router.patch("/api/v1/admin/roles/:id", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await updateAdminRole({ request, env, session, roleId: params.id }));
+  });
+
+  router.patch("/api/v1/admin/roles/:id/permissions", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await updateAdminRolePermissions({ request, env, session, roleId: params.id }));
+  });
+
+  router.get("/api/v1/admin/permissions", async ({ request, env }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await listAdminPermissions({ env, session }));
   });
 
   router.get("/api/v1/admin/hotels", async ({ request, env }) => {

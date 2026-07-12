@@ -1146,6 +1146,80 @@
   margin-top: 16px;
 }
 
+.admin-management-panel {
+  margin-top: 24px;
+}
+
+.admin-table-stack {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.admin-data-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-height: 64px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.admin-data-row strong,
+.admin-data-row span,
+.admin-data-row small {
+  display: block;
+}
+
+.admin-status-chip {
+  justify-self: end;
+  min-height: 28px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--color-secondary);
+  color: var(--color-text);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.admin-account-card {
+  margin: 16px 0;
+}
+
+.admin-account-identity {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.admin-account-identity strong,
+.admin-account-identity span,
+.admin-account-identity small {
+  display: block;
+}
+
+.admin-form-grid label {
+  display: grid;
+  gap: 7px;
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+.admin-form-grid input {
+  min-height: 44px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 0 12px;
+  font: inherit;
+}
+
 @media (max-width: 920px) {
   .admin-dashboard {
     grid-template-columns: 1fr;

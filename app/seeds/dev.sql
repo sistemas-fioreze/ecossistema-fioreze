@@ -144,7 +144,18 @@ INSERT OR IGNORE INTO admin_permissions (id, permission_key, module_key, descrip
   ('perm-portals-links-create', 'portals.links.create', NULL, 'Criar links personalizados ficticios.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
   ('perm-portals-links-update', 'portals.links.update', NULL, 'Editar links personalizados ficticios.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
   ('perm-portals-links-archive', 'portals.links.archive', NULL, 'Arquivar links personalizados ficticios.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
-  ('perm-portals-links-analytics', 'portals.links.analytics', NULL, 'Consultar metricas ficticias de links personalizados.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z');
+  ('perm-portals-links-analytics', 'portals.links.analytics', NULL, 'Consultar metricas ficticias de links personalizados.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('perm-admin-users-read', 'admin.users.read', 'admin', 'Visualizar usuarios administrativos ficticios.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('perm-admin-users-create', 'admin.users.create', 'admin', 'Criar usuarios administrativos ficticios.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('perm-admin-users-update', 'admin.users.update', 'admin', 'Editar usuarios administrativos ficticios.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('perm-admin-users-disable', 'admin.users.disable', 'admin', 'Ativar e desativar usuarios administrativos ficticios.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('perm-admin-users-password-reset', 'admin.users.password_reset', 'admin', 'Redefinir senhas administrativas ficticias.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('perm-admin-users-sessions-revoke', 'admin.users.sessions_revoke', 'admin', 'Encerrar sessoes administrativas ficticias.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('perm-admin-roles-read', 'admin.roles.read', 'admin', 'Visualizar perfis administrativos ficticios.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('perm-admin-roles-create', 'admin.roles.create', 'admin', 'Criar perfis administrativos ficticios.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('perm-admin-roles-update', 'admin.roles.update', 'admin', 'Editar perfis administrativos ficticios.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('perm-admin-roles-permissions', 'admin.roles.permissions', 'admin', 'Alterar permissoes de perfis administrativos ficticios.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
+  ('perm-admin-audit-read', 'admin.audit.read', 'admin', 'Visualizar auditoria administrativa ficticia.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z');
 
 INSERT INTO admin_users (id, display_name, email, password_hash, password_strategy, status, force_password_change, created_at, updated_at) VALUES
   ('user-demo-admin', 'Usuario Admin Demo', 'admin-demo@example.invalid', 'pbkdf2$sha256$100000$ZmlvcmV6ZS1hZG1pbi1kZW1vLXNhbHQtMjAyNg==$QPM6b/QnKHhfCwYXFU9kCd7KpgtlsLdGDELeiM9Ulgw=', 'pbkdf2', 'active', 0, '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z')
@@ -176,7 +187,18 @@ INSERT OR IGNORE INTO admin_role_permissions (role_id, permission_id, created_at
   ('role-demo-manager', 'perm-portals-links-create', '2026-07-12T00:00:00.000Z'),
   ('role-demo-manager', 'perm-portals-links-update', '2026-07-12T00:00:00.000Z'),
   ('role-demo-manager', 'perm-portals-links-archive', '2026-07-12T00:00:00.000Z'),
-  ('role-demo-manager', 'perm-portals-links-analytics', '2026-07-12T00:00:00.000Z');
+  ('role-demo-manager', 'perm-portals-links-analytics', '2026-07-12T00:00:00.000Z'),
+  ('role-demo-manager', 'perm-admin-users-read', '2026-07-12T00:00:00.000Z'),
+  ('role-demo-manager', 'perm-admin-users-create', '2026-07-12T00:00:00.000Z'),
+  ('role-demo-manager', 'perm-admin-users-update', '2026-07-12T00:00:00.000Z'),
+  ('role-demo-manager', 'perm-admin-users-disable', '2026-07-12T00:00:00.000Z'),
+  ('role-demo-manager', 'perm-admin-users-password-reset', '2026-07-12T00:00:00.000Z'),
+  ('role-demo-manager', 'perm-admin-users-sessions-revoke', '2026-07-12T00:00:00.000Z'),
+  ('role-demo-manager', 'perm-admin-roles-read', '2026-07-12T00:00:00.000Z'),
+  ('role-demo-manager', 'perm-admin-roles-create', '2026-07-12T00:00:00.000Z'),
+  ('role-demo-manager', 'perm-admin-roles-update', '2026-07-12T00:00:00.000Z'),
+  ('role-demo-manager', 'perm-admin-roles-permissions', '2026-07-12T00:00:00.000Z'),
+  ('role-demo-manager', 'perm-admin-audit-read', '2026-07-12T00:00:00.000Z');
 
 INSERT OR IGNORE INTO admin_hotel_access (user_id, hotel_id, access_level, created_at, updated_at) VALUES
   ('user-demo-admin', 'muller-fioreze', 'manager', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z');
