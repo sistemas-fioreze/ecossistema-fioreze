@@ -31,7 +31,8 @@
   }
 
   .rs-dashboard-grid,
-  .rs-orders-layout {
+  .rs-orders-layout,
+  .rs-pos-layout {
     grid-template-columns: 1fr;
   }
 

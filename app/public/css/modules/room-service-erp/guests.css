@@ -3,3 +3,9 @@
   display: grid;
   gap: 10px;
 }
+
+.rs-room-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

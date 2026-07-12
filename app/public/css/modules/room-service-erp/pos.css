@@ -5,6 +5,12 @@
   gap: 12px;
 }
 
+.rs-pos-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  gap: 16px;
+}
+
 .rs-product-card {
   display: grid;
   gap: 10px;
@@ -12,4 +18,38 @@
   border-radius: var(--rs-radius-sm);
   padding: 14px;
   background: var(--rs-surface);
+  color: var(--rs-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.rs-product-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.rs-pdv-form {
+  align-self: start;
+  display: grid;
+  gap: 12px;
+}
+
+.rs-pdv-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.rs-pdv-form input,
+.rs-pdv-form select,
+.rs-pdv-form textarea {
+  border: 1px solid var(--rs-line);
+  border-radius: var(--rs-radius-sm);
+  padding: 10px 12px;
+  background: var(--rs-surface);
+  color: var(--rs-text);
+}
+
+.rs-cart-lines {
+  display: grid;
+  gap: 8px;
 }
