@@ -22,6 +22,30 @@ const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
 const ALLOWED_DESTINATION_SCHEMES = new Set(["https", "http", "mailto", "tel"]);
 
+export function resolveShortLinkPublicOrigin(env) {
+  const configured = typeof env?.SHORT_LINK_PUBLIC_ORIGIN === "string" ? env.SHORT_LINK_PUBLIC_ORIGIN.trim() : "";
+  if (!configured) return null;
+
+  try {
+    const origin = new URL(configured);
+    const hasPath = origin.pathname && origin.pathname !== "/";
+    if (
+      (origin.protocol === "https:" || origin.protocol === "http:") &&
+      !hasPath &&
+      !origin.search &&
+      !origin.hash &&
+      !origin.username &&
+      !origin.password
+    ) {
+      return origin.origin;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
 export function normalizeShortLinkSlug(value, { publicLookup = false } = {}) {
   if (typeof value !== "string") {
     if (publicLookup) return "";
@@ -39,7 +63,7 @@ export function normalizeShortLinkSlug(value, { publicLookup = false } = {}) {
   return slug;
 }
 
-export function validateDestinationUrl(value, { request, slug } = {}) {
+export function validateDestinationUrl(value, { request, env, slug } = {}) {
   if (typeof value !== "string") throw badRequest("destination_url deve ser texto.");
   const raw = value.trim();
   if (!raw) throw badRequest("destination_url e obrigatorio.");
@@ -63,9 +87,9 @@ export function validateDestinationUrl(value, { request, slug } = {}) {
   }
 
   if (request && slug && (scheme === "http" || scheme === "https")) {
-    const origin = new URL(request.url).origin;
-    const targetPath = parsed.pathname.replace(/\/+$/, "");
-    if (parsed.origin === origin && targetPath === `/go/${slug}`) {
+    const requestOrigin = new URL(request.url).origin;
+    const publicOrigin = resolveShortLinkPublicOrigin(env);
+    if (isShortLinkLoopDestination(parsed, { slug, requestOrigin, publicOrigin })) {
       throw badRequest("destination_url nao pode apontar para o proprio link curto.");
     }
   }
@@ -102,18 +126,71 @@ export function isShortLinkAvailable(link, nowIso) {
 }
 
 export function shortLinkPublicUrl({ env, request, slug }) {
-  const configured = typeof env?.SHORT_LINK_PUBLIC_ORIGIN === "string" ? env.SHORT_LINK_PUBLIC_ORIGIN.trim() : "";
-  if (configured) {
-    try {
-      const origin = new URL(configured);
-      if ((origin.protocol === "https:" || origin.protocol === "http:") && !origin.pathname.replace("/", "") && !origin.search && !origin.hash && !origin.username && !origin.password) {
-        return `${origin.origin}/go/${slug}`;
-      }
-    } catch {
-      // Ignora configuracao local invalida e usa a origem da requisicao.
-    }
-  }
+  const configured = resolveShortLinkPublicOrigin(env);
+  if (configured) return `${configured}/${slug}`;
   return `${new URL(request.url).origin}/go/${slug}`;
+}
+
+export function shortLinkPublicUrlPreviewBase(env) {
+  return resolveShortLinkPublicOrigin(env);
+}
+
+export function isShortLinkCustomDomainRequest(request, env) {
+  const configured = resolveShortLinkPublicOrigin(env);
+  if (!configured) return false;
+  return new URL(request.url).origin === configured;
+}
+
+export function extractCustomDomainSlug(pathname) {
+  const match = /^\/([^/]+)\/?$/.exec(pathname);
+  if (!match) return "";
+
+  let decoded;
+  try {
+    decoded = decodeURIComponent(match[1]);
+  } catch {
+    return "";
+  }
+
+  if (decoded.includes("/") || decoded.includes("\\") || decoded !== decoded.trim()) return "";
+  return normalizeShortLinkSlug(decoded, { publicLookup: true });
+}
+
+function isShortLinkLoopDestination(parsed, { slug, requestOrigin, publicOrigin }) {
+  if (parsed.origin === requestOrigin && redirectPathTargetsSlug(parsed.pathname, slug, { allowRootPath: false })) {
+    return true;
+  }
+
+  if (publicOrigin && parsed.origin === publicOrigin) {
+    return redirectPathTargetsSlug(parsed.pathname, slug, { allowRootPath: true });
+  }
+
+  return false;
+}
+
+function redirectPathTargetsSlug(pathname, slug, { allowRootPath }) {
+  const candidates = allowRootPath ? [extractRootSlug(pathname), extractGoSlug(pathname)] : [extractGoSlug(pathname)];
+  return candidates.some((candidate) => candidate === slug);
+}
+
+function extractRootSlug(pathname) {
+  const match = /^\/([^/]+)\/?$/.exec(pathname);
+  if (!match) return "";
+  return safeDecodeSlug(match[1]);
+}
+
+function extractGoSlug(pathname) {
+  const match = /^\/go\/([^/]+)\/?$/.exec(pathname);
+  if (!match) return "";
+  return safeDecodeSlug(match[1]);
+}
+
+function safeDecodeSlug(value) {
+  try {
+    return normalizeShortLinkSlug(decodeURIComponent(value), { publicLookup: true });
+  } catch {
+    return "";
+  }
 }
 
 export function summarizeDestinationUrl(value) {

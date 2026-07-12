@@ -8,6 +8,7 @@ import { servePublicMedia } from "./modules/admin/media.js";
 import { registerAdminRoutes } from "./modules/admin/routes.js";
 import { registerEmbedRoutes } from "./modules/embed/public.js";
 import { redirectShortLink } from "./modules/short-links/public.js";
+import { extractCustomDomainSlug, isShortLinkCustomDomainRequest } from "./modules/short-links/shared.js";
 
 const router = new Router();
 
@@ -45,6 +46,10 @@ router.head("/go/:slug", async ({ request, env, params }) => redirectShortLink({
 async function handleRequest(request, env, ctx) {
   const url = new URL(request.url);
 
+  if (isShortLinkCustomDomainRequest(request, env)) {
+    return handleShortLinkCustomDomainRequest({ request, env, ctx, url });
+  }
+
   if (
     url.pathname.startsWith("/api/") ||
     url.pathname.startsWith("/media/") ||
@@ -70,6 +75,32 @@ async function handleRequest(request, env, ctx) {
   }
 
   return serveAsset(request, env, "/index.html");
+}
+
+function handleShortLinkCustomDomainRequest({ request, env, ctx, url }) {
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    return shortLinkHostNotFound();
+  }
+
+  const slug = extractCustomDomainSlug(url.pathname);
+  if (!slug) return shortLinkHostNotFound();
+
+  return redirectShortLink({
+    request,
+    env,
+    ctx,
+    params: { slug },
+    head: request.method === "HEAD",
+  });
+}
+
+function shortLinkHostNotFound() {
+  return fail(404, "not_found", "Link nao encontrado.", undefined, {
+    headers: {
+      "x-robots-tag": "noindex, nofollow",
+      "cache-control": "no-store",
+    },
+  });
 }
 
 function isDirectAsset(pathname) {
@@ -120,18 +151,22 @@ async function serveAsset(request, env, overridePath = null) {
 
 export default {
   async fetch(request, env, ctx) {
-    const pathname = new URL(request.url).pathname;
+    const url = new URL(request.url);
+    const pathname = url.pathname;
+    const shortLinkHost = isShortLinkCustomDomainRequest(request, env);
     try {
       const response = await handleRequest(request, env, ctx);
       return withSecurityHeaders(response, {
         embed: pathname.startsWith("/embed/"),
         admin: pathname.startsWith("/admin/"),
+        shortLinkHost,
       });
     } catch (error) {
       if (error instanceof AppError) {
         return withSecurityHeaders(fail(error.status, error.code, error.message, error.details), {
           embed: pathname.startsWith("/embed/"),
           admin: pathname.startsWith("/admin/"),
+          shortLinkHost,
         });
       }
       return withSecurityHeaders(
@@ -141,6 +176,7 @@ export default {
         {
           embed: pathname.startsWith("/embed/"),
           admin: pathname.startsWith("/admin/"),
+          shortLinkHost,
         },
       );
     }

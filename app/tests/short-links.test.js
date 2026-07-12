@@ -4,10 +4,14 @@ import test from "node:test";
 import { ADMIN_ORIGIN, AURORA_USER_ID, createSessionCookie, withCookie } from "./helpers/admin-session.js";
 import { createWorkerTestContext } from "./helpers/worker.js";
 import {
+  extractCustomDomainSlug,
   normalizeShortLinkSlug,
+  resolveShortLinkPublicOrigin,
   shortLinkPublicUrl,
   validateDestinationUrl,
 } from "../src/modules/short-links/shared.js";
+
+const SHORT_LINK_ORIGIN = "https://go.hoteisfioreze.com.br";
 
 const LINK_PERMISSIONS = [
   "portals.links.read",
@@ -33,12 +37,29 @@ test("migration 0011 cria links curtos, analytics agregada e permissoes sem asso
 test("wrangler executa Worker antes de assets para /go/*", () => {
   const config = JSON.parse(fs.readFileSync("wrangler.jsonc", "utf8"));
   assert.ok(config.assets.run_worker_first.includes("/go/*"));
+  assert.equal(config.vars.SHORT_LINK_PUBLIC_ORIGIN, SHORT_LINK_ORIGIN);
+  assert.deepEqual(config.routes, [{ pattern: "go.hoteisfioreze.com.br", custom_domain: true }]);
 });
 
 test("normalizacao de slug aplica regras globais e palavras reservadas", () => {
   assert.equal(normalizeShortLinkSlug(" Reservas-2026 "), "reservas-2026");
   for (const value of ["a", "admin", "go", "-reserva", "reserva-", "reserva--vip", "reserva vip"]) {
     assert.throws(() => normalizeShortLinkSlug(value), /slug/);
+  }
+});
+
+test("origem publica oficial aceita somente origem absoluta limpa", () => {
+  assert.equal(resolveShortLinkPublicOrigin({ SHORT_LINK_PUBLIC_ORIGIN: SHORT_LINK_ORIGIN }), SHORT_LINK_ORIGIN);
+  for (const value of [
+    "",
+    "go.hoteisfioreze.com.br",
+    "ftp://go.hoteisfioreze.com.br",
+    "https://go.hoteisfioreze.com.br/campanha",
+    "https://go.hoteisfioreze.com.br?x=1",
+    "https://go.hoteisfioreze.com.br#top",
+    "https://user:pass@go.hoteisfioreze.com.br",
+  ]) {
+    assert.equal(resolveShortLinkPublicOrigin({ SHORT_LINK_PUBLIC_ORIGIN: value }), null);
   }
 });
 
@@ -51,6 +72,25 @@ test("validacao de destino preserva path, query e fragment e bloqueia esquemas p
   for (const value of ["javascript:alert(1)", "data:text/html,1", "/relativo", "https://user:pass@example.invalid", "https://local.test/go/loop"]) {
     assert.throws(() => validateDestinationUrl(value, { request, slug: "loop" }), /destination_url/);
   }
+});
+
+test("validacao de destino bloqueia loops no dominio oficial e rota tecnica", () => {
+  const request = new Request("https://fioreze-portais-dev.marketing1-840.workers.dev/admin/portais/links/");
+  const env = { SHORT_LINK_PUBLIC_ORIGIN: SHORT_LINK_ORIGIN };
+  for (const value of [
+    `${SHORT_LINK_ORIGIN}/reservas`,
+    `${SHORT_LINK_ORIGIN}/reservas/`,
+    `${SHORT_LINK_ORIGIN}/go/reservas`,
+    "https://fioreze-portais-dev.marketing1-840.workers.dev/go/reservas",
+    `${SHORT_LINK_ORIGIN}/%72eservas`,
+  ]) {
+    assert.throws(() => validateDestinationUrl(value, { request, env, slug: "reservas" }), /proprio link curto/);
+  }
+
+  assert.equal(
+    validateDestinationUrl("https://hoteisfioreze.com.br/reservas", { request, env, slug: "reservas" }).url,
+    "https://hoteisfioreze.com.br/reservas",
+  );
 });
 
 test("GET /go/:slug redireciona sem cache e registra analytics agregada", async () => {
@@ -73,6 +113,25 @@ test("GET /go/:slug redireciona sem cache e registra analytics agregada", async 
   assert.equal(Object.hasOwn(env.__data.shortLinkClicksDaily[0], "user_agent"), false);
 });
 
+test("dominio oficial /:slug redireciona e registra analytics sem anexar query do visitante", async () => {
+  const { fetch, env, flushWaitUntil } = createWorkerTestContext({ SHORT_LINK_PUBLIC_ORIGIN: SHORT_LINK_ORIGIN });
+
+  const response = await fetch(`${SHORT_LINK_ORIGIN}/reservas?utm_visitante=nao-copiar`, {
+    redirect: "manual",
+    headers: { "x-fioreze-test-now": "2026-07-12T12:00:00.000Z" },
+  });
+  await flushWaitUntil();
+  const link = env.__data.shortLinks.find((entry) => entry.slug === "reservas");
+
+  assert.equal(response.status, 302);
+  assert.equal(response.headers.get("location"), "https://booking.example/muller?origem=link#quartos");
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.equal(response.headers.get("x-robots-tag"), "noindex, nofollow");
+  assert.equal(response.headers.has("set-cookie"), false);
+  assert.equal(link.total_clicks, 1);
+  assert.equal(env.__data.shortLinkClicksDaily[0].click_count, 1);
+});
+
 test("HEAD /go/:slug usa o Worker e nao incrementa analytics", async () => {
   const { fetch, env, flushWaitUntil } = createWorkerTestContext();
 
@@ -81,6 +140,20 @@ test("HEAD /go/:slug usa o Worker e nao incrementa analytics", async () => {
 
   assert.equal(response.status, 302);
   assert.equal(response.headers.get("location"), "https://booking.example/muller?origem=link#quartos");
+  assert.equal(env.__data.shortLinks.find((entry) => entry.slug === "reservas").total_clicks, 0);
+});
+
+test("HEAD no dominio oficial retorna o mesmo Location sem incrementar analytics", async () => {
+  const { fetch, env, flushWaitUntil } = createWorkerTestContext({ SHORT_LINK_PUBLIC_ORIGIN: SHORT_LINK_ORIGIN });
+
+  const custom = await fetch(`${SHORT_LINK_ORIGIN}/reservas`, { method: "HEAD", redirect: "manual" });
+  const technical = await fetch("/go/reservas", { method: "HEAD", redirect: "manual" });
+  await flushWaitUntil();
+
+  assert.equal(custom.status, 302);
+  assert.equal(technical.status, 302);
+  assert.equal(custom.headers.get("location"), technical.headers.get("location"));
+  assert.equal(custom.headers.get("x-robots-tag"), "noindex, nofollow");
   assert.equal(env.__data.shortLinks.find((entry) => entry.slug === "reservas").total_clicks, 0);
 });
 
@@ -103,6 +176,76 @@ test("links indisponiveis retornam 404 generico sem HTML do SPA", async () => {
     assert.match(response.headers.get("content-type") || "", /application\/json/);
     assert.equal(response.headers.has("location"), false);
   }
+});
+
+test("hostname oficial isola admin, api, assets e fallback SPA", async () => {
+  const { fetch, env, flushWaitUntil } = createWorkerTestContext({ SHORT_LINK_PUBLIC_ORIGIN: SHORT_LINK_ORIGIN });
+  const paths = [
+    "/",
+    "/admin",
+    "/admin/",
+    "/api",
+    "/api/v1/health",
+    "/assets",
+    "/css",
+    "/js",
+    "/embed",
+    "/media",
+    "/go",
+    "/go/reservas",
+    "/login",
+    "/logout",
+    "/favicon.ico",
+    "/robots.txt",
+    "/sitemap.xml",
+    "/cdn-cgi",
+    "/.well-known",
+    "/pasta/reservas",
+    "/reservas/extra",
+  ];
+
+  for (const path of paths) {
+    const response = await fetch(`${SHORT_LINK_ORIGIN}${path}`, { redirect: "manual" });
+    assert.equal(response.status, 404, path);
+    assert.match(response.headers.get("content-type") || "", /application\/json/, path);
+    assert.equal(response.headers.get("cache-control"), "no-store", path);
+    assert.equal(response.headers.get("x-robots-tag"), "noindex, nofollow", path);
+    assert.equal(response.headers.has("location"), false, path);
+    assert.equal(response.headers.has("set-cookie"), false, path);
+    assert.doesNotMatch(await response.text(), /Central de Portais|<!doctype html/i, path);
+  }
+
+  const post = await fetch(`${SHORT_LINK_ORIGIN}/reservas`, { method: "POST", redirect: "manual" });
+  assert.equal(post.status, 404);
+  await flushWaitUntil();
+  assert.equal(env.__data.shortLinks.find((entry) => entry.slug === "reservas").total_clicks, 0);
+});
+
+test("hostname oficial bloqueia reservados codificados, traversal e encoding invalido", async () => {
+  const { fetch, env, flushWaitUntil } = createWorkerTestContext({ SHORT_LINK_PUBLIC_ORIGIN: SHORT_LINK_ORIGIN });
+  for (const path of ["/admin", "/%61dmin", "/%2e%2e", "/%2Fadmin", "/admin%2Fteste", "/%E0%A4%A"]) {
+    const response = await fetch(`${SHORT_LINK_ORIGIN}${path}`, { redirect: "manual" });
+    assert.equal(response.status, 404, path);
+    assert.equal(response.headers.has("location"), false, path);
+  }
+  await flushWaitUntil();
+  assert.equal(env.__data.shortLinks.find((entry) => entry.slug === "reservas").total_clicks, 0);
+  assert.equal(extractCustomDomainSlug("/reservas/"), "reservas");
+});
+
+test("workers.dev preserva /go/:slug e nao transforma /:slug em link curto", async () => {
+  const { fetch, env, flushWaitUntil } = createWorkerTestContext({ SHORT_LINK_PUBLIC_ORIGIN: SHORT_LINK_ORIGIN });
+
+  const technical = await fetch("/go/reservas", { redirect: "manual" });
+  const plain = await fetch("/reservas", { redirect: "manual" });
+  const otherHost = await fetch("https://outro.example.invalid/reservas", { redirect: "manual" });
+  await flushWaitUntil();
+
+  assert.equal(technical.status, 302);
+  assert.equal(plain.status, 200);
+  assert.match(await plain.text(), /\/index\.html/);
+  assert.equal(otherHost.status, 200);
+  assert.equal(env.__data.shortLinks.find((entry) => entry.slug === "reservas").total_clicks, 1);
 });
 
 test("admin lista links somente do hotel autorizado", async () => {
@@ -217,7 +360,11 @@ test("origem publica opcional monta URL curta sem persistir dominio", () => {
   assert.equal(shortLinkPublicUrl({ env: {}, request, slug: "reservas" }), "https://local.test/go/reservas");
   assert.equal(
     shortLinkPublicUrl({ env: { SHORT_LINK_PUBLIC_ORIGIN: "https://go.example.invalid/" }, request, slug: "reservas" }),
-    "https://go.example.invalid/go/reservas",
+    "https://go.example.invalid/reservas",
+  );
+  assert.equal(
+    shortLinkPublicUrl({ env: { SHORT_LINK_PUBLIC_ORIGIN: "https://go.example.invalid/path" }, request, slug: "reservas" }),
+    "https://local.test/go/reservas",
   );
 });
 
