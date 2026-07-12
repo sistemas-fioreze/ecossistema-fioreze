@@ -7,7 +7,7 @@
     "directory": "./public",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/admin/*", "/media/*"]
+    "run_worker_first": ["/api/*", "/admin/*", "/media/*", "/embed/*"]
   },
   "d1_databases": [
     {
