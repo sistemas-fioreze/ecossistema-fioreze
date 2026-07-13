@@ -15,6 +15,7 @@ export async function render(container, context) {
     bootstrap: context.bootstrap,
     slug: context.bootstrap.slug,
     catalog: { categories: [] },
+    rooms: [],
     itemMap: new Map(),
     cart: null,
     query: "",
@@ -33,8 +34,12 @@ export async function render(container, context) {
   renderLoading(container, "Carregando cardapio...");
 
   try {
-    const products = await apiGet(`/api/v1/public/hotels/${encodeURIComponent(state.slug)}/room-service/products`);
+    const [products, roomPayload] = await Promise.all([
+      apiGet(`/api/v1/public/hotels/${encodeURIComponent(state.slug)}/room-service/products`),
+      apiGet(`/api/v1/public/hotels/${encodeURIComponent(state.slug)}/room-service/rooms`),
+    ]);
     state.catalog = products;
+    state.rooms = roomPayload.rooms || [];
     const items = flattenCatalog(products.categories);
     state.itemMap = getCatalogItemMap(products.categories);
     state.cart = createCartStore({
@@ -46,6 +51,7 @@ export async function render(container, context) {
     updateServiceStatus(container, state);
     state.statusTimer = window.setInterval(() => updateServiceStatus(container, state), 60000);
     renderCatalog(container, state);
+    renderRoomOptions(container, state);
     renderCart(container, state);
     setupCategoryObserver(container, state);
   } catch (error) {
@@ -131,7 +137,9 @@ function renderStaticShell() {
               </label>
               <label class="rs-field">
                 <span>Acomodacao</span>
-                <input name="room_code" autocomplete="off" maxlength="24" placeholder="Ex: D-101" required>
+                <select name="room_code" required>
+                  <option value="">Selecione sua acomodacao</option>
+                </select>
               </label>
               <label class="rs-field">
                 <span>Local de entrega</span>
@@ -266,6 +274,7 @@ function updateServiceStatus(container, state, now = new Date()) {
   state.status = evaluateServiceStatus({
     serviceHours: hours,
     timezone: state.bootstrap.timezone,
+    operationMode: state.bootstrap.settings?.[`${MODULE_KEY}.operation_mode`] || "automatic",
     now,
   });
   const description = describeServiceStatus(state.status);
@@ -284,6 +293,18 @@ function updateServiceStatus(container, state, now = new Date()) {
     note.textContent = `${description.detail} Voce ainda pode consultar o cardapio.`;
   }
   syncSubmitButton(container, state);
+}
+
+function renderRoomOptions(container, state) {
+  const select = container.querySelector('[name="room_code"]');
+  if (!select) return;
+  select.innerHTML = '<option value="">Selecione sua acomodacao</option>';
+  for (const room of state.rooms) {
+    const option = document.createElement("option");
+    option.value = room.code;
+    option.textContent = room.label ? `${room.code} - ${room.label}` : room.code;
+    select.append(option);
+  }
 }
 
 function syncSubmitButton(container, state) {

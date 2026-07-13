@@ -9,7 +9,7 @@ const WEEKDAY_TO_INDEX = {
   Sat: 6,
 };
 
-export function evaluateServiceStatus({ serviceHours = [], timezone = "America/Sao_Paulo", now = new Date() }) {
+export function evaluateServiceStatus({ serviceHours = [], timezone = "America/Sao_Paulo", operationMode = "automatic", now = new Date() }) {
   const local = getLocalClock(now, timezone);
   const currentMinutes = local.hour * 60 + local.minute;
   const previousDay = (local.day_of_week + 6) % 7;
@@ -28,8 +28,13 @@ export function evaluateServiceStatus({ serviceHours = [], timezone = "America/S
     .filter((slot) => slot.day_of_week === local.day_of_week)
     .sort((a, b) => clockToMinutes(a.opens_at) - clockToMinutes(b.opens_at));
 
+  const mode = ["forced_open", "forced_closed"].includes(operationMode) ? operationMode : "automatic";
+  const scheduleOpen = Boolean(openSlot);
   return {
-    open: Boolean(openSlot),
+    open: mode === "forced_open" || (mode === "automatic" && scheduleOpen),
+    schedule_open: scheduleOpen,
+    mode,
+    source: mode === "automatic" ? "schedule" : "manual_override",
     active_slot: openSlot || null,
     local,
     today_slots: todaySlots,
@@ -41,15 +46,19 @@ export function evaluateServiceStatus({ serviceHours = [], timezone = "America/S
 export function describeServiceStatus(status) {
   if (status.open) {
     return {
-      label: "Aberto agora",
-      detail: status.active_slot
+      label: status.mode === "forced_open" ? "Aberto manualmente" : "Aberto agora",
+      detail: status.mode === "forced_open"
+        ? "A unidade liberou pedidos manualmente."
+        : status.active_slot
         ? `Pedidos ate ${status.active_slot.closes_at}.`
         : "Pedidos disponiveis agora.",
     };
   }
   return {
-    label: "Fechado agora",
-    detail: status.next_opening
+    label: status.mode === "forced_closed" ? "Fechado manualmente" : "Fechado agora",
+    detail: status.mode === "forced_closed"
+      ? "A unidade pausou novos pedidos temporariamente."
+      : status.next_opening
       ? `Proxima abertura: ${status.next_opening.label}.`
       : "Pedidos indisponiveis no momento.",
   };

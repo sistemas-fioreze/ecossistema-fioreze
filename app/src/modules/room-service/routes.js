@@ -3,6 +3,7 @@ import { resolveTenantBySlug } from "../../core/tenant.js";
 import { requireEnabledModule } from "../../middleware/require-module.js";
 import { groupProductsByCategory, listRoomServiceProducts } from "./products.js";
 import { createRoomServiceOrder } from "./orders.js";
+import { listPublicRoomServiceRooms } from "./rooms.js";
 
 const MODULE_KEY = "room-service";
 
@@ -15,6 +16,16 @@ export function registerRoomServiceRoutes(router) {
       hotel_id: tenant.hotel_id,
       module_key: MODULE_KEY,
       categories: groupProductsByCategory(rows),
+    });
+  });
+
+  router.get("/api/v1/public/hotels/:hotel_slug/room-service/rooms", async ({ env, params }) => {
+    const tenant = await resolveTenantBySlug(env, params.hotel_slug);
+    await requireEnabledModule(env, tenant.hotel_id, MODULE_KEY);
+    return ok({
+      hotel_id: tenant.hotel_id,
+      module_key: MODULE_KEY,
+      rooms: await listPublicRoomServiceRooms(env, tenant.hotel_id),
     });
   });
 

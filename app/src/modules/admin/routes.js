@@ -39,6 +39,26 @@ import {
   updateRoomServiceErpUser,
 } from "./erp-users.js";
 import {
+  createRoomServiceCategory,
+  createRoomServiceCatalogItem,
+  updateRoomServiceCategory,
+  updateRoomServiceCatalogItem,
+} from "./erp-catalog.js";
+import {
+  createRoomServiceRoom,
+  getRoomServiceOperations,
+  listRoomServiceRooms,
+  setRoomServiceOperationMode,
+  updateRoomServiceRoom,
+  updateRoomServiceSchedule,
+} from "./erp-operations.js";
+import { listRoomServiceErpMedia, uploadRoomServiceErpMedia } from "./erp-media.js";
+import {
+  changeOwnRoomServiceErpPassword,
+  deleteOwnRoomServiceErpAvatar,
+  uploadOwnRoomServiceErpAvatar,
+} from "./erp-profile.js";
+import {
   archiveAdminShortLink,
   createAdminShortLink,
   getAdminShortLink,
@@ -395,6 +415,81 @@ export function registerAdminRoutes(router) {
   router.get("/api/v1/admin/room-service/catalog", async ({ request, env, url }) => {
     const session = await getCurrentRoomServiceErpSession({ request, env });
     return ok(await listRoomServiceErpCatalog({ env, session, url }));
+  });
+
+  router.post("/api/v1/admin/room-service/catalog/categories", async ({ request, env }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(await createRoomServiceCategory({ request, env, session }), { status: 201 });
+  });
+
+  router.patch("/api/v1/admin/room-service/catalog/categories/:id", async ({ request, env, params }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(await updateRoomServiceCategory({ request, env, session, categoryId: params.id }));
+  });
+
+  router.post("/api/v1/admin/room-service/catalog/items", async ({ request, env }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(await createRoomServiceCatalogItem({ request, env, session }), { status: 201 });
+  });
+
+  router.patch("/api/v1/admin/room-service/catalog/items/:id", async ({ request, env, params }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(await updateRoomServiceCatalogItem({ request, env, session, itemId: params.id }));
+  });
+
+  router.get("/api/v1/admin/room-service/media", async ({ request, env, url }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(await listRoomServiceErpMedia({ env, session, url }));
+  });
+
+  router.post("/api/v1/admin/room-service/media", async ({ request, env }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(await uploadRoomServiceErpMedia({ request, env, session }), { status: 201 });
+  });
+
+  router.get("/api/v1/admin/room-service/operations", async ({ request, env, url }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(await getRoomServiceOperations({ env, session, url }));
+  });
+
+  router.post("/api/v1/admin/room-service/operations/mode", async ({ request, env }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(await setRoomServiceOperationMode({ request, env, session }));
+  });
+
+  router.patch("/api/v1/admin/room-service/operations/schedule", async ({ request, env }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(await updateRoomServiceSchedule({ request, env, session }));
+  });
+
+  router.get("/api/v1/admin/room-service/rooms", async ({ request, env, url }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(await listRoomServiceRooms({ env, session, url }));
+  });
+
+  router.post("/api/v1/admin/room-service/rooms", async ({ request, env }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(await createRoomServiceRoom({ request, env, session }), { status: 201 });
+  });
+
+  router.patch("/api/v1/admin/room-service/rooms/:id", async ({ request, env, params }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(await updateRoomServiceRoom({ request, env, session, roomId: params.id }));
+  });
+
+  router.post("/api/v1/admin/room-service/me/avatar", async ({ request, env }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(await uploadOwnRoomServiceErpAvatar({ request, env, session }));
+  });
+
+  router.delete("/api/v1/admin/room-service/me/avatar", async ({ request, env }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(await deleteOwnRoomServiceErpAvatar({ request, env, session }));
+  });
+
+  router.post("/api/v1/admin/room-service/me/password", async ({ request, env }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(await changeOwnRoomServiceErpPassword({ request, env, session }));
   });
 
   router.get("/api/v1/admin/room-service/permissions", async ({ request, env }) => {

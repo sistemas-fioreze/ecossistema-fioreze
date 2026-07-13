@@ -21,7 +21,8 @@ export async function listRoomServiceErpUsers({ env, session, url }) {
   const [users, permissions] = await Promise.all([
     all(
       env,
-      `SELECT id, hotel_id, user_code, display_name, status, created_at, updated_at
+      `SELECT id, hotel_id, user_code, display_name, status, avatar_media_asset_id,
+              avatar_updated_at, created_at, updated_at
          FROM erp_users
         WHERE hotel_id = ?
           AND status != 'archived'
@@ -50,7 +51,7 @@ export async function createRoomServiceErpUser({ request, env, session }) {
   const payload = await readJson(request);
   const hotelId = requestedHotel(session, payload.hotel_id);
   const displayName = requireString(payload.display_name, "display_name", { min: 2, max: 120 });
-  const password = requireString(payload.password, "password", { min: 10, max: 300 });
+  const password = requireString(payload.password, "password", { min: 4, max: 300 });
   const permissionKeys = normalizePermissions(payload.permission_keys);
   const next = await first(
     env,
@@ -136,7 +137,7 @@ export async function resetRoomServiceErpUserPassword({ request, env, session, u
   const payload = await readJson(request);
   const hotelId = requestedHotel(session, payload.hotel_id);
   await requireUser(env, hotelId, userId);
-  const password = requireString(payload.password, "password", { min: 10, max: 300 });
+  const password = requireString(payload.password, "password", { min: 4, max: 300 });
   const now = requestNow({ request, env });
   await batch(env, [
     statement(
@@ -183,7 +184,8 @@ function normalizeStatus(value) {
 async function requireUser(env, hotelId, userId) {
   const user = await first(
     env,
-    `SELECT id, hotel_id, user_code, display_name, status, created_at, updated_at
+    `SELECT id, hotel_id, user_code, display_name, status, avatar_media_asset_id,
+            avatar_updated_at, created_at, updated_at
        FROM erp_users
       WHERE id = ? AND hotel_id = ? AND status != 'archived'
       LIMIT 1`,
