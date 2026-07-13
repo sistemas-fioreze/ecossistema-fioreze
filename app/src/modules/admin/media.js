@@ -10,7 +10,7 @@ const UPLOAD_PERMISSION = "portals.media.upload";
 const UPDATE_PERMISSION = "portals.media.update";
 const ARCHIVE_PERMISSION = "portals.media.archive";
 const MAX_FILE_BYTES = 8 * 1024 * 1024;
-const PUBLIC_CACHE_CONTROL = "public, max-age=3600, stale-while-revalidate=86400";
+export const PUBLIC_CACHE_CONTROL = "public, max-age=3600, stale-while-revalidate=86400";
 const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
 const MIME_EXTENSIONS = {
   "image/jpeg": "jpg",
@@ -364,7 +364,7 @@ function parsePaginationInteger(value, { defaultValue, max }) {
   return Math.min(parsed, max);
 }
 
-async function readMultipartForm(request) {
+export async function readMultipartForm(request) {
   const contentType = request.headers.get("content-type") || "";
   if (!contentType.includes("multipart/form-data")) {
     throw badRequest("Envie a midia como multipart/form-data.");
@@ -376,14 +376,14 @@ async function readMultipartForm(request) {
   }
 }
 
-function formText(form, name) {
+export function formText(form, name) {
   const value = form.get(name);
   if (value == null) return "";
   if (typeof value !== "string") throw badRequest(`${name} deve ser texto.`);
   return value;
 }
 
-async function validateImageFile(file) {
+export async function validateImageFile(file) {
   if (!file || typeof file.arrayBuffer !== "function") {
     throw badRequest("Arquivo de imagem obrigatorio.");
   }
@@ -451,7 +451,7 @@ function validateFilenameExtension(filename, mimeType) {
   }
 }
 
-function buildObjectKey({ hotelId, moduleKey, createdAt, assetId, extension }) {
+export function buildObjectKey({ hotelId, moduleKey, createdAt, assetId, extension }) {
   if (!isSafeIdentifier(hotelId)) throw badRequest("hotel_id invalido.");
   if (moduleKey && !isSafeIdentifier(moduleKey)) throw badRequest("module_key invalido.");
   const date = new Date(createdAt);
@@ -480,7 +480,7 @@ function ascii(bytes, start, end) {
   return String.fromCharCode(...bytes.slice(start, end));
 }
 
-function requireMediaBucket(env) {
+export function requireMediaBucket(env) {
   if (!env?.MEDIA_BUCKET?.put || !env.MEDIA_BUCKET.get || !env.MEDIA_BUCKET.head || !env.MEDIA_BUCKET.delete) {
     throw new AppError(503, "storage_unavailable", "Armazenamento de midia indisponivel.");
   }
@@ -507,7 +507,7 @@ function auditStatement(env, { hotelId, moduleKey, actorUserId, action, entityId
   );
 }
 
-function formatMediaAsset(row) {
+export function formatMediaAsset(row) {
   return {
     id: row.id,
     hotel_id: row.hotel_id,
@@ -524,6 +524,7 @@ function formatMediaAsset(row) {
     checksum_sha256: row.checksum_sha256 || null,
     storage_etag: row.storage_etag || null,
     uploaded_by_user_id: row.uploaded_by_user_id || null,
+    uploaded_by_erp_user_id: row.uploaded_by_erp_user_id || null,
     archived_by_user_id: row.archived_by_user_id || null,
   };
 }

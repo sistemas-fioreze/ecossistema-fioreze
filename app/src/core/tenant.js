@@ -177,7 +177,7 @@ export async function getBootstrap(env, slug) {
     service_hours: tenant.service_hours,
     settings: tenant.settings,
     service_status: {
-      room_service: tenant.settings["room_service.status"] || "closed",
+      room_service: tenant.settings["room-service.operation_mode"] || tenant.settings["room_service.status"] || "automatic",
     },
     resources: {
       public_assets_base: `/assets/hotels/${tenant.slug}/`,

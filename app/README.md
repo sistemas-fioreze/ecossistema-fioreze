@@ -85,6 +85,7 @@ Implementados:
 - `GET /api/v1/public/hotels/:hotel_slug/bootstrap`
 - `GET /api/v1/public/hotels/:hotel_slug/modules`
 - `GET /api/v1/public/hotels/:hotel_slug/room-service/products`
+- `GET /api/v1/public/hotels/:hotel_slug/room-service/rooms`
 - `POST /api/v1/public/hotels/:hotel_slug/room-service/orders`
 - `POST /api/v1/admin/login`
 - `POST /api/v1/admin/logout`
@@ -97,6 +98,21 @@ Implementados:
 - `POST /api/v1/admin/room-service/users`
 - `PATCH /api/v1/admin/room-service/users/:id`
 - `POST /api/v1/admin/room-service/users/:id/password`
+- `GET /api/v1/admin/room-service/operations`
+- `POST /api/v1/admin/room-service/operations/mode`
+- `PATCH /api/v1/admin/room-service/operations/schedule`
+- `GET /api/v1/admin/room-service/rooms`
+- `POST /api/v1/admin/room-service/rooms`
+- `PATCH /api/v1/admin/room-service/rooms/:id`
+- `POST /api/v1/admin/room-service/catalog/categories`
+- `PATCH /api/v1/admin/room-service/catalog/categories/:id`
+- `POST /api/v1/admin/room-service/catalog/items`
+- `PATCH /api/v1/admin/room-service/catalog/items/:id`
+- `GET /api/v1/admin/room-service/media`
+- `POST /api/v1/admin/room-service/media`
+- `POST /api/v1/admin/room-service/me/avatar`
+- `DELETE /api/v1/admin/room-service/me/avatar`
+- `POST /api/v1/admin/room-service/me/password`
 - `GET /api/v1/admin/hotels`
 - `GET /api/v1/admin/orders`
 - `GET /api/v1/admin/orders/:id`
@@ -288,6 +304,8 @@ O MVP administrativo implementa login real para ambiente local e desenvolvimento
 
 O ERP operacional usa o mesmo algoritmo de hash, mas guarda usuarios e sessoes nas tabelas `erp_users` e `erp_sessions`. Cada codigo numerico e sequencial dentro de um hotel, e cada permissao em `erp_user_permissions` fica associada ao mesmo `hotel_id`. A API nunca consulta um usuario operacional sem filtrar a unidade.
 
+Senhas operacionais aceitam no minimo quatro caracteres, conforme a regra atual do produto. Mesmo nesse limite, o valor nunca e salvo em texto puro: somente o hash PBKDF2-SHA-256 e persistido. A troca pela propria conta revoga as outras sessoes do usuario. Foto de perfil e armazenada no R2 como `media_assets`, ligada somente ao usuario operacional e ao hotel correspondentes.
+
 As permissoes de midia sao cadastradas pela migration `0008`, mas nao sao associadas automaticamente a nenhum role. A liberacao de usuarios no D1 de desenvolvimento deve ser uma etapa operacional separada e autorizada.
 
 O cartao Room Service da central aparece para usuarios com `room-service.orders.read`. A Central de Portais aparece somente para usuarios com permissoes futuras prefixadas por `platform.` ou `portals.`. Nao ha autorizacao por e-mail, nome de usuario ou regra fixa no frontend.
@@ -327,10 +345,21 @@ O shell `/admin/` e uma central de acesso. Ele exibe, apos login:
 O shell `/admin/room-service/` exibe:
 
 - tela de login;
+- dashboard com indicadores, distribuicao por status, pedidos por hora e itens mais vendidos;
 - lista de pedidos de Room Service;
 - filtros por hotel, status e busca;
 - detalhe de pedido com itens, totais, historico e situacao de impressao;
-- mudanca de status controlada.
+- mudanca de status controlada;
+- editor de categorias e produtos com disponibilidade, ordenacao e imagens no R2;
+- agenda semanal e controle manual de abertura ou fechamento;
+- cadastro de quartos e acomodacoes validas por hotel;
+- configuracoes em secoes para funcionamento, quartos, usuarios, conta, aparencia e notificacoes.
+
+O funcionamento do Room Service usa `service_hours` no modo `automatic`. O setting publico `room-service.operation_mode` pode assumir `automatic`, `forced_open` ou `forced_closed`; o Worker aplica a mesma regra no bootstrap, na interface publica e na criacao do pedido. Esconder ou trocar o texto do botao no navegador nunca substitui essa validacao no servidor.
+
+Quartos ativos em `rooms` sao publicados pela API e formam a lista de acomodacoes do pedido. Quartos inativos ou arquivados nao aparecem e nao sao aceitos pelo Worker. O cadastro e generico por `hotel_id`, sem numeracao fixa do Muller.
+
+O editor de cardapio continua usando as tabelas compartilhadas `catalogs`, `categories`, `catalog_items` e `catalog_item_availability`. A migration `0015_erp_operations_catalog_profiles.sql` adiciona a referencia opcional entre item e `media_assets`, o ator operacional de uploads e a foto de perfil dos usuarios ERP. As imagens ficam no bucket privado e sao servidas somente por `/media/:id`.
 
 O shell `/admin/portais/` e a Central de Portais Fioreze. O MVP atual inclui a area `/admin/portais/unidades/` para administrar unidades/hoteis de forma multi-hotel, com:
 
@@ -413,8 +442,8 @@ No ERP, a mensagem exibida e `Impressao desativada neste ambiente.`. Mudar statu
 - Spa funcional;
 - Pacotes Romanticos funcionais;
 - ERP administrativo completo;
-- filtros e painel de pedidos avancados;
-- usuarios, roles e permissoes editaveis pelo ERP;
+- relatorios administrativos exportaveis;
+- perfis de permissao reutilizaveis para equipes operacionais;
 - integracao futura de impressao;
 - deploy Cloudflare;
 - dados reais via processo controlado de migracao.

@@ -664,6 +664,11 @@ class MockD1Database {
       return this.data.branding.find((branding) => branding.hotel_id === hotelId) || null;
     }
 
+    if (normalized.includes("select setting_value") && normalized.includes("from hotel_settings")) {
+      const [hotelId, settingKey] = params;
+      return this.data.settings.find((entry) => entry.hotel_id === hotelId && entry.setting_key === settingKey) || null;
+    }
+
     if (normalized.includes("from hotel_modules") && normalized.includes("where hotel_id = ? and module_key = ?")) {
       const [hotelId, moduleKey] = params;
       return this.data.hotelModules.find((module) => module.hotel_id === hotelId && module.module_key === moduleKey) || null;
@@ -672,6 +677,39 @@ class MockD1Database {
     if (normalized.includes("from modules") && normalized.includes("where module_key = ?")) {
       const [moduleKey] = params;
       return this.data.modules.find((moduleRow) => moduleRow.module_key === moduleKey) || null;
+    }
+
+    if (normalized.includes("from catalogs c") && normalized.includes("join hotels h") && normalized.includes("c.status = 'active'")) {
+      const [hotelId, moduleKey] = params;
+      const catalogRow = this.data.catalogs.find((entry) => entry.hotel_id === hotelId && entry.module_key === moduleKey && entry.status === "active");
+      const hotel = this.data.hotels.find((entry) => entry.id === hotelId);
+      return catalogRow && hotel ? { ...catalogRow, currency: hotel.currency } : null;
+    }
+
+    if (normalized.includes("from categories") && normalized.includes("where id = ?")) {
+      const [categoryId, hotelId, moduleKey] = params;
+      const categoryRow = this.data.categories.find((entry) => entry.id === categoryId && entry.hotel_id === hotelId);
+      const catalogRow = categoryRow && this.data.catalogs.find((entry) => entry.id === categoryRow.catalog_id && entry.module_key === moduleKey);
+      return categoryRow && catalogRow ? { ...categoryRow, module_key: moduleKey } : null;
+    }
+
+    if (normalized.includes("from catalog_items ci") && normalized.includes("left join catalog_item_availability") && normalized.includes("where ci.id = ?")) {
+      const [itemId, hotelId, moduleKey] = params;
+      const catalogItem = this.data.catalogItems.find((entry) => entry.id === itemId && entry.hotel_id === hotelId && entry.module_key === moduleKey);
+      if (!catalogItem) return null;
+      const itemAvailability = this.findAvailability(itemId, hotelId);
+      return { ...catalogItem, is_available: itemAvailability?.is_available ?? 1, availability_label: itemAvailability?.availability_label ?? null };
+    }
+
+    if (normalized.includes("select id") && normalized.includes("from media_assets") && normalized.includes("module_key = ? or module_key is null")) {
+      const [assetId, hotelId, moduleKey] = params;
+      const asset = this.data.mediaAssets.find((entry) => entry.id === assetId && entry.hotel_id === hotelId && (entry.module_key === moduleKey || entry.module_key == null) && entry.status === "active");
+      return asset ? { id: asset.id } : null;
+    }
+
+    if (normalized.includes("from rooms") && normalized.includes("where id = ? and hotel_id = ?")) {
+      const [roomId, hotelId] = params;
+      return this.data.rooms.find((entry) => entry.id === roomId && entry.hotel_id === hotelId) || null;
     }
 
     if (normalized.includes("from rooms")) {
@@ -743,6 +781,17 @@ class MockD1Database {
         (entry) => entry.id === session.user_id && entry.hotel_id === session.hotel_id && entry.status === "active",
       );
       return user ? { ...user, session_id: session.id, expires_at: session.expires_at } : null;
+    }
+
+    if (normalized.includes("select avatar_media_asset_id") && normalized.includes("from erp_users")) {
+      const [userId, hotelId] = params;
+      const user = this.data.erpUsers.find((entry) => entry.id === userId && entry.hotel_id === hotelId);
+      return user ? { avatar_media_asset_id: user.avatar_media_asset_id || null } : null;
+    }
+
+    if (normalized.includes("from erp_users") && normalized.includes("password_hash") && normalized.includes("status = 'active'")) {
+      const [userId, hotelId] = params;
+      return this.data.erpUsers.find((entry) => entry.id === userId && entry.hotel_id === hotelId && entry.status === "active") || null;
     }
 
     if (normalized.includes("select coalesce(max(user_code), 0) + 1 as next_code") && normalized.includes("from erp_users")) {
@@ -992,6 +1041,64 @@ class MockD1Database {
         .sort((a, b) => a.code.localeCompare(b.code));
     }
 
+    if (normalized.includes("from catalogs c") && normalized.includes("join hotels h") && normalized.includes("c.status = 'active'")) {
+      const [hotelId, moduleKey] = params;
+      const catalogRow = this.data.catalogs.find((entry) => entry.hotel_id === hotelId && entry.module_key === moduleKey && entry.status === "active");
+      const hotel = this.data.hotels.find((entry) => entry.id === hotelId);
+      return catalogRow && hotel ? { ...catalogRow, currency: hotel.currency } : null;
+    }
+
+    if (normalized.includes("from categories") && normalized.includes("where id = ?")) {
+      const [categoryId, hotelId, moduleKey] = params;
+      const categoryRow = this.data.categories.find((entry) => entry.id === categoryId && entry.hotel_id === hotelId);
+      const catalogRow = categoryRow && this.data.catalogs.find((entry) => entry.id === categoryRow.catalog_id && entry.module_key === moduleKey);
+      return categoryRow && catalogRow ? { ...categoryRow, module_key: moduleKey } : null;
+    }
+
+    if (normalized.includes("from catalog_items ci") && normalized.includes("left join catalog_item_availability") && normalized.includes("where ci.id = ?")) {
+      const [itemId, hotelId, moduleKey] = params;
+      const catalogItem = this.data.catalogItems.find((entry) => entry.id === itemId && entry.hotel_id === hotelId && entry.module_key === moduleKey);
+      if (!catalogItem) return null;
+      const itemAvailability = this.findAvailability(itemId, hotelId);
+      return { ...catalogItem, is_available: itemAvailability?.is_available ?? 1, availability_label: itemAvailability?.availability_label ?? null };
+    }
+
+    if (normalized.includes("select id") && normalized.includes("from media_assets") && normalized.includes("module_key = ? or module_key is null")) {
+      const [assetId, hotelId, moduleKey] = params;
+      const asset = this.data.mediaAssets.find((entry) => entry.id === assetId && entry.hotel_id === hotelId && (entry.module_key === moduleKey || entry.module_key == null) && entry.status === "active");
+      return asset ? { id: asset.id } : null;
+    }
+
+    if (normalized.includes("from rooms") && normalized.includes("where id = ? and hotel_id = ?")) {
+      const [roomId, hotelId] = params;
+      return this.data.rooms.find((entry) => entry.id === roomId && entry.hotel_id === hotelId) || null;
+    }
+
+    if (normalized.includes("select avatar_media_asset_id") && normalized.includes("from erp_users")) {
+      const [userId, hotelId] = params;
+      const user = this.data.erpUsers.find((entry) => entry.id === userId && entry.hotel_id === hotelId);
+      return user ? { avatar_media_asset_id: user.avatar_media_asset_id || null } : null;
+    }
+
+    if (normalized.includes("from erp_users") && normalized.includes("password_hash") && normalized.includes("status = 'active'")) {
+      const [userId, hotelId] = params;
+      return this.data.erpUsers.find((entry) => entry.id === userId && entry.hotel_id === hotelId && entry.status === "active") || null;
+    }
+
+    if (normalized.includes("from rooms") && normalized.includes("status != 'archived'")) {
+      const [hotelId] = params;
+      return this.data.rooms
+        .filter((room) => room.hotel_id === hotelId && room.status !== "archived")
+        .sort((a, b) => Number(a.sort_order || 100) - Number(b.sort_order || 100) || a.code.localeCompare(b.code));
+    }
+
+    if (normalized.includes("from rooms") && normalized.includes("order by sort_order, code")) {
+      const [hotelId] = params;
+      return this.data.rooms
+        .filter((room) => room.hotel_id === hotelId && room.status === "active")
+        .sort((a, b) => Number(a.sort_order || 100) - Number(b.sort_order || 100) || a.code.localeCompare(b.code));
+    }
+
     if (normalized.includes("from hotel_modules hm")) {
       const [hotelId, publicOnly] = params;
       return this.data.hotelModules
@@ -1033,9 +1140,10 @@ class MockD1Database {
     }
 
     if (normalized.includes("from service_hours sh")) {
-      const [hotelId] = params;
+      const [hotelId, moduleKey] = params;
       return this.data.serviceHours
         .filter((entry) => entry.hotel_id === hotelId && entry.status === "active" && entry.archived_at == null)
+        .filter((entry) => !normalized.includes("sh.module_key = ?") || entry.module_key === moduleKey)
         .filter((entry) => {
           const moduleRow = this.data.hotelModules.find(
             (hotelModuleRow) =>
@@ -1284,6 +1392,31 @@ class MockD1Database {
         .sort((a, b) => a.category_sort_order - b.category_sort_order || a.sort_order - b.sort_order || a.name.localeCompare(b.name));
     }
 
+    if (normalized.includes("from categories") && normalized.includes("status != 'archived'")) {
+      const [hotelId, moduleKey] = params;
+      return this.data.categories
+        .filter((entry) => {
+          const catalog = this.data.catalogs.find((candidate) => candidate.id === entry.catalog_id);
+          return entry.hotel_id === hotelId && catalog?.module_key === moduleKey && entry.status !== "archived";
+        })
+        .sort((a, b) => Number(a.sort_order || 100) - Number(b.sort_order || 100) || a.name.localeCompare(b.name));
+    }
+
+    if (normalized.includes("from order_items oi") && normalized.includes("sum(oi.quantity)")) {
+      const [hotelId, moduleKey] = params;
+      const totals = new Map();
+      for (const item of this.data.orderItems.filter((entry) => entry.hotel_id === hotelId && entry.module_key === moduleKey)) {
+        const order = this.data.orders.find((entry) => entry.id === item.order_id && entry.status !== "cancelled");
+        if (!order) continue;
+        const key = `${item.catalog_item_id || "snapshot"}:${item.item_name_snapshot}`;
+        const current = totals.get(key) || { catalog_item_id: item.catalog_item_id, name: item.item_name_snapshot, quantity: 0, revenue_cents: 0 };
+        current.quantity += Number(item.quantity || 0);
+        current.revenue_cents += Number(item.line_total_cents || 0);
+        totals.set(key, current);
+      }
+      return [...totals.values()].sort((a, b) => b.quantity - a.quantity || a.name.localeCompare(b.name)).slice(0, 8);
+    }
+
     if (normalized.includes("from order_items") && normalized.includes("where order_id = ?")) {
       const [orderId, hotelId, moduleKey] = params;
       return this.data.orderItems
@@ -1343,6 +1476,14 @@ class MockD1Database {
       return this.data.shortLinkClicksDaily
         .filter((entry) => entry.short_link_id === linkId)
         .sort((a, b) => a.click_date.localeCompare(b.click_date));
+    }
+
+    if (normalized.includes("from media_assets") && normalized.includes("uploaded_by_erp_user_id") && normalized.includes("limit 100")) {
+      const [hotelId, moduleKey] = params;
+      return this.data.mediaAssets
+        .filter((asset) => asset.hotel_id === hotelId && (asset.module_key === moduleKey || asset.module_key == null) && asset.status === "active")
+        .sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id))
+        .slice(0, 100);
     }
 
     if (normalized.includes("from media_assets") && normalized.includes("order by created_at desc")) {
@@ -1573,10 +1714,89 @@ class MockD1Database {
         password_hash,
         password_strategy: "pbkdf2",
         status: "active",
+        avatar_media_asset_id: null,
+        avatar_updated_at: null,
         created_at,
         updated_at,
         archived_at: null,
       });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("insert into service_hours")) {
+      const [id, hotel_id, module_key, day_of_week, opens_at, closes_at, is_closed, created_at, updated_at] = params;
+      const existing = this.data.serviceHours.find((entry) => entry.hotel_id === hotel_id && entry.module_key === module_key && Number(entry.day_of_week) === Number(day_of_week) && Number(entry.sort_order || 0) === 0);
+      const values = {
+        id: existing?.id || id,
+        hotel_id,
+        module_key,
+        day_of_week: Number(day_of_week),
+        opens_at,
+        closes_at,
+        is_closed: Number(is_closed),
+        sort_order: 0,
+        valid_from: null,
+        valid_until: null,
+        status: "active",
+        created_at: existing?.created_at || created_at,
+        updated_at,
+        archived_at: null,
+      };
+      if (existing) Object.assign(existing, values);
+      else this.data.serviceHours.push(values);
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("insert into rooms")) {
+      const [id, hotel_id, code, label, room_type, sort_order, created_at, updated_at] = params;
+      if (this.data.rooms.some((entry) => entry.hotel_id === hotel_id && entry.code === code)) {
+        throw new Error("UNIQUE constraint failed: rooms.hotel_id, rooms.code");
+      }
+      this.data.rooms.push({ id, hotel_id, code, label, room_type, status: "active", sort_order, created_at, updated_at });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("insert into categories")) {
+      const [id, hotel_id, catalog_id, module_key, name, description, sort_order, created_at, updated_at] = params;
+      if (this.data.categories.some((entry) => entry.catalog_id === catalog_id && entry.name === name)) {
+        throw new Error("UNIQUE constraint failed: categories.catalog_id, categories.name");
+      }
+      this.data.categories.push({ id, hotel_id, catalog_id, module_key, name, description, status: "active", sort_order, created_at, updated_at });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("insert into catalog_items")) {
+      const [id, public_id, hotel_id, catalog_id, category_id, module_key, name, description, price_cents, currency, image_url, status, sort_order, created_at, updated_at, archived_at, media_asset_id] = params;
+      this.data.catalogItems.push({
+        id,
+        public_id,
+        hotel_id,
+        catalog_id,
+        category_id,
+        module_key,
+        item_type: "product",
+        name,
+        description,
+        price_cents,
+        currency,
+        image_url,
+        status,
+        sort_order,
+        metadata_json: null,
+        created_at,
+        updated_at,
+        archived_at,
+        media_asset_id,
+      });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("insert into catalog_item_availability")) {
+      const [hotel_id, catalog_item_id, is_available, availability_label, updated_at] = params;
+      const existing = this.data.availability.find((entry) => entry.hotel_id === hotel_id && entry.catalog_item_id === catalog_item_id);
+      const values = { hotel_id, catalog_item_id, is_available: Number(is_available), availability_label, starts_at: null, ends_at: null, updated_at };
+      if (existing) Object.assign(existing, values);
+      else this.data.availability.push(values);
       return d1Result(1);
     }
 
@@ -1667,6 +1887,7 @@ class MockD1Database {
         checksum_sha256,
         storage_etag,
         uploaded_by_user_id,
+        uploaded_by_erp_user_id,
       ] = params;
       this.data.mediaAssets.push({
         id,
@@ -1686,6 +1907,7 @@ class MockD1Database {
         checksum_sha256,
         storage_etag,
         uploaded_by_user_id,
+        uploaded_by_erp_user_id: params.length >= 15 ? uploaded_by_erp_user_id : null,
         archived_by_user_id: null,
       });
       return d1Result(1);
@@ -1842,18 +2064,34 @@ class MockD1Database {
     }
 
     if (normalized.startsWith("update erp_sessions")) {
-      const [revokedAt, identifier, maybeHotelId] = params;
+      const [revokedAt, identifier, maybeHotelId, excludedSessionId] = params;
       let changes = 0;
       for (const session of this.data.erpSessions) {
         const matches = normalized.includes("where token_hash = ?")
           ? session.token_hash === identifier
           : session.user_id === identifier && session.hotel_id === maybeHotelId;
-        if (matches && session.revoked_at == null) {
+        if (matches && session.revoked_at == null && (!normalized.includes("id <> ?") || session.id !== excludedSessionId)) {
           session.revoked_at = revokedAt;
           changes += 1;
         }
       }
       return d1Result(changes);
+    }
+
+    if (normalized.startsWith("update erp_users") && normalized.includes("avatar_media_asset_id = ?")) {
+      const [avatar_media_asset_id, avatar_updated_at, updated_at, userId, hotelId] = params;
+      const user = this.data.erpUsers.find((entry) => entry.id === userId && entry.hotel_id === hotelId);
+      if (!user) return d1Result(0);
+      Object.assign(user, { avatar_media_asset_id, avatar_updated_at, updated_at });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update erp_users") && normalized.includes("avatar_media_asset_id = null")) {
+      const [updated_at, userId, hotelId] = params;
+      const user = this.data.erpUsers.find((entry) => entry.id === userId && entry.hotel_id === hotelId);
+      if (!user) return d1Result(0);
+      Object.assign(user, { avatar_media_asset_id: null, avatar_updated_at: null, updated_at });
+      return d1Result(1);
     }
 
     if (normalized.startsWith("update erp_users") && normalized.includes("set display_name = ?")) {
@@ -1869,6 +2107,45 @@ class MockD1Database {
       const user = this.data.erpUsers.find((entry) => entry.id === userId && entry.hotel_id === hotelId);
       if (!user) return d1Result(0);
       Object.assign(user, { password_hash: passwordHash, password_strategy: "pbkdf2", updated_at: updatedAt });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update service_hours") && normalized.includes("sort_order <> 0")) {
+      const [archivedAt, updatedAt, hotelId, moduleKey] = params;
+      let changes = 0;
+      for (const entry of this.data.serviceHours) {
+        if (entry.hotel_id === hotelId && entry.module_key === moduleKey && Number(entry.sort_order || 0) !== 0 && entry.status === "active") {
+          Object.assign(entry, { status: "archived", archived_at: archivedAt, updated_at: updatedAt });
+          changes += 1;
+        }
+      }
+      return d1Result(changes);
+    }
+
+    if (normalized.startsWith("update rooms") && normalized.includes("set code = ?")) {
+      const [code, label, room_type, status, sort_order, updated_at, roomId, hotelId] = params;
+      if (this.data.rooms.some((entry) => entry.hotel_id === hotelId && entry.code === code && entry.id !== roomId)) {
+        throw new Error("UNIQUE constraint failed: rooms.hotel_id, rooms.code");
+      }
+      const room = this.data.rooms.find((entry) => entry.id === roomId && entry.hotel_id === hotelId);
+      if (!room) return d1Result(0);
+      Object.assign(room, { code, label, room_type, status, sort_order, updated_at });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update categories") && normalized.includes("set name = ?")) {
+      const [name, description, status, sort_order, updated_at, categoryId, hotelId, moduleKey] = params;
+      const category = this.data.categories.find((entry) => entry.id === categoryId && entry.hotel_id === hotelId && (entry.module_key === moduleKey || this.data.catalogs.find((catalogRow) => catalogRow.id === entry.catalog_id)?.module_key === moduleKey));
+      if (!category) return d1Result(0);
+      Object.assign(category, { name, description, status, sort_order, updated_at });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update catalog_items") && normalized.includes("set category_id = ?")) {
+      const [category_id, name, description, price_cents, currency, image_url, status, sort_order, media_asset_id, updated_at, archived_at, itemId, hotelId, moduleKey] = params;
+      const item = this.data.catalogItems.find((entry) => entry.id === itemId && entry.hotel_id === hotelId && entry.module_key === moduleKey);
+      if (!item) return d1Result(0);
+      Object.assign(item, { category_id, name, description, price_cents, currency, image_url, status, sort_order, media_asset_id, updated_at, archived_at });
       return d1Result(1);
     }
 
@@ -2100,7 +2377,12 @@ class MockD1Database {
     }
 
     if (normalized.startsWith("insert into hotel_settings")) {
-      const [id, hotel_id, setting_key, setting_value, value_type, is_public, created_at, updated_at] = params;
+      const usesLiteralMetadata = params.length === 6;
+      const [id, hotel_id, setting_key, setting_value] = params;
+      const value_type = usesLiteralMetadata ? "string" : params[4];
+      const is_public = usesLiteralMetadata ? 1 : params[5];
+      const created_at = params[usesLiteralMetadata ? 4 : 6];
+      const updated_at = params[usesLiteralMetadata ? 5 : 7];
       const existing = this.data.settings.find((entry) => entry.hotel_id === hotel_id && entry.setting_key === setting_key);
       if (existing) {
         Object.assign(existing, { setting_value, value_type, is_public, updated_at });
@@ -2239,12 +2521,19 @@ class MockD1Database {
         return d1Result(1);
       }
       if (normalized.includes("'media_asset'")) {
-        const [id, hotel_id, module_key, actor_user_id, action, entity_id, metadata_json, created_at] = params;
+        const hasErpActor = params.length === 9;
+        const [id, hotel_id, module_key, actor_user_id] = params;
+        const actor_erp_user_id = hasErpActor ? params[4] : null;
+        const action = params[hasErpActor ? 5 : 4];
+        const entity_id = params[hasErpActor ? 6 : 5];
+        const metadata_json = params[hasErpActor ? 7 : 6];
+        const created_at = params[hasErpActor ? 8 : 7];
         this.data.adminAuditLog.push({
           id,
           hotel_id,
           module_key,
           actor_user_id,
+          actor_erp_user_id,
           action,
           entity_type: "media_asset",
           entity_id,
@@ -2298,12 +2587,20 @@ class MockD1Database {
         });
         return d1Result(1);
       }
-      const [id, hotel_id, module_key, actor_user_id, action, entity_type, entity_id, metadata_json, created_at] = params;
+      const hasErpActor = params.length === 10;
+      const [id, hotel_id, module_key, actor_user_id] = params;
+      const actor_erp_user_id = hasErpActor ? params[4] : null;
+      const action = params[hasErpActor ? 5 : 4];
+      const entity_type = params[hasErpActor ? 6 : 5];
+      const entity_id = params[hasErpActor ? 7 : 6];
+      const metadata_json = params[hasErpActor ? 8 : 7];
+      const created_at = params[hasErpActor ? 9 : 8];
       this.data.adminAuditLog.push({
         id,
         hotel_id,
         module_key,
         actor_user_id,
+        actor_erp_user_id,
         action,
         entity_type,
         entity_id,

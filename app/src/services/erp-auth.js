@@ -18,6 +18,8 @@ export const ERP_PERMISSION_DEFINITIONS = Object.freeze([
   { key: "room-service.guests.read", label: "Hospedes" },
   { key: "room-service.billing.read", label: "Faturamento" },
   { key: "room-service.catalog.read", label: "Cardapio" },
+  { key: "room-service.catalog.manage", label: "Editar cardapio e imagens" },
+  { key: "room-service.settings.manage", label: "Funcionamento e acomodacoes" },
   { key: "room-service.users.manage", label: "Usuarios e configuracoes" },
 ]);
 
@@ -58,7 +60,8 @@ export async function loginRoomServiceErp({ request, env }) {
   const password = requireString(payload.password, "password", { max: 300 });
   const user = await first(
     env,
-    `SELECT id, hotel_id, user_code, display_name, password_hash, password_strategy, status
+    `SELECT id, hotel_id, user_code, display_name, password_hash, password_strategy,
+            status, avatar_media_asset_id, avatar_updated_at
        FROM erp_users
       WHERE hotel_id = ?
         AND user_code = ?
@@ -113,7 +116,8 @@ export async function getCurrentRoomServiceErpSession({ request, env, required =
   const row = await first(
     env,
     `SELECT s.id AS session_id, s.expires_at,
-            u.id, u.hotel_id, u.user_code, u.display_name, u.status
+            u.id, u.hotel_id, u.user_code, u.display_name, u.status,
+            u.avatar_media_asset_id, u.avatar_updated_at
        FROM erp_sessions s
        JOIN erp_users u ON u.id = s.user_id AND u.hotel_id = s.hotel_id
       WHERE s.token_hash = ?
@@ -199,7 +203,7 @@ async function buildErpUserSession(env, row, hotel) {
       user_code: Number(row.user_code),
       display_name: row.display_name,
       email: null,
-      avatar: null,
+      avatar: row.avatar_media_asset_id ? `/media/${row.avatar_media_asset_id}` : null,
     },
     hotels: [hotel],
     hotel_ids: [hotel.hotel_id],

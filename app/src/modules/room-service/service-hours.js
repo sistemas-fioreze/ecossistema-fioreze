@@ -13,13 +13,23 @@ const WEEKDAY_TO_INDEX = {
 export function assertRoomServiceOpen({ request, env, tenant, moduleKey = "room-service" }) {
   const hours = tenant.service_hours?.[moduleKey] || [];
   const now = getRequestDate(request, env);
-  const status = evaluateServiceHours({
+  const schedule = evaluateServiceHours({
     serviceHours: hours,
     timezone: tenant.timezone || "America/Sao_Paulo",
     now,
   });
+  return applyOperationMode(schedule, tenant.settings?.[`${moduleKey}.operation_mode`]);
+}
 
-  return status;
+export function applyOperationMode(schedule, value) {
+  const mode = ["forced_open", "forced_closed"].includes(value) ? value : "automatic";
+  return {
+    ...schedule,
+    mode,
+    source: mode === "automatic" ? "schedule" : "manual_override",
+    schedule_open: Boolean(schedule.open),
+    open: mode === "forced_open" || (mode === "automatic" && Boolean(schedule.open)),
+  };
 }
 
 export function evaluateServiceHours({ serviceHours = [], timezone = "America/Sao_Paulo", now = new Date() }) {

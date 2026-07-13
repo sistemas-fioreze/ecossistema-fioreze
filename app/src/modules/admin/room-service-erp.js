@@ -6,6 +6,8 @@ import { createRoomServiceOrder } from "../room-service/orders.js";
 import { groupProductsByCategory, listRoomServiceProducts } from "../room-service/products.js";
 import { listAdminOrders, getAdminOrder, updateAdminOrderStatus } from "./orders.js";
 import { assertAdminMutationAllowed, requireAdminHotelAccess, requirePermission } from "../../services/admin-auth.js";
+import { ERP_CATALOG_MANAGE_PERMISSION, listRoomServiceCatalogCategories } from "./erp-catalog.js";
+import { ERP_SETTINGS_PERMISSION, loadRoomServiceOperationState } from "./erp-operations.js";
 
 const MODULE_KEY = "room-service";
 const READ_PERMISSION = "room-service.orders.read";
@@ -22,6 +24,8 @@ const ERP_PERMISSIONS = [
   GUESTS_PERMISSION,
   BILLING_PERMISSION,
   CATALOG_PERMISSION,
+  ERP_CATALOG_MANAGE_PERMISSION,
+  ERP_SETTINGS_PERMISSION,
   USERS_PERMISSION,
 ];
 
@@ -39,9 +43,9 @@ export async function getRoomServiceErpContext({ env, session, url }) {
   requireAnyPermission(session, ERP_PERMISSIONS);
   const hotelId = resolveRequestedHotel(session, url);
   const hotel = requireSessionHotel(session, hotelId);
-  const [branding, serviceHours, rooms] = await Promise.all([
+  const [branding, operation, rooms] = await Promise.all([
     loadBranding(env, hotelId),
-    loadServiceHours(env, hotelId),
+    loadRoomServiceOperationState({ env, hotelId, timezone: hotel.timezone }),
     listRooms(env, hotelId),
   ]);
 
@@ -50,7 +54,8 @@ export async function getRoomServiceErpContext({ env, session, url }) {
     selected_hotel_id: hotelId,
     hotel,
     branding,
-    service_hours: serviceHours,
+    service_hours: operation.service_hours,
+    operation,
     rooms,
     permissions: {
       can_view_dashboard: hasAnyPermission(session, [DASHBOARD_PERMISSION, READ_PERMISSION]),
@@ -61,7 +66,8 @@ export async function getRoomServiceErpContext({ env, session, url }) {
       can_view_billing: hasAnyPermission(session, [BILLING_PERMISSION, READ_PERMISSION]),
       can_view_catalog: hasAnyPermission(session, [CATALOG_PERMISSION, READ_PERMISSION, WRITE_PERMISSION]),
       can_manage_users: hasAnyPermission(session, [USERS_PERMISSION]),
-      can_manage_catalog: false,
+      can_manage_catalog: hasAnyPermission(session, [ERP_CATALOG_MANAGE_PERMISSION]),
+      can_manage_settings: hasAnyPermission(session, [ERP_SETTINGS_PERMISSION]),
     },
     printing: {
       enabled: false,
@@ -91,6 +97,21 @@ export async function getRoomServiceErpDashboard({ env, session, url }) {
   const cancelledOrders = orders.filter((order) => STATUS_GROUPS[order.status] === "cancelled");
   const todaysOrders = orders.filter((order) => localDateKey(order.created_at) === today);
   const revenueCents = finalOrders.reduce((total, order) => total + Number(order.total_cents || 0), 0);
+  const topItems = await all(
+    env,
+    `SELECT oi.catalog_item_id, oi.item_name_snapshot AS name,
+            SUM(oi.quantity) AS quantity,
+            SUM(oi.line_total_cents) AS revenue_cents
+       FROM order_items oi
+       JOIN orders o ON o.id = oi.order_id
+      WHERE oi.hotel_id = ?
+        AND oi.module_key = ?
+        AND o.status != 'cancelled'
+      GROUP BY oi.catalog_item_id, oi.item_name_snapshot
+      ORDER BY quantity DESC, name
+      LIMIT 8`,
+    [hotelId, MODULE_KEY],
+  );
 
   return {
     hotel_id: hotelId,
@@ -106,6 +127,16 @@ export async function getRoomServiceErpDashboard({ env, session, url }) {
       average_ticket_cents: finalOrders.length ? Math.round(revenueCents / finalOrders.length) : 0,
     },
     by_status: countBy(orders, "status"),
+    by_origin: countBy(orders, "origin"),
+    by_hour: countBy(
+      orders.map((order) => ({ hour: `${String(order.created_at || "").slice(11, 13) || "00"}:00` })),
+      "hour",
+    ),
+    top_items: topItems.map((item) => ({
+      ...item,
+      quantity: Number(item.quantity || 0),
+      revenue_cents: Number(item.revenue_cents || 0),
+    })),
     recent_orders: orders.slice(0, 8),
   };
 }
@@ -127,11 +158,15 @@ export async function updateRoomServiceErpOrderStatus({ request, env, session, o
 export async function listRoomServiceErpCatalog({ env, session, url }) {
   requireAnyPermission(session, [CATALOG_PERMISSION, READ_PERMISSION, WRITE_PERMISSION]);
   const hotelId = resolveRequestedHotel(session, url);
-  const rows = await listRoomServiceProducts(env, hotelId);
+  const [rows, categories] = await Promise.all([
+    listRoomServiceProducts(env, hotelId),
+    listRoomServiceCatalogCategories(env, hotelId),
+  ]);
   return {
     hotel_id: hotelId,
     module_key: MODULE_KEY,
     categories: groupProductsByCategory(rows),
+    category_options: categories,
   };
 }
 
@@ -185,7 +220,7 @@ export async function createRoomServiceErpOrder({ request, env, session }) {
   if (!hotelId) throw badRequest("hotel_id obrigatorio para pedido administrativo.");
   requireAdminHotelAccess(session, hotelId);
   const hotel = requireSessionHotel(session, hotelId);
-  const serviceHours = await loadServiceHours(env, hotelId);
+  const operation = await loadRoomServiceOperationState({ env, hotelId, timezone: hotel.timezone });
   const body = JSON.stringify({ ...payload, origin: "admin_pdv" });
   const adminRequest = new Request(request.url, {
     method: request.method,
@@ -197,7 +232,8 @@ export async function createRoomServiceErpOrder({ request, env, session }) {
     env,
     tenant: {
       ...hotel,
-      service_hours: { [MODULE_KEY]: serviceHours },
+      settings: { [`${MODULE_KEY}.operation_mode`]: operation.mode },
+      service_hours: { [MODULE_KEY]: operation.service_hours },
     },
   });
 }
@@ -257,26 +293,10 @@ async function loadBranding(env, hotelId) {
   };
 }
 
-async function loadServiceHours(env, hotelId) {
-  return all(
-    env,
-    `SELECT sh.id, sh.hotel_id, sh.module_key, sh.day_of_week,
-            sh.opens_at, sh.closes_at, sh.is_closed, sh.sort_order,
-            sh.valid_from, sh.valid_until, sh.status
-       FROM service_hours sh
-      WHERE sh.hotel_id = ?
-        AND sh.module_key = ?
-        AND sh.status = 'active'
-        AND sh.archived_at IS NULL
-      ORDER BY sh.day_of_week, sh.sort_order`,
-    [hotelId, MODULE_KEY],
-  );
-}
-
 async function listRooms(env, hotelId) {
   return all(
     env,
-    `SELECT id, hotel_id, code, status
+    `SELECT id, hotel_id, code, label, room_type, status, sort_order
        FROM rooms
       WHERE hotel_id = ?
         AND status = 'active'
