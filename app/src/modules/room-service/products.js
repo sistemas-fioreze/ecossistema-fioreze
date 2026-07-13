@@ -3,7 +3,7 @@ import { all } from "../../core/database.js";
 export async function listRoomServiceProducts(env, hotelId) {
   return all(
     env,
-    `SELECT ci.id, ci.public_id, ci.name, ci.description, ci.item_type,
+    `SELECT ci.id, ci.public_id, ci.name, ci.description, ci.tag, ci.item_type,
             ci.price_cents, ci.currency, ci.image_url, ci.media_asset_id, ci.status, ci.sort_order,
             ca.is_available, ca.availability_label,
             c.id AS category_id, c.name AS category_name
@@ -37,6 +37,7 @@ export function groupProductsByCategory(rows) {
       public_id: row.public_id,
       name: row.name,
       description: row.description,
+      tag: row.tag || null,
       item_type: row.item_type,
       price_cents: row.price_cents,
       currency: row.currency,

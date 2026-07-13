@@ -110,10 +110,10 @@ export async function createRoomServiceCatalogItem({ request, env, session }) {
       env,
       `INSERT INTO catalog_items (
          id, public_id, hotel_id, catalog_id, category_id, module_key,
-         item_type, name, description, price_cents, currency, image_url,
+         item_type, name, description, tag, price_cents, currency, image_url,
          status, sort_order, metadata_json, created_at, updated_at, archived_at,
          media_asset_id
-       ) VALUES (?, ?, ?, ?, ?, ?, 'product', ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)`,
+       ) VALUES (?, ?, ?, ?, ?, ?, 'product', ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)`,
       [
         itemId,
         publicId,
@@ -123,6 +123,7 @@ export async function createRoomServiceCatalogItem({ request, env, session }) {
         MODULE_KEY,
         values.name,
         values.description,
+        values.tag,
         values.price_cents,
         values.currency,
         values.image_url,
@@ -162,7 +163,7 @@ export async function updateRoomServiceCatalogItem({ request, env, session, item
     statement(
       env,
       `UPDATE catalog_items
-          SET category_id = ?, name = ?, description = ?, price_cents = ?,
+          SET category_id = ?, name = ?, description = ?, tag = ?, price_cents = ?,
               currency = ?, image_url = ?, status = ?, sort_order = ?,
               media_asset_id = ?, updated_at = ?, archived_at = ?
         WHERE id = ? AND hotel_id = ? AND module_key = ?`,
@@ -170,6 +171,7 @@ export async function updateRoomServiceCatalogItem({ request, env, session, item
         category.id,
         values.name,
         values.description,
+        values.tag,
         values.price_cents,
         values.currency,
         values.image_url,
@@ -215,6 +217,9 @@ async function normalizeItemValues(env, hotelId, payload, current) {
   const description = Object.hasOwn(payload, "description")
     ? optionalString(payload.description, "description", { max: 1000 }) || null
     : current?.description || null;
+  const tag = Object.hasOwn(payload, "tag")
+    ? optionalString(payload.tag, "tag", { max: 60 }) || null
+    : current?.tag || null;
   const priceCents = Object.hasOwn(payload, "price_cents") ? Number(payload.price_cents) : Number(current?.price_cents);
   if (!Number.isInteger(priceCents) || priceCents < 0 || priceCents > 100000000) throw badRequest("Preco invalido.");
   const currency = Object.hasOwn(payload, "currency") ? requireString(payload.currency, "currency", { max: 3 }).toUpperCase() : current?.currency || "BRL";
@@ -232,6 +237,7 @@ async function normalizeItemValues(env, hotelId, payload, current) {
   return {
     name,
     description,
+    tag,
     price_cents: priceCents,
     currency,
     status,
@@ -276,7 +282,7 @@ async function requireCatalogItem(env, hotelId, itemId) {
   const item = await first(
     env,
     `SELECT ci.id, ci.public_id, ci.hotel_id, ci.catalog_id, ci.category_id,
-            ci.module_key, ci.item_type, ci.name, ci.description, ci.price_cents,
+            ci.module_key, ci.item_type, ci.name, ci.description, ci.tag, ci.price_cents,
             ci.currency, ci.image_url, ci.status, ci.sort_order, ci.media_asset_id,
             ca.is_available, ca.availability_label
        FROM catalog_items ci
