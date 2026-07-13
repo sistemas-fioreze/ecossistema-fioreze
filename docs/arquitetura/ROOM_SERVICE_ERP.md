@@ -9,11 +9,15 @@ O ERP Room Service oficial e uma aplicacao unica e reutilizavel para todas as un
 
 O ERP nao usa o shell visual da Central Administrativa. A sessao continua sendo a sessao administrativa central.
 
+O shell operacional preserva a identidade visual do ERP legado sanitizado: navegacao lateral com SVGs locais, topbar, dashboard, PDV, pedidos, hospedes, faturamento, cardapio e configuracoes. A marcacao visual foi desacoplada de todos os handlers e endpoints antigos; um adaptador local liga os componentes exclusivamente as APIs administrativas da plataforma.
+
 ## Estrutura
 
 - HTML: `app/public/erp/room-service/index.html`
 - CSS: `app/public/css/modules/room-service-erp/`
 - JS: `app/public/js/modules/room-service-erp/`
+
+`legacy-tailwind.css` contem apenas as classes estaticas necessarias ao shell visual e e servido pelos Static Assets. Nao existe carregamento de Tailwind, icones, fontes ou scripts por CDN no navegador.
 
 ## Modulos Visuais
 
@@ -49,6 +53,8 @@ As rotas usam a sessao administrativa, validam acesso por unidade e mantem a imp
 - Sem Apps Script, Google Sheets, CDN externa ou webhook legado.
 - Sem impressao nesta fase.
 - Sem dados pessoais em `localStorage`.
+- SVGs e componentes visuais locais, sem dependencia do Apps Script legado.
+- Acoes de impressao e exportacao permanecem visiveis apenas como referencia do fluxo e ficam desabilitadas em desenvolvimento.
 
 ## Central Administrativa
 
