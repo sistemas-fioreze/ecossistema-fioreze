@@ -22,6 +22,25 @@ export async function createSessionCookie(env, userId = DEMO_USER_ID, overrides 
   return `fioreze_admin_session=${token}`;
 }
 
+export async function createErpSessionCookie(env, userId = "erp-user-muller-1", overrides = {}) {
+  const user = env.__data.erpUsers.find((entry) => entry.id === userId);
+  if (!user) throw new Error(`ERP fixture user not found: ${userId}`);
+  const token = `test-erp-session-${crypto.randomUUID()}`;
+  env.__data.erpSessions.push({
+    id: `erpsess-${crypto.randomUUID()}`,
+    user_id: user.id,
+    hotel_id: user.hotel_id,
+    token_hash: await sha256Hex(token),
+    user_agent_hash: null,
+    ip_hash: null,
+    created_at: TEST_ADMIN_CREATED_AT,
+    expires_at: TEST_ADMIN_EXPIRES_AT,
+    revoked_at: null,
+    ...overrides,
+  });
+  return `fioreze_erp_session=${token}`;
+}
+
 export function withCookie(cookie, init = {}) {
   return {
     ...init,

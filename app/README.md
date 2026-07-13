@@ -24,15 +24,18 @@ Um unico Worker, um unico front-end publico, uma unica autenticacao administrati
 
 O shell publico identifica o hotel pelo slug da URL, chama `/api/v1/public/hotels/:hotel_slug/bootstrap`, aplica branding, monta a navegacao e carrega o modulo. Ele nao baixa HTML remoto.
 
-As telas administrativas tambem compartilham o mesmo backend, usuario, cookie `fioreze_admin_session`, logout e endpoint `GET /api/v1/admin/session`. O frontend fica separado em duas aplicacoes administrativas independentes:
+As telas administrativas compartilham o mesmo Worker e D1, mas usam dominios de autenticacao separados:
 
-- ERP Room Service, focado em operacao de pedidos e atendimento;
-- Central de Portais Fioreze, preparada para administracao de hoteis, portais, conteudos e usuarios.
+- ERP Room Service: usuarios operacionais por `hotel_id`, cookie `fioreze_erp_session` e permissoes dos modulos do ERP;
+- Central de Portais Fioreze: usuarios globais em `admin_users`, cookie `fioreze_admin_session` e permissoes administrativas.
+
+O administrador ficticio de desenvolvimento recebe `erp.master` e pode acessar todos os ERPs. Outros usuarios da Central nao entram no ERP.
 
 Rotas administrativas:
 
 - `/admin/`: central de acesso administrativo e selecao de sistemas;
-- `/admin/room-service/`: ERP operacional do Room Service;
+- `/erp/room-service/`: ERP operacional canonico do Room Service;
+- `/admin/room-service/`: redirecionamento de compatibilidade para o ERP;
 - `/admin/portais/`: Central de Portais Fioreze.
 
 Autorizacao visual usa `permission_key` retornada pela sessao e acesso por hotel retornado pelo backend. A barreira efetiva permanece nas APIs administrativas.
@@ -67,6 +70,7 @@ Tabelas principais:
 
 - core: `hotels`, `hotel_domains`, `hotel_branding`, `hotel_settings`, `modules`, `hotel_modules`, `navigation_items`, `features`, `hotel_features`, `rooms`, `service_hours`, `media_assets`;
 - admin: `admin_users`, `admin_roles`, `admin_permissions`, `admin_user_roles`, `admin_role_permissions`, `admin_hotel_access`, `admin_sessions`, `admin_audit_log`;
+- usuarios operacionais do ERP: `erp_users`, `erp_user_permissions`, `erp_sessions`;
 - portal: `portal_pages`, `portal_sections`, `portal_content_items`, `events`, `hotel_information`;
 - catalogos: `catalogs`, `categories`, `catalog_items`, `catalog_item_availability`;
 - pedidos: `orders`, `order_items`, `order_status_history`, `print_events`;
@@ -85,6 +89,14 @@ Implementados:
 - `POST /api/v1/admin/login`
 - `POST /api/v1/admin/logout`
 - `GET /api/v1/admin/session`
+- `GET /api/v1/admin/room-service/login-context`
+- `POST /api/v1/admin/room-service/login`
+- `POST /api/v1/admin/room-service/logout`
+- `GET /api/v1/admin/room-service/session`
+- `GET /api/v1/admin/room-service/users`
+- `POST /api/v1/admin/room-service/users`
+- `PATCH /api/v1/admin/room-service/users/:id`
+- `POST /api/v1/admin/room-service/users/:id/password`
 - `GET /api/v1/admin/hotels`
 - `GET /api/v1/admin/orders`
 - `GET /api/v1/admin/orders/:id`
@@ -273,6 +285,8 @@ O MVP administrativo implementa login real para ambiente local e desenvolvimento
 - `portals.media.archive`;
 - `portals.embed.read`;
 - `portals.embed.update`.
+
+O ERP operacional usa o mesmo algoritmo de hash, mas guarda usuarios e sessoes nas tabelas `erp_users` e `erp_sessions`. Cada codigo numerico e sequencial dentro de um hotel, e cada permissao em `erp_user_permissions` fica associada ao mesmo `hotel_id`. A API nunca consulta um usuario operacional sem filtrar a unidade.
 
 As permissoes de midia sao cadastradas pela migration `0008`, mas nao sao associadas automaticamente a nenhum role. A liberacao de usuarios no D1 de desenvolvimento deve ser uma etapa operacional separada e autorizada.
 

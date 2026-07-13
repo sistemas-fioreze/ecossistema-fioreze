@@ -1,18 +1,23 @@
 import { adminApi } from "../admin/shared/admin-api.js";
 
 export function getSession() {
-  return adminApi("/api/v1/admin/session");
+  return adminApi("/api/v1/admin/room-service/session");
 }
 
-export function login({ email, password }) {
-  return adminApi("/api/v1/admin/login", {
+export function getLoginContext() {
+  return adminApi("/api/v1/admin/room-service/login-context");
+}
+
+export function login({ hotelId, credential, password }) {
+  const centralAdmin = credential.includes("@");
+  return adminApi(centralAdmin ? "/api/v1/admin/login" : "/api/v1/admin/room-service/login", {
     method: "POST",
-    body: { email, password },
+    body: centralAdmin ? { email: credential, password } : { hotel_id: hotelId, user_code: credential, password },
   });
 }
 
 export function logout() {
-  return adminApi("/api/v1/admin/logout", { method: "POST", body: {} }).catch(() => null);
+  return adminApi("/api/v1/admin/room-service/logout", { method: "POST", body: {} }).catch(() => null);
 }
 
 export function listOrders({ hotelId, status, q } = {}) {
@@ -60,6 +65,26 @@ export function getGuests({ hotelId } = {}) {
 
 export function getBilling({ hotelId } = {}) {
   return adminApi(`/api/v1/admin/room-service/billing?${hotelParams(hotelId)}`);
+}
+
+export function listErpUsers({ hotelId } = {}) {
+  return adminApi(`/api/v1/admin/room-service/users?${hotelParams(hotelId)}`);
+}
+
+export function listErpPermissions() {
+  return adminApi("/api/v1/admin/room-service/permissions");
+}
+
+export function createErpUser(body) {
+  return adminApi("/api/v1/admin/room-service/users", { method: "POST", body });
+}
+
+export function updateErpUser(userId, body) {
+  return adminApi(`/api/v1/admin/room-service/users/${encodeURIComponent(userId)}`, { method: "PATCH", body });
+}
+
+export function resetErpUserPassword(userId, body) {
+  return adminApi(`/api/v1/admin/room-service/users/${encodeURIComponent(userId)}/password`, { method: "POST", body });
 }
 
 function hotelParams(hotelId) {

@@ -32,6 +32,13 @@ import {
   updateRoomServiceErpOrderStatus,
 } from "./room-service-erp.js";
 import {
+  createRoomServiceErpUser,
+  listRoomServiceErpPermissionDefinitions,
+  listRoomServiceErpUsers,
+  resetRoomServiceErpUserPassword,
+  updateRoomServiceErpUser,
+} from "./erp-users.js";
+import {
   archiveAdminShortLink,
   createAdminShortLink,
   getAdminShortLink,
@@ -62,6 +69,13 @@ import {
 } from "./users.js";
 import { ok } from "../../core/responses.js";
 import { notFoundError } from "../../core/errors.js";
+import {
+  getCurrentRoomServiceErpSession,
+  listRoomServiceErpLoginHotels,
+  loginRoomServiceErp,
+  logoutRoomServiceErp,
+  toRoomServiceErpSessionPayload,
+} from "../../services/erp-auth.js";
 
 export function registerAdminRoutes(router) {
   router.post("/api/v1/admin/login", async ({ request, env }) => {
@@ -77,6 +91,31 @@ export function registerAdminRoutes(router) {
   router.get("/api/v1/admin/session", async ({ request, env }) => {
     const session = await requireAuthentication({ request, env });
     return ok(toSessionPayload(session));
+  });
+
+  router.get("/api/v1/admin/room-service/login-context", async ({ env }) => {
+    return ok(await listRoomServiceErpLoginHotels(env));
+  });
+
+  router.post("/api/v1/admin/room-service/login", async ({ request, env }) => {
+    const { session, headers } = await loginRoomServiceErp({ request, env });
+    return ok(toRoomServiceErpSessionPayload(session), { headers });
+  });
+
+  router.post("/api/v1/admin/room-service/logout", async ({ request, env }) => {
+    const erpLogout = await logoutRoomServiceErp({ request, env });
+    const adminLogout = await logoutAdmin({ request, env });
+    const headers = new Headers();
+    for (const source of [erpLogout.headers, adminLogout.headers]) {
+      const cookie = source.get("set-cookie");
+      if (cookie) headers.append("set-cookie", cookie);
+    }
+    return ok({ logged_out: true }, { headers });
+  });
+
+  router.get("/api/v1/admin/room-service/session", async ({ request, env }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(toRoomServiceErpSessionPayload(session));
   });
 
   router.get("/api/v1/admin/me", async ({ request, env }) => {
@@ -313,49 +352,74 @@ export function registerAdminRoutes(router) {
   });
 
   router.get("/api/v1/admin/room-service/context", async ({ request, env, url }) => {
-    const session = await requireAuthentication({ request, env });
+    const session = await getCurrentRoomServiceErpSession({ request, env });
     return ok(await getRoomServiceErpContext({ env, session, url }));
   });
 
   router.get("/api/v1/admin/room-service/dashboard", async ({ request, env, url }) => {
-    const session = await requireAuthentication({ request, env });
+    const session = await getCurrentRoomServiceErpSession({ request, env });
     return ok(await getRoomServiceErpDashboard({ env, session, url }));
   });
 
   router.get("/api/v1/admin/room-service/orders", async ({ request, env, url }) => {
-    const session = await requireAuthentication({ request, env });
+    const session = await getCurrentRoomServiceErpSession({ request, env });
     return ok(await listRoomServiceErpOrders({ env, session, url }));
   });
 
   router.post("/api/v1/admin/room-service/orders", async ({ request, env }) => {
-    const session = await requireAuthentication({ request, env });
+    const session = await getCurrentRoomServiceErpSession({ request, env });
     const order = await createRoomServiceErpOrder({ request, env, session });
     return ok(order, { status: order.idempotent ? 200 : 201 });
   });
 
   router.get("/api/v1/admin/room-service/orders/:id", async ({ request, env, params }) => {
-    const session = await requireAuthentication({ request, env });
+    const session = await getCurrentRoomServiceErpSession({ request, env });
     return ok(await getRoomServiceErpOrder({ env, session, orderId: params.id }));
   });
 
   router.post("/api/v1/admin/room-service/orders/:id/status", async ({ request, env, params }) => {
-    const session = await requireAuthentication({ request, env });
+    const session = await getCurrentRoomServiceErpSession({ request, env });
     return ok(await updateRoomServiceErpOrderStatus({ request, env, session, orderId: params.id }));
   });
 
   router.get("/api/v1/admin/room-service/guests", async ({ request, env, url }) => {
-    const session = await requireAuthentication({ request, env });
+    const session = await getCurrentRoomServiceErpSession({ request, env });
     return ok(await listRoomServiceErpGuests({ env, session, url }));
   });
 
   router.get("/api/v1/admin/room-service/billing", async ({ request, env, url }) => {
-    const session = await requireAuthentication({ request, env });
+    const session = await getCurrentRoomServiceErpSession({ request, env });
     return ok(await getRoomServiceErpBilling({ env, session, url }));
   });
 
   router.get("/api/v1/admin/room-service/catalog", async ({ request, env, url }) => {
-    const session = await requireAuthentication({ request, env });
+    const session = await getCurrentRoomServiceErpSession({ request, env });
     return ok(await listRoomServiceErpCatalog({ env, session, url }));
+  });
+
+  router.get("/api/v1/admin/room-service/permissions", async ({ request, env }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(listRoomServiceErpPermissionDefinitions({ session }));
+  });
+
+  router.get("/api/v1/admin/room-service/users", async ({ request, env, url }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(await listRoomServiceErpUsers({ env, session, url }));
+  });
+
+  router.post("/api/v1/admin/room-service/users", async ({ request, env }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(await createRoomServiceErpUser({ request, env, session }), { status: 201 });
+  });
+
+  router.patch("/api/v1/admin/room-service/users/:id", async ({ request, env, params }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(await updateRoomServiceErpUser({ request, env, session, userId: params.id }));
+  });
+
+  router.post("/api/v1/admin/room-service/users/:id/password", async ({ request, env, params }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(await resetRoomServiceErpUserPassword({ request, env, session, userId: params.id }));
   });
 
   router.post("/api/v1/admin/media", async ({ request, env }) => {

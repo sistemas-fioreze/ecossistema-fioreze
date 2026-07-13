@@ -4,6 +4,7 @@ import { createPublicId } from "../../core/identifiers.js";
 import { requestNow } from "../../core/time.js";
 import { optionalString, readJson, requireString } from "../../core/validation.js";
 import { assertAdminMutationAllowed, requireAdminHotelAccess, requirePermission } from "../../services/admin-auth.js";
+import { erpActorIds } from "../../services/erp-auth.js";
 
 const MODULE_KEY = "room-service";
 const READ_PERMISSION = "room-service.orders.read";
@@ -34,8 +35,8 @@ export async function listAdminHotels({ env, session }) {
   };
 }
 
-export async function listAdminOrders({ env, session, url }) {
-  requirePermission(session, READ_PERMISSION);
+export async function listAdminOrders({ env, session, url, permissionKey = READ_PERMISSION }) {
+  requirePermission(session, permissionKey);
   const hotelId = optionalString(url.searchParams.get("hotel_id"), "hotel_id", { max: 80 });
   const status = optionalString(url.searchParams.get("status"), "status", { max: 40 });
   const search = optionalString(url.searchParams.get("q"), "q", { max: 120 });
@@ -147,6 +148,7 @@ export async function updateAdminOrderStatus({ request, env, session, orderId })
     target_status: normalizedTargetPublicStatus,
     storage_status: targetStorageStatus,
   };
+  const actor = erpActorIds(session);
 
   let batchResults;
   try {
@@ -175,9 +177,10 @@ export async function updateAdminOrderStatus({ request, env, session, orderId })
       statement(
         env,
         `INSERT INTO order_status_history (
-           id, order_id, hotel_id, module_key, status, note, actor_user_id, created_at
+           id, order_id, hotel_id, module_key, status, note,
+           actor_user_id, actor_erp_user_id, created_at
          )
-         SELECT ?, o.id, o.hotel_id, o.module_key, ?, ?, ?, ?
+         SELECT ?, o.id, o.hotel_id, o.module_key, ?, ?, ?, ?, ?
            FROM orders o
           WHERE o.id = ?
             AND o.hotel_id = ?
@@ -194,7 +197,8 @@ export async function updateAdminOrderStatus({ request, env, session, orderId })
           historyId,
           normalizedTargetPublicStatus,
           historyNote,
-          session.user.id,
+          actor.adminUserId,
+          actor.erpUserId,
           createdAt,
           current.id,
           current.hotel_id,
@@ -207,10 +211,10 @@ export async function updateAdminOrderStatus({ request, env, session, orderId })
       statement(
         env,
         `INSERT INTO admin_audit_log (
-           id, hotel_id, module_key, actor_user_id, action, entity_type,
+           id, hotel_id, module_key, actor_user_id, actor_erp_user_id, action, entity_type,
            entity_id, metadata_json, created_at
          )
-         SELECT ?, o.hotel_id, o.module_key, ?, ?, ?, o.id, ?, ?
+         SELECT ?, o.hotel_id, o.module_key, ?, ?, ?, ?, o.id, ?, ?
            FROM orders o
           WHERE o.id = ?
             AND o.hotel_id = ?
@@ -226,7 +230,8 @@ export async function updateAdminOrderStatus({ request, env, session, orderId })
             )`,
         [
           auditId,
-          session.user.id,
+          actor.adminUserId,
+          actor.erpUserId,
           "room-service.order.status_changed",
           "order",
           JSON.stringify(auditMetadata),
@@ -340,7 +345,7 @@ async function loadOrderDetail(env, orderId, hotelIds) {
 
   const history = await all(
     env,
-    `SELECT id, status, note, actor_user_id, created_at
+    `SELECT id, status, note, actor_user_id, actor_erp_user_id, created_at
        FROM order_status_history
       WHERE order_id = ?
         AND hotel_id = ?
@@ -410,6 +415,7 @@ function formatOrderDetail(order, items, history, printEvents) {
       status: toPublicStatus(entry.status),
       note: entry.note,
       actor_user_id: entry.actor_user_id,
+      actor_erp_user_id: entry.actor_erp_user_id,
       created_at: entry.created_at,
     })),
     printing: {
