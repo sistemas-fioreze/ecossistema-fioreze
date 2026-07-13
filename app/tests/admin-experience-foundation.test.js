@@ -61,7 +61,35 @@ test("shells administrativos continuam respondendo sem fallback incorreto", asyn
 test("ERP Room Service oficial nao usa CDN, webhook legado ou Postimg", () => {
   const html = fs.readFileSync("public/erp/room-service/index.html", "utf8");
   const app = fs.readFileSync("public/js/modules/room-service-erp/app.js", "utf8");
+  const adapter = fs.readFileSync("public/js/modules/room-service-erp/legacy-app.js", "utf8");
   assert.match(html, /data-erp="room-service"/);
   assert.match(html, /routeOutlet/);
-  assert.doesNotMatch(`${html}\n${app}`, /https:\/\/|cdn|postimg|script\.google|WEBHOOK|Sheets/i);
+  assert.doesNotMatch(`${html}\n${app}\n${adapter}`, /https:\/\/|cdn|postimg|script\.google|WEBHOOK|Sheets/i);
+});
+
+test("ERP Room Service preserva shell visual, SVGs, abas e dashboard do legado sanitizado", () => {
+  const html = fs.readFileSync("public/erp/room-service/index.html", "utf8");
+  const svgCount = (html.match(/<svg\b/g) || []).length;
+
+  assert.ok(svgCount >= 40, `esperava ao menos 40 SVGs locais, recebeu ${svgCount}`);
+  for (const id of [
+    "btnTabDashboard",
+    "btnTabVendas",
+    "btnTabHist",
+    "btnTabHospedes",
+    "btnTabFaturamento",
+    "btnTabCardapio",
+    "btnTabAdmin",
+    "dashboardContainer",
+    "dashTopItemsList",
+    "dashLastOrders",
+    "vendasContainer",
+    "histContainer",
+  ]) {
+    assert.match(html, new RegExp(`id="${id}"`), id);
+  }
+  assert.match(html, /legacy-tailwind\.css/);
+  assert.match(html, /legacy-adapter\.css/);
+  assert.match(html, /room-service-erp\/app\.js/);
+  assert.doesNotMatch(html, /\son[a-z]+=/i);
 });
