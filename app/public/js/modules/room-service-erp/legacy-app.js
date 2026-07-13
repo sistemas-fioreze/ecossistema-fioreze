@@ -77,7 +77,16 @@ const state = {
   media: [],
   catalogCategory: "all",
   settingsView: "home",
+  scheduleViewMode: null,
+  notifications: [],
+  knownOrderIds: new Set(),
+  orderPollTimer: null,
+  notificationSoundEnabled: localStorage.getItem("fioreze-erp-notification-sound") !== "false",
+  notificationVolume: clampNumber(localStorage.getItem("fioreze-erp-notification-volume"), 0, 100, 70),
+  interfaceScale: clampNumber(localStorage.getItem("fioreze-erp-interface-scale"), 85, 115, 100),
 };
+
+let notificationAudioContext = null;
 
 const toastRegion = document.createElement("div");
 toastRegion.className = "legacy-toast-region";
@@ -107,7 +116,7 @@ async function loadLoginContext() {
   state.loginHotels = payload.data.hotels || [];
   const select = byId("loginHotelSelect");
   select.innerHTML = state.loginHotels
-    .map((hotel) => `<option value="${escapeAttr(hotel.hotel_id)}">${escapeHtml(hotel.name || hotel.short_name || hotel.hotel_id)}</option>`)
+    .map((hotel) => `<option value="${escapeAttr(hotel.hotel_id)}">${escapeHtml(displayHotelName(hotel))}</option>`)
     .join("");
   const requested = new URLSearchParams(window.location.search).get("hotel") || localStorage.getItem("fioreze-rs-login-hotel");
   if (state.loginHotels.some((hotel) => hotel.hotel_id === requested)) select.value = requested;
@@ -154,14 +163,30 @@ function prepareStaticInterface() {
   byId("btnLogin").before(error);
 
   installDashboardInterface();
+  installBillingInterface();
   installCatalogInterface();
   installSettingsInterface();
   installUserModal();
   installOperationalModals();
 
-  document.querySelectorAll("[data-app-version]").forEach((element) => {
-    element.textContent = "3.0 Cloudflare";
+  byId("sidebarPinButton", false)?.remove();
+  document.querySelector("[data-app-version-button]")?.remove();
+  document.querySelector(".login-version-note")?.remove();
+  byId("welcomeOverlay", false)?.remove();
+  document.querySelector(".sidebar-footer:empty")?.remove();
+  const themeLabel = byId("quickThemeTile", false)?.querySelector("span");
+  if (themeLabel) themeLabel.textContent = "Tema escuro";
+  const printTile = document.querySelector(".quick-tile.print");
+  if (printTile) {
+    printTile.disabled = true;
+    printTile.title = "Impressao indisponivel";
+  }
+  document.querySelectorAll(".side-nav-btn").forEach((button) => {
+    button.title = button.querySelector(".side-text")?.textContent?.trim() || "";
   });
+  installStoreQuickPanel();
+  applyInterfaceScale(state.interfaceScale, false);
+  updateNotificationSoundUI();
 
   for (const id of ["btnEditarPedido", "btnSalvarPedido", "btnSalvarReimprimir", "btnReimprimir"]) {
     const button = byId(id, false);
@@ -176,7 +201,7 @@ function prepareStaticInterface() {
     if (/imprimir|reimprimir|exportar planilha/i.test(button.textContent)) {
       button.disabled = true;
       button.classList.add("legacy-print-disabled");
-      button.title = "Impressao e exportacao desativadas neste ambiente.";
+      button.title = "Impressao indisponivel.";
     }
   });
 }
@@ -216,21 +241,46 @@ function bindStaticActions() {
   sessionButton?.addEventListener("click", () => byId("accountPopover").classList.toggle("hidden"));
   document.querySelector(".quick-tile.logout")?.addEventListener("click", handleLogout);
   byId("quickThemeTile")?.addEventListener("click", toggleTheme);
-  document.querySelector(".quick-tile.print")?.addEventListener("click", () => notify("Impressao desativada neste ambiente."));
-  byId("hdrStoreButton")?.addEventListener("click", () => openSettingsView("operation"));
+  byId("hdrStoreButton")?.addEventListener("click", toggleStoreQuickPanel);
   byId("accountConfigButton")?.addEventListener("click", () => openSettingsView("account"));
 
   const notificationButton = document.querySelector(".notif-button");
   notificationButton?.addEventListener("click", () => byId("notifDropdown").classList.toggle("hidden"));
-  byId("notifList").innerHTML = '<div class="legacy-list-empty">Nenhuma notificacao pendente.</div>';
+  byId("notifDropdown")?.querySelector("button")?.addEventListener("click", clearNotifications);
+  byId("notifList")?.addEventListener("click", (event) => {
+    const order = event.target.closest("[data-notification-order]");
+    if (order) {
+      byId("notifDropdown").classList.add("hidden");
+      openOrder(order.dataset.notificationOrder);
+    }
+  });
+  byId("notifList").innerHTML = '<div class="legacy-list-empty">Nenhuma notificacao.</div>';
   updateNotificationBadge(0);
 
-  byId("topSearchInput")?.addEventListener("input", renderActiveRoute);
+  const topSearch = byId("topSearchInput", false);
+  topSearch?.addEventListener("input", renderTopSearchResults);
+  topSearch?.addEventListener("focus", renderTopSearchResults);
+  topSearch?.addEventListener("keydown", handleTopSearchKeydown);
+  byId("topSearchResults", false)?.addEventListener("click", handleTopSearchClick);
   byId("pdvMenuSearch")?.addEventListener("input", renderMenu);
+  bindPdvPanelControls();
   byId("guestSearchInput")?.addEventListener("input", renderGuests);
   byId("menuAdminSearch")?.addEventListener("input", renderCatalog);
   byId("dashDate", false)?.addEventListener("change", renderDashboard);
   byId("histDate", false)?.addEventListener("change", renderOrders);
+  byId("histFrom", false)?.addEventListener("change", renderBilling);
+  byId("histTo", false)?.addEventListener("change", renderBilling);
+  byId("billingRefreshButton", false)?.addEventListener("click", renderBilling);
+  byId("billingExportButton", false)?.addEventListener("click", exportBillingCsv);
+
+  const scaleRange = byId("interfaceScaleRange", false);
+  scaleRange?.addEventListener("input", () => applyInterfaceScale(scaleRange.value, false));
+  scaleRange?.addEventListener("change", () => applyInterfaceScale(scaleRange.value, true));
+  const volumeRange = byId("notificationVolumeRange", false);
+  volumeRange?.addEventListener("input", () => previewNotificationVolume(volumeRange.value));
+  volumeRange?.addEventListener("change", () => saveNotificationVolume(volumeRange.value));
+  byId("notificationSoundButton", false)?.addEventListener("click", toggleNotificationSound);
+  document.addEventListener("pointerdown", unlockNotificationAudio, { once: true });
 
   const toggleSidebar = () => {
     if (window.matchMedia("(max-width: 900px)").matches) {
@@ -239,7 +289,6 @@ function bindStaticActions() {
     }
     document.body.classList.toggle("sidebar-collapsed");
   };
-  byId("sidebarPinButton")?.addEventListener("click", toggleSidebar);
   byId("sidebarToggleButton")?.addEventListener("click", toggleSidebar);
 
   const orderModal = byId("orderModal");
@@ -253,16 +302,55 @@ function bindStaticActions() {
       byId("orderModal").classList.add("hidden");
       byId("accountPopover").classList.add("hidden");
       byId("notifDropdown").classList.add("hidden");
+      byId("storeQuickPanel", false)?.classList.add("hidden");
+      closeTopSearch();
     }
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
       event.preventDefault();
       byId("topSearchInput")?.focus();
     }
+    if (event.key === "F7") event.preventDefault();
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest("#topSearchWrap")) closeTopSearch();
+    if (!event.target.closest("#hdrStoreButton") && !event.target.closest("#storeQuickPanel")) {
+      byId("storeQuickPanel", false)?.classList.add("hidden");
+    }
+  });
+}
+
+function bindPdvPanelControls() {
+  const container = byId("vendasContainer", false);
+  const collapseButton = container?.querySelector(".pdv-collapse-btn");
+  const openButton = container?.querySelector(".pdv-floating-tab");
+  if (!container || !collapseButton || !openButton) return;
+
+  collapseButton.addEventListener("click", () => {
+    container.classList.add("pdv-collapsed");
+    openButton.focus();
+  });
+  openButton.addEventListener("click", () => {
+    container.classList.remove("pdv-collapsed");
+    collapseButton.focus();
   });
 }
 
 function installDashboardInterface() {
-  byId("dashboardContainer").innerHTML = `<div class="erp-v3-shell"><header class="erp-v3-header"><div><p class="admin-kicker">Visao geral</p><h2 class="erp-v3-title">Dashboard</h2><p id="dashSummaryLabel" class="erp-v3-subtitle">Indicadores da unidade</p></div><div id="dashboardOperation" class="erp-operation-card"><span class="erp-operation-dot"></span><span><strong>Carregando funcionamento</strong><small>Sincronizando com a unidade</small></span></div></header><section class="erp-v3-grid"><article class="erp-stat"><span class="erp-stat-icon">${dashboardIcon("orders")}</span><span><small class="erp-stat-label">Pedidos hoje</small><strong id="kpiVendas" class="erp-stat-value">0</strong><small class="erp-stat-meta">Volume recebido</small></span></article><article class="erp-stat"><span class="erp-stat-icon">${dashboardIcon("revenue")}</span><span><small class="erp-stat-label">Receita concluida</small><strong id="kpiReceita" class="erp-stat-value">R$ 0,00</strong><small class="erp-stat-meta">Somente pedidos finalizados</small></span></article><article class="erp-stat"><span class="erp-stat-icon">${dashboardIcon("ticket")}</span><span><small class="erp-stat-label">Ticket medio</small><strong id="kpiTicket" class="erp-stat-value">R$ 0,00</strong><small class="erp-stat-meta">Media dos concluidos</small></span></article><article class="erp-stat"><span class="erp-stat-icon">${dashboardIcon("activity")}</span><span><small class="erp-stat-label">Em andamento</small><strong id="kpiActive" class="erp-stat-value">0</strong><small class="erp-stat-meta">Operacao atual</small></span></article></section><section class="erp-dashboard-layout"><div class="erp-v3-shell"><article class="erp-panel"><div class="erp-panel-head"><strong class="erp-panel-title">Fluxo de pedidos</strong><span id="dashOriginMeta" class="erp-panel-meta">0 pedidos</span></div><div class="erp-chart-row"><div id="dashboardDonut" class="erp-donut"><span class="erp-donut-center"><strong id="dashboardDonutTotal">0</strong><span>pedidos</span></span></div><div id="dashStatusLegend" class="dash-bars"></div></div></article><article class="erp-panel"><div class="erp-panel-head"><strong class="erp-panel-title">Movimento por horario</strong><span class="erp-panel-meta">Distribuicao do periodo</span></div><div id="dashboardHourlyChart" class="erp-modern-bars"></div></article></div><div class="erp-v3-shell"><article class="erp-panel"><div class="erp-panel-head"><strong class="erp-panel-title">Mais vendidos</strong><span class="erp-panel-meta">Quantidade e receita</span></div><div id="dashboardTopItems" class="erp-list"></div></article><article class="erp-panel"><div class="erp-panel-head"><strong class="erp-panel-title">Pedidos recentes</strong><span class="erp-panel-meta">Ultimas entradas</span></div><div id="dashLastOrders" class="erp-list"></div></article></div></section></div>`;
+  const date = byId("dashDate", false);
+  if (date && !date.value) date.value = localDateKey(new Date());
+}
+
+function installBillingInterface() {
+  const target = byId("faturamentoContainer");
+  target.innerHTML = `<div class="erp-v3-shell erp-billing-shell"><header class="erp-v3-header"><div><p class="admin-kicker">Resultados</p><h2 class="erp-v3-title">Faturamento</h2><p id="histRangeLabel" class="erp-v3-subtitle">Periodo selecionado</p></div><div class="erp-billing-filters"><label>De<input type="date" id="histFrom"></label><label>Ate<input type="date" id="histTo"></label><button id="billingRefreshButton" type="button" class="admin-secondary-btn">Atualizar</button><button id="billingExportButton" type="button" class="admin-primary-btn">Exportar CSV</button></div></header><section class="erp-v3-grid"><article class="erp-stat"><small class="erp-stat-label">Total faturado</small><strong id="histKpiRevenue" class="erp-stat-value">R$ 0,00</strong><small class="erp-stat-meta">Pedidos concluidos</small></article><article class="erp-stat"><small class="erp-stat-label">Pedidos concluidos</small><strong id="histKpiOrders" class="erp-stat-value">0</strong><small class="erp-stat-meta">No periodo selecionado</small></article><article class="erp-stat"><small class="erp-stat-label">Ticket medio</small><strong id="histKpiTicket" class="erp-stat-value">R$ 0,00</strong><small class="erp-stat-meta">Media por pedido</small></article><article class="erp-stat"><small class="erp-stat-label">Com observacao</small><strong id="histKpiObs" class="erp-stat-value">0</strong><small class="erp-stat-meta">Pedidos que exigem atencao</small></article></section><section class="erp-billing-overview"><article class="erp-panel"><div class="erp-panel-head"><strong class="erp-panel-title">Faturamento por dia</strong><span id="billingDailyMeta" class="erp-panel-meta">0 dias</span></div><div id="billingDailyChart" class="erp-billing-chart"></div></article><article class="erp-panel"><div class="erp-panel-head"><strong class="erp-panel-title">Situacao dos pedidos</strong><span class="erp-panel-meta">Distribuicao</span></div><div id="histTopItems" class="dash-bars"></div></article><article class="erp-panel"><div class="erp-panel-head"><strong class="erp-panel-title">Locais de entrega</strong><span class="erp-panel-meta">Atendimento</span></div><div id="histLegendLocal" class="dash-bars"></div></article></section><section class="erp-panel erp-billing-table-panel"><div class="erp-panel-head"><div><strong class="erp-panel-title">Pedidos do periodo</strong><p id="histTableMeta" class="erp-v3-subtitle">0 pedidos</p></div></div><div class="erp-billing-table-wrap"><table><thead><tr><th>Data e hora</th><th>Pedido</th><th>Acomodacao</th><th>Status</th><th>Total</th><th></th></tr></thead><tbody id="histTableBody"></tbody></table></div></section></div>`;
+  const to = byId("histTo");
+  const from = byId("histFrom");
+  const today = localDateKey(new Date());
+  const start = new Date();
+  start.setDate(start.getDate() - 29);
+  to.value = today;
+  from.value = localDateKey(start);
 }
 
 function installCatalogInterface() {
@@ -275,7 +363,7 @@ function installSettingsInterface() {
 
 function installOperationalModals() {
   const wrapper = document.createElement("div");
-  wrapper.innerHTML = `<div id="catalogItemModal" class="erp-modal hidden"><div class="erp-modal-card" role="dialog" aria-modal="true"><header class="erp-modal-head"><div><p class="admin-kicker">Cardapio</p><h2 id="catalogItemModalTitle">Novo item</h2></div><button type="button" class="erp-modal-close" data-close-erp-modal aria-label="Fechar">x</button></header><form id="catalogItemForm" class="erp-form"><input id="catalogItemId" type="hidden"><div class="erp-form-grid"><label>Nome<input id="catalogItemName" required maxlength="160"></label><label>Categoria<select id="catalogItemCategory" required></select></label><label>Preco (R$)<input id="catalogItemPrice" required inputmode="decimal" placeholder="0,00"></label><label>Ordem<input id="catalogItemSort" type="number" min="0" max="100000" value="100"></label><label>Status<select id="catalogItemStatus"><option value="active">Ativo</option><option value="inactive">Inativo</option><option value="archived">Arquivado</option></select></label><label>Disponibilidade<select id="catalogItemAvailable"><option value="true">Disponivel</option><option value="false">Indisponivel</option></select></label></div><label>Descricao<textarea id="catalogItemDescription" rows="3" maxlength="1000"></textarea></label><label>Texto de indisponibilidade<input id="catalogItemAvailabilityLabel" maxlength="120" placeholder="Ex: Indisponivel hoje"></label><input id="catalogItemMediaId" type="hidden"><div><p class="erp-panel-title">Imagem do prato</p><p class="erp-v3-subtitle">Selecione uma imagem da biblioteca ou envie uma nova.</p></div><div id="catalogImagePicker" class="erp-image-picker"></div><div class="erp-upload-row"><input id="catalogMediaFile" type="file" accept="image/jpeg,image/png,image/webp,image/avif"><button id="catalogUploadButton" type="button" class="admin-secondary-btn">Enviar imagem</button></div><p id="catalogItemFormError" class="legacy-login-error" role="alert"></p><div class="erp-v3-actions"><button type="button" class="admin-secondary-btn" data-close-erp-modal>Cancelar</button><button type="submit" class="admin-primary-btn">Salvar item</button></div></form></div></div><div id="catalogCategoryModal" class="erp-modal hidden"><div class="erp-modal-card" role="dialog" aria-modal="true"><header class="erp-modal-head"><div><p class="admin-kicker">Cardapio</p><h2>Nova categoria</h2></div><button type="button" class="erp-modal-close" data-close-erp-modal aria-label="Fechar">x</button></header><form id="catalogCategoryForm" class="erp-form"><label>Nome<input id="catalogCategoryName" required maxlength="120"></label><label>Descricao<textarea id="catalogCategoryDescription" rows="3" maxlength="500"></textarea></label><label>Ordem<input id="catalogCategorySort" type="number" min="0" max="100000" value="100"></label><p id="catalogCategoryFormError" class="legacy-login-error" role="alert"></p><div class="erp-v3-actions"><button type="button" class="admin-secondary-btn" data-close-erp-modal>Cancelar</button><button type="submit" class="admin-primary-btn">Criar categoria</button></div></form></div></div><div id="roomModal" class="erp-modal hidden"><div class="erp-modal-card" role="dialog" aria-modal="true"><header class="erp-modal-head"><div><p class="admin-kicker">Acomodacoes</p><h2 id="roomModalTitle">Nova acomodacao</h2></div><button type="button" class="erp-modal-close" data-close-erp-modal aria-label="Fechar">x</button></header><form id="roomForm" class="erp-form"><input id="roomId" type="hidden"><div class="erp-form-grid"><label>Codigo<input id="roomCode" required maxlength="24" placeholder="Ex: 101"></label><label>Nome amigavel<input id="roomLabel" maxlength="120" placeholder="Ex: Suite Jardim"></label><label>Tipo<input id="roomType" maxlength="80" placeholder="Ex: Suite"></label><label>Ordem<input id="roomSort" type="number" min="0" max="100000" value="100"></label><label>Status<select id="roomStatus"><option value="active">Ativa</option><option value="inactive">Inativa</option><option value="archived">Arquivada</option></select></label></div><p id="roomFormError" class="legacy-login-error" role="alert"></p><div class="erp-v3-actions"><button type="button" class="admin-secondary-btn" data-close-erp-modal>Cancelar</button><button type="submit" class="admin-primary-btn">Salvar acomodacao</button></div></form></div></div>`;
+  wrapper.innerHTML = `<div id="catalogItemModal" class="erp-modal hidden"><div class="erp-modal-card" role="dialog" aria-modal="true"><header class="erp-modal-head"><div><p class="admin-kicker">Cardapio</p><h2 id="catalogItemModalTitle">Novo item</h2></div><button type="button" class="erp-modal-close" data-close-erp-modal aria-label="Fechar">x</button></header><form id="catalogItemForm" class="erp-form"><input id="catalogItemId" type="hidden"><div class="erp-form-grid"><label>Nome<input id="catalogItemName" required maxlength="160"></label><label>Categoria<select id="catalogItemCategory" required></select></label><label>Preco (R$)<input id="catalogItemPrice" required inputmode="decimal" placeholder="0,00"></label><label>Tag do item<input id="catalogItemTag" maxlength="60" placeholder="Ex: Recomendado"></label><label>Ordem<input id="catalogItemSort" type="number" min="0" max="100000" value="100"></label><label>Status<select id="catalogItemStatus"><option value="active">Ativo</option><option value="inactive">Inativo</option><option value="archived">Arquivado</option></select></label><label>Disponibilidade<select id="catalogItemAvailable"><option value="true">Disponivel</option><option value="false">Indisponivel</option></select></label></div><label>Descricao<textarea id="catalogItemDescription" rows="3" maxlength="1000"></textarea></label><label>Mensagem de indisponibilidade<input id="catalogItemAvailabilityLabel" maxlength="120" placeholder="Ex: Indisponivel hoje"></label><input id="catalogItemMediaId" type="hidden"><div><p class="erp-panel-title">Imagem do prato</p><p class="erp-v3-subtitle">Escolha uma imagem da biblioteca ou envie uma nova.</p></div><div id="catalogImagePicker" class="erp-image-picker"></div><div class="erp-upload-row"><input id="catalogMediaFile" type="file" accept="image/jpeg,image/png,image/webp,image/avif"><button id="catalogUploadButton" type="button" class="admin-secondary-btn">Enviar imagem</button></div><p id="catalogItemFormError" class="legacy-login-error" role="alert"></p><div class="erp-v3-actions"><button type="button" class="admin-secondary-btn" data-close-erp-modal>Cancelar</button><button type="submit" class="admin-primary-btn">Salvar item</button></div></form></div></div><div id="catalogCategoryModal" class="erp-modal hidden"><div class="erp-modal-card" role="dialog" aria-modal="true"><header class="erp-modal-head"><div><p class="admin-kicker">Cardapio</p><h2>Nova categoria</h2></div><button type="button" class="erp-modal-close" data-close-erp-modal aria-label="Fechar">x</button></header><form id="catalogCategoryForm" class="erp-form"><label>Nome<input id="catalogCategoryName" required maxlength="120"></label><label>Descricao<textarea id="catalogCategoryDescription" rows="3" maxlength="500"></textarea></label><label>Ordem<input id="catalogCategorySort" type="number" min="0" max="100000" value="100"></label><p id="catalogCategoryFormError" class="legacy-login-error" role="alert"></p><div class="erp-v3-actions"><button type="button" class="admin-secondary-btn" data-close-erp-modal>Cancelar</button><button type="submit" class="admin-primary-btn">Criar categoria</button></div></form></div></div><div id="roomModal" class="erp-modal hidden"><div class="erp-modal-card" role="dialog" aria-modal="true"><header class="erp-modal-head"><div><p class="admin-kicker">Acomodacoes</p><h2 id="roomModalTitle">Nova acomodacao</h2></div><button type="button" class="erp-modal-close" data-close-erp-modal aria-label="Fechar">x</button></header><form id="roomForm" class="erp-form"><input id="roomId" type="hidden"><div class="erp-form-grid"><label>Codigo<input id="roomCode" required maxlength="24" placeholder="Ex: 101"></label><label>Nome de exibicao<input id="roomLabel" maxlength="120" placeholder="Ex: Suite Jardim"></label><label>Tipo<input id="roomType" maxlength="80" placeholder="Ex: Suite"></label><label>Ordem<input id="roomSort" type="number" min="0" max="100000" value="100"></label><label>Status<select id="roomStatus"><option value="active">Ativa</option><option value="inactive">Inativa</option><option value="archived">Arquivada</option></select></label></div><p id="roomFormError" class="legacy-login-error" role="alert"></p><div class="erp-v3-actions"><button type="button" class="admin-secondary-btn" data-close-erp-modal>Cancelar</button><button type="submit" class="admin-primary-btn">Salvar acomodacao</button></div></form></div></div>`;
   document.body.append(...wrapper.children);
   byId("catalogImagePicker").addEventListener("click", (event) => {
     const button = event.target.closest("[data-media-id]");
@@ -289,59 +377,66 @@ function installOperationalModals() {
 function renderSettingsHome() {
   const permissions = new Set(state.session?.permissions || []);
   const cards = [
-    permissions.has("room-service.settings.manage") ? settingsCard("operation", "clock", "Funcionamento", "Horarios automaticos e abertura manual") : "",
-    permissions.has("room-service.settings.manage") ? settingsCard("rooms", "rooms", "Acomodacoes", "Quartos validos para pedidos online") : "",
-    permissions.has("room-service.users.manage") ? settingsCard("users", "users", "Usuarios do ERP", "Codigos, senhas e modulos permitidos") : "",
-    settingsCard("account", "account", "Minha conta", "Foto de perfil e seguranca"),
-    settingsCard("appearance", "palette", "Aparencia", "Identidade herdada da unidade"),
-    settingsCard("notifications", "bell", "Notificacoes", "Preferencias e alertas do ERP"),
+    permissions.has("room-service.settings.manage") ? settingsCard("operation", "clock", "Funcionamento", "Abertura, fechamento e horarios") : "",
+    permissions.has("room-service.settings.manage") ? settingsCard("rooms", "rooms", "Acomodacoes", "Quartos disponiveis para atendimento") : "",
+    permissions.has("room-service.users.manage") ? settingsCard("users", "users", "Usuarios do ERP", "Acessos e permissoes da equipe") : "",
+    settingsCard("account", "account", "Minha conta", "Perfil e senha"),
+    settingsCard("appearance", "palette", "Aparencia", "Marca e escala da interface"),
+    settingsCard("notifications", "bell", "Notificacoes", "Som e volume dos alertas"),
   ].filter(Boolean);
-  return `<div><p class="erp-panel-title">Configuracoes do ERP</p><p class="erp-v3-subtitle">Cada ajuste e aplicado somente a ${escapeHtml(state.context?.hotel?.name || "esta unidade")}.</p></div><div class="erp-settings-grid">${cards.join("")}</div>`;
+  return `<div><p class="erp-panel-title">Configuracoes do ERP</p><p class="erp-v3-subtitle">${escapeHtml(displayHotelName(state.context?.hotel))}</p></div><div class="erp-settings-grid">${cards.join("")}</div>`;
 }
 
 function renderOperationSettings() {
   if (!state.session?.permissions?.includes("room-service.settings.manage")) return restrictedSettings();
   const operation = state.operations?.operation || state.context?.operation || { mode: "automatic", service_hours: [] };
   const hours = operation.service_hours || [];
+  const layout = state.scheduleViewMode || inferScheduleViewMode(hours);
+  state.scheduleViewMode = layout;
   const dayNames = ["Domingo", "Segunda-feira", "Terca-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sabado"];
   const rows = dayNames.map((name, day) => {
     const slot = hours.find((entry) => Number(entry.day_of_week) === day && Number(entry.sort_order || 0) === 0) || hours.find((entry) => Number(entry.day_of_week) === day);
     const closed = !slot || Boolean(slot.is_closed);
     return `<div class="erp-schedule-row"><strong>${name}</strong><input type="time" name="opens_${day}" value="${escapeAttr(slot?.opens_at || "16:00")}" ${closed ? "disabled" : ""}><input type="time" name="closes_${day}" value="${escapeAttr(slot?.closes_at || "22:00")}" ${closed ? "disabled" : ""}><label class="erp-switch"><input type="checkbox" name="closed_${day}" ${closed ? "checked" : ""} data-schedule-closed="${day}"> Fechado</label></div>`;
   }).join("");
-  return `<button type="button" class="erp-back" data-settings-view="home">${settingsIcon("back")} Configuracoes</button><section class="erp-settings-detail"><div><p class="erp-panel-title">Funcionamento do Room Service</p><p class="erp-v3-subtitle">O modo automatico segue os horarios. Uma abertura ou pausa manual prevalece ate voltar ao automatico.</p></div><div class="erp-mode-segment">${["automatic", "forced_open", "forced_closed"].map((mode) => `<button type="button" class="erp-mode-button ${operation.mode === mode ? "active" : ""}" data-operation-mode="${mode}">${mode === "automatic" ? "Automatico" : mode === "forced_open" ? "Abrir agora" : "Fechar agora"}</button>`).join("")}</div><form id="operationScheduleForm" class="erp-v3-shell"><div class="erp-panel-head"><strong class="erp-panel-title">Horario semanal</strong><button type="submit" class="admin-primary-btn">Salvar horarios</button></div><div class="erp-schedule-list">${rows}</div></form></section>`;
+  const firstOpen = hours.find((entry) => !entry.is_closed) || { opens_at: "16:00", closes_at: "22:00" };
+  const scheduleEditor = layout === "same"
+    ? `<div class="erp-common-hours"><label>Abre as<input type="time" name="common_opens" value="${escapeAttr(firstOpen.opens_at || "16:00")}" required></label><label>Fecha as<input type="time" name="common_closes" value="${escapeAttr(firstOpen.closes_at || "22:00")}" required></label><span>Todos os dias</span></div>`
+    : `<div class="erp-schedule-list">${rows}</div>`;
+  return `<button type="button" class="erp-back" data-settings-view="home">${settingsIcon("back")} Configuracoes</button><section class="erp-settings-detail"><div><p class="erp-panel-title">Funcionamento do Room Service</p><p class="erp-v3-subtitle">Defina como a operacao deve funcionar.</p></div><div class="erp-mode-segment">${["automatic", "forced_open", "forced_closed"].map((mode) => `<button type="button" class="erp-mode-button ${operation.mode === mode ? "active" : ""}" data-operation-mode="${mode}">${mode === "automatic" ? "Automatico" : mode === "forced_open" ? "Abrir agora" : "Fechar agora"}</button>`).join("")}</div><form id="operationScheduleForm" class="erp-v3-shell" data-schedule-layout="${layout}"><div class="erp-panel-head"><div><strong class="erp-panel-title">Horario semanal</strong><div class="erp-schedule-layout"><button type="button" class="${layout === "same" ? "active" : ""}" data-schedule-layout-option="same">Mesmo horario todos os dias</button><button type="button" class="${layout === "custom" ? "active" : ""}" data-schedule-layout-option="custom">Horarios por dia</button></div></div><button type="submit" class="admin-primary-btn">Salvar horarios</button></div>${scheduleEditor}</form></section>`;
 }
 
 function renderRoomSettings() {
   if (!state.session?.permissions?.includes("room-service.settings.manage")) return restrictedSettings();
   const rooms = state.rooms || [];
-  return `<button type="button" class="erp-back" data-settings-view="home">${settingsIcon("back")} Configuracoes</button><section class="erp-settings-detail"><div class="erp-panel-head"><div><p class="erp-panel-title">Acomodacoes da unidade</p><p class="erp-v3-subtitle">Somente acomodacoes ativas aparecem no portal e aceitam pedidos.</p></div><button id="newRoomButton" type="button" class="admin-primary-btn">Nova acomodacao</button></div><div class="erp-rooms-list">${rooms.length ? rooms.map((room) => `<button type="button" class="erp-room-card" data-edit-room="${escapeAttr(room.id)}"><span><strong>${escapeHtml(room.code)}</strong><small>${escapeHtml(room.label || room.room_type || "Sem descricao")}</small></span><span class="erp-chip ${room.status === "active" ? "" : "off"}">${room.status === "active" ? "Ativa" : "Inativa"}</span></button>`).join("") : '<div class="legacy-list-empty">Nenhuma acomodacao cadastrada.</div>'}</div></section>`;
+  return `<button type="button" class="erp-back" data-settings-view="home">${settingsIcon("back")} Configuracoes</button><section class="erp-settings-detail"><div class="erp-panel-head"><div><p class="erp-panel-title">Acomodacoes da unidade</p><p class="erp-v3-subtitle">Somente acomodacoes ativas aparecem no portal e aceitam pedidos.</p></div><button id="newRoomButton" type="button" class="admin-primary-btn">Nova acomodacao</button></div><div class="erp-rooms-list">${rooms.length ? rooms.map((room) => `<button type="button" class="erp-room-card" data-edit-room="${escapeAttr(room.id)}"><span><strong>${escapeHtml(room.code)}</strong><small>${escapeHtml(displayBusinessText(room.label || room.room_type, "Sem descricao"))}</small></span><span class="erp-chip ${room.status === "active" ? "" : "off"}">${room.status === "active" ? "Ativa" : "Inativa"}</span></button>`).join("") : '<div class="legacy-list-empty">Nenhuma acomodacao cadastrada.</div>'}</div></section>`;
 }
 
 function renderUserSettings() {
   const canManage = state.session?.permissions?.includes("room-service.users.manage");
   if (!canManage) return restrictedSettings();
   const cards = [];
-  if (state.session.erp_master) cards.push(`<article class="admin-user-card erp-master-card"><div class="erp-user-card-head"><span class="admin-user-avatar">M</span><div><strong>${escapeHtml(state.session.user.display_name || "Administrador dev")}</strong><small>Administrador mestre da plataforma</small></div></div><div class="erp-user-permissions"><span>Acesso total</span><span>Central Administrativa</span></div><span class="legacy-status-chip">Mestre</span></article>`);
+  if (state.session.erp_master) cards.push(`<article class="admin-user-card erp-master-card"><div class="erp-user-card-head"><span class="admin-user-avatar">M</span><div><strong>${escapeHtml(displayUserName(state.session.user))}</strong><small>Administrador geral</small></div></div><div class="erp-user-permissions"><span>Acesso total</span><span>Todas as unidades</span></div><span class="legacy-status-chip">Mestre</span></article>`);
   cards.push(...state.users.map((user) => erpUserCard(user)));
   return `<button type="button" class="erp-back" data-settings-view="home">${settingsIcon("back")} Configuracoes</button><section class="erp-settings-detail"><div class="erp-panel-head"><div><p class="erp-panel-title">Usuarios operacionais</p><p class="erp-v3-subtitle">Cada usuario acessa somente esta unidade e os modulos autorizados.</p></div><div class="erp-v3-actions"><button id="refreshErpUsersButton" type="button" class="admin-secondary-btn">Atualizar</button><button id="newErpUserButton" type="button" class="admin-primary-btn">Novo usuario</button></div></div><div id="userList" class="admin-user-list">${cards.length ? cards.join("") : '<div class="legacy-list-empty">Nenhum usuario cadastrado.</div>'}</div></section>`;
 }
 
 function renderAccountSettings() {
   const user = state.session?.user || {};
-  const initials = String(user.display_name || "U").split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
+  const displayName = displayUserName(user);
+  const initials = String(displayName || "U").split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
   const avatar = safeImage(user.avatar);
   const operational = state.session?.auth_source === "erp";
-  return `<button type="button" class="erp-back" data-settings-view="home">${settingsIcon("back")} Configuracoes</button><section class="erp-settings-detail"><div class="erp-account-card"><div class="erp-profile-avatar">${avatar ? `<img src="${escapeAttr(avatar)}" alt="Foto de perfil" class="erp-profile-avatar">` : escapeHtml(initials)}</div><div><p class="erp-panel-title">${escapeHtml(user.display_name || "Usuario")}</p><p class="erp-v3-subtitle">${operational ? `Codigo ${Number(user.user_code || 0)} · ${escapeHtml(state.context?.hotel?.name || "Unidade")}` : "Administrador mestre da plataforma"}</p>${operational ? '<form id="accountAvatarForm" class="erp-upload-row"><input id="accountAvatarFile" type="file" accept="image/jpeg,image/png,image/webp,image/avif" required><button type="submit" class="admin-primary-btn">Trocar foto</button><button id="removeOwnAvatarButton" type="button" class="admin-secondary-btn">Remover</button></form>' : '<p class="erp-v3-subtitle">A foto e a senha do administrador mestre sao gerenciadas na Central Administrativa.</p>'}</div></div>${operational ? '<form id="accountPasswordForm" class="erp-form erp-password-form"><div><p class="erp-panel-title">Alterar senha</p><p class="erp-v3-subtitle">Use no minimo 4 caracteres. A senha permanece somente como hash seguro.</p></div><label>Senha atual<input name="current_password" type="password" required autocomplete="current-password"></label><div class="erp-form-grid"><label>Nova senha<input name="new_password" type="password" required minlength="4" autocomplete="new-password"></label><label>Confirmar nova senha<input name="confirm_password" type="password" required minlength="4" autocomplete="new-password"></label></div><button type="submit" class="admin-primary-btn">Atualizar senha</button></form>' : ""}</section>`;
+  return `<button type="button" class="erp-back" data-settings-view="home">${settingsIcon("back")} Configuracoes</button><section class="erp-settings-detail"><div class="erp-account-card"><div class="erp-profile-avatar">${avatar ? `<img src="${escapeAttr(avatar)}" alt="Foto de perfil" class="erp-profile-avatar">` : escapeHtml(initials)}</div><div><p class="erp-panel-title">${escapeHtml(displayName)}</p><p class="erp-v3-subtitle">${operational ? `Codigo ${Number(user.user_code || 0)} · ${escapeHtml(displayHotelName(state.context?.hotel))}` : "Administrador geral"}</p>${operational ? '<form id="accountAvatarForm" class="erp-upload-row"><input id="accountAvatarFile" type="file" accept="image/jpeg,image/png,image/webp,image/avif" required><button type="submit" class="admin-primary-btn">Trocar foto</button><button id="removeOwnAvatarButton" type="button" class="admin-secondary-btn">Remover</button></form>' : ""}</div></div>${operational ? '<form id="accountPasswordForm" class="erp-form erp-password-form"><div><p class="erp-panel-title">Alterar senha</p><p class="erp-v3-subtitle">Use no minimo 4 caracteres.</p></div><label>Senha atual<input name="current_password" type="password" required autocomplete="current-password"></label><div class="erp-form-grid"><label>Nova senha<input name="new_password" type="password" required minlength="4" autocomplete="new-password"></label><label>Confirmar nova senha<input name="confirm_password" type="password" required minlength="4" autocomplete="new-password"></label></div><button type="submit" class="admin-primary-btn">Atualizar senha</button></form>' : ""}</section>`;
 }
 
 function renderAppearanceSettings() {
   const branding = state.context?.branding || {};
-  return `<button type="button" class="erp-back" data-settings-view="home">${settingsIcon("back")} Configuracoes</button><section class="erp-settings-detail"><div><p class="erp-panel-title">Aparencia da unidade</p><p class="erp-v3-subtitle">O ERP aplica automaticamente as logos, a fonte e a cor primaria cadastradas na Central Administrativa.</p></div><div class="erp-settings-grid"><article class="erp-panel"><span class="erp-stat-label">Cor primaria</span><div style="width:52px;height:52px;border-radius:8px;background:${isHexColor(branding.primary_color) ? branding.primary_color : "#513b2d"};margin-top:12px"></div></article><article class="erp-panel"><span class="erp-stat-label">Fonte</span><strong class="erp-stat-value" style="font-size:18px;font-family:${escapeAttr(branding.font_family || "system-ui")}">${escapeHtml(branding.font_family || "Fonte padrao")}</strong></article></div></section>`;
+  return `<button type="button" class="erp-back" data-settings-view="home">${settingsIcon("back")} Configuracoes</button><section class="erp-settings-detail"><div><p class="erp-panel-title">Aparencia da unidade</p><p class="erp-v3-subtitle">Identidade visual aplicada ao ERP.</p></div><div class="erp-settings-grid"><article class="erp-panel"><span class="erp-stat-label">Cor primaria</span><div style="width:52px;height:52px;border-radius:8px;background:${isHexColor(branding.primary_color) ? branding.primary_color : "#513b2d"};margin-top:12px"></div></article><article class="erp-panel"><span class="erp-stat-label">Fonte</span><strong class="erp-stat-value" style="font-size:18px;font-family:${escapeAttr(branding.font_family || "system-ui")}">${escapeHtml(branding.font_family || "Fonte padrao")}</strong></article><article class="erp-panel erp-appearance-scale"><span class="erp-stat-label">Escala da interface</span><strong>${state.interfaceScale}%</strong><input id="settingsScaleRange" type="range" min="85" max="115" step="5" value="${state.interfaceScale}"></article></div></section>`;
 }
 
 function renderNotificationSettings() {
-  return `<button type="button" class="erp-back" data-settings-view="home">${settingsIcon("back")} Configuracoes</button><section class="erp-settings-detail"><div><p class="erp-panel-title">Notificacoes</p><p class="erp-v3-subtitle">A contagem aparece no topo somente quando houver pelo menos uma notificacao.</p></div><article class="erp-panel"><div class="legacy-list-empty">Nenhuma notificacao pendente.</div></article></section>`;
+  return `<button type="button" class="erp-back" data-settings-view="home">${settingsIcon("back")} Configuracoes</button><section class="erp-settings-detail"><div><p class="erp-panel-title">Notificacoes</p><p class="erp-v3-subtitle">Alertas de novos pedidos.</p></div><article class="erp-panel erp-notification-settings"><div><strong>Som de novo pedido</strong><small>${state.notificationSoundEnabled ? "Ativado" : "Silenciado"}</small></div><button type="button" class="admin-secondary-btn" data-toggle-notification-sound>${state.notificationSoundEnabled ? "Silenciar" : "Ativar"}</button><label>Volume <b>${state.notificationVolume}%</b><input id="settingsNotificationVolume" type="range" min="0" max="100" step="5" value="${state.notificationVolume}"></label><button type="button" class="admin-secondary-btn" data-test-notification-sound>Testar som</button></article></section>`;
 }
 
 function settingsCard(view, icon, title, description) {
@@ -377,6 +472,12 @@ async function handleSettingsClick(event) {
   if (view) return openSettingsView(view.dataset.settingsView);
   const mode = event.target.closest("[data-operation-mode]");
   if (mode) return changeOperationMode(mode.dataset.operationMode);
+  const scheduleLayout = event.target.closest("[data-schedule-layout-option]");
+  if (scheduleLayout) {
+    state.scheduleViewMode = scheduleLayout.dataset.scheduleLayoutOption;
+    renderAdmin();
+    return;
+  }
   const closedToggle = event.target.closest("[data-schedule-closed]");
   if (closedToggle) {
     const day = closedToggle.dataset.scheduleClosed;
@@ -393,6 +494,12 @@ async function handleSettingsClick(event) {
   const user = event.target.closest("[data-edit-erp-user]");
   if (user) return openUserModal(state.users.find((entry) => entry.id === user.dataset.editErpUser));
   if (event.target.closest("#removeOwnAvatarButton")) return removeOwnAvatar();
+  if (event.target.closest("[data-toggle-notification-sound]")) {
+    toggleNotificationSound();
+    renderAdmin();
+    return;
+  }
+  if (event.target.closest("[data-test-notification-sound]")) return playNotificationSound(true);
 }
 
 async function handleSettingsSubmit(event) {
@@ -426,6 +533,7 @@ async function handleLogin() {
 }
 
 async function handleLogout() {
+  stopOrderPolling();
   await logout();
   state.session = null;
   state.cart.clear();
@@ -445,13 +553,15 @@ async function startSession(session) {
     return;
   }
 
-  byId("activeStaff").textContent = session?.user?.display_name || "Usuario";
-  setImage(byId("topStaffAvatar", false), safeImage(session?.user?.avatar), session?.user?.display_name || "Usuario");
+  const displayName = displayUserName(session?.user);
+  byId("activeStaff").textContent = displayName;
+  setImage(byId("topStaffAvatar", false), safeImage(session?.user?.avatar), displayName);
   installHotelSelector(hotels);
   configureAuthorizedNavigation(session?.permissions || []);
   showApplication();
   await refreshAll();
   switchTab(state.route);
+  startOrderPolling();
 }
 
 function installHotelSelector(hotels) {
@@ -463,7 +573,7 @@ function installHotelSelector(hotels) {
     select.setAttribute("aria-label", "Unidade do ERP");
   }
   select.innerHTML = hotels
-    .map((hotel) => `<option value="${escapeAttr(hotel.hotel_id)}">${escapeHtml(hotel.name || hotel.short_name || hotel.hotel_id)}</option>`)
+    .map((hotel) => `<option value="${escapeAttr(hotel.hotel_id)}">${escapeHtml(displayHotelName(hotel))}</option>`)
     .join("");
   select.value = state.hotelId;
   select.onchange = async () => {
@@ -527,6 +637,7 @@ async function refreshAll() {
     state.context = context.data;
     state.dashboard = dashboard?.data || null;
     state.orders = orders?.data?.orders || [];
+    state.knownOrderIds = new Set(state.orders.map((order) => order.id));
     state.catalog = catalog?.data || { categories: [] };
     state.guests = guests?.data || null;
     state.billing = billing?.data || null;
@@ -535,6 +646,7 @@ async function refreshAll() {
     state.operations = operations?.data || { operation: context.data.operation, rooms: context.data.rooms || [] };
     state.rooms = rooms?.data?.rooms || operations?.data?.rooms || context.data.rooms || [];
     state.media = media?.data?.assets || [];
+    state.scheduleViewMode = null;
     updateBranding();
     updateHeaderState();
     renderAll();
@@ -556,7 +668,7 @@ function updateBranding() {
 function applyBranding(branding = {}, hotel = {}) {
   const horizontalLogo = safeImage(branding.horizontal_logo_url) || safeImage(branding.logo_url);
   const reducedLogo = safeImage(branding.icon_url) || horizontalLogo;
-  const name = hotel.name || hotel.short_name || "ERP Room Service Fioreze";
+  const name = displayHotelName(hotel);
   setImage(document.querySelector(".login-logo"), horizontalLogo, name);
   setImage(document.querySelector(".side-brand-logo"), horizontalLogo, name);
   setImage(document.querySelector(".side-brand-logo-seal"), reducedLogo, name);
@@ -590,7 +702,7 @@ function renderPdvRoomOptions() {
   if (!select || select.tagName !== "SELECT") return;
   const current = select.value;
   const rooms = (state.context?.rooms || state.rooms || []).filter((room) => room.status !== "inactive");
-  select.innerHTML = `<option value="">Apto</option>${rooms.map((room) => `<option value="${escapeAttr(room.code)}">${escapeHtml(room.label ? `${room.code} - ${room.label}` : room.code)}</option>`).join("")}`;
+  select.innerHTML = `<option value="">Apto</option>${rooms.map((room) => `<option value="${escapeAttr(room.code)}">${escapeHtml(room.label ? `${room.code} - ${displayBusinessText(room.label)}` : room.code)}</option>`).join("")}`;
   if (rooms.some((room) => room.code === current)) select.value = current;
 }
 
@@ -624,7 +736,7 @@ function renderActiveRoute() {
   if (state.route === "admin") renderAdmin();
 }
 
-function renderDashboard() {
+function renderDashboardV3() {
   const summary = state.dashboard?.summary || {};
   const orders = filteredOrders(byId("topSearchInput")?.value);
   const completed = orders.filter((order) => order.status === "completed");
@@ -681,6 +793,43 @@ function renderDashboard() {
   setText("dashOriginMeta", `${Object.values(origins).reduce((sum, value) => sum + Number(value), 0)} pedidos`);
 }
 
+function renderDashboard() {
+  const selectedDate = byId("dashDate", false)?.value || localDateKey(new Date());
+  const orders = state.orders.filter((order) => dateKeyInHotelTimezone(order.created_at) === selectedDate);
+  const completed = orders.filter((order) => order.status === "completed");
+  const revenue = completed.reduce((total, order) => total + Number(order.total_cents || 0), 0);
+  const origins = countBy(orders, (order) => originLabel(order.origin));
+  const topItems = state.dashboard?.top_items || [];
+  const topItem = topItems[0];
+  const peak = peakHour(orders);
+
+  setText("dashSummaryLabel", formatDashboardDate(selectedDate));
+  setText("kpiVendas", orders.length);
+  setText("kpiReceita", money(revenue));
+  setText("kpiTicket", money(completed.length ? Math.round(revenue / completed.length) : 0));
+  setText("kpiOnline", orders.filter((order) => originLabel(order.origin) === "Hospedes / site").length);
+  setText("kpiRecepcao", orders.filter((order) => originLabel(order.origin) === "Recepcao").length);
+  setText("kpiObs", orders.filter((order) => String(order.notes || "").trim()).length);
+  byId("kpiReceitaCard", false)?.classList.toggle("hidden", !state.session?.permissions?.includes("room-service.billing.read"));
+
+  renderBars(byId("dashTopItemsList"), topItems.slice(0, 6).map((item) => [displayBusinessText(item.name, "Item do cardapio"), Number(item.quantity || 0)]));
+  renderBars(byId("dashChannelBars"), Object.entries(origins));
+  setText("dashChannelMeta", `${orders.length} ${orders.length === 1 ? "pedido" : "pedidos"}`);
+
+  const recent = orders.slice(0, 8);
+  setText("dashLastOrdersMeta", `${recent.length} ${recent.length === 1 ? "item" : "itens"}`);
+  byId("dashLastOrders").innerHTML = recent.length
+    ? recent.map((order) => `<button type="button" class="dash-list-row" data-order-id="${escapeAttr(order.id)}"><span><strong>${escapeHtml(order.public_id || "Pedido")}</strong><small>${escapeHtml(order.room_code || "Sem acomodacao")} · ${escapeHtml(statusLabel(order.status))}</small></span><b>${money(order.total_cents, order.currency)}</b></button>`).join("")
+    : '<div class="legacy-dashboard-empty">Nenhum pedido neste dia.</div>';
+  bindOrderButtons(byId("dashLastOrders"));
+
+  setText("dashTopItem", topItem ? displayBusinessText(topItem.name, "Item do cardapio") : "-");
+  setText("dashTopItemMeta", topItem ? `${Number(topItem.quantity || 0)} unidades` : "Sem vendas no periodo");
+  setText("dashPeakHour", peak?.[0] || "-");
+  setText("dashPeakMeta", peak ? `${Number(peak[1])} ${Number(peak[1]) === 1 ? "pedido" : "pedidos"}` : "Sem pedidos no dia");
+  byId("chartFuncCard", false)?.classList.add("hidden");
+}
+
 function renderOrders() {
   const query = byId("topSearchInput")?.value;
   const orders = filteredOrders(query);
@@ -711,11 +860,11 @@ async function openOrder(orderId) {
     setText("detDate", `${order.public_id || "Pedido"} - ${formatDate(order.created_at)}`);
     setText("detLinha", order.id);
     setText("detRoom", order.delivery?.room_code || order.room_code || "-");
-    setText("detGuest", order.guest_name || "Nao informado");
+    setText("detGuest", displayBusinessText(order.guest_name, "Nao informado"));
     setText("detLocal", order.delivery?.location || "Acomodacao");
     setText("detStaff", order.origin === "admin_pdv" ? "ERP" : "Portal");
     setText("detTotal", money(order.total_cents, order.currency));
-    byId("detItems").innerHTML = (order.items || []).map((item) => `<li class="flex justify-between gap-3"><span>${Number(item.quantity || 0)}x ${escapeHtml(item.name || item.name_snapshot || "Item")}</span><strong>${money(item.line_total_cents, order.currency)}</strong></li>`).join("") || "<li>Sem itens.</li>";
+    byId("detItems").innerHTML = (order.items || []).map((item) => `<li class="flex justify-between gap-3"><span>${Number(item.quantity || 0)}x ${escapeHtml(displayBusinessText(item.name || item.name_snapshot, "Item"))}</span><strong>${money(item.line_total_cents, order.currency)}</strong></li>`).join("") || "<li>Sem itens.</li>";
     const notes = order.notes || "";
     byId("detObsBox").classList.toggle("hidden", !notes);
     setText("detObs", notes);
@@ -734,7 +883,7 @@ function renderStatusActions(order) {
   const buttons = [];
   if (next) buttons.push(`<button type="button" class="order-action-primary" data-status-target="${next}">Avancar para ${escapeHtml(statusLabel(next))}</button>`);
   if (!["completed", "cancelled"].includes(order.status)) buttons.push('<button type="button" class="order-action-secondary" data-status-target="cancelled">Cancelar pedido</button>');
-  buttons.push('<button type="button" class="order-action-secondary legacy-print-disabled" disabled>Impressao desativada</button>');
+  buttons.push('<button type="button" class="order-action-secondary legacy-print-disabled" disabled>Impressao indisponivel</button>');
   target.innerHTML = `<div class="legacy-status-actions">${buttons.join("")}</div>`;
   target.querySelectorAll("[data-status-target]").forEach((button) => button.addEventListener("click", () => changeOrderStatus(order, button.dataset.statusTarget)));
 }
@@ -757,20 +906,22 @@ function renderMenu() {
   const query = normalize(byId("pdvMenuSearch")?.value || byId("topSearchInput")?.value || "");
   const categories = (state.catalog?.categories || []).map((category) => ({
     ...category,
-    items: (category.items || []).filter((item) => !query || normalize(`${item.name} ${item.description || ""} ${category.name}`).includes(query)),
+    items: (category.items || []).map((item) => ({ ...item, category_name: category.name })).filter((item) => !query || normalize(`${item.name} ${item.description || ""} ${item.tag || ""} ${category.name}`).includes(query)),
   })).filter((category) => category.items.length);
   byId("menuContent").innerHTML = categories.length ? categories.map(menuCategory).join("") : '<div class="legacy-list-empty">Nenhum item encontrado.</div>';
   byId("menuContent").querySelectorAll("[data-product-id]").forEach((button) => button.addEventListener("click", () => addToCart(button.dataset.productId)));
 }
 
 function menuCategory(category) {
-  return `<section><h2 class="text-xl font-bold mb-4 flex items-center gap-2 dark:text-white uppercase tracking-tighter">${categoryIcon()} ${escapeHtml(category.name)}</h2><div class="horizontal-scroll">${category.items.map(menuCard).join("")}</div></section>`;
+  return `<section><h2 class="text-xl font-bold mb-4 flex items-center gap-2 dark:text-white uppercase tracking-tighter">${categoryIcon()} ${escapeHtml(displayBusinessText(category.name, "Cardapio"))}</h2><div class="horizontal-scroll">${category.items.map(menuCard).join("")}</div></section>`;
 }
 
 function menuCard(item) {
   const disabled = item.available === false;
   const image = safeImage(item.image_url || item.media_url);
-  return `<article class="legacy-menu-card bg-white dark:bg-gray-800 p-5 rounded-3xl relative card fade-in flex flex-col justify-between" aria-disabled="${disabled}"><div>${image ? `<div class="absolute top-5 right-5 w-16 h-16 rounded-xl overflow-hidden shadow-sm border"><img src="${escapeAttr(image)}" alt="" class="legacy-menu-image"></div>` : ""}<div class="${image ? "pr-20" : ""}"><span class="bg-[#f7f5ef] text-[#513b2d] text-[9px] font-bold px-2 py-1 rounded uppercase tracking-wide">${disabled ? "INDISPONIVEL" : "ITEM"}</span><h3 class="font-bold text-lg mt-2 dark:text-white">${escapeHtml(item.name)}</h3><p class="text-xs text-gray-500 mt-2 leading-relaxed italic line-clamp-2">${escapeHtml(item.description || "")}</p></div><div class="h-10"></div></div><div class="flex justify-between items-center mt-5 pt-4 border-t"><span class="text-xl font-black text-[#513b2d]">${money(item.price_cents, item.currency)}</span><button type="button" data-product-id="${escapeAttr(item.id)}" ${disabled ? "disabled" : ""} class="bg-[#444746] text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase flex items-center gap-1">${plusIcon()} ${disabled ? "INDISPONIVEL" : "ADD"}</button></div></article>`;
+  const tag = disabled ? "Indisponivel" : displayBusinessText(item.tag || item.category_name, "Cardapio");
+  const name = displayBusinessText(item.name, "Item do cardapio");
+  return `<article class="legacy-menu-card erp-pdv-card bg-white dark:bg-gray-800 p-5 rounded-3xl relative card fade-in flex flex-col justify-between" aria-disabled="${disabled}"><div class="erp-pdv-card-top"><span class="erp-product-image erp-pdv-thumb">${image ? `<img src="${escapeAttr(image)}" alt="${escapeAttr(name)}">` : imagePlaceholderIcon()}</span><div class="erp-pdv-card-copy"><span class="erp-item-tag">${escapeHtml(tag)}</span><h3 class="font-bold text-lg mt-2 dark:text-white">${escapeHtml(name)}</h3><p class="text-xs text-gray-500 mt-2 leading-relaxed italic line-clamp-2">${escapeHtml(displayBusinessText(item.description))}</p></div></div><div class="flex justify-between items-center mt-5 pt-4 border-t"><span class="text-xl font-black text-[#513b2d]">${money(item.price_cents, item.currency)}</span><button type="button" data-product-id="${escapeAttr(item.id)}" ${disabled ? "disabled" : ""} class="bg-[#444746] text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase flex items-center gap-1">${plusIcon()} ${disabled ? "Indisponivel" : "Adicionar"}</button></div></article>`;
 }
 
 function addToCart(productId) {
@@ -792,7 +943,7 @@ function renderCart() {
 }
 
 function cartLine(line) {
-  return `<div class="bg-gray-50 p-3 rounded-xl flex justify-between items-center border fade-in shadow-sm"><div class="min-w-0 pr-2"><p class="text-[12px] font-bold truncate uppercase tracking-tighter">${escapeHtml(line.item.name)}</p><p class="text-[10px] text-[#513b2d] font-black">${money(line.item.price_cents * line.quantity, line.item.currency)}</p></div><div class="flex gap-2 items-center bg-white border rounded-lg shrink-0 px-1 py-1"><button type="button" data-cart-change="${escapeAttr(line.item.id)}" data-delta="-1" class="text-red-500 font-bold px-2">-</button><span class="text-xs font-bold">${line.quantity}</span><button type="button" data-cart-change="${escapeAttr(line.item.id)}" data-delta="1" class="text-green-500 font-bold px-2">+</button></div></div>`;
+  return `<div class="bg-gray-50 p-3 rounded-xl flex justify-between items-center border fade-in shadow-sm"><div class="min-w-0 pr-2"><p class="text-[12px] font-bold truncate uppercase tracking-tighter">${escapeHtml(displayBusinessText(line.item.name, "Item do cardapio"))}</p><p class="text-[10px] text-[#513b2d] font-black">${money(line.item.price_cents * line.quantity, line.item.currency)}</p></div><div class="flex gap-2 items-center bg-white border rounded-lg shrink-0 px-1 py-1"><button type="button" data-cart-change="${escapeAttr(line.item.id)}" data-delta="-1" class="text-red-500 font-bold px-2">-</button><span class="text-xs font-bold">${line.quantity}</span><button type="button" data-cart-change="${escapeAttr(line.item.id)}" data-delta="1" class="text-green-500 font-bold px-2">+</button></div></div>`;
 }
 
 function bindPdvActions() {
@@ -861,10 +1012,10 @@ function renderGuests() {
 }
 
 function roomCard(room) {
-  return `<article class="guest-mini-card"><div class="mini-card-top"><div><p class="mini-card-label">Integracao PMS</p><p class="text-[11px] font-black text-gray-500 uppercase">Nao conectada</p></div><div class="mini-room-badge">Apto ${escapeHtml(room.code)}</div></div><div><p class="mini-card-title">Acomodacao ${escapeHtml(room.code)}</p><p class="text-[11px] font-bold text-gray-500 mt-2">Sem dados pessoais carregados</p></div><div class="mini-card-actions"><button type="button" data-room-code="${escapeAttr(room.code)}" class="mini-card-action orange">${cartIcon()} Vender</button></div></article>`;
+  return `<article class="guest-mini-card"><div class="mini-card-top"><div><p class="mini-card-label">Acomodacao</p><p class="text-[11px] font-black text-gray-500 uppercase">Disponivel</p></div><div class="mini-room-badge">Apto ${escapeHtml(room.code)}</div></div><div><p class="mini-card-title">${escapeHtml(displayBusinessText(room.label, `Acomodacao ${room.code}`))}</p><p class="text-[11px] font-bold text-gray-500 mt-2">${escapeHtml(displayBusinessText(room.room_type, "Atendimento no quarto"))}</p></div><div class="mini-card-actions"><button type="button" data-room-code="${escapeAttr(room.code)}" class="mini-card-action orange">${cartIcon()} Novo pedido</button></div></article>`;
 }
 
-function renderBilling() {
+function renderBillingLegacy() {
   const summary = state.billing?.summary || {};
   setText("histKpiRevenue", money(summary.revenue_cents || 0));
   setText("histKpiOrders", summary.completed_orders || 0);
@@ -878,20 +1029,73 @@ function renderBilling() {
   byId("histQuickStats").innerHTML = `<p>${state.orders.length} pedidos no periodo</p><p>${money(summary.revenue_cents || 0)} faturados</p><p>Impressao desativada</p>`;
 }
 
+function renderBilling() {
+  const from = byId("histFrom", false)?.value || "0000-01-01";
+  const to = byId("histTo", false)?.value || "9999-12-31";
+  const orders = state.orders.filter((order) => {
+    const date = dateKeyInHotelTimezone(order.created_at);
+    return date >= from && date <= to;
+  });
+  const completed = orders.filter((order) => order.status === "completed");
+  const revenue = completed.reduce((total, order) => total + Number(order.total_cents || 0), 0);
+  const daily = countMoneyBy(completed, (order) => dateKeyInHotelTimezone(order.created_at));
+  const dateEntries = Object.entries(daily).sort((a, b) => a[0].localeCompare(b[0]));
+  const maxRevenue = Math.max(1, ...dateEntries.map(([, value]) => Number(value)));
+
+  setText("histRangeLabel", `${formatShortDate(from)} a ${formatShortDate(to)}`);
+  setText("histKpiRevenue", money(revenue));
+  setText("histKpiOrders", completed.length);
+  setText("histKpiTicket", money(completed.length ? Math.round(revenue / completed.length) : 0));
+  setText("histKpiObs", orders.filter((order) => String(order.notes || "").trim()).length);
+  setText("histTableMeta", `${orders.length} ${orders.length === 1 ? "pedido" : "pedidos"}`);
+  setText("billingDailyMeta", `${dateEntries.length} ${dateEntries.length === 1 ? "dia" : "dias"}`);
+
+  byId("billingDailyChart").innerHTML = dateEntries.length
+    ? dateEntries.map(([date, value]) => `<div class="erp-billing-bar" title="${escapeAttr(`${formatShortDate(date)}: ${money(value)}`)}"><i style="height:${Math.max(5, Math.round((Number(value) / maxRevenue) * 100))}%"></i><small>${escapeHtml(date.slice(8, 10))}</small></div>`).join("")
+    : '<div class="legacy-dashboard-empty">Sem faturamento no periodo.</div>';
+
+  renderBars(byId("histTopItems"), Object.entries(countBy(orders, (order) => statusLabel(order.status))));
+  renderBars(byId("histLegendLocal"), Object.entries(countBy(orders, (order) => (order.delivery_location || order.room_code) ? "Acomodacao" : "Outro")));
+  byId("histTableBody").innerHTML = orders.length
+    ? orders.map((order) => `<tr><td>${escapeHtml(formatDate(order.created_at))}</td><td>${escapeHtml(order.public_id || "-")}</td><td>${escapeHtml(order.room_code || "-")}</td><td><span class="legacy-status-chip" data-status="${escapeAttr(order.status)}">${escapeHtml(statusLabel(order.status))}</span></td><td><strong>${money(order.total_cents, order.currency)}</strong></td><td><button type="button" data-order-id="${escapeAttr(order.id)}" class="mini-card-action">Ver</button></td></tr>`).join("")
+    : '<tr><td colspan="6"><div class="legacy-dashboard-empty">Nenhum pedido no periodo.</div></td></tr>';
+  bindOrderButtons(byId("histTableBody"));
+}
+
+function exportBillingCsv() {
+  const from = byId("histFrom").value;
+  const to = byId("histTo").value;
+  const orders = state.orders.filter((order) => {
+    const date = dateKeyInHotelTimezone(order.created_at);
+    return date >= from && date <= to;
+  });
+  const lines = [
+    ["Data e hora", "Pedido", "Acomodacao", "Status", "Total"],
+    ...orders.map((order) => [formatDate(order.created_at), order.public_id || "", order.room_code || "", statusLabel(order.status), (Number(order.total_cents || 0) / 100).toFixed(2).replace(".", ",")]),
+  ];
+  const csv = lines.map((line) => line.map(csvCell).join(";")).join("\r\n");
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type: "text/csv;charset=utf-8" }));
+  link.download = `faturamento-${state.hotelId}-${from}-${to}.csv`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+  notify("Relatorio exportado.");
+}
+
 function renderCatalog() {
   const query = normalize(byId("menuAdminSearch")?.value || byId("topSearchInput")?.value || "");
   const sourceCategories = state.catalog?.categories || [];
   const categories = sourceCategories
     .filter((category) => state.catalogCategory === "all" || category.id === state.catalogCategory)
-    .map((category) => ({ ...category, items: (category.items || []).filter((item) => !query || normalize(`${item.name} ${item.description || ""} ${category.name}`).includes(query)) }))
+    .map((category) => ({ ...category, items: (category.items || []).filter((item) => !query || normalize(`${item.name} ${item.description || ""} ${item.tag || ""} ${category.name}`).includes(query)) }))
     .filter((category) => category.items.length);
   const total = categories.reduce((sum, category) => sum + category.items.length, 0);
   setText("menuAdminSummary", `${total} itens encontrados`);
   byId("catalogCategoryTabs").innerHTML = [{ id: "all", name: "Todos" }, ...sourceCategories]
-    .map((category) => `<button type="button" class="erp-category-tab ${state.catalogCategory === category.id ? "active" : ""}" data-catalog-category="${escapeAttr(category.id)}">${escapeHtml(category.name)}${category.id === "all" ? "" : ` · ${(category.items || []).length}`}</button>`)
+    .map((category) => `<button type="button" class="erp-category-tab ${state.catalogCategory === category.id ? "active" : ""}" data-catalog-category="${escapeAttr(category.id)}">${escapeHtml(displayBusinessText(category.name, "Cardapio"))}${category.id === "all" ? "" : ` · ${(category.items || []).length}`}</button>`)
     .join("");
   byId("menuCategoryBoard").innerHTML = categories.length
-    ? categories.flatMap((category) => category.items.map((item) => `<button type="button" class="erp-product-card" data-edit-catalog-item="${escapeAttr(item.id)}"><span class="erp-product-image">${safeImage(item.image_url) ? `<img src="${escapeAttr(item.image_url)}" alt="">` : imagePlaceholderIcon()}</span><span class="erp-product-body"><strong>${escapeHtml(item.name)}</strong><p>${escapeHtml(item.description || category.name)}</p><span class="erp-product-footer"><b class="erp-product-price">${money(item.price_cents, item.currency)}</b><span class="erp-chip ${item.available === false ? "off" : ""}">${item.available === false ? "Indisponivel" : "Disponivel"}</span></span></span></button>`)).join("")
+    ? categories.flatMap((category) => category.items.map((item) => { const name = displayBusinessText(item.name, "Item do cardapio"); return `<button type="button" class="erp-product-card" data-edit-catalog-item="${escapeAttr(item.id)}"><span class="erp-product-image">${safeImage(item.image_url) ? `<img src="${escapeAttr(item.image_url)}" alt="${escapeAttr(name)}">` : imagePlaceholderIcon()}</span><span class="erp-product-body">${item.tag ? `<span class="erp-item-tag">${escapeHtml(displayBusinessText(item.tag))}</span>` : ""}<strong>${escapeHtml(name)}</strong><p>${escapeHtml(displayBusinessText(item.description || category.name, "Sem descricao"))}</p><span class="erp-product-footer"><b class="erp-product-price">${money(item.price_cents, item.currency)}</b><span class="erp-chip ${item.available === false ? "off" : ""}">${item.available === false ? "Indisponivel" : "Disponivel"}</span></span></span></button>`; })).join("")
     : '<div class="legacy-list-empty">Nenhum item encontrado.</div>';
 }
 
@@ -904,12 +1108,25 @@ function renderAdmin() {
   if (state.settingsView === "account") target.innerHTML = renderAccountSettings();
   if (state.settingsView === "appearance") target.innerHTML = renderAppearanceSettings();
   if (state.settingsView === "notifications") target.innerHTML = renderNotificationSettings();
+  const settingsScale = byId("settingsScaleRange", false);
+  settingsScale?.addEventListener("input", () => applyInterfaceScale(settingsScale.value, false));
+  settingsScale?.addEventListener("change", () => {
+    applyInterfaceScale(settingsScale.value, true);
+    renderAdmin();
+  });
+  const settingsVolume = byId("settingsNotificationVolume", false);
+  settingsVolume?.addEventListener("input", () => previewNotificationVolume(settingsVolume.value));
+  settingsVolume?.addEventListener("change", () => {
+    saveNotificationVolume(settingsVolume.value);
+    renderAdmin();
+  });
 }
 
 function erpUserCard(user) {
   const labels = new Map(state.userPermissions.map((permission) => [permission.key, permission.label]));
-  const initials = String(user.display_name || "U").split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
-  return `<article class="admin-user-card"><div class="erp-user-card-head"><span class="admin-user-avatar">${escapeHtml(initials)}</span><div><strong>${escapeHtml(user.display_name)}</strong><small>Codigo ${Number(user.user_code)}</small></div></div><div class="erp-user-permissions">${(user.permissions || []).map((key) => `<span>${escapeHtml(labels.get(key) || key)}</span>`).join("")}</div><div class="erp-user-card-actions"><span class="legacy-status-chip">${user.status === "active" ? "Ativo" : "Desativado"}</span><button type="button" class="admin-secondary-btn" data-edit-erp-user="${escapeAttr(user.id)}">Editar</button></div></article>`;
+  const displayName = displayUserName(user);
+  const initials = String(displayName || "U").split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
+  return `<article class="admin-user-card"><div class="erp-user-card-head"><span class="admin-user-avatar">${escapeHtml(initials)}</span><div><strong>${escapeHtml(displayName)}</strong><small>Codigo ${Number(user.user_code)}</small></div></div><div class="erp-user-permissions">${(user.permissions || []).map((key) => `<span>${escapeHtml(labels.get(key) || key)}</span>`).join("")}</div><div class="erp-user-card-actions"><span class="legacy-status-chip">${user.status === "active" ? "Ativo" : "Desativado"}</span><button type="button" class="admin-secondary-btn" data-edit-erp-user="${escapeAttr(user.id)}">Editar</button></div></article>`;
 }
 
 async function refreshUsers() {
@@ -994,6 +1211,7 @@ function openCatalogItemModal(item = null) {
   byId("catalogItemModalTitle").textContent = item ? "Editar item" : "Novo item";
   byId("catalogItemName").value = item?.name || "";
   byId("catalogItemDescription").value = item?.description || "";
+  byId("catalogItemTag").value = item?.tag || "";
   byId("catalogItemPrice").value = item ? (Number(item.price_cents || 0) / 100).toFixed(2).replace(".", ",") : "";
   byId("catalogItemSort").value = item?.sort_order || 100;
   byId("catalogItemStatus").value = item?.status || "active";
@@ -1017,7 +1235,7 @@ function renderCatalogImagePicker() {
 async function uploadCatalogImage() {
   const file = byId("catalogMediaFile").files?.[0];
   if (!file) return notify("Selecione uma imagem para enviar.");
-  setPageBusy(true, "Enviando imagem para o R2...");
+  setPageBusy(true, "Enviando imagem...");
   try {
     const form = new FormData();
     form.set("hotel_id", state.hotelId);
@@ -1051,6 +1269,7 @@ async function saveCatalogItem(event) {
     category_id: byId("catalogItemCategory").value,
     name: byId("catalogItemName").value.trim(),
     description: byId("catalogItemDescription").value.trim(),
+    tag: byId("catalogItemTag").value.trim(),
     price_cents: priceCents,
     currency: state.context?.hotel?.currency || "BRL",
     sort_order: Number(byId("catalogItemSort").value || 100),
@@ -1172,12 +1391,18 @@ async function changeOperationMode(mode) {
 }
 
 async function saveOperationSchedule(form) {
-  const days = Array.from({ length: 7 }, (_, day) => ({
+  const sameEveryDay = form.dataset.scheduleLayout === "same";
+  const days = Array.from({ length: 7 }, (_, day) => sameEveryDay ? {
+    day_of_week: day,
+    is_closed: false,
+    opens_at: form.elements.common_opens.value,
+    closes_at: form.elements.common_closes.value,
+  } : {
     day_of_week: day,
     is_closed: form.elements[`closed_${day}`].checked,
     opens_at: form.elements[`opens_${day}`].value,
     closes_at: form.elements[`closes_${day}`].value,
-  }));
+  });
   setPageBusy(true, "Salvando horario semanal...");
   try {
     await updateSchedule({ hotel_id: state.hotelId, days });
@@ -1185,6 +1410,7 @@ async function saveOperationSchedule(form) {
     state.operations = payload.data;
     state.context.operation = payload.data.operation;
     state.context.service_hours = payload.data.operation.service_hours;
+    state.scheduleViewMode = sameEveryDay ? "same" : "custom";
     updateHeaderState();
     renderDashboard();
     renderAdmin();
@@ -1205,7 +1431,7 @@ async function saveOwnAvatar(form) {
     payload.set("file", file);
     const response = await uploadOwnAvatar(payload);
     state.session.user.avatar = response.data.asset.public_url;
-    setImage(byId("topStaffAvatar", false), state.session.user.avatar, state.session.user.display_name);
+    setImage(byId("topStaffAvatar", false), state.session.user.avatar, displayUserName(state.session.user));
     renderAdmin();
     notify("Foto de perfil atualizada.");
   } catch (error) {
@@ -1220,7 +1446,7 @@ async function removeOwnAvatar() {
   try {
     await deleteOwnAvatar();
     state.session.user.avatar = null;
-    setImage(byId("topStaffAvatar", false), "", state.session.user.display_name);
+    setImage(byId("topStaffAvatar", false), "", displayUserName(state.session.user));
     renderAdmin();
     notify("Foto de perfil removida.");
   } catch (error) {
@@ -1253,6 +1479,231 @@ function parseMoneyToCents(value) {
   return Math.round(amount * 100);
 }
 
+function installStoreQuickPanel() {
+  const panel = document.createElement("div");
+  panel.id = "storeQuickPanel";
+  panel.className = "erp-store-quick hidden";
+  panel.setAttribute("role", "dialog");
+  panel.setAttribute("aria-label", "Funcionamento do Room Service");
+  panel.addEventListener("click", (event) => {
+    const mode = event.target.closest("[data-quick-operation-mode]");
+    if (mode) changeOperationMode(mode.dataset.quickOperationMode);
+    if (event.target.closest("[data-open-operation-settings]")) {
+      panel.classList.add("hidden");
+      openSettingsView("operation");
+    }
+  });
+  document.body.append(panel);
+}
+
+function toggleStoreQuickPanel(event) {
+  event?.stopPropagation();
+  const panel = byId("storeQuickPanel", false);
+  if (!panel) return;
+  renderStoreQuickPanel();
+  panel.classList.toggle("hidden");
+  byId("accountPopover", false)?.classList.add("hidden");
+  byId("notifDropdown", false)?.classList.add("hidden");
+}
+
+function renderStoreQuickPanel() {
+  const panel = byId("storeQuickPanel", false);
+  if (!panel || !state.context) return;
+  const service = currentServiceState();
+  const canManage = state.session?.permissions?.includes("room-service.settings.manage");
+  panel.innerHTML = `<div class="erp-store-quick-head"><span class="erp-operation-dot ${service.open ? "open" : ""}"></span><div><strong>Room Service ${service.open ? "aberto" : "fechado"}</strong><small>${service.mode === "automatic" ? "Horario automatico" : "Controle manual"}</small></div></div>${canManage ? `<div class="erp-store-quick-actions"><button type="button" class="${service.mode === "automatic" ? "active" : ""}" data-quick-operation-mode="automatic">Automatico</button><button type="button" class="${service.mode === "forced_open" ? "active" : ""}" data-quick-operation-mode="forced_open">Abrir agora</button><button type="button" class="${service.mode === "forced_closed" ? "active" : ""}" data-quick-operation-mode="forced_closed">Fechar agora</button></div><button type="button" class="erp-store-settings-link" data-open-operation-settings>Editar horarios</button>` : '<p class="erp-store-quick-note">Somente usuarios autorizados podem alterar o funcionamento.</p>'}`;
+}
+
+function applyInterfaceScale(value, persist = false) {
+  const scale = clampNumber(value, 85, 115, 100);
+  const factor = scale / 100;
+  document.documentElement.style.setProperty("--interface-scale", String(factor));
+  document.documentElement.style.setProperty("--interface-inverse", String(1 / factor));
+  document.documentElement.style.setProperty("--interface-width", `${100 / factor}vw`);
+  document.documentElement.style.setProperty("--interface-height", `${100 / factor}vh`);
+  state.interfaceScale = scale;
+  const headerRange = byId("interfaceScaleRange", false);
+  const headerLabel = byId("interfaceScaleLabel", false);
+  const settingsRange = byId("settingsScaleRange", false);
+  if (headerRange) headerRange.value = String(scale);
+  if (settingsRange) settingsRange.value = String(scale);
+  if (headerLabel) headerLabel.textContent = `${scale}%`;
+  if (persist) localStorage.setItem("fioreze-erp-interface-scale", String(scale));
+}
+
+function updateNotificationSoundUI() {
+  const range = byId("notificationVolumeRange", false);
+  const label = byId("notificationVolumeLabel", false);
+  const button = byId("notificationSoundButton", false);
+  const icon = byId("notificationSoundIcon", false);
+  if (range) range.value = String(state.notificationVolume);
+  if (label) label.textContent = `${state.notificationVolume}%`;
+  button?.classList.toggle("is-muted", !state.notificationSoundEnabled);
+  button?.setAttribute("aria-pressed", String(state.notificationSoundEnabled));
+  if (icon) icon.innerHTML = state.notificationSoundEnabled
+    ? '<path stroke-width="2" d="M11 5L6 9H3v6h3l5 4V5zM15 9a4 4 0 010 6M18 6a8 8 0 010 12"/>'
+    : '<path stroke-width="2" d="M11 5L6 9H3v6h3l5 4V5zM17 9l4 4M21 9l-4 4"/>';
+}
+
+function toggleNotificationSound() {
+  state.notificationSoundEnabled = !state.notificationSoundEnabled;
+  localStorage.setItem("fioreze-erp-notification-sound", String(state.notificationSoundEnabled));
+  updateNotificationSoundUI();
+  if (state.notificationSoundEnabled) playNotificationSound(true);
+}
+
+function previewNotificationVolume(value) {
+  state.notificationVolume = clampNumber(value, 0, 100, 70);
+  if (state.notificationVolume > 0) state.notificationSoundEnabled = true;
+  updateNotificationSoundUI();
+  const settingsLabel = byId("settingsNotificationVolume", false)?.closest("label")?.querySelector("b");
+  if (settingsLabel) settingsLabel.textContent = `${state.notificationVolume}%`;
+}
+
+function saveNotificationVolume(value) {
+  previewNotificationVolume(value);
+  localStorage.setItem("fioreze-erp-notification-volume", String(state.notificationVolume));
+  localStorage.setItem("fioreze-erp-notification-sound", String(state.notificationSoundEnabled));
+  playNotificationSound(true);
+}
+
+function unlockNotificationAudio() {
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContext) return;
+  notificationAudioContext ||= new AudioContext();
+  if (notificationAudioContext.state === "suspended") notificationAudioContext.resume().catch(() => {});
+}
+
+function playNotificationSound(force = false) {
+  if ((!state.notificationSoundEnabled && !force) || state.notificationVolume <= 0) return;
+  unlockNotificationAudio();
+  if (!notificationAudioContext) return;
+  const now = notificationAudioContext.currentTime;
+  const gain = notificationAudioContext.createGain();
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(Math.max(0.001, state.notificationVolume / 180), now + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
+  gain.connect(notificationAudioContext.destination);
+  [659.25, 783.99].forEach((frequency, index) => {
+    const oscillator = notificationAudioContext.createOscillator();
+    oscillator.type = "sine";
+    oscillator.frequency.value = frequency;
+    oscillator.connect(gain);
+    oscillator.start(now + index * 0.12);
+    oscillator.stop(now + 0.42 + index * 0.12);
+  });
+}
+
+function startOrderPolling() {
+  stopOrderPolling();
+  if (!state.session?.permissions?.includes("room-service.orders.read")) return;
+  state.orderPollTimer = window.setInterval(pollNewOrders, 15000);
+}
+
+function stopOrderPolling() {
+  if (state.orderPollTimer) window.clearInterval(state.orderPollTimer);
+  state.orderPollTimer = null;
+}
+
+async function pollNewOrders() {
+  if (document.hidden || !state.session || !state.hotelId) return;
+  try {
+    const payload = await listOrders({ hotelId: state.hotelId });
+    const nextOrders = payload.data.orders || [];
+    const newOrders = nextOrders.filter((order) => !state.knownOrderIds.has(order.id));
+    state.orders = nextOrders;
+    state.knownOrderIds = new Set(nextOrders.map((order) => order.id));
+    if (!newOrders.length) return;
+    state.notifications.unshift(...newOrders.map((order) => ({
+      id: crypto.randomUUID(),
+      orderId: order.id,
+      title: "Novo pedido",
+      detail: `${order.public_id || "Pedido"} - ${order.room_code || "Sem acomodacao"}`,
+      createdAt: order.created_at,
+    })));
+    state.notifications = state.notifications.slice(0, 20);
+    renderNotifications();
+    playNotificationSound();
+    notify(`${newOrders.length} ${newOrders.length === 1 ? "novo pedido recebido" : "novos pedidos recebidos"}.`);
+    const [dashboard, billing] = await Promise.all([getDashboard({ hotelId: state.hotelId }), getBilling({ hotelId: state.hotelId })]);
+    state.dashboard = dashboard.data;
+    state.billing = billing.data;
+    renderActiveRoute();
+  } catch (error) {
+    if (error.status === 401) stopOrderPolling();
+  }
+}
+
+function renderNotifications() {
+  const list = byId("notifList", false);
+  if (!list) return;
+  list.innerHTML = state.notifications.length
+    ? state.notifications.map((notification) => `<button type="button" class="erp-notification-row" data-notification-order="${escapeAttr(notification.orderId)}"><span class="erp-notification-dot"></span><span><strong>${escapeHtml(notification.title)}</strong><small>${escapeHtml(notification.detail)}</small></span><time>${escapeHtml(formatDate(notification.createdAt, { hour: "2-digit", minute: "2-digit" }))}</time></button>`).join("")
+    : '<div class="legacy-list-empty">Nenhuma notificacao.</div>';
+  updateNotificationBadge(state.notifications.length);
+}
+
+function clearNotifications() {
+  state.notifications = [];
+  renderNotifications();
+}
+
+function renderTopSearchResults() {
+  const input = byId("topSearchInput", false);
+  const target = byId("topSearchResults", false);
+  if (!input || !target || !state.session) return;
+  const query = normalize(input.value);
+  const suggestions = buildSearchSuggestions().filter((entry) => !query || normalize(`${entry.label} ${entry.meta}`).includes(query)).slice(0, 8);
+  target.innerHTML = suggestions.length
+    ? suggestions.map((entry, index) => `<button type="button" class="top-search-item ${index === 0 ? "active" : ""}" data-search-kind="${escapeAttr(entry.kind)}" data-search-value="${escapeAttr(entry.value)}"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M5 12h14M13 5l7 7-7 7"/></svg><span><span class="top-search-title">${escapeHtml(entry.label)}</span><span class="top-search-meta">${escapeHtml(entry.meta)}</span></span></button>`).join("")
+    : '<p class="erp-search-empty">Nenhum resultado encontrado.</p>';
+  target.classList.remove("hidden");
+}
+
+function buildSearchSuggestions() {
+  const routeLabels = {
+    dashboard: ["Dashboard", "Visao geral da operacao"],
+    vendas: ["Novo pedido", "Abrir pedido direto"],
+    hist: ["Pedidos", "Consultar historico"],
+    hospedes: ["Acomodacoes", "Consultar quartos"],
+    faturamento: ["Faturamento", "Consultar resultados"],
+    cardapio: ["Cardapio", "Editar produtos e categorias"],
+    admin: ["Configuracoes", "Ajustes do ERP"],
+  };
+  const routes = Object.entries(routeLabels).filter(([route]) => !byId(ROUTES[route].button).classList.contains("hidden")).map(([route, [label, meta]]) => ({ kind: "route", value: route, label, meta }));
+  const orders = state.orders.slice(0, 20).map((order) => ({ kind: "order", value: order.id, label: order.public_id || "Pedido", meta: `${order.room_code || "Sem acomodacao"} · ${statusLabel(order.status)}` }));
+  const items = allCatalogItems().slice(0, 30).map((item) => ({ kind: "catalog", value: item.id, label: displayBusinessText(item.name, "Item do cardapio"), meta: displayBusinessText(item.tag, "Item do cardapio") }));
+  return [...routes, ...orders, ...items];
+}
+
+function handleTopSearchClick(event) {
+  const item = event.target.closest("[data-search-kind]");
+  if (item) runSearchSuggestion(item.dataset.searchKind, item.dataset.searchValue);
+}
+
+function handleTopSearchKeydown(event) {
+  if (event.key === "Escape") return closeTopSearch();
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  const first = byId("topSearchResults", false)?.querySelector("[data-search-kind]");
+  if (first) runSearchSuggestion(first.dataset.searchKind, first.dataset.searchValue);
+}
+
+function runSearchSuggestion(kind, value) {
+  closeTopSearch();
+  byId("topSearchInput").value = "";
+  if (kind === "route") switchTab(value);
+  if (kind === "order") openOrder(value);
+  if (kind === "catalog") {
+    switchTab("cardapio");
+    openCatalogItemModal(allCatalogItems().find((item) => item.id === value));
+  }
+}
+
+function closeTopSearch() {
+  byId("topSearchResults", false)?.classList.add("hidden");
+}
+
 function updateNotificationBadge(count) {
   const badge = document.querySelector(".notif-badge");
   if (!badge) return;
@@ -1271,7 +1722,8 @@ function updateHeaderState() {
   setText("hdrStoreStatus", service.label);
   setText("hdrStoreMode", service.mode === "automatic" ? "Automatico" : "Manual");
   setText("loginStoreStatus", service.label);
-  setText("loginStoreMode", "D1");
+  setText("loginStoreMode", "Room Service");
+  renderStoreQuickPanel();
 }
 
 function currentServiceState() {
@@ -1292,6 +1744,7 @@ function setPageBusy(busy, message = "Sincronizando...") {
 }
 
 function showLogin() {
+  stopOrderPolling();
   document.body.classList.add("erp-login");
   byId("loginOverlay").classList.remove("hidden");
   byId("accountPopover").classList.add("hidden");
@@ -1331,6 +1784,14 @@ function countBy(rows, selector) {
   }, {});
 }
 
+function countMoneyBy(rows, selector) {
+  return rows.reduce((result, row) => {
+    const key = selector(row) || "Outro";
+    result[key] = (result[key] || 0) + Number(row.total_cents || 0);
+    return result;
+  }, {});
+}
+
 function peakHour(orders) {
   return Object.entries(countBy(orders, (order) => String(order.created_at || "").slice(11, 13) ? `${String(order.created_at).slice(11, 13)}h` : "" )).sort((a, b) => b[1] - a[1])[0];
 }
@@ -1360,6 +1821,78 @@ function setText(id, value) {
 
 function normalize(value) {
   return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
+function clampNumber(value, minimum, maximum, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(minimum, Math.min(maximum, Math.round(number))) : fallback;
+}
+
+function displayUserName(user = {}) {
+  const cleaned = String(user.display_name || "")
+    .replace(/\b(demo|dev|desenvolvimento)\b/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return cleaned || (state.session?.erp_master ? "Administrador Geral Fioreze" : "Usuario");
+}
+
+function displayHotelName(hotel = {}) {
+  const raw = hotel.name || hotel.short_name || hotel.hotel_id || "ERP Room Service Fioreze";
+  const cleaned = String(raw)
+    .replace(/\b(demo|desenvolvimento)\b/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return cleaned || "Unidade Fioreze";
+}
+
+function displayBusinessText(value, fallback = "") {
+  const cleaned = String(value || "")
+    .replace(/\b(demo|dev|desenvolvimento|ficticio|ficticia)\b/gi, "")
+    .replace(/\b(?:somente\s+)?para teste local\b/gi, "")
+    .replace(/\busado em teste de disponibilidade\b/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+([.,;:])/g, "$1")
+    .replace(/^[\s.,;:-]+|[\s.,;:-]+$/g, "")
+    .trim();
+  return cleaned || fallback;
+}
+
+function localDateKey(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function dateKeyInHotelTimezone(value) {
+  if (!value) return "";
+  const timezone = state.context?.hotel?.timezone || "America/Sao_Paulo";
+  try {
+    return new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(value));
+  } catch {
+    return String(value).slice(0, 10);
+  }
+}
+
+function formatDashboardDate(value) {
+  if (!value) return "Visao operacional do dia";
+  const [year, month, day] = value.split("-").map(Number);
+  return new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" }).format(new Date(year, month - 1, day));
+}
+
+function formatShortDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) return "-";
+  const [year, month, day] = value.split("-");
+  return `${day}/${month}/${year}`;
+}
+
+function csvCell(value) {
+  return `"${String(value ?? "").replaceAll('"', '""')}"`;
+}
+
+function inferScheduleViewMode(hours) {
+  const primary = Array.from({ length: 7 }, (_, day) => hours.find((entry) => Number(entry.day_of_week) === day && Number(entry.sort_order || 0) === 0) || hours.find((entry) => Number(entry.day_of_week) === day));
+  if (primary.some((entry) => !entry || entry.is_closed)) return "custom";
+  return primary.every((entry) => entry.opens_at === primary[0].opens_at && entry.closes_at === primary[0].closes_at) ? "same" : "custom";
 }
 
 function money(cents, currency = "BRL") {

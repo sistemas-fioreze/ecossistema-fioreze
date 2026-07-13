@@ -54,6 +54,7 @@ const required = [
   "migrations/0013_admin_profile_avatars.sql",
   "migrations/0014_erp_hotel_users.sql",
   "migrations/0015_erp_operations_catalog_profiles.sql",
+  "migrations/0016_catalog_item_tags.sql",
   "seeds/dev.sql",
   "wrangler.jsonc",
   ".dev.vars.example",

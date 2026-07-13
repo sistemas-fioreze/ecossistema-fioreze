@@ -1766,7 +1766,7 @@ class MockD1Database {
     }
 
     if (normalized.startsWith("insert into catalog_items")) {
-      const [id, public_id, hotel_id, catalog_id, category_id, module_key, name, description, price_cents, currency, image_url, status, sort_order, created_at, updated_at, archived_at, media_asset_id] = params;
+      const [id, public_id, hotel_id, catalog_id, category_id, module_key, name, description, tag, price_cents, currency, image_url, status, sort_order, created_at, updated_at, archived_at, media_asset_id] = params;
       this.data.catalogItems.push({
         id,
         public_id,
@@ -1777,6 +1777,7 @@ class MockD1Database {
         item_type: "product",
         name,
         description,
+        tag,
         price_cents,
         currency,
         image_url,
@@ -2142,10 +2143,10 @@ class MockD1Database {
     }
 
     if (normalized.startsWith("update catalog_items") && normalized.includes("set category_id = ?")) {
-      const [category_id, name, description, price_cents, currency, image_url, status, sort_order, media_asset_id, updated_at, archived_at, itemId, hotelId, moduleKey] = params;
+      const [category_id, name, description, tag, price_cents, currency, image_url, status, sort_order, media_asset_id, updated_at, archived_at, itemId, hotelId, moduleKey] = params;
       const item = this.data.catalogItems.find((entry) => entry.id === itemId && entry.hotel_id === hotelId && entry.module_key === moduleKey);
       if (!item) return d1Result(0);
-      Object.assign(item, { category_id, name, description, price_cents, currency, image_url, status, sort_order, media_asset_id, updated_at, archived_at });
+      Object.assign(item, { category_id, name, description, tag, price_cents, currency, image_url, status, sort_order, media_asset_id, updated_at, archived_at });
       return d1Result(1);
     }
 

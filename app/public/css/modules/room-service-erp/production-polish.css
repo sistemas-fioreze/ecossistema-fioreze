@@ -1,0 +1,509 @@
+.app-sidebar {
+  overflow: hidden;
+}
+
+#appShell {
+  transform: scale(var(--interface-scale, 1));
+  transform-origin: top left;
+}
+
+.sidebar-footer:empty {
+  display: none;
+}
+
+.sidebar-collapsed .app-sidebar {
+  padding-left: 16px !important;
+  padding-right: 16px !important;
+}
+
+.sidebar-collapsed .side-nav-btn {
+  width: 52px !important;
+  min-width: 52px !important;
+  height: 44px !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+.sidebar-collapsed .side-nav-btn svg {
+  margin: 0 !important;
+}
+
+.sidebar-collapsed .side-user-card {
+  width: 52px !important;
+  overflow: hidden !important;
+}
+
+.sidebar-collapsed .side-user-info {
+  display: none !important;
+}
+
+.app-shell :where(div, span, p, h1, h2, h3, h4, section, article, nav, header, footer, label, button, a, [role="button"]) {
+  caret-color: transparent;
+  user-select: none;
+}
+
+.app-shell :where(input, textarea, [contenteditable="true"]) {
+  caret-color: auto;
+  user-select: text;
+}
+
+.erp-store-quick {
+  position: fixed;
+  z-index: 500;
+  top: 72px;
+  right: 174px;
+  width: 300px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  box-shadow: 0 20px 50px rgba(32, 33, 36, 0.16);
+}
+
+.erp-store-quick.hidden {
+  display: none;
+}
+
+.erp-store-quick-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.erp-store-quick-head strong {
+  display: block;
+  font-size: 12px;
+}
+
+.erp-store-quick-head small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.erp-operation-dot.open {
+  background: #22c55e;
+}
+
+.erp-store-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+  margin-top: 12px;
+  padding: 4px;
+  background: #f4f5f6;
+  border-radius: 8px;
+}
+
+.erp-store-quick-actions button {
+  min-height: 38px;
+  padding: 5px 7px !important;
+  background: transparent !important;
+  color: #737a84 !important;
+  font-size: 9px !important;
+  font-weight: 900 !important;
+}
+
+.erp-store-quick-actions button.active {
+  background: #fff !important;
+  color: var(--accent) !important;
+  box-shadow: 0 2px 8px rgba(32, 33, 36, 0.08) !important;
+}
+
+.erp-store-settings-link {
+  width: 100%;
+  height: 36px;
+  margin-top: 10px;
+  background: transparent !important;
+  color: var(--accent) !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+}
+
+.erp-store-quick-note {
+  padding-top: 12px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.erp-schedule-layout {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+  padding: 4px;
+  background: #f4f5f6;
+  border-radius: 8px;
+}
+
+.erp-schedule-layout button {
+  height: 32px;
+  padding: 0 10px !important;
+  background: transparent !important;
+  color: #7a8088 !important;
+  font-size: 9px !important;
+  font-weight: 900 !important;
+}
+
+.erp-schedule-layout button.active {
+  background: #fff !important;
+  color: var(--accent) !important;
+  box-shadow: 0 2px 8px rgba(32, 33, 36, 0.07) !important;
+}
+
+.erp-common-hours {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  align-items: end;
+  gap: 12px;
+  padding: 18px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.erp-common-hours label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #6d747e;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.erp-common-hours input {
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px !important;
+}
+
+.erp-common-hours span {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 12px;
+  background: #f4f5f6;
+  border-radius: 8px;
+  color: #6d747e;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.erp-pdv-card-top {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+#menuContent .erp-pdv-card {
+  height: 270px !important;
+  min-height: 270px !important;
+}
+
+.erp-pdv-thumb {
+  width: 96px !important;
+  min-width: 96px !important;
+  height: 96px !important;
+  min-height: 96px !important;
+  aspect-ratio: 1;
+  align-self: start;
+  border-radius: 8px;
+}
+
+#vendasContainer > main h2,
+#vendasContainer > main h3 {
+  color: var(--ink) !important;
+}
+
+#vendasContainer .pdv-panel h2 {
+  color: #fff !important;
+}
+
+.erp-pdv-card-copy {
+  min-width: 0;
+}
+
+.erp-item-tag {
+  display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+  padding: 4px 7px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--accent) 10%, white);
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: 8px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.erp-product-body > .erp-item-tag {
+  margin-bottom: 6px;
+}
+
+.erp-billing-shell {
+  overflow: auto;
+  padding-bottom: 4px;
+}
+
+.erp-billing-filters {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.erp-billing-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: #8a919a;
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.erp-billing-filters input {
+  height: 36px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px !important;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.erp-billing-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(220px, 0.8fr) minmax(220px, 0.8fr);
+  gap: 12px;
+}
+
+.erp-billing-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 7px;
+  height: 180px;
+  padding: 8px 2px 0;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--line);
+}
+
+.erp-billing-bar {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 28px;
+  height: 100%;
+  gap: 5px;
+}
+
+.erp-billing-bar i {
+  width: 100%;
+  max-width: 30px;
+  min-height: 4px;
+  background: var(--accent);
+  border-radius: 5px 5px 0 0;
+}
+
+.erp-billing-bar small {
+  color: #8a919a;
+  font-size: 8px;
+  font-weight: 900;
+}
+
+.erp-billing-table-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 260px;
+}
+
+.erp-billing-table-wrap {
+  min-height: 0;
+  overflow: auto;
+}
+
+.erp-billing-table-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.erp-billing-table-wrap th {
+  position: sticky;
+  top: 0;
+  padding: 10px;
+  background: #f8f9fa;
+  border-bottom: 1px solid var(--line);
+  color: #7d8590;
+  font-size: 9px;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.erp-billing-table-wrap td {
+  padding: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.erp-notification-settings {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 14px;
+  max-width: 620px;
+}
+
+.erp-notification-settings strong,
+.erp-notification-settings small {
+  display: block;
+}
+
+.erp-notification-settings strong {
+  font-size: 12px;
+}
+
+.erp-notification-settings small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.erp-notification-settings label {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  gap: 10px;
+  color: #6d747e;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.erp-notification-settings input {
+  width: 100%;
+}
+
+.erp-appearance-scale {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.erp-appearance-scale strong {
+  color: var(--accent);
+  font-size: 20px;
+}
+
+.erp-notification-row {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  align-items: center;
+  width: 100%;
+  gap: 9px;
+  padding: 10px !important;
+  background: #fafafa !important;
+  border-radius: 8px !important;
+  text-align: left;
+}
+
+.erp-notification-row strong {
+  display: block;
+  font-size: 11px;
+}
+
+.erp-notification-row small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.erp-notification-row time {
+  color: #9aa1ad;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.erp-notification-dot {
+  width: 7px;
+  height: 7px;
+  background: #22c55e;
+  border-radius: 50%;
+}
+
+.erp-search-empty {
+  padding: 16px;
+  color: #9aa1ad;
+  font-size: 10px;
+  font-weight: 900;
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .erp-store-quick {
+    top: 68px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+  }
+
+  .erp-billing-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .erp-billing-filters {
+    width: 100%;
+  }
+
+  .erp-common-hours {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .erp-common-hours span {
+    grid-column: 1 / -1;
+  }
+
+  .erp-pdv-card-top {
+    grid-template-columns: 76px minmax(0, 1fr);
+  }
+
+  .erp-pdv-thumb {
+    width: 76px !important;
+    min-width: 76px !important;
+    height: 76px !important;
+    min-height: 76px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  #hdrStoreButton {
+    display: flex !important;
+    width: auto !important;
+    min-width: 68px;
+    align-items: center;
+    justify-content: center;
+    padding-inline: 10px !important;
+  }
+
+  #hdrStoreStatus {
+    display: inline !important;
+  }
+
+  #hdrStoreMode {
+    display: none !important;
+  }
+}

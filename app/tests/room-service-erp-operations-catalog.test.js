@@ -106,6 +106,7 @@ test("editor cria categoria e item com imagem R2 da mesma unidade", async () => 
       category_id: category.body.data.category.id,
       name: "Prato ficticio com imagem",
       description: "Somente para teste local.",
+      tag: "Recomendado",
       price_cents: 4200,
       currency: "BRL",
       status: "active",
@@ -114,15 +115,25 @@ test("editor cria categoria e item com imagem R2 da mesma unidade", async () => 
       media_asset_id: upload.body.data.asset.id,
     }),
   );
+  const updated = await json(
+    `/api/v1/admin/room-service/catalog/items/${item.body.data.item.id}`,
+    adminJson(cookie, "PATCH", {
+      hotel_id: "muller-fioreze",
+      tag: "Escolha da casa",
+    }),
+  );
   const publicCatalog = await json("/api/v1/public/hotels/muller-fioreze/room-service/products");
   const saved = publicCatalog.body.data.categories.flatMap((entry) => entry.items).find((entry) => entry.id === item.body.data.item.id);
 
   assert.equal(upload.response.status, 201);
   assert.equal(category.response.status, 201);
   assert.equal(item.response.status, 201);
+  assert.equal(updated.response.status, 200);
+  assert.equal(updated.body.data.item.tag, "Escolha da casa");
   assert.equal(saved.media_asset_id, upload.body.data.asset.id);
   assert.equal(saved.image_url, `/media/${upload.body.data.asset.id}`);
   assert.equal(saved.price_cents, 4200);
+  assert.equal(saved.tag, "Escolha da casa");
   assert.equal(env.MEDIA_BUCKET.objects.size, 1);
   assert.ok(env.__data.adminAuditLog.some((entry) => entry.action === "room-service.catalog_item.created"));
 });
@@ -216,13 +227,25 @@ test("cadastro administrativo aceita quatro caracteres e rejeita tres", async ()
   assert.equal(env.__data.erpUsers.some((entry) => entry.display_name === "Operador tres"), false);
 });
 
-test("fundacao visual inclui dashboard, editor, settings e badge vazio oculto", () => {
+test("acabamento visual preserva dashboard legado e ativa recursos operacionais", () => {
   const script = fs.readFileSync(`${APP_ROOT}/public/js/modules/room-service-erp/legacy-app.js`, "utf8");
   const css = fs.readFileSync(`${APP_ROOT}/public/css/modules/room-service-erp/operations.css`, "utf8");
-  const migration = fs.readFileSync(`${APP_ROOT}/migrations/0015_erp_operations_catalog_profiles.sql`, "utf8");
+  const polishCss = fs.readFileSync(`${APP_ROOT}/public/css/modules/room-service-erp/production-polish.css`, "utf8");
+  const html = fs.readFileSync(`${APP_ROOT}/public/erp/room-service/index.html`, "utf8");
+  const profilesMigration = fs.readFileSync(`${APP_ROOT}/migrations/0015_erp_operations_catalog_profiles.sql`, "utf8");
+  const tagsMigration = fs.readFileSync(`${APP_ROOT}/migrations/0016_catalog_item_tags.sql`, "utf8");
 
-  assert.match(script, /dashboardHourlyChart/);
-  assert.match(script, /dashboardDonut/);
+  assert.match(script, /function renderDashboard\(\)/);
+  assert.match(script, /dashTopItemsList/);
+  assert.match(script, /renderTopSearchResults/);
+  assert.match(script, /applyInterfaceScale/);
+  assert.match(script, /playNotificationSound/);
+  assert.match(script, /data-schedule-layout-option="same"/);
+  assert.match(script, /catalogItemTag/);
+  assert.match(script, /exportBillingCsv/);
+  assert.match(script, /installStoreQuickPanel/);
+  assert.match(script, /function bindPdvPanelControls\(\)/);
+  assert.match(script, /classList\.add\("pdv-collapsed"\)/);
   assert.match(script, /renderCatalogImagePicker/);
   assert.match(script, /renderOperationSettings/);
   assert.match(script, /renderRoomSettings/);
@@ -230,8 +253,14 @@ test("fundacao visual inclui dashboard, editor, settings e badge vazio oculto", 
   assert.match(script, /notif-badge.*classList\.toggle\("hidden"/s);
   assert.match(css, /\.notif-badge\.hidden/);
   assert.match(css, /\.erp-settings-grid/);
-  assert.match(migration, /media_asset_id TEXT REFERENCES media_assets\(id\)/);
-  assert.match(migration, /avatar_media_asset_id TEXT REFERENCES media_assets\(id\)/);
+  assert.match(polishCss, /#appShell\s*\{[^}]*transform: scale/s);
+  assert.match(polishCss, /\.sidebar-collapsed \.side-nav-btn/);
+  assert.match(polishCss, /\.erp-store-quick/);
+  assert.match(polishCss, /\.erp-pdv-thumb/);
+  assert.match(html, /production-polish\.css/);
+  assert.match(profilesMigration, /media_asset_id TEXT REFERENCES media_assets\(id\)/);
+  assert.match(profilesMigration, /avatar_media_asset_id TEXT REFERENCES media_assets\(id\)/);
+  assert.match(tagsMigration, /ALTER TABLE catalog_items ADD COLUMN tag TEXT/);
 });
 
 function adminJson(cookie, method, body) {
