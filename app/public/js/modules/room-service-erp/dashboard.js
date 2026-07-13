@@ -14,33 +14,42 @@ export function renderDashboard({ outlet, orders, hotel, dashboard }) {
   }));
 
   outlet.innerHTML = `
-    <section class="rs-panel">
-      <p class="rs-kicker">Dashboard</p>
-      <h1>${escapeHtml(hotel?.short_name || hotel?.name || "Unidade")}</h1>
-      <p class="rs-muted">Resumo inicial calculado a partir dos pedidos disponiveis para a sessao.</p>
-    </section>
-    <section class="rs-dashboard-grid">
-      ${stat("Pedidos", summary.total_orders ?? todayOrders.length)}
-      ${stat("Em andamento", active)}
-      ${stat("Concluidos", completed)}
-      ${stat("Cancelados", cancelled)}
-    </section>
-    <section class="rs-panel">
-      <h2>Faturamento visivel</h2>
-      <strong>${formatMoney(total)}</strong>
-      <p class="rs-muted">Indicadores calculados pelo Worker para a unidade selecionada.</p>
-    </section>
-    <section class="rs-panel">
-      <h2>Pedidos por status</h2>
-      <div class="rs-chart-bars">
-        ${byStatus.map((entry) => chartRow(entry, Math.max(todayOrders.length, 1))).join("")}
-      </div>
+    <section class="rs-dashboard-v2">
+      <header class="rs-dashboard-head">
+        <div>
+          <h1>Dashboard Operacional</h1>
+          <p>${escapeHtml(hotel?.short_name || hotel?.name || "Unidade")} · visão do Room Service</p>
+        </div>
+        <span class="rs-date-pill">${new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date())}</span>
+      </header>
+      <section class="rs-dashboard-grid">
+        ${stat("Pedidos", summary.total_orders ?? todayOrders.length, "Total registrado")}
+        ${stat("Em andamento", active, "Recebido, preparo e pronto")}
+        ${stat("Concluidos", completed, "Finalizados")}
+        ${stat("Cancelados", cancelled, "Interrompidos")}
+      </section>
+      <section class="rs-dashboard-columns">
+        <article class="rs-panel rs-revenue-card">
+          <p class="rs-kicker">Faturamento</p>
+          <strong>${formatMoney(total)}</strong>
+          <span>Indicadores calculados pelo Worker para a unidade selecionada.</span>
+        </article>
+        <article class="rs-panel">
+          <div class="rs-panel-heading">
+            <p class="rs-kicker">Status</p>
+            <h2>Pedidos por status</h2>
+          </div>
+          <div class="rs-chart-bars">
+            ${byStatus.map((entry) => chartRow(entry, Math.max(todayOrders.length, 1))).join("")}
+          </div>
+        </article>
+      </section>
     </section>
   `;
 }
 
-function stat(label, value) {
-  return `<article class="rs-panel rs-stat-card"><span class="rs-muted">${label}</span><strong>${Number(value || 0)}</strong></article>`;
+function stat(label, value, meta) {
+  return `<article class="rs-panel rs-stat-card"><span>${escapeHtml(label)}</span><strong>${Number(value || 0)}</strong><em>${escapeHtml(meta)}</em></article>`;
 }
 
 function chartRow(entry, total) {

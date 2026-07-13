@@ -31,12 +31,17 @@
   }
 
   .rs-dashboard-grid,
+  .rs-dashboard-columns,
   .rs-orders-layout,
   .rs-pos-layout {
     grid-template-columns: 1fr;
   }
 
   .rs-canvas {
+    padding: 0;
+  }
+
+  .rs-route-outlet {
     padding: 14px;
   }
 }
