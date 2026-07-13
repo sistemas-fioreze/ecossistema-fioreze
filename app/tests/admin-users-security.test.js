@@ -128,7 +128,8 @@ test("perfis e permissoes sao listados com rotulos humanos", async () => {
 
   assert.equal(roles.response.status, 200);
   assert.equal(permissions.response.status, 200);
-  assert.ok(roles.body.data.roles[0].permissions.some((permission) => permission.permission_key === "admin.users.read"));
+  const managerRole = roles.body.data.roles.find((role) => role.role_key === "demo-manager");
+  assert.ok(managerRole.permissions.some((permission) => permission.permission_key === "admin.users.read"));
   assert.ok(permissions.body.data.permissions.some((permission) => permission.label === "Ver usuarios"));
 });
 

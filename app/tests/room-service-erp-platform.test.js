@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ADMIN_ORIGIN, AURORA_USER_ID, createSessionCookie, withCookie } from "./helpers/admin-session.js";
+import { ADMIN_ORIGIN, createErpSessionCookie, createSessionCookie, withCookie } from "./helpers/admin-session.js";
 import { createWorkerTestContext } from "./helpers/worker.js";
 
 test("ERP Room Service entrega contexto multi-hotel sem expor outro hotel", async () => {
@@ -18,14 +18,15 @@ test("ERP Room Service entrega contexto multi-hotel sem expor outro hotel", asyn
   assert.equal(body.data.permissions.can_read_orders, true);
 });
 
-test("ERP Room Service bloqueia contexto de unidade nao autorizada", async () => {
+test("administrador dev mestre acessa todas as unidades do ERP", async () => {
   const { env, json } = createWorkerTestContext();
   const cookie = await createSessionCookie(env);
 
   const { response, body } = await json("/api/v1/admin/room-service/context?hotel_id=aurora-demo", withCookie(cookie));
 
-  assert.equal(response.status, 401);
-  assert.match(body.error.message, /hotel solicitado/i);
+  assert.equal(response.status, 200);
+  assert.equal(body.data.selected_hotel_id, "aurora-demo");
+  assert.equal(body.data.hotel.hotel_id, "aurora-demo");
 });
 
 test("ERP Room Service lista catalogo e hospedes somente da unidade autorizada", async () => {
@@ -92,7 +93,7 @@ test("ERP Room Service cria pedido PDV com origem administrativa sem print_event
 
 test("ERP Room Service preserva isolamento para usuario de outro hotel", async () => {
   const { env, json } = createWorkerTestContext();
-  const cookie = await createSessionCookie(env, AURORA_USER_ID);
+  const cookie = await createErpSessionCookie(env, "erp-user-aurora-1");
 
   const allowed = await json("/api/v1/admin/room-service/context?hotel_id=aurora-demo", withCookie(cookie));
   const denied = await json("/api/v1/admin/room-service/orders?hotel_id=muller-fioreze", withCookie(cookie));

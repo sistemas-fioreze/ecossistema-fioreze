@@ -126,11 +126,13 @@ INSERT OR IGNORE INTO hotel_information (id, hotel_id, info_key, title, body, is
   ('info-aurora-checkout', 'aurora-demo', 'checkout-demo', 'Informacao Aurora demo', 'Texto ficticio do segundo hotel.', 1, 10, '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z');
 
 INSERT OR IGNORE INTO admin_roles (id, role_key, name, description, created_at, updated_at) VALUES
-  ('role-demo-manager', 'demo-manager', 'Gerente demo', 'Role ficticia sem acesso real.', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z');
+  ('role-demo-manager', 'demo-manager', 'Gerente demo', 'Role ficticia sem acesso real.', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
+  ('role-erp-master', 'erp-master', 'Administrador mestre dos ERPs', 'Perfil reservado ao administrador tecnico de desenvolvimento.', '2026-07-13T00:00:00.000Z', '2026-07-13T00:00:00.000Z');
 
 INSERT OR IGNORE INTO admin_permissions (id, permission_key, module_key, description, created_at, updated_at) VALUES
   ('perm-room-service-orders-read', 'room-service.orders.read', 'room-service', 'Permite visualizar pedidos ficticios de Room Service.', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
   ('perm-room-service-orders-write', 'room-service.orders.write', 'room-service', 'Permite atualizar status de pedidos ficticios de Room Service.', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
+  ('perm-erp-master', 'erp.master', 'admin', 'Acesso mestre aos ERPs operacionais de todas as unidades.', '2026-07-13T00:00:00.000Z', '2026-07-13T00:00:00.000Z'),
   ('perm-portals-hotels-read', 'portals.hotels.read', NULL, 'Visualizar unidades ficticias.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
   ('perm-portals-hotels-create', 'portals.hotels.create', NULL, 'Criar unidades ficticias.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
   ('perm-portals-hotels-update', 'portals.hotels.update', NULL, 'Editar unidades ficticias.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
@@ -169,9 +171,11 @@ ON CONFLICT(id) DO UPDATE SET
   updated_at = excluded.updated_at;
 
 INSERT OR IGNORE INTO admin_user_roles (user_id, role_id, created_at) VALUES
-  ('user-demo-admin', 'role-demo-manager', '2026-07-04T00:00:00.000Z');
+  ('user-demo-admin', 'role-demo-manager', '2026-07-04T00:00:00.000Z'),
+  ('user-demo-admin', 'role-erp-master', '2026-07-13T00:00:00.000Z');
 
 INSERT OR IGNORE INTO admin_role_permissions (role_id, permission_id, created_at) VALUES
+  ('role-erp-master', 'perm-erp-master', '2026-07-13T00:00:00.000Z'),
   ('role-demo-manager', 'perm-room-service-orders-read', '2026-07-04T00:00:00.000Z'),
   ('role-demo-manager', 'perm-room-service-orders-write', '2026-07-04T00:00:00.000Z'),
   ('role-demo-manager', 'perm-portals-hotels-read', '2026-07-12T00:00:00.000Z'),

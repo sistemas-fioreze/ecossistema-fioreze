@@ -117,7 +117,7 @@ function createFixtureData() {
         background_color: "#f7f4ee",
         text_color: "#202124",
         font_family: "system-ui",
-        custom_css_json: "{}",
+        custom_css_json: JSON.stringify({ horizontal_logo_url: "/assets/hotels/muller-fioreze/logo.png" }),
         updated_at: "2026-07-04T00:00:00.000Z",
       },
       {
@@ -281,10 +281,14 @@ function createFixtureData() {
         updated_at: "2026-07-04T00:00:00.000Z",
       },
     ],
-    adminRoles: [{ id: "role-demo-manager", role_key: "demo-manager", name: "Gerente demo", description: "Role ficticia." }],
+    adminRoles: [
+      { id: "role-demo-manager", role_key: "demo-manager", name: "Gerente demo", description: "Role ficticia." },
+      { id: "role-erp-master", role_key: "erp-master", name: "Administrador mestre dos ERPs", description: "Perfil tecnico." },
+    ],
     adminPermissions: [
       { id: "perm-orders-read", permission_key: "room-service.orders.read", module_key: "room-service" },
       { id: "perm-orders-write", permission_key: "room-service.orders.write", module_key: "room-service" },
+      { id: "perm-erp-master", permission_key: "erp.master", module_key: "admin" },
       { id: "perm-portals-media-read", permission_key: "portals.media.read", module_key: null },
       { id: "perm-portals-media-upload", permission_key: "portals.media.upload", module_key: null },
       { id: "perm-portals-media-update", permission_key: "portals.media.update", module_key: null },
@@ -317,11 +321,13 @@ function createFixtureData() {
     ],
     adminUserRoles: [
       { user_id: "user-demo-admin", role_id: "role-demo-manager" },
+      { user_id: "user-demo-admin", role_id: "role-erp-master" },
       { user_id: "user-aurora-admin", role_id: "role-demo-manager" },
     ],
     adminRolePermissions: [
       { role_id: "role-demo-manager", permission_id: "perm-orders-read" },
       { role_id: "role-demo-manager", permission_id: "perm-orders-write" },
+      { role_id: "role-erp-master", permission_id: "perm-erp-master" },
       { role_id: "role-demo-manager", permission_id: "perm-admin-users-read" },
       { role_id: "role-demo-manager", permission_id: "perm-admin-users-create" },
       { role_id: "role-demo-manager", permission_id: "perm-admin-users-update" },
@@ -339,6 +345,41 @@ function createFixtureData() {
       { user_id: "user-aurora-admin", hotel_id: "aurora-demo", access_level: "manager" },
     ],
     adminSessions: [],
+    erpUsers: [
+      {
+        id: "erp-user-muller-1",
+        hotel_id: "muller-fioreze",
+        user_code: 1,
+        display_name: "Atendente Muller Demo",
+        password_hash:
+          "pbkdf2$sha256$100000$ZmlvcmV6ZS1hZG1pbi1kZW1vLXNhbHQtMjAyNg==$QPM6b/QnKHhfCwYXFU9kCd7KpgtlsLdGDELeiM9Ulgw=",
+        password_strategy: "pbkdf2",
+        status: "active",
+        created_at: "2026-07-13T00:00:00.000Z",
+        updated_at: "2026-07-13T00:00:00.000Z",
+        archived_at: null,
+      },
+      {
+        id: "erp-user-aurora-1",
+        hotel_id: "aurora-demo",
+        user_code: 1,
+        display_name: "Atendente Aurora Demo",
+        password_hash:
+          "pbkdf2$sha256$100000$ZmlvcmV6ZS1hZG1pbi1kZW1vLXNhbHQtMjAyNg==$QPM6b/QnKHhfCwYXFU9kCd7KpgtlsLdGDELeiM9Ulgw=",
+        password_strategy: "pbkdf2",
+        status: "active",
+        created_at: "2026-07-13T00:00:00.000Z",
+        updated_at: "2026-07-13T00:00:00.000Z",
+        archived_at: null,
+      },
+    ],
+    erpUserPermissions: [
+      { user_id: "erp-user-muller-1", hotel_id: "muller-fioreze", permission_key: "room-service.dashboard.read", created_at: "2026-07-13T00:00:00.000Z" },
+      { user_id: "erp-user-muller-1", hotel_id: "muller-fioreze", permission_key: "room-service.orders.read", created_at: "2026-07-13T00:00:00.000Z" },
+      { user_id: "erp-user-muller-1", hotel_id: "muller-fioreze", permission_key: "room-service.orders.write", created_at: "2026-07-13T00:00:00.000Z" },
+      { user_id: "erp-user-aurora-1", hotel_id: "aurora-demo", permission_key: "room-service.orders.read", created_at: "2026-07-13T00:00:00.000Z" },
+    ],
+    erpSessions: [],
     adminAuditLog: [],
     shortLinks: [
       {
@@ -566,6 +607,32 @@ class MockD1Database {
       };
     }
 
+    if (
+      normalized.includes("from hotels h") &&
+      normalized.includes("join hotel_modules hm") &&
+      normalized.includes("where h.id = ?") &&
+      normalized.includes("hm.module_key = ?") &&
+      normalized.includes("'operator' as access_level")
+    ) {
+      const [hotelId, moduleKey] = params;
+      const hotel = this.data.hotels.find((entry) => entry.id === hotelId && entry.status === "active" && entry.archived_at == null);
+      const hotelModuleRow = this.data.hotelModules.find(
+        (entry) => entry.hotel_id === hotelId && entry.module_key === moduleKey && entry.enabled === 1,
+      );
+      return hotel && hotelModuleRow
+        ? {
+            hotel_id: hotel.id,
+            slug: hotel.slug,
+            name: hotel.name,
+            short_name: hotel.short_name,
+            timezone: hotel.timezone,
+            locale: hotel.locale,
+            currency: hotel.currency,
+            access_level: "operator",
+          }
+        : null;
+    }
+
     if (normalized.includes("from hotels") && normalized.includes("where slug = ? limit 1")) {
       const [slug] = params;
       return this.data.hotels.find((hotel) => hotel.slug === slug) || null;
@@ -657,6 +724,39 @@ class MockD1Database {
         avatar_mime_type: user.avatar_mime_type,
         avatar_updated_at: user.avatar_updated_at,
       };
+    }
+
+    if (normalized.includes("from erp_users") && normalized.includes("user_code = ?")) {
+      const [hotelId, userCode] = params;
+      return this.data.erpUsers.find((user) => user.hotel_id === hotelId && user.user_code === Number(userCode)) || null;
+    }
+
+    if (normalized.includes("from erp_sessions s") && normalized.includes("s.token_hash = ?")) {
+      const [tokenHash, now] = params;
+      const session = this.data.erpSessions.find(
+        (entry) => entry.token_hash === tokenHash && entry.revoked_at == null && entry.expires_at > now,
+      );
+      if (!session) return null;
+      const user = this.data.erpUsers.find(
+        (entry) => entry.id === session.user_id && entry.hotel_id === session.hotel_id && entry.status === "active",
+      );
+      return user ? { ...user, session_id: session.id, expires_at: session.expires_at } : null;
+    }
+
+    if (normalized.includes("select coalesce(max(user_code), 0) + 1 as next_code") && normalized.includes("from erp_users")) {
+      const [hotelId] = params;
+      const codes = this.data.erpUsers.filter((user) => user.hotel_id === hotelId).map((user) => Number(user.user_code));
+      return { next_code: Math.max(0, ...codes) + 1 };
+    }
+
+    if (normalized.includes("from erp_users") && normalized.includes("where id = ? and hotel_id = ?")) {
+      const [userId, hotelId] = params;
+      const user = this.data.erpUsers.find(
+        (entry) => entry.id === userId && entry.hotel_id === hotelId && entry.status !== "archived",
+      );
+      if (!user) return null;
+      const { password_hash: _passwordHash, password_strategy: _passwordStrategy, ...safe } = user;
+      return safe;
     }
 
     if (normalized.includes("from admin_users") && normalized.includes("where id = ?") && normalized.includes("limit 1")) {
@@ -777,6 +877,72 @@ class MockD1Database {
 
   selectAll(sql, params) {
     const normalized = normalize(sql);
+
+    if (
+      normalized.includes("from hotels h") &&
+      normalized.includes("join hotel_modules hm") &&
+      normalized.includes("left join hotel_branding hb") &&
+      normalized.includes("hm.module_key = ?") &&
+      !normalized.includes("admin_hotel_access")
+    ) {
+      const [moduleKey] = params;
+      return this.data.hotels
+        .filter((hotel) => hotel.status === "active" && hotel.archived_at == null)
+        .filter((hotel) => this.data.hotelModules.some((entry) => entry.hotel_id === hotel.id && entry.module_key === moduleKey && entry.enabled === 1))
+        .map((hotel) => ({
+          hotel_id: hotel.id,
+          slug: hotel.slug,
+          name: hotel.name,
+          short_name: hotel.short_name,
+          timezone: hotel.timezone,
+          locale: hotel.locale,
+          currency: hotel.currency,
+          ...(this.data.branding.find((entry) => entry.hotel_id === hotel.id) || {}),
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    if (normalized.includes("from hotels h") && normalized.includes("join hotel_modules hm") && normalized.includes("'owner' as access_level")) {
+      const [moduleKey] = params;
+      return this.data.hotels
+        .filter((hotel) => hotel.status === "active" && hotel.archived_at == null)
+        .filter((hotel) => this.data.hotelModules.some((entry) => entry.hotel_id === hotel.id && entry.module_key === moduleKey && entry.enabled === 1))
+        .map((hotel) => ({
+          hotel_id: hotel.id,
+          slug: hotel.slug,
+          name: hotel.name,
+          short_name: hotel.short_name,
+          timezone: hotel.timezone,
+          locale: hotel.locale,
+          currency: hotel.currency,
+          access_level: "owner",
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    if (normalized.includes("from erp_users") && normalized.includes("where hotel_id = ?") && normalized.includes("order by user_code")) {
+      const [hotelId] = params;
+      return this.data.erpUsers
+        .filter((user) => user.hotel_id === hotelId && user.status !== "archived")
+        .map(({ password_hash, password_strategy, ...safe }) => safe)
+        .sort((a, b) => a.user_code - b.user_code);
+    }
+
+    if (normalized.includes("from erp_user_permissions") && normalized.includes("where hotel_id = ?") && normalized.includes("order by user_id")) {
+      const [hotelId] = params;
+      return this.data.erpUserPermissions
+        .filter((entry) => entry.hotel_id === hotelId)
+        .map(({ user_id, permission_key }) => ({ user_id, permission_key }))
+        .sort((a, b) => a.user_id.localeCompare(b.user_id) || a.permission_key.localeCompare(b.permission_key));
+    }
+
+    if (normalized.includes("from erp_user_permissions") && normalized.includes("where user_id = ?")) {
+      const [userId, hotelId] = params;
+      return this.data.erpUserPermissions
+        .filter((entry) => entry.user_id === userId && entry.hotel_id === hotelId)
+        .map(({ permission_key }) => ({ permission_key }))
+        .sort((a, b) => a.permission_key.localeCompare(b.permission_key));
+    }
 
     if (normalized.includes("from hotels h") && normalized.includes("join admin_hotel_access aha") && normalized.includes("left join hotel_branding")) {
       const [userId, ...rest] = params;
@@ -1250,6 +1416,7 @@ class MockD1Database {
           status,
           note,
           actor_user_id,
+          actor_erp_user_id,
           created_at,
           order_id,
           hotel_id,
@@ -1278,6 +1445,7 @@ class MockD1Database {
           status,
           note,
           actor_user_id,
+          actor_erp_user_id,
           created_at,
         });
         return d1Result(1);
@@ -1368,6 +1536,56 @@ class MockD1Database {
         expires_at,
         revoked_at: null,
       });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("insert into erp_sessions")) {
+      const [id, user_id, hotel_id, token_hash, user_agent_hash, ip_hash, created_at, expires_at] = params;
+      this.data.erpSessions.push({
+        id,
+        user_id,
+        hotel_id,
+        token_hash,
+        user_agent_hash,
+        ip_hash,
+        created_at,
+        expires_at,
+        revoked_at: null,
+      });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("insert into erp_users")) {
+      const [id, hotel_id, user_code, display_name, password_hash, created_at, updated_at] = params;
+      if (this.data.erpUsers.some((user) => user.hotel_id === hotel_id && user.user_code === Number(user_code))) {
+        throw new Error("UNIQUE constraint failed: erp_users.hotel_id, erp_users.user_code");
+      }
+      this.data.erpUsers.push({
+        id,
+        hotel_id,
+        user_code: Number(user_code),
+        display_name,
+        password_hash,
+        password_strategy: "pbkdf2",
+        status: "active",
+        created_at,
+        updated_at,
+        archived_at: null,
+      });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("insert into erp_user_permissions")) {
+      const [user_id, hotel_id, permission_key, created_at] = params;
+      this.data.erpUserPermissions.push({ user_id, hotel_id, permission_key, created_at });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("delete from erp_user_permissions")) {
+      const [userId, hotelId] = params;
+      this.data.erpUserPermissions = this.data.erpUserPermissions.filter(
+        (entry) => entry.user_id !== userId || entry.hotel_id !== hotelId,
+      );
       return d1Result(1);
     }
 
@@ -1616,6 +1834,37 @@ class MockD1Database {
         }
       }
       return d1Result(changes);
+    }
+
+    if (normalized.startsWith("update erp_sessions")) {
+      const [revokedAt, identifier, maybeHotelId] = params;
+      let changes = 0;
+      for (const session of this.data.erpSessions) {
+        const matches = normalized.includes("where token_hash = ?")
+          ? session.token_hash === identifier
+          : session.user_id === identifier && session.hotel_id === maybeHotelId;
+        if (matches && session.revoked_at == null) {
+          session.revoked_at = revokedAt;
+          changes += 1;
+        }
+      }
+      return d1Result(changes);
+    }
+
+    if (normalized.startsWith("update erp_users") && normalized.includes("set display_name = ?")) {
+      const [displayName, status, updatedAt, userId, hotelId] = params;
+      const user = this.data.erpUsers.find((entry) => entry.id === userId && entry.hotel_id === hotelId);
+      if (!user) return d1Result(0);
+      Object.assign(user, { display_name: displayName, status, updated_at: updatedAt });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update erp_users") && normalized.includes("set password_hash = ?")) {
+      const [passwordHash, updatedAt, userId, hotelId] = params;
+      const user = this.data.erpUsers.find((entry) => entry.id === userId && entry.hotel_id === hotelId);
+      if (!user) return d1Result(0);
+      Object.assign(user, { password_hash: passwordHash, password_strategy: "pbkdf2", updated_at: updatedAt });
+      return d1Result(1);
     }
 
     if (normalized.startsWith("update admin_users") && normalized.includes("set display_name = ?")) {
@@ -1928,6 +2177,7 @@ class MockD1Database {
         const [
           id,
           actor_user_id,
+          actor_erp_user_id,
           action,
           entity_type,
           metadata_json,
@@ -1958,9 +2208,26 @@ class MockD1Database {
           hotel_id,
           module_key,
           actor_user_id,
+          actor_erp_user_id,
           action,
           entity_type,
           entity_id: order_id,
+          metadata_json,
+          created_at,
+        });
+        return d1Result(1);
+      }
+      if (normalized.includes("'erp_user'")) {
+        const [id, hotel_id, module_key, actor_user_id, actor_erp_user_id, action, entity_id, metadata_json, created_at] = params;
+        this.data.adminAuditLog.push({
+          id,
+          hotel_id,
+          module_key,
+          actor_user_id,
+          actor_erp_user_id,
+          action,
+          entity_type: "erp_user",
+          entity_id,
           metadata_json,
           created_at,
         });

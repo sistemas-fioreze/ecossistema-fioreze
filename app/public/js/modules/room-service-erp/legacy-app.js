@@ -1,15 +1,21 @@
 import {
+  createErpUser,
   createPdvOrder,
   getBilling,
   getCatalog,
   getContext,
   getDashboard,
   getGuests,
+  getLoginContext,
   getOrder,
   getSession,
+  listErpPermissions,
+  listErpUsers,
   listOrders,
   login,
   logout,
+  resetErpUserPassword,
+  updateErpUser,
   updateOrderStatus,
 } from "./api.js";
 
@@ -49,6 +55,9 @@ const state = {
   route: "dashboard",
   cart: new Map(),
   selectedOrderId: null,
+  loginHotels: [],
+  users: [],
+  userPermissions: [],
 };
 
 const toastRegion = document.createElement("div");
@@ -63,6 +72,7 @@ boot();
 async function boot() {
   setLoginBusy(true, "Verificando sessao...");
   try {
+    await loadLoginContext();
     const payload = await getSession();
     await startSession(payload.data);
   } catch (error) {
@@ -73,19 +83,58 @@ async function boot() {
   }
 }
 
+async function loadLoginContext() {
+  const payload = await getLoginContext();
+  state.loginHotels = payload.data.hotels || [];
+  const select = byId("loginHotelSelect");
+  select.innerHTML = state.loginHotels
+    .map((hotel) => `<option value="${escapeAttr(hotel.hotel_id)}">${escapeHtml(hotel.name || hotel.short_name || hotel.hotel_id)}</option>`)
+    .join("");
+  const requested = new URLSearchParams(window.location.search).get("hotel") || localStorage.getItem("fioreze-rs-login-hotel");
+  if (state.loginHotels.some((hotel) => hotel.hotel_id === requested)) select.value = requested;
+  handleLoginHotelChange();
+}
+
+function handleLoginHotelChange() {
+  const hotelId = byId("loginHotelSelect").value;
+  if (hotelId) localStorage.setItem("fioreze-rs-login-hotel", hotelId);
+  const hotel = state.loginHotels.find((entry) => entry.hotel_id === hotelId);
+  if (hotel) applyBranding(hotel.branding, hotel);
+}
+
 function prepareStaticInterface() {
   const loginCode = byId("loginCode");
-  loginCode.type = "email";
+  loginCode.type = "text";
   loginCode.autocomplete = "username";
-  loginCode.placeholder = "E-mail administrativo";
+  loginCode.inputMode = "text";
+  loginCode.placeholder = "Codigo do usuario ou e-mail mestre";
   byId("loginPass").autocomplete = "current-password";
   byId("btnLogin").type = "button";
+
+  const hotelSelect = document.createElement("select");
+  hotelSelect.id = "loginHotelSelect";
+  hotelSelect.className = "legacy-login-hotel-select";
+  hotelSelect.setAttribute("aria-label", "Unidade do ERP");
+  hotelSelect.innerHTML = '<option value="">Carregando unidades...</option>';
+  loginCode.before(hotelSelect);
 
   const error = document.createElement("p");
   error.id = "legacyLoginError";
   error.className = "legacy-login-error";
   error.setAttribute("role", "alert");
   byId("btnLogin").before(error);
+
+  installUserModal();
+
+  const adminButtons = document.querySelectorAll("#adminContainer .admin-header button");
+  if (adminButtons[0]) {
+    adminButtons[0].id = "newErpUserButton";
+    adminButtons[0].type = "button";
+  }
+  if (adminButtons[1]) {
+    adminButtons[1].id = "refreshErpUsersButton";
+    adminButtons[1].type = "button";
+  }
 
   document.querySelectorAll("[data-app-version]").forEach((element) => {
     element.textContent = "3.0 Cloudflare";
@@ -117,6 +166,15 @@ function bindStaticActions() {
   byId("loginCode").addEventListener("keydown", (event) => {
     if (event.key === "Enter") byId("loginPass").focus();
   });
+  byId("loginHotelSelect").addEventListener("change", handleLoginHotelChange);
+  byId("newErpUserButton")?.addEventListener("click", () => openUserModal());
+  byId("refreshErpUsersButton")?.addEventListener("click", refreshUsers);
+  byId("erpUserModalClose")?.addEventListener("click", closeUserModal);
+  byId("erpUserModalCancel")?.addEventListener("click", closeUserModal);
+  byId("erpUserForm")?.addEventListener("submit", saveErpUser);
+  byId("erpUserModal")?.addEventListener("click", (event) => {
+    if (event.target === byId("erpUserModal")) closeUserModal();
+  });
 
   for (const [route, config] of Object.entries(ROUTES)) {
     byId(config.button)?.addEventListener("click", () => switchTab(route));
@@ -140,8 +198,15 @@ function bindStaticActions() {
   byId("dashDate")?.addEventListener("change", renderDashboard);
   byId("histDate")?.addEventListener("change", renderOrders);
 
-  byId("sidebarPinButton")?.addEventListener("click", () => document.body.classList.toggle("sidebar-compact"));
-  byId("sidebarToggleButton")?.addEventListener("click", () => document.body.classList.toggle("sidebar-compact"));
+  const toggleSidebar = () => {
+    if (window.matchMedia("(max-width: 900px)").matches) {
+      document.body.classList.toggle("sidebar-open");
+      return;
+    }
+    document.body.classList.toggle("sidebar-collapsed");
+  };
+  byId("sidebarPinButton")?.addEventListener("click", toggleSidebar);
+  byId("sidebarToggleButton")?.addEventListener("click", toggleSidebar);
 
   const orderModal = byId("orderModal");
   orderModal.querySelector('button[title="Fechar"]')?.addEventListener("click", () => orderModal.classList.add("hidden"));
@@ -163,16 +228,19 @@ function bindStaticActions() {
 }
 
 async function handleLogin() {
-  const email = byId("loginCode").value.trim();
+  const credential = byId("loginCode").value.trim();
+  const hotelId = byId("loginHotelSelect").value;
   const password = byId("loginPass").value;
   byId("legacyLoginError").textContent = "";
-  if (!email || !password) {
-    byId("legacyLoginError").textContent = "Informe e-mail e senha.";
+  if (!credential || !password || (!credential.includes("@") && !hotelId)) {
+    byId("legacyLoginError").textContent = "Selecione a unidade e informe codigo e senha.";
     return;
   }
   setLoginBusy(true, "Validando usuario e senha");
   try {
-    const payload = await login({ email, password });
+    await login({ hotelId, credential, password });
+    const payload = await getSession();
+    localStorage.setItem("fioreze-rs-hotel", hotelId);
     byId("loginPass").value = "";
     await startSession(payload.data);
   } catch (error) {
@@ -212,34 +280,43 @@ async function startSession(session) {
 
 function installHotelSelector(hotels) {
   const title = document.querySelector("#appShell h1");
-  if (!title) return;
-  const select = document.createElement("select");
-  select.id = "legacyHotelSelect";
-  select.className = "legacy-hotel-select";
-  select.setAttribute("aria-label", "Unidade do ERP");
+  const select = byId("legacyHotelSelect", false) || document.createElement("select");
+  if (!select.id) {
+    select.id = "legacyHotelSelect";
+    select.className = "legacy-hotel-select";
+    select.setAttribute("aria-label", "Unidade do ERP");
+  }
   select.innerHTML = hotels
     .map((hotel) => `<option value="${escapeAttr(hotel.hotel_id)}">${escapeHtml(hotel.name || hotel.short_name || hotel.hotel_id)}</option>`)
     .join("");
   select.value = state.hotelId;
-  select.addEventListener("change", async () => {
+  select.onchange = async () => {
     state.hotelId = select.value;
     localStorage.setItem("fioreze-rs-hotel", state.hotelId);
     state.cart.clear();
     await refreshAll();
     renderActiveRoute();
-  });
-  title.replaceWith(select);
+  };
+  if (title) title.replaceWith(select);
 }
 
 function configureAuthorizedNavigation(permissions) {
   const allowed = new Set(permissions);
   const canRead = allowed.has("room-service.orders.read");
   const canWrite = allowed.has("room-service.orders.write");
+  const canDashboard = allowed.has("room-service.dashboard.read") || canRead;
+  const canGuests = allowed.has("room-service.guests.read") || canRead;
+  const canBilling = allowed.has("room-service.billing.read") || canRead;
+  const canCatalog = allowed.has("room-service.catalog.read") || canRead || canWrite;
+  const canManageUsers = allowed.has("room-service.users.manage");
+  setNavigationVisibility("btnTabDashboard", canDashboard);
   setNavigationVisibility("btnTabVendas", canWrite);
-  setNavigationVisibility("btnTabFaturamento", canRead);
-  setNavigationVisibility("btnTabCardapio", canRead);
-  setNavigationVisibility("btnTabAdmin", canRead);
-  byId("accountConfigButton").classList.toggle("hidden", !canRead);
+  setNavigationVisibility("btnTabHist", canRead);
+  setNavigationVisibility("btnTabHospedes", canGuests);
+  setNavigationVisibility("btnTabFaturamento", canBilling);
+  setNavigationVisibility("btnTabCardapio", canCatalog);
+  setNavigationVisibility("btnTabAdmin", canManageUsers);
+  byId("accountConfigButton").classList.toggle("hidden", !canManageUsers);
 }
 
 function setNavigationVisibility(id, visible) {
@@ -253,20 +330,28 @@ async function refreshAll() {
   setPageBusy(true, "Sincronizando...");
   try {
     const hotelId = state.hotelId;
-    const [context, dashboard, orders, catalog, guests, billing] = await Promise.all([
+    const permissions = new Set(state.session?.permissions || []);
+    const canRead = permissions.has("room-service.orders.read");
+    const canWrite = permissions.has("room-service.orders.write");
+    const canManageUsers = permissions.has("room-service.users.manage");
+    const [context, dashboard, orders, catalog, guests, billing, users, userPermissions] = await Promise.all([
       getContext({ hotelId }),
-      getDashboard({ hotelId }),
-      listOrders({ hotelId }),
-      getCatalog({ hotelId }),
-      getGuests({ hotelId }),
-      getBilling({ hotelId }),
+      permissions.has("room-service.dashboard.read") || canRead ? getDashboard({ hotelId }) : null,
+      canRead ? listOrders({ hotelId }) : null,
+      permissions.has("room-service.catalog.read") || canRead || canWrite ? getCatalog({ hotelId }) : null,
+      permissions.has("room-service.guests.read") || canRead ? getGuests({ hotelId }) : null,
+      permissions.has("room-service.billing.read") || canRead ? getBilling({ hotelId }) : null,
+      canManageUsers ? listErpUsers({ hotelId }) : null,
+      canManageUsers ? listErpPermissions() : null,
     ]);
     state.context = context.data;
-    state.dashboard = dashboard.data;
-    state.orders = orders.data.orders || [];
-    state.catalog = catalog.data || { categories: [] };
-    state.guests = guests.data;
-    state.billing = billing.data;
+    state.dashboard = dashboard?.data || null;
+    state.orders = orders?.data?.orders || [];
+    state.catalog = catalog?.data || { categories: [] };
+    state.guests = guests?.data || null;
+    state.billing = billing?.data || null;
+    state.users = users?.data?.users || [];
+    state.userPermissions = userPermissions?.data?.permissions || [];
     updateBranding();
     updateHeaderState();
     renderAll();
@@ -282,12 +367,27 @@ async function refreshAll() {
 }
 
 function updateBranding() {
-  const logo = safeImage(state.context?.branding?.logo_url);
-  if (!logo) return;
-  document.querySelectorAll(".side-brand-logo, .side-brand-logo-seal").forEach((image) => {
-    image.src = logo;
-    image.alt = state.context?.hotel?.name || "Unidade Fioreze";
-  });
+  applyBranding(state.context?.branding, state.context?.hotel);
+}
+
+function applyBranding(branding = {}, hotel = {}) {
+  const horizontalLogo = safeImage(branding.horizontal_logo_url) || safeImage(branding.logo_url);
+  const reducedLogo = safeImage(branding.icon_url) || horizontalLogo;
+  const name = hotel.name || hotel.short_name || "ERP Room Service Fioreze";
+  setImage(document.querySelector(".login-logo"), horizontalLogo, name);
+  setImage(document.querySelector(".side-brand-logo"), horizontalLogo, name);
+  setImage(document.querySelector(".side-brand-logo-seal"), reducedLogo, name);
+
+  const root = document.documentElement;
+  if (isHexColor(branding.primary_color)) {
+    root.style.setProperty("--accent", branding.primary_color);
+    root.style.setProperty("--accent-strong", branding.primary_color);
+  }
+  if (isHexColor(branding.secondary_color)) root.style.setProperty("--brand-secondary", branding.secondary_color);
+  if (isHexColor(branding.background_color)) root.style.setProperty("--canvas", branding.background_color);
+  if (isHexColor(branding.text_color)) root.style.setProperty("--ink", branding.text_color);
+  if (branding.font_family) root.style.setProperty("--hotel-font", String(branding.font_family).slice(0, 160));
+  document.title = `${name} | ERP Room Service`;
 }
 
 function renderAll() {
@@ -302,7 +402,9 @@ function renderAll() {
 }
 
 function switchTab(route) {
-  if (!ROUTES[route] || byId(ROUTES[route].button).classList.contains("hidden")) route = "dashboard";
+  if (!ROUTES[route] || byId(ROUTES[route].button).classList.contains("hidden")) {
+    route = Object.keys(ROUTES).find((key) => !byId(ROUTES[key].button).classList.contains("hidden")) || "dashboard";
+  }
   state.route = route;
   for (const [key, config] of Object.entries(ROUTES)) {
     const active = key === route;
@@ -312,6 +414,9 @@ function switchTab(route) {
     button.classList.toggle("tab-inactive", !active);
     container.classList.toggle("hidden", !active);
     container.style.display = active ? "flex" : "none";
+  }
+  if (window.matchMedia("(max-width: 900px)").matches) {
+    document.body.classList.remove("sidebar-open");
   }
   renderActiveRoute();
 }
@@ -323,6 +428,7 @@ function renderActiveRoute() {
   if (state.route === "hospedes") renderGuests();
   if (state.route === "faturamento") renderBilling();
   if (state.route === "cardapio") renderCatalog();
+  if (state.route === "admin") renderAdmin();
 }
 
 function renderDashboard() {
@@ -571,13 +677,107 @@ function renderCatalog() {
 }
 
 function renderAdmin() {
-  const user = state.session?.user;
-  setText("adminUserCount", user ? "1 sessao ativa" : "0 usuarios");
-  byId("userList").innerHTML = user ? `<article class="admin-user-row"><div><strong>${escapeHtml(user.display_name || "Usuario")}</strong><small>${escapeHtml(user.email || "Sessao administrativa")}</small></div><span class="legacy-status-chip">Ativo</span></article>` : '<div class="legacy-list-empty">Nenhuma sessao ativa.</div>';
-  document.querySelectorAll("#adminContainer button").forEach((button) => {
-    button.disabled = true;
-    button.title = "Gestao completa disponivel na Central Administrativa.";
+  const canManage = state.session?.permissions?.includes("room-service.users.manage");
+  byId("newErpUserButton").disabled = !canManage;
+  byId("refreshErpUsersButton").disabled = !canManage;
+  if (!canManage) {
+    setText("adminUserCount", "Acesso restrito");
+    byId("userList").innerHTML = '<div class="legacy-list-empty">Seu usuario nao possui acesso a gestao da equipe.</div>';
+    return;
+  }
+
+  const cards = [];
+  if (state.session.erp_master) {
+    cards.push(`<article class="admin-user-card erp-master-card"><div class="erp-user-card-head"><span class="admin-user-avatar">M</span><div><strong>${escapeHtml(state.session.user.display_name || "Administrador dev")}</strong><small>Administrador mestre da plataforma</small></div></div><div class="erp-user-permissions"><span>Acesso total</span><span>Central Administrativa</span></div><span class="legacy-status-chip">Mestre</span></article>`);
+  }
+  cards.push(...state.users.map((user) => erpUserCard(user)));
+  setText("adminUserCount", `${state.users.length} usuarios da unidade`);
+  byId("userList").innerHTML = cards.length ? cards.join("") : '<div class="legacy-list-empty">Nenhum usuario operacional cadastrado nesta unidade.</div>';
+  byId("userList").querySelectorAll("[data-edit-erp-user]").forEach((button) => {
+    button.addEventListener("click", () => openUserModal(state.users.find((user) => user.id === button.dataset.editErpUser)));
   });
+}
+
+function erpUserCard(user) {
+  const labels = new Map(state.userPermissions.map((permission) => [permission.key, permission.label]));
+  const initials = String(user.display_name || "U").split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
+  return `<article class="admin-user-card"><div class="erp-user-card-head"><span class="admin-user-avatar">${escapeHtml(initials)}</span><div><strong>${escapeHtml(user.display_name)}</strong><small>Codigo ${Number(user.user_code)}</small></div></div><div class="erp-user-permissions">${(user.permissions || []).map((key) => `<span>${escapeHtml(labels.get(key) || key)}</span>`).join("")}</div><div class="erp-user-card-actions"><span class="legacy-status-chip">${user.status === "active" ? "Ativo" : "Desativado"}</span><button type="button" class="admin-secondary-btn" data-edit-erp-user="${escapeAttr(user.id)}">Editar</button></div></article>`;
+}
+
+async function refreshUsers() {
+  if (!state.hotelId) return;
+  setPageBusy(true, "Atualizando equipe...");
+  try {
+    const payload = await listErpUsers({ hotelId: state.hotelId });
+    state.users = payload.data.users || [];
+    renderAdmin();
+  } catch (error) {
+    notify(error.message || "Nao foi possivel atualizar a equipe.");
+  } finally {
+    setPageBusy(false);
+  }
+}
+
+function installUserModal() {
+  const modal = document.createElement("div");
+  modal.id = "erpUserModal";
+  modal.className = "erp-user-modal hidden";
+  modal.innerHTML = `<div class="erp-user-modal-card" role="dialog" aria-modal="true" aria-labelledby="erpUserModalTitle"><div class="erp-user-modal-head"><div><p class="admin-kicker">Equipe da unidade</p><h2 id="erpUserModalTitle" class="admin-title">Novo usuario</h2></div><button id="erpUserModalClose" type="button" class="erp-user-modal-close" aria-label="Fechar">x</button></div><form id="erpUserForm"><input id="erpUserId" type="hidden"><label>Nome<input id="erpUserName" required minlength="2" maxlength="120" autocomplete="off"></label><label>Senha <small id="erpUserPasswordHint">Minimo de 10 caracteres</small><input id="erpUserPassword" type="password" minlength="10" maxlength="300" autocomplete="new-password"></label><label>Status<select id="erpUserStatus"><option value="active">Ativo</option><option value="disabled">Desativado</option></select></label><fieldset><legend>Modulos permitidos</legend><div id="erpUserPermissionGrid" class="erp-user-permission-grid"></div></fieldset><p id="erpUserFormError" class="legacy-login-error" role="alert"></p><div class="erp-user-modal-actions"><button id="erpUserModalCancel" type="button" class="admin-secondary-btn">Cancelar</button><button type="submit" class="admin-primary-btn">Salvar usuario</button></div></form></div>`;
+  document.body.append(modal);
+}
+
+function openUserModal(user = null) {
+  byId("erpUserId").value = user?.id || "";
+  byId("erpUserName").value = user?.display_name || "";
+  byId("erpUserPassword").value = "";
+  byId("erpUserPassword").required = !user;
+  byId("erpUserStatus").value = user?.status || "active";
+  byId("erpUserModalTitle").textContent = user ? `Usuario ${Number(user.user_code)}` : "Novo usuario";
+  byId("erpUserPasswordHint").textContent = user ? "Deixe vazio para manter a senha atual" : "Minimo de 10 caracteres";
+  byId("erpUserFormError").textContent = "";
+  const selected = new Set(user?.permissions || ["room-service.dashboard.read", "room-service.orders.read"]);
+  byId("erpUserPermissionGrid").innerHTML = state.userPermissions.map((permission) => `<label><input type="checkbox" value="${escapeAttr(permission.key)}" ${selected.has(permission.key) ? "checked" : ""}><span>${escapeHtml(permission.label)}</span></label>`).join("");
+  byId("erpUserModal").classList.remove("hidden");
+  byId("erpUserName").focus();
+}
+
+function closeUserModal() {
+  byId("erpUserModal").classList.add("hidden");
+  byId("erpUserForm").reset();
+}
+
+async function saveErpUser(event) {
+  event.preventDefault();
+  const userId = byId("erpUserId").value;
+  const password = byId("erpUserPassword").value;
+  const permissionKeys = [...byId("erpUserPermissionGrid").querySelectorAll("input:checked")].map((input) => input.value);
+  byId("erpUserFormError").textContent = "";
+  if (!permissionKeys.length) {
+    byId("erpUserFormError").textContent = "Selecione pelo menos um modulo.";
+    return;
+  }
+  const body = {
+    hotel_id: state.hotelId,
+    display_name: byId("erpUserName").value.trim(),
+    status: byId("erpUserStatus").value,
+    permission_keys: permissionKeys,
+  };
+  setPageBusy(true, "Salvando usuario...");
+  try {
+    if (userId) {
+      await updateErpUser(userId, body);
+      if (password) await resetErpUserPassword(userId, { hotel_id: state.hotelId, password });
+    } else {
+      await createErpUser({ ...body, password });
+    }
+    closeUserModal();
+    await refreshUsers();
+    notify(userId ? "Usuario atualizado." : "Usuario criado com codigo sequencial.");
+  } catch (error) {
+    byId("erpUserFormError").textContent = error.message || "Nao foi possivel salvar o usuario.";
+  } finally {
+    setPageBusy(false);
+  }
 }
 
 function updateHeaderState() {
@@ -704,6 +904,22 @@ function originLabel(origin) {
 function safeImage(value) {
   const url = String(value || "");
   return url.startsWith("/media/") || url.startsWith("/assets/") ? url : "";
+}
+
+function setImage(image, source, alt) {
+  if (!image) return;
+  if (source) {
+    image.src = source;
+    image.hidden = false;
+  } else {
+    image.removeAttribute("src");
+    image.hidden = true;
+  }
+  image.alt = alt;
+}
+
+function isHexColor(value) {
+  return /^#[0-9a-f]{6}$/i.test(String(value || ""));
 }
 
 function timeToMinute(value) {

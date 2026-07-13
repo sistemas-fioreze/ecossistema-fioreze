@@ -135,3 +135,218 @@ body[data-erp="room-service"] {
     bottom: 16px;
   }
 }
+
+@media (max-width: 900px) {
+  .app-sidebar {
+    position: fixed !important;
+  }
+
+  .app-main {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: 1 1 100% !important;
+  }
+}
+
+html,
+body {
+  font-family: var(--hotel-font, Inter, system-ui, sans-serif) !important;
+}
+
+.login-logo[hidden],
+.side-brand-logo[hidden],
+.side-brand-logo-seal[hidden] {
+  display: none !important;
+}
+
+.text-\[\#513b2d\] {
+  color: var(--accent) !important;
+}
+
+.bg-\[\#513b2d\],
+.dark .dark\:bg-\[\#513b2d\] {
+  background-color: var(--accent) !important;
+}
+
+.hover\:bg-\[\#3f2d22\]:hover {
+  background-color: var(--accent-strong) !important;
+}
+
+.legacy-login-hotel-select {
+  width: 100%;
+  height: 46px;
+  border: 1px solid rgba(81, 59, 45, 0.12);
+  border-radius: 14px;
+  padding: 0 14px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.erp-user-card-head,
+.erp-user-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.erp-user-card-head div {
+  min-width: 0;
+}
+
+.erp-user-card-head strong,
+.erp-user-card-head small {
+  display: block;
+}
+
+.erp-user-card-head strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.erp-user-card-head small {
+  margin-top: 3px;
+  color: #8b919a;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.erp-user-permissions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.erp-user-permissions span {
+  padding: 5px 7px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 8%, white);
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.erp-user-card-actions {
+  justify-content: space-between;
+}
+
+.erp-master-card {
+  border-color: color-mix(in srgb, var(--accent) 35%, white) !important;
+}
+
+.erp-user-modal {
+  position: fixed;
+  z-index: 350;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(20, 18, 16, 0.48);
+}
+
+.erp-user-modal.hidden {
+  display: none;
+}
+
+.erp-user-modal-card {
+  width: min(560px, 100%);
+  max-height: calc(100vh - 36px);
+  overflow: auto;
+  border-radius: 8px;
+  padding: 22px;
+  background: #fff;
+  box-shadow: 0 24px 60px rgba(20, 18, 16, 0.2);
+}
+
+.erp-user-modal-head,
+.erp-user-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.erp-user-modal-close {
+  width: 38px;
+  height: 38px;
+  border-radius: 50% !important;
+  background: #f4f1ef !important;
+  color: var(--accent);
+  font-weight: 900;
+}
+
+#erpUserForm {
+  display: grid;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+#erpUserForm > label,
+#erpUserForm fieldset {
+  display: grid;
+  gap: 7px;
+  color: #747b84;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+#erpUserForm input,
+#erpUserForm select {
+  height: 44px;
+  border: 1px solid #e6e8eb;
+  border-radius: 8px !important;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: none;
+}
+
+#erpUserForm fieldset {
+  border: 0;
+  padding: 0;
+}
+
+.erp-user-permission-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.erp-user-permission-grid label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  border: 1px solid #eceff1;
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: none;
+}
+
+.erp-user-permission-grid input {
+  width: 16px;
+  height: 16px !important;
+  accent-color: var(--accent);
+}
+
+.erp-user-modal-actions {
+  justify-content: flex-end;
+  padding-top: 6px;
+}
+
+@media (max-width: 620px) {
+  .erp-user-permission-grid {
+    grid-template-columns: 1fr;
+  }
+}

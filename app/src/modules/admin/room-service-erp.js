@@ -10,6 +10,20 @@ import { assertAdminMutationAllowed, requireAdminHotelAccess, requirePermission 
 const MODULE_KEY = "room-service";
 const READ_PERMISSION = "room-service.orders.read";
 const WRITE_PERMISSION = "room-service.orders.write";
+const DASHBOARD_PERMISSION = "room-service.dashboard.read";
+const GUESTS_PERMISSION = "room-service.guests.read";
+const BILLING_PERMISSION = "room-service.billing.read";
+const CATALOG_PERMISSION = "room-service.catalog.read";
+const USERS_PERMISSION = "room-service.users.manage";
+const ERP_PERMISSIONS = [
+  DASHBOARD_PERMISSION,
+  READ_PERMISSION,
+  WRITE_PERMISSION,
+  GUESTS_PERMISSION,
+  BILLING_PERMISSION,
+  CATALOG_PERMISSION,
+  USERS_PERMISSION,
+];
 
 const STATUS_GROUPS = {
   received: "active",
@@ -22,7 +36,7 @@ const STATUS_GROUPS = {
 };
 
 export async function getRoomServiceErpContext({ env, session, url }) {
-  requirePermission(session, READ_PERMISSION);
+  requireAnyPermission(session, ERP_PERMISSIONS);
   const hotelId = resolveRequestedHotel(session, url);
   const hotel = requireSessionHotel(session, hotelId);
   const [branding, serviceHours, rooms] = await Promise.all([
@@ -39,11 +53,15 @@ export async function getRoomServiceErpContext({ env, session, url }) {
     service_hours: serviceHours,
     rooms,
     permissions: {
-      can_read_orders: session.permissions.includes(READ_PERMISSION),
-      can_write_orders: session.permissions.includes(WRITE_PERMISSION),
-      can_create_pdv_order: session.permissions.includes(WRITE_PERMISSION),
+      can_view_dashboard: hasAnyPermission(session, [DASHBOARD_PERMISSION, READ_PERMISSION]),
+      can_read_orders: hasAnyPermission(session, [READ_PERMISSION]),
+      can_write_orders: hasAnyPermission(session, [WRITE_PERMISSION]),
+      can_create_pdv_order: hasAnyPermission(session, [WRITE_PERMISSION]),
+      can_view_guests: hasAnyPermission(session, [GUESTS_PERMISSION, READ_PERMISSION]),
+      can_view_billing: hasAnyPermission(session, [BILLING_PERMISSION, READ_PERMISSION]),
+      can_view_catalog: hasAnyPermission(session, [CATALOG_PERMISSION, READ_PERMISSION, WRITE_PERMISSION]),
+      can_manage_users: hasAnyPermission(session, [USERS_PERMISSION]),
       can_manage_catalog: false,
-      can_view_billing: session.permissions.includes(READ_PERMISSION),
     },
     printing: {
       enabled: false,
@@ -57,9 +75,16 @@ export async function getRoomServiceErpContext({ env, session, url }) {
 }
 
 export async function getRoomServiceErpDashboard({ env, session, url }) {
-  requirePermission(session, READ_PERMISSION);
+  requireAnyPermission(session, [DASHBOARD_PERMISSION, READ_PERMISSION]);
   const hotelId = resolveRequestedHotel(session, url);
-  const orders = (await listAdminOrders({ env, session, url: urlWithHotel(url, hotelId) })).orders;
+  const orders = (
+    await listAdminOrders({
+      env,
+      session,
+      url: urlWithHotel(url, hotelId),
+      permissionKey: session.permissions.includes(DASHBOARD_PERMISSION) ? DASHBOARD_PERMISSION : READ_PERMISSION,
+    })
+  ).orders;
   const today = localDateKey(requestNow({ request: { headers: new Headers() }, env }));
   const activeOrders = orders.filter((order) => STATUS_GROUPS[order.status] === "active");
   const finalOrders = orders.filter((order) => STATUS_GROUPS[order.status] === "final");
@@ -100,7 +125,7 @@ export async function updateRoomServiceErpOrderStatus({ request, env, session, o
 }
 
 export async function listRoomServiceErpCatalog({ env, session, url }) {
-  requirePermission(session, READ_PERMISSION);
+  requireAnyPermission(session, [CATALOG_PERMISSION, READ_PERMISSION, WRITE_PERMISSION]);
   const hotelId = resolveRequestedHotel(session, url);
   const rows = await listRoomServiceProducts(env, hotelId);
   return {
@@ -111,7 +136,7 @@ export async function listRoomServiceErpCatalog({ env, session, url }) {
 }
 
 export async function listRoomServiceErpGuests({ env, session, url }) {
-  requirePermission(session, READ_PERMISSION);
+  requireAnyPermission(session, [GUESTS_PERMISSION, READ_PERMISSION]);
   const hotelId = resolveRequestedHotel(session, url);
   return {
     hotel_id: hotelId,
@@ -124,9 +149,16 @@ export async function listRoomServiceErpGuests({ env, session, url }) {
 }
 
 export async function getRoomServiceErpBilling({ env, session, url }) {
-  requirePermission(session, READ_PERMISSION);
+  requireAnyPermission(session, [BILLING_PERMISSION, READ_PERMISSION]);
   const hotelId = resolveRequestedHotel(session, url);
-  const orders = (await listAdminOrders({ env, session, url: urlWithHotel(url, hotelId) })).orders;
+  const orders = (
+    await listAdminOrders({
+      env,
+      session,
+      url: urlWithHotel(url, hotelId),
+      permissionKey: session.permissions.includes(BILLING_PERMISSION) ? BILLING_PERMISSION : READ_PERMISSION,
+    })
+  ).orders;
   const billable = orders.filter((order) => order.status === "completed");
   const totalCents = billable.reduce((total, order) => total + Number(order.total_cents || 0), 0);
   return {
@@ -184,25 +216,45 @@ function requireSessionHotel(session, hotelId) {
 }
 
 async function loadBranding(env, hotelId) {
-  return (
-    (await first(
+  const row = await first(
       env,
-      `SELECT hotel_id, logo_url, primary_color, secondary_color,
-              accent_color, font_family, updated_at
+      `SELECT hotel_id, logo_url, icon_url, primary_color, secondary_color,
+              accent_color, background_color, text_color, font_family,
+              custom_css_json, updated_at
          FROM hotel_branding
         WHERE hotel_id = ?
         LIMIT 1`,
       [hotelId],
-    )) || {
+    );
+  if (!row) {
+    return {
       hotel_id: hotelId,
       logo_url: null,
+      horizontal_logo_url: null,
+      icon_url: null,
       primary_color: null,
       secondary_color: null,
       accent_color: null,
+      background_color: null,
+      text_color: null,
       font_family: null,
       updated_at: null,
-    }
-  );
+    };
+  }
+  const custom = parseJson(row.custom_css_json);
+  return {
+    hotel_id: row.hotel_id,
+    logo_url: row.logo_url || null,
+    horizontal_logo_url: custom.horizontal_logo_url || null,
+    icon_url: row.icon_url || null,
+    primary_color: row.primary_color || null,
+    secondary_color: row.secondary_color || null,
+    accent_color: row.accent_color || null,
+    background_color: row.background_color || null,
+    text_color: row.text_color || null,
+    font_family: row.font_family || null,
+    updated_at: row.updated_at || null,
+  };
 }
 
 async function loadServiceHours(env, hotelId) {
@@ -249,4 +301,22 @@ function countBy(rows, field) {
 
 function localDateKey(value) {
   return String(value || "").slice(0, 10);
+}
+
+function hasAnyPermission(session, permissionKeys) {
+  return permissionKeys.some((permissionKey) => session.permissions.includes(permissionKey));
+}
+
+function requireAnyPermission(session, permissionKeys) {
+  const permission = permissionKeys.find((permissionKey) => session.permissions.includes(permissionKey));
+  requirePermission(session, permission || permissionKeys[0]);
+}
+
+function parseJson(value) {
+  try {
+    const parsed = JSON.parse(value || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
 }
