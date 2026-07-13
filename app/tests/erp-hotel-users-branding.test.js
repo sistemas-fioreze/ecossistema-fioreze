@@ -20,6 +20,26 @@ test("contexto de login do ERP publica branding por unidade sem credenciais", as
   assert.equal(JSON.stringify(body).includes("password"), false);
 });
 
+test("ERP nao expoe unidade ativa sem responsavel na Central Administrativa", async () => {
+  const { env, json } = createWorkerTestContext();
+  env.__data.adminHotelAccess = env.__data.adminHotelAccess.filter((entry) => entry.hotel_id !== "aurora-demo");
+
+  const loginContext = await json("/api/v1/admin/room-service/login-context");
+  const masterCookie = await createSessionCookie(env);
+  const masterSession = await json("/api/v1/admin/room-service/session", withCookie(masterCookie));
+  const orphanLogin = await json("/api/v1/admin/room-service/login", jsonRequest("POST", {
+    hotel_id: "aurora-demo",
+    user_code: 1,
+    password: DEMO_PASSWORD,
+  }));
+
+  assert.equal(loginContext.response.status, 200);
+  assert.deepEqual(loginContext.body.data.hotels.map((hotel) => hotel.hotel_id), ["muller-fioreze"]);
+  assert.equal(masterSession.response.status, 200);
+  assert.deepEqual(masterSession.body.data.hotels.map((hotel) => hotel.hotel_id), ["muller-fioreze"]);
+  assert.equal(orphanLogin.response.status, 401);
+});
+
 test("usuario operacional entra com codigo numerico e recebe sessao exclusiva do hotel", async () => {
   const { env, json } = createWorkerTestContext();
   const login = await json("/api/v1/admin/room-service/login", jsonRequest("POST", {

@@ -619,7 +619,9 @@ class MockD1Database {
       const hotelModuleRow = this.data.hotelModules.find(
         (entry) => entry.hotel_id === hotelId && entry.module_key === moduleKey && entry.enabled === 1,
       );
-      return hotel && hotelModuleRow
+      const requiresCentralManagement = normalized.includes("from admin_hotel_access");
+      const centrallyManaged = this.data.adminHotelAccess.some((entry) => entry.hotel_id === hotelId);
+      return hotel && hotelModuleRow && (!requiresCentralManagement || centrallyManaged)
         ? {
             hotel_id: hotel.id,
             slug: hotel.slug,
@@ -882,13 +884,14 @@ class MockD1Database {
       normalized.includes("from hotels h") &&
       normalized.includes("join hotel_modules hm") &&
       normalized.includes("left join hotel_branding hb") &&
-      normalized.includes("hm.module_key = ?") &&
-      !normalized.includes("admin_hotel_access")
+      normalized.includes("hm.module_key = ?")
     ) {
       const [moduleKey] = params;
+      const requiresCentralManagement = normalized.includes("from admin_hotel_access");
       return this.data.hotels
         .filter((hotel) => hotel.status === "active" && hotel.archived_at == null)
         .filter((hotel) => this.data.hotelModules.some((entry) => entry.hotel_id === hotel.id && entry.module_key === moduleKey && entry.enabled === 1))
+        .filter((hotel) => !requiresCentralManagement || this.data.adminHotelAccess.some((entry) => entry.hotel_id === hotel.id))
         .map((hotel) => ({
           hotel_id: hotel.id,
           slug: hotel.slug,
@@ -904,9 +907,11 @@ class MockD1Database {
 
     if (normalized.includes("from hotels h") && normalized.includes("join hotel_modules hm") && normalized.includes("'owner' as access_level")) {
       const [moduleKey] = params;
+      const requiresCentralManagement = normalized.includes("from admin_hotel_access");
       return this.data.hotels
         .filter((hotel) => hotel.status === "active" && hotel.archived_at == null)
         .filter((hotel) => this.data.hotelModules.some((entry) => entry.hotel_id === hotel.id && entry.module_key === moduleKey && entry.enabled === 1))
+        .filter((hotel) => !requiresCentralManagement || this.data.adminHotelAccess.some((entry) => entry.hotel_id === hotel.id))
         .map((hotel) => ({
           hotel_id: hotel.id,
           slug: hotel.slug,
