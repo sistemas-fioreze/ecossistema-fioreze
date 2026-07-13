@@ -6,12 +6,30 @@
 
 .rs-stat-card {
   display: grid;
-  gap: 8px;
+  gap: 9px;
   min-height: 120px;
+  align-content: center;
+}
+
+.rs-stat-card span {
+  color: #8b929c;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
 }
 
 .rs-stat-card strong {
-  font-size: 1.7rem;
+  color: #202124;
+  font-size: 2rem;
+  font-weight: 950;
+}
+
+.rs-stat-card em {
+  color: #8b929c;
+  font-size: 0.74rem;
+  font-style: normal;
+  font-weight: 800;
 }
 
 .rs-chart-bars {
@@ -32,5 +50,24 @@
 .rs-chart-row span:nth-child(2) {
   height: 9px;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--rs-accent), #c2a94b);
+  background: linear-gradient(90deg, #513b2d, #c2a94b);
+}
+
+.rs-revenue-card {
+  display: grid;
+  align-content: center;
+  gap: 10px;
+  min-height: 174px;
+}
+
+.rs-revenue-card strong {
+  color: #513b2d;
+  font-size: 2.1rem;
+  font-weight: 950;
+}
+
+.rs-revenue-card span {
+  color: #7d8590;
+  font-size: 0.82rem;
+  font-weight: 800;
 }

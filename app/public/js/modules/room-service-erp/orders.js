@@ -9,21 +9,26 @@ export async function loadOrdersForHotel({ hotelId, status = "", q = "" }) {
 
 export function renderOrders({ outlet, orders, selectedOrder, onSelect }) {
   outlet.innerHTML = `
-    <section class="rs-panel">
-      <p class="rs-kicker">Pedidos</p>
-      <h1>Fila operacional</h1>
-      <p class="rs-muted">Lista oficial do Room Service. Impressao permanece desativada neste ambiente.</p>
-    </section>
-    <section class="rs-orders-layout">
-      <div class="rs-panel">
-        <h2>${orders.length} pedido(s)</h2>
+    <section class="rs-orders-shell">
+      <header class="rs-orders-head">
+        <div>
+          <p class="rs-kicker">Pedidos</p>
+          <h1>Fila operacional</h1>
+          <span>Lista oficial do Room Service · impressão desativada neste ambiente</span>
+        </div>
+        <strong>${orders.length} pedido(s)</strong>
+      </header>
+      <section class="rs-orders-layout">
+      <div class="rs-panel rs-orders-list-panel">
+        <h2>Pedidos recentes</h2>
         <div class="rs-order-list">
           ${orders.length ? orders.map((order) => orderCard(order, selectedOrder?.id)).join("") : '<div class="rs-empty">Nenhum pedido encontrado.</div>'}
         </div>
       </div>
-      <aside class="rs-panel" id="orderDetailPanel">
+      <aside class="rs-panel rs-order-detail-panel" id="orderDetailPanel">
         ${selectedOrder ? renderOrderDetail(selectedOrder) : '<div class="rs-empty">Selecione um pedido.</div>'}
       </aside>
+      </section>
     </section>
   `;
 
@@ -49,6 +54,7 @@ function orderCard(order, selectedId) {
 
 function renderOrderDetail(order) {
   return `
+    <p class="rs-kicker">Detalhes</p>
     <h2>${escapeHtml(order.public_id)}</h2>
     <div class="rs-detail-grid">
       ${detail("Status", statusLabel(order.status))}

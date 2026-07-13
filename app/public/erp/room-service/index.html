@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <title>ERP Room Service Fioreze</title>
+    <title>Sistema de Gestão de Pedidos Fioreze</title>
     <link rel="stylesheet" href="/css/core/reset.css">
     <link rel="stylesheet" href="/css/core/tokens.css">
     <link rel="stylesheet" href="/css/core/layout.css">
@@ -23,16 +23,15 @@
     <main id="roomServiceErp" class="rs-erp" data-state="loading">
       <section class="rs-login" data-view="login" hidden>
         <form id="loginForm" class="rs-login-card" autocomplete="on">
-          <div class="rs-login-mark" aria-hidden="true">F</div>
-          <p class="rs-kicker">ERP Room Service</p>
-          <h1>Acesso operacional</h1>
+          <img class="rs-login-logo" src="/assets/hotels/muller-fioreze/logo.png" alt="Müller & Fioreze">
+          <p class="rs-kicker">Sistema de Gestão de Pedidos</p>
           <label>
             <span>E-mail</span>
-            <input id="loginEmail" name="email" type="email" autocomplete="username" required>
+            <input id="loginEmail" name="email" type="email" autocomplete="username" placeholder="E-mail do usuário" required>
           </label>
           <label>
             <span>Senha</span>
-            <input id="loginPassword" name="password" type="password" autocomplete="current-password" required>
+            <input id="loginPassword" name="password" type="password" autocomplete="current-password" placeholder="Senha" required>
           </label>
           <button id="loginButton" class="rs-primary-button" type="submit">Entrar</button>
           <p id="loginError" class="rs-error" role="alert" aria-live="polite"></p>
@@ -41,7 +40,7 @@
 
       <section class="rs-loading" data-view="loading">
         <div class="rs-login-card">
-          <div class="rs-login-mark" aria-hidden="true">F</div>
+          <img class="rs-login-logo" src="/assets/hotels/muller-fioreze/logo.png" alt="Müller & Fioreze">
           <p id="erpStatus">Verificando sessao administrativa...</p>
         </div>
       </section>
@@ -49,6 +48,7 @@
       <section class="rs-shell" data-view="app" hidden>
         <aside class="rs-sidebar" aria-label="Navegacao do ERP Room Service">
           <a class="rs-brand" href="/erp/room-service/" aria-label="Inicio do ERP Room Service">
+            <img class="rs-brand-logo" src="/assets/hotels/muller-fioreze/logo.png" alt="Müller & Fioreze">
             <span id="hotelSeal" class="rs-brand-seal">F</span>
             <span class="rs-brand-copy">
               <strong id="hotelBrandName">Room Service</strong>
@@ -57,8 +57,8 @@
           </a>
           <nav id="erpNav" class="rs-nav"></nav>
           <div class="rs-sidebar-footer">
-            <button id="compactToggle" type="button" class="rs-ghost-button">Modo compacto</button>
-            <button id="themeToggle" type="button" class="rs-ghost-button">Tema escuro</button>
+            <button id="compactToggle" type="button" class="rs-ghost-button">Recolher menu</button>
+            <button id="themeToggle" type="button" class="rs-ghost-button">v2.0</button>
           </div>
         </aside>
 
@@ -90,7 +90,9 @@
           </header>
 
           <section id="erpCanvas" class="rs-canvas" tabindex="-1">
-            <div id="routeOutlet" class="rs-route-outlet" aria-live="polite"></div>
+            <div class="rs-content-frame">
+              <div id="routeOutlet" class="rs-route-outlet" aria-live="polite"></div>
+            </div>
           </section>
         </section>
 
