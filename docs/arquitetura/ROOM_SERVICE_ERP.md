@@ -54,6 +54,8 @@ PR 1 criou a fundacao visual e a rota canonica. PR 2 adiciona os contratos admin
 
 As rotas aceitam a sessao operacional do ERP ou a sessao do administrador `erp.master`, validam acesso por unidade e mantem a impressao desativada.
 
+O seletor e as sessoes do ERP consideram apenas unidades ativas, com Room Service habilitado e com ao menos um responsavel registrado em `admin_hotel_access`. Um tenant tecnico ou orfao pode continuar existindo para testes de isolamento sem aparecer como unidade operacional.
+
 ## Identidade por unidade
 
 O ERP carrega a identidade visual do cadastro de unidades da Central Administrativa:

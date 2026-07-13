@@ -40,6 +40,11 @@ export async function listRoomServiceErpLoginHotels(env) {
         AND h.archived_at IS NULL
         AND hm.module_key = ?
         AND hm.enabled = 1
+        AND EXISTS (
+          SELECT 1
+            FROM admin_hotel_access aha
+           WHERE aha.hotel_id = h.id
+        )
       ORDER BY h.name`,
     [MODULE_KEY],
   );
@@ -217,6 +222,11 @@ async function loadAllHotels(env) {
         AND h.archived_at IS NULL
         AND hm.module_key = ?
         AND hm.enabled = 1
+        AND EXISTS (
+          SELECT 1
+            FROM admin_hotel_access aha
+           WHERE aha.hotel_id = h.id
+        )
       ORDER BY h.name`,
     [MODULE_KEY],
   );
@@ -234,6 +244,11 @@ async function loadHotel(env, hotelId) {
         AND h.archived_at IS NULL
         AND hm.module_key = ?
         AND hm.enabled = 1
+        AND EXISTS (
+          SELECT 1
+            FROM admin_hotel_access aha
+           WHERE aha.hotel_id = h.id
+        )
       LIMIT 1`,
     [hotelId, MODULE_KEY],
   );
