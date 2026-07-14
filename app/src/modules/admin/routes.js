@@ -87,6 +87,19 @@ import {
   updateAdminUser,
   uploadOwnAvatar,
 } from "./users.js";
+import {
+  createHotelInformation,
+  createPortalEvent,
+  createPortalPage,
+  createPortalSection,
+  getPortalPage,
+  listAdminAudit,
+  listPortalContent,
+  updateHotelInformation,
+  updatePortalEvent,
+  updatePortalPage,
+  updatePortalSection,
+} from "./portal-content.js";
 import { ok } from "../../core/responses.js";
 import { notFoundError } from "../../core/errors.js";
 import {
@@ -253,6 +266,61 @@ export function registerAdminRoutes(router) {
   router.get("/api/v1/admin/permissions", async ({ request, env }) => {
     const session = await requireAuthentication({ request, env });
     return ok(await listAdminPermissions({ env, session }));
+  });
+
+  router.get("/api/v1/admin/portal/content", async ({ request, env, url }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await listPortalContent({ env, session, url }));
+  });
+
+  router.post("/api/v1/admin/portal/pages", async ({ request, env }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await createPortalPage({ request, env, session }), { status: 201 });
+  });
+
+  router.get("/api/v1/admin/portal/pages/:id", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await getPortalPage({ env, session, pageId: params.id }));
+  });
+
+  router.patch("/api/v1/admin/portal/pages/:id", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await updatePortalPage({ request, env, session, pageId: params.id }));
+  });
+
+  router.post("/api/v1/admin/portal/pages/:id/sections", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await createPortalSection({ request, env, session, pageId: params.id }), { status: 201 });
+  });
+
+  router.patch("/api/v1/admin/portal/sections/:id", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await updatePortalSection({ request, env, session, sectionId: params.id }));
+  });
+
+  router.post("/api/v1/admin/portal/events", async ({ request, env }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await createPortalEvent({ request, env, session }), { status: 201 });
+  });
+
+  router.patch("/api/v1/admin/portal/events/:id", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await updatePortalEvent({ request, env, session, eventId: params.id }));
+  });
+
+  router.post("/api/v1/admin/portal/information", async ({ request, env }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await createHotelInformation({ request, env, session }), { status: 201 });
+  });
+
+  router.patch("/api/v1/admin/portal/information/:id", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await updateHotelInformation({ request, env, session, informationId: params.id }));
+  });
+
+  router.get("/api/v1/admin/audit", async ({ request, env, url }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await listAdminAudit({ env, session, url }));
   });
 
   router.get("/api/v1/admin/hotels", async ({ request, env }) => {

@@ -1,47 +1,58 @@
 # Design System Administrativo
 
-## Inventario do Admin Legado
+## Produtos Administrativos
 
-A Central Administrativa possuia shells visuais separados:
+O Ecossistema Fioreze possui dois produtos administrativos compartilhados:
 
-- `/admin/`: login, topbar, lista de sistemas e unidades autorizadas;
-- `/admin/portais/`: login, sidebar propria, topbar, unidades, imagens e links;
-- `/erp/room-service/`: ERP operacional do Room Service, com login, topbar, filtros, lista e detalhe de pedidos.
+- `/admin/`: Central Administrativa para unidades, portais, equipe e governanca;
+- `/erp/room-service/`: ERP operacional do Room Service.
 
-Os elementos duplicados eram login, marca, sessao do usuario, logout, topbar, estados de carregamento, mensagens de erro e acesso negado. A Central Administrativa deixa de listar Pedidos como produto interno e passa a apontar o Room Service como ERP proprio em `/erp/room-service/`. A rota antiga `/admin/room-service/*` permanece apenas como redirecionamento de compatibilidade para a rota canonica.
+A Central e o ERP usam a mesma linguagem visual, mas mantem navegacao, usuarios e responsabilidades proprias. A rota antiga `/admin/room-service/*` permanece como redirecionamento de compatibilidade para o ERP oficial.
 
 ## Identidade
 
-Ainda nao ha um wordmark oficial Fioreze versionado para a Central. O shell usa um lockup textual provisorio com `FIOREZE` e um simbolo simples `F`. Esse fallback deve ser substituido por asset oficial quando a marca for fornecida.
+O shell usa o nome `FIOREZE`, superficies brancas, fundo neutro e a cor institucional marrom `#513B2D` como destaque. O simbolo textual `F` permanece como fallback ate a disponibilizacao do asset oficial da marca.
 
 ## Tokens
 
-- Fundo: claro, neutro, sem blur.
-- Destaque: dourado Fioreze `#C2A94B`, usado em selecao, foco e estados de marca.
-- Superficies: branco com borda discreta.
-- Cantos: moderados, entre 14px e 24px.
-- Sombras: suaves, apenas para separar planos.
-- Icones: SVG inline locais, sem CDN.
-- Movimento: curto e respeitando `prefers-reduced-motion`.
+- Fundo neutro `#F7F5F2`;
+- Superficie branca `#FFFFFF`;
+- Destaque institucional `#513B2D`;
+- Sucesso verde, atencao dourada e erro vermelho;
+- Bordas discretas e cantos de ate 8px;
+- Icones SVG locais, sem CDN;
+- Movimento curto, respeitando `prefers-reduced-motion`.
 
 ## Componentes Compartilhados
 
 - Shell administrativo global;
-- Sidebar desktop;
-- Drawer mobile;
-- Topbar moderna;
-- Lockup Fioreze;
-- Avatar por iniciais;
+- Sidebar desktop e drawer mobile;
+- Topbar compacta;
+- Avatar e menu de sessao;
 - Navegacao baseada em permissoes;
-- Botao de ajuda;
-- Drawer de ajuda contextual;
-- Botoes de icone;
-- Cards, listas e paineis existentes com acabamento unificado;
-- Estados de carregamento, vazio, erro e acesso negado preservados.
+- Ajuda contextual;
+- Dialogos de edicao;
+- Tabelas responsivas, filtros e estados vazios;
+- Estados de carregamento, erro e acesso negado.
+
+## Modulos Ativos
+
+A Central Administrativa oferece fluxos funcionais para:
+
+- Unidades, identidade, configuracoes e incorporacao;
+- Biblioteca de imagens;
+- Links personalizados;
+- Conteudos, paginas, secoes, eventos e informacoes;
+- Areas habilitadas por unidade;
+- Navegacao dos portais;
+- Usuarios, senhas temporarias e sessoes;
+- Perfis e permissoes;
+- Auditoria administrativa;
+- Minha conta e avatar.
 
 ## Linguagem
 
-A interface principal deve preferir termos humanos:
+A interface principal prefere termos de operacao:
 
 - Hotel -> Unidade;
 - Modulo -> Area;
@@ -49,18 +60,12 @@ A interface principal deve preferir termos humanos:
 - Asset -> Imagem;
 - Permission denied -> Voce nao tem acesso a esta funcao.
 
-IDs internos e chaves tecnicas devem ficar restritos a detalhes tecnicos ou suporte.
+IDs internos e chaves tecnicas ficam restritos a campos de configuracao ou suporte.
 
 ## Acessibilidade
 
-O shell inclui foco visivel herdado do navegador, botoes com `aria-label`, area de ajuda com fechamento por `Esc`, drawer mobile sem depender de hover e touch targets de pelo menos 44px nos controles principais.
+Os controles mantem foco visivel, rotulos, mensagens com regioes vivas, fechamento de dialogos por controles explicitos, drawer mobile independente de hover e alvos de toque adequados. A navegacao e as acoes continuam utilizaveis em desktop e mobile.
 
-## Proximas Etapas
+## Seguranca
 
-- PR 2: usuarios, perfis, permissoes, senhas e sessoes;
-- PR 3: Minha conta, avatar privado em R2, dashboard final e polimento visual.
-
-## Minha Conta
-
-A area Minha conta usa os mesmos tokens visuais do shell e exibe avatar privado quando existir.
-Sem foto, o fallback usa iniciais do nome em um bloco neutro, sem servico externo.
+As telas respeitam a sessao administrativa, as permissoes e as unidades autorizadas. Senhas temporarias sao exibidas uma unica vez, nunca entram em logs ou auditoria, e as operacoes de escrita usam a protecao administrativa de origem e cabecalho.

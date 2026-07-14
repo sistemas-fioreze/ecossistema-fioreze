@@ -2,12 +2,14 @@ import { createAdminAuthView } from "./shared/admin-auth-view.js";
 import { adminApi } from "./shared/admin-api.js";
 import { canAccessPortals, canAccessRoles, canAccessUsers, getAuthorizedHotels } from "./shared/admin-session.js";
 import { escapeAttr, escapeHtml } from "./shared/format.js";
+import { renderRolesManager, renderUsersManager } from "./central-management.js";
 
 const section = currentSection();
 document.body.dataset.adminSection = section;
 
 const els = {
   welcomeTitle: document.getElementById("welcomeTitle"),
+  welcomeSubtitle: document.getElementById("welcomeSubtitle"),
   systemsList: document.getElementById("systemsList"),
   authorizedHotels: document.getElementById("authorizedHotels"),
   noSystemsMessage: document.getElementById("noSystemsMessage"),
@@ -27,6 +29,7 @@ const els = {
   newPassword: document.getElementById("newPassword"),
   confirmPassword: document.getElementById("confirmPassword"),
   accountMessage: document.getElementById("accountMessage"),
+  revokeOwnSessionsButton: document.getElementById("revokeOwnSessionsButton"),
 };
 
 const auth = createAdminAuthView({
@@ -46,6 +49,7 @@ function renderLauncher(session) {
   const systems = buildSystems(session);
   const firstName = String(session?.user?.display_name || "Usuario").split(/\s+/)[0] || "Usuario";
   els.welcomeTitle.textContent = `Ola, ${firstName}.`;
+  els.welcomeSubtitle.textContent = "Escolha uma area para cuidar da operacao e das experiencias digitais.";
   els.systemsList.innerHTML = systems.map(renderSystemCard).join("");
   els.noSystemsMessage.hidden = systems.length > 0;
   els.authorizedHotels.innerHTML = renderHotels(getAuthorizedHotels(session));
@@ -79,40 +83,27 @@ function buildSystems(session) {
 
 async function renderUsers(session) {
   els.welcomeTitle.textContent = "Usuarios";
+  els.welcomeSubtitle.textContent = "Gerencie a equipe e as unidades autorizadas de cada usuario.";
   if (!canAccessUsers(session)) {
     els.usersList.innerHTML = '<p class="admin-empty">Voce nao tem acesso a esta funcao.</p>';
     return;
   }
-  els.usersSummary.textContent = "Carregando usuarios...";
-  try {
-    const payload = await adminApi("/api/v1/admin/users");
-    const users = payload.data.users || [];
-    els.usersSummary.textContent = `${users.length} usuario(s) encontrado(s).`;
-    els.usersList.innerHTML = users.map(renderUserRow).join("") || '<p class="admin-empty">Nenhum usuario encontrado.</p>';
-  } catch (error) {
-    els.usersSummary.textContent = error.message || "Nao foi possivel carregar os usuarios.";
-  }
+  await renderUsersManager(session);
 }
 
 async function renderRoles(session) {
   els.welcomeTitle.textContent = "Perfis e permissoes";
+  els.welcomeSubtitle.textContent = "Defina responsabilidades e acessos administrativos com seguranca.";
   if (!canAccessRoles(session)) {
     els.rolesList.innerHTML = '<p class="admin-empty">Voce nao tem acesso a esta funcao.</p>';
     return;
   }
-  els.rolesSummary.textContent = "Carregando perfis...";
-  try {
-    const payload = await adminApi("/api/v1/admin/roles");
-    const roles = payload.data.roles || [];
-    els.rolesSummary.textContent = `${roles.length} perfil(is) encontrado(s).`;
-    els.rolesList.innerHTML = roles.map(renderRoleRow).join("") || '<p class="admin-empty">Nenhum perfil encontrado.</p>';
-  } catch (error) {
-    els.rolesSummary.textContent = error.message || "Nao foi possivel carregar os perfis.";
-  }
+  await renderRolesManager(session);
 }
 
 async function renderAccount(session) {
   els.welcomeTitle.textContent = "Minha conta";
+  els.welcomeSubtitle.textContent = "Atualize sua foto, senha e sessoes administrativas.";
   try {
     const payload = await adminApi("/api/v1/admin/me");
     const user = payload.data.user;
@@ -180,6 +171,17 @@ els.deleteAvatarButton?.addEventListener("click", async () => {
   }
 });
 
+els.revokeOwnSessionsButton?.addEventListener("click", async () => {
+  if (!window.confirm("Encerrar suas outras sessoes administrativas?")) return;
+  els.accountMessage.textContent = "Encerrando sessoes...";
+  try {
+    const payload = await adminApi("/api/v1/admin/me/sessions/revoke", { method: "POST", body: {} });
+    els.accountMessage.textContent = `${payload.data.revoked_sessions || 0} sessao(oes) encerrada(s).`;
+  } catch (error) {
+    els.accountMessage.textContent = error.message || "Nao foi possivel encerrar as sessoes.";
+  }
+});
+
 function renderSystemCard(system) {
   return `
     <a class="admin-system-card" href="${escapeAttr(system.href)}">
@@ -203,34 +205,6 @@ function renderHotels(hotels) {
       `,
     )
     .join("");
-}
-
-function renderUserRow(user) {
-  return `
-    <article class="admin-data-row">
-      <span class="admin-avatar">${escapeHtml(initials(user.display_name))}</span>
-      <div>
-        <strong>${escapeHtml(user.display_name)}</strong>
-        <span>${escapeHtml(user.email)}</span>
-        <small>${escapeHtml(user.roles.map((role) => role.name).join(", ") || "Sem perfil")}</small>
-      </div>
-      <span class="admin-status-chip">${escapeHtml(statusLabel(user.status))}</span>
-    </article>
-  `;
-}
-
-function renderRoleRow(role) {
-  const permissions = role.permissions.map((permission) => permission.label).slice(0, 5).join(", ");
-  return `
-    <article class="admin-data-row">
-      <div>
-        <strong>${escapeHtml(role.name)}</strong>
-        <span>${escapeHtml(role.description || "Perfil administrativo")}</span>
-        <small>${escapeHtml(permissions || "Sem permissoes")}</small>
-      </div>
-      <span class="admin-status-chip">${Number(role.user_count || 0)} usuario(s)</span>
-    </article>
-  `;
 }
 
 function renderAccountAvatar(user) {
@@ -264,8 +238,4 @@ function initials(name) {
     .map((part) => part[0])
     .join("")
     .toUpperCase();
-}
-
-function statusLabel(status) {
-  return status === "active" ? "Ativo" : "Desativado";
 }

@@ -122,6 +122,17 @@ Implementados:
 - `GET /api/v1/admin/media/:id`
 - `PATCH /api/v1/admin/media/:id`
 - `DELETE /api/v1/admin/media/:id`
+- `GET /api/v1/admin/portal/content`
+- `POST /api/v1/admin/portal/pages`
+- `GET /api/v1/admin/portal/pages/:id`
+- `PATCH /api/v1/admin/portal/pages/:id`
+- `POST /api/v1/admin/portal/pages/:id/sections`
+- `PATCH /api/v1/admin/portal/sections/:id`
+- `POST /api/v1/admin/portal/events`
+- `PATCH /api/v1/admin/portal/events/:id`
+- `POST /api/v1/admin/portal/information`
+- `PATCH /api/v1/admin/portal/information/:id`
+- `GET /api/v1/admin/audit`
 - `GET /media/:id`
 - `HEAD /media/:id`
 
@@ -129,7 +140,6 @@ Contratos futuros:
 
 - Emporio: items e orders;
 - Spa: services e requests;
-- Portal: pages e events;
 - Pacotes Romanticos: packages e requests.
 
 ## Variaveis
@@ -361,7 +371,7 @@ Quartos ativos em `rooms` sao publicados pela API e formam a lista de acomodacoe
 
 O editor de cardapio continua usando as tabelas compartilhadas `catalogs`, `categories`, `catalog_items` e `catalog_item_availability`. A migration `0015_erp_operations_catalog_profiles.sql` adiciona a referencia opcional entre item e `media_assets`, o ator operacional de uploads e a foto de perfil dos usuarios ERP. As imagens ficam no bucket privado e sao servidas somente por `/media/:id`.
 
-O shell `/admin/portais/` e a Central de Portais Fioreze. O MVP atual inclui a area `/admin/portais/unidades/` para administrar unidades/hoteis de forma multi-hotel, com:
+O shell `/admin/portais/` e a Central de Portais Fioreze. A interface segue a mesma linguagem visual do ERP e oferece administracao multi-hotel para:
 
 - listagem filtrada pelos hoteis autorizados ao usuario;
 - criacao de unidade com `hotel_id` derivado do slug, sem aceitar `hotel_id` enviado pelo cliente;
@@ -371,7 +381,12 @@ O shell `/admin/portais/` e a Central de Portais Fioreze. O MVP atual inclui a a
 - ativacao de modulos por hotel em `hotel_modules`;
 - navegacao publica por hotel em `navigation_items`;
 - configuracao oficial de incorporacao publica em `hotel_settings`;
+- paginas e secoes editoriais em `portal_pages` e `portal_sections`;
+- eventos e informacoes publicas em `events` e `hotel_information`;
+- telas dedicadas para areas e navegacao por unidade;
 - auditoria administrativa em `admin_audit_log`.
+
+A Central tambem possui gestao completa de usuarios, senhas temporarias, sessoes, perfis e permissoes. Segredos temporarios sao exibidos uma unica vez e nunca sao gravados na auditoria.
 
 As APIs de Unidades exigem sessao administrativa, permissoes `portals.hotels.*`, acesso explicito ao hotel, protecao de origem e header administrativo para mutacoes. A migration `0009_admin_units_management_permissions.sql` cadastra as permissoes, mas nao associa roles automaticamente. O seed local pode liberar essas permissoes para o usuario ficticio de desenvolvimento.
 

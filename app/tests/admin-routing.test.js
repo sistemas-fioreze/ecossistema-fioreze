@@ -100,6 +100,20 @@ test("subrotas administrativas entregam o shell correto ao atualizar pagina", as
   assert.match(await media.text(), /Central de Portais Fioreze/);
 });
 
+test("todos os modulos da Central de Portais entregam o shell funcional", async () => {
+  const { fetch } = createWorkerTestContext();
+  for (const path of [
+    "/admin/portais/conteudos/",
+    "/admin/portais/areas/",
+    "/admin/portais/navegacao/",
+    "/admin/portais/auditoria/",
+  ]) {
+    const response = await fetch(path, { redirect: "manual" });
+    assert.equal(response.status, 200, path);
+    assert.match(await response.text(), /Central de Portais Fioreze/, path);
+  }
+});
+
 test("GET /api/v1/admin/session permanece API protegida em JSON", async () => {
   const { fetch } = createWorkerTestContext();
   const response = await fetch("/api/v1/admin/session", { redirect: "manual" });
@@ -131,6 +145,7 @@ test("assets administrativos carregam fora do roteamento estatico de shells", as
     ["/js/modules/room-service-erp/app.js", /javascript/],
     ["/js/modules/admin/portals.js", /javascript/],
     ["/css/modules/admin/admin.css", /text\/css/],
+    ["/css/modules/admin/admin-erp-aligned.css", /text\/css/],
     ["/css/modules/room-service-erp/shell.css", /text\/css/],
   ];
 

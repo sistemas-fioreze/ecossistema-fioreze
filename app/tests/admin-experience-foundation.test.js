@@ -29,22 +29,41 @@ test("shell administrativo compartilhado possui navegacao, avatar, ajuda e SVG l
   assert.doesNotMatch(source, /https:\/\/|cdn|lucide|fontawesome/i);
 });
 
-test("design system administrativo documenta identidade, linguagem e proximas etapas", () => {
+test("design system administrativo documenta identidade e modulos ativos", () => {
   const doc = fs.readFileSync("../docs/arquitetura/ADMIN_DESIGN_SYSTEM.md", "utf8");
   assert.match(doc, /FIOREZE/);
   assert.match(doc, /Unidade/);
   assert.match(doc, /Endereco personalizado/);
-  assert.match(doc, /PR 2/);
-  assert.match(doc, /PR 3/);
+  assert.match(doc, /Conteudos/);
+  assert.match(doc, /Auditoria/);
 });
 
 test("CSS administrativo contem drawer mobile, ajuda e reduced motion", () => {
-  const css = fs.readFileSync("public/css/modules/admin/admin.css", "utf8");
+  const css = `${fs.readFileSync("public/css/modules/admin/admin.css", "utf8")}\n${fs.readFileSync("public/css/modules/admin/admin-erp-aligned.css", "utf8")}`;
   assert.match(css, /admin-global-sidebar/);
   assert.match(css, /admin-mobile-menu/);
   assert.match(css, /admin-help-drawer/);
   assert.match(css, /prefers-reduced-motion/);
   assert.doesNotMatch(css, /backdrop-filter|blur\(/);
+});
+
+test("Central Administrativa usa a linguagem visual do ERP sem modulos de fachada", () => {
+  const home = fs.readFileSync("public/admin/index.html", "utf8");
+  const portals = fs.readFileSync("public/admin/portais/index.html", "utf8");
+  const source = fs.readFileSync("public/js/modules/admin/portals.js", "utf8");
+  const management = fs.readFileSync("public/js/modules/admin/central-management.js", "utf8");
+  const css = fs.readFileSync("public/css/modules/admin/admin-erp-aligned.css", "utf8");
+
+  assert.match(home, /admin-erp-aligned\.css/);
+  assert.match(portals, /admin-erp-aligned\.css/);
+  assert.match(css, /--admin-accent: #513b2d/);
+  assert.match(portals, /contentManager/);
+  assert.match(portals, /areasManager/);
+  assert.match(portals, /navigationManager/);
+  assert.match(portals, /auditManager/);
+  assert.match(management, /temporary_password/);
+  assert.match(management, /permission_keys/);
+  assert.doesNotMatch(source, /#preparacao|Em preparacao|Unidade Fioreze Demo|Fioreze Demo|unidade-demo/);
 });
 
 test("shells administrativos continuam respondendo sem fallback incorreto", async () => {

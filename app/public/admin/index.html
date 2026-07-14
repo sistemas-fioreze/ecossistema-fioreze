@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="/css/core/layout.css">
     <link rel="stylesheet" href="/css/core/components.css">
     <link rel="stylesheet" href="/css/modules/admin/admin.css">
+    <link rel="stylesheet" href="/css/modules/admin/admin-erp-aligned.css">
   </head>
   <body data-admin-section="home">
     <main id="adminApp" class="admin-shell" data-state="loading">
@@ -35,7 +36,7 @@
           <div>
             <p class="eyebrow">Central administrativa</p>
             <h1 id="welcomeTitle">Bem-vindo ao Ecossistema Fioreze</h1>
-            <p class="admin-muted">Escolha uma area para cuidar da operacao e das experiencias digitais.</p>
+            <p id="welcomeSubtitle" class="admin-muted">Escolha uma area para cuidar da operacao e das experiencias digitais.</p>
           </div>
           <div class="admin-session-box">
             <span id="sessionUser"></span>
@@ -58,9 +59,9 @@
             </div>
             <div id="authorizedHotels" class="admin-hotel-list"></div>
             <div class="admin-info-box">
-              <span>Impressao</span>
-              <strong>Desativada neste ambiente</strong>
-              <p class="admin-muted">Nenhum recurso de impressao real e acionado durante o desenvolvimento.</p>
+              <span>Impressao de pedidos</span>
+              <strong>Gerenciada no ERP Room Service</strong>
+              <p class="admin-muted">A Central organiza unidades, acessos e experiencias digitais.</p>
             </div>
           </aside>
         </section>
@@ -71,7 +72,13 @@
               <p class="eyebrow">Equipe</p>
               <h2>Usuarios</h2>
             </div>
+            <button id="addUserButton" class="admin-primary-button" type="button">Novo usuario</button>
           </div>
+          <form id="usersFilters" class="admin-filters admin-management-filters">
+            <label><span>Busca</span><input id="usersSearch" type="search" placeholder="Nome ou e-mail"></label>
+            <label><span>Status</span><select id="usersStatus"><option value="">Todos</option><option value="active">Ativos</option><option value="disabled">Desativados</option></select></label>
+            <button type="submit">Filtrar</button>
+          </form>
           <div id="usersSummary" class="admin-muted" aria-live="polite"></div>
           <div id="usersList" class="admin-table-stack"></div>
         </section>
@@ -82,6 +89,7 @@
               <p class="eyebrow">Acessos</p>
               <h2>Perfis e permissoes</h2>
             </div>
+            <button id="addRoleButton" class="admin-primary-button" type="button">Novo perfil</button>
           </div>
           <div id="rolesSummary" class="admin-muted" aria-live="polite"></div>
           <div id="rolesList" class="admin-table-stack"></div>
@@ -121,16 +129,23 @@
             <button class="admin-primary-button" type="submit">Alterar senha</button>
           </form>
           <p id="accountMessage" class="admin-muted" role="status" aria-live="polite"></p>
+          <button id="revokeOwnSessionsButton" type="button">Sair dos outros dispositivos</button>
         </section>
       </section>
 
       <section class="admin-loading" data-view="loading">
         <div class="admin-access-card">
           <div class="brand-mark" aria-hidden="true"></div>
-          <p id="adminStatus">Verificando sessao local...</p>
+          <p id="adminStatus">Verificando acesso...</p>
         </div>
       </section>
     </main>
+    <dialog id="adminEditorDialog" class="admin-editor-dialog">
+      <div class="admin-dialog-shell">
+        <header><div><p id="adminDialogEyebrow" class="eyebrow">Central Administrativa</p><h2 id="adminDialogTitle">Editor</h2></div><button type="button" data-dialog-close aria-label="Fechar">&times;</button></header>
+        <div id="adminDialogBody" class="admin-dialog-body"></div>
+      </div>
+    </dialog>
     <script type="module" src="/js/modules/admin/admin.js"></script>
   </body>
 </html>
