@@ -16,8 +16,12 @@ import {
   PORTALS_LINKS_ARCHIVE_PERMISSION,
   PORTALS_LINKS_CREATE_PERMISSION,
   PORTALS_LINKS_UPDATE_PERMISSION,
+  canAccessAreas,
+  canAccessAudit,
+  canAccessContent,
   canAccessLinks,
   canAccessMediaLibrary,
+  canAccessNavigation,
   canAccessPortals,
   canAccessUnits,
   getAuthorizedHotels,
@@ -81,16 +85,39 @@ const els = {
   shortLinksAnalytics: document.getElementById("shortLinksAnalytics"),
   addShortLinkButton: document.getElementById("addShortLinkButton"),
   cancelShortLinkButton: document.getElementById("cancelShortLinkButton"),
+  contentManager: document.getElementById("contentManager"),
+  contentHotel: document.getElementById("contentHotel"),
+  contentMessage: document.getElementById("contentMessage"),
+  contentList: document.getElementById("contentList"),
+  addContentButton: document.getElementById("addContentButton"),
+  areasManager: document.getElementById("areasManager"),
+  areasHotel: document.getElementById("areasHotel"),
+  areasMessage: document.getElementById("areasMessage"),
+  areasList: document.getElementById("areasList"),
+  navigationManager: document.getElementById("navigationManager"),
+  navigationHotel: document.getElementById("navigationHotel"),
+  navigationMessage: document.getElementById("navigationMessage"),
+  navigationList: document.getElementById("navigationList"),
+  addNavigationButton: document.getElementById("addNavigationButton"),
+  auditManager: document.getElementById("auditManager"),
+  auditFilters: document.getElementById("auditFilters"),
+  auditHotel: document.getElementById("auditHotel"),
+  auditAction: document.getElementById("auditAction"),
+  auditMessage: document.getElementById("auditMessage"),
+  auditList: document.getElementById("auditList"),
+  dialog: document.getElementById("portalsEditorDialog"),
+  dialogTitle: document.getElementById("portalsDialogTitle"),
+  dialogBody: document.getElementById("portalsDialogBody"),
 };
 
 const portalCards = [
   ["unidades", "Unidades", "Cadastre hoteis, identidade visual, modulos e navegacao.", "/admin/portais/unidades/"],
   ["media", "Biblioteca de imagens", "Gerencie imagens publicas dos portais e modulos.", "/admin/portais/media/"],
   ["links", "Links personalizados", "Crie enderecos curtos para campanhas, QR Codes e comunicacao.", "/admin/portais/links/"],
-  ["conteudos", "Conteudos", "Paginas, eventos e informacoes dos hoteis.", "#preparacao"],
-  ["modulos", "Areas", "Ativacao e ajustes das experiencias.", "#preparacao"],
-  ["navegacao", "Navegacao", "Menus e caminhos dos portais.", "#preparacao"],
-  ["auditoria", "Auditoria", "Historico administrativo em preparacao.", "#preparacao"],
+  ["conteudos", "Conteudos", "Paginas, eventos e informacoes dos hoteis.", "/admin/portais/conteudos/"],
+  ["modulos", "Areas", "Ativacao e ajustes das experiencias.", "/admin/portais/areas/"],
+  ["navegacao", "Navegacao", "Menus e caminhos dos portais.", "/admin/portais/navegacao/"],
+  ["auditoria", "Auditoria", "Historico das alteracoes administrativas.", "/admin/portais/auditoria/"],
 ];
 const mediaFields = ["logo_url", "horizontal_logo_url", "icon_url", "favicon_url", "cover_image_url", "social_image_url"];
 const settingFields = [
@@ -142,6 +169,10 @@ let currentNavigation = [];
 let currentEmbed = null;
 let activeUnitTab = "general";
 let dirty = false;
+let contentType = "pages";
+let currentContent = { pages: [], events: [], information: [] };
+let dedicatedModules = [];
+let dedicatedNavigation = [];
 
 const auth = createAdminAuthView({
   onAuthenticated(session) {
@@ -195,6 +226,22 @@ els.unitEditorForm.addEventListener("change", () => {
 });
 els.unitEditorForm.addEventListener("click", handleUnitEditorClick);
 els.unitsList.addEventListener("click", handleUnitsListClick);
+els.contentHotel.addEventListener("change", loadPortalContent);
+els.contentManager.addEventListener("click", handleContentClick);
+els.addContentButton.addEventListener("click", () => openContentEditor());
+els.areasHotel.addEventListener("change", loadDedicatedAreas);
+els.areasList.addEventListener("change", saveDedicatedArea);
+els.navigationHotel.addEventListener("change", loadDedicatedNavigation);
+els.addNavigationButton.addEventListener("click", () => openNavigationEditor());
+els.navigationList.addEventListener("click", handleDedicatedNavigationAction);
+els.auditFilters.addEventListener("submit", (event) => {
+  event.preventDefault();
+  loadAudit();
+});
+els.dialog.querySelector("[data-dialog-close]").addEventListener("click", closePortalsDialog);
+els.dialog.addEventListener("click", (event) => {
+  if (event.target === els.dialog) closePortalsDialog();
+});
 
 auth.boot();
 
@@ -216,6 +263,22 @@ function renderPortals(session) {
     renderShortLinksManager(session);
     return;
   }
+  if (isContentRoute()) {
+    renderContentManager(session);
+    return;
+  }
+  if (isAreasRoute()) {
+    renderAreasManager(session);
+    return;
+  }
+  if (isNavigationRoute()) {
+    renderNavigationManager(session);
+    return;
+  }
+  if (isAuditRoute()) {
+    renderAuditManager(session);
+    return;
+  }
   renderHome(session);
 }
 
@@ -231,6 +294,10 @@ function renderNav(session) {
     ["Unidades", "/admin/portais/unidades/", canAccessUnits(session)],
     ["Biblioteca", "/admin/portais/media/", canAccessMediaLibrary(session)],
     ["Links", "/admin/portais/links/", canAccessLinks(session)],
+    ["Conteudos", "/admin/portais/conteudos/", canAccessContent(session)],
+    ["Areas", "/admin/portais/areas/", canAccessAreas(session)],
+    ["Navegacao", "/admin/portais/navegacao/", canAccessNavigation(session)],
+    ["Auditoria", "/admin/portais/auditoria/", canAccessAudit(session)],
   ];
   els.portalsNav.innerHTML = items
     .map(([label, href, enabled]) =>
@@ -243,10 +310,7 @@ function renderNav(session) {
 
 function renderHome(session) {
   setHeading("Central de Portais Fioreze", "Gerencie unidades, experiencias digitais, conteudos e identidade visual.");
-  els.portalsHome.hidden = false;
-  els.mediaLibrary.hidden = true;
-  els.shortLinksManager.hidden = true;
-  els.unitsManager.hidden = true;
+  showPortalSection(els.portalsHome);
   els.portalsModules.innerHTML = portalCards.map(([key, title, body, href]) => renderPortalCard(session, key, title, body, href)).join("");
 }
 
@@ -255,30 +319,30 @@ function renderPortalCard(session, key, title, body, href) {
     (key === "unidades" && canAccessUnits(session)) ||
     (key === "media" && canAccessMediaLibrary(session)) ||
     (key === "links" && canAccessLinks(session)) ||
-    href === "#preparacao";
-  const tag = href === "#preparacao" || !enabled ? "article" : "a";
+    (key === "conteudos" && canAccessContent(session)) ||
+    (key === "modulos" && canAccessAreas(session)) ||
+    (key === "navegacao" && canAccessNavigation(session)) ||
+    (key === "auditoria" && canAccessAudit(session));
+  const tag = !enabled ? "article" : "a";
   const attr = tag === "a" ? `href="${escapeAttr(href)}"` : "";
   return `
     <${tag} class="admin-module-card admin-feature-card ${enabled ? "" : "is-disabled"}" ${attr}>
       <span class="admin-feature-icon" aria-hidden="true">${featureIcon(key)}</span>
       <strong>${escapeHtml(title)}</strong>
       <span>${escapeHtml(body)}</span>
-      ${href === "#preparacao" ? '<em>Em preparacao</em>' : ""}
+      ${!enabled ? '<em>Acesso restrito</em>' : ""}
     </${tag}>
   `;
 }
 
 function renderUnitsRoute() {
   if (!currentSession || !canAccessUnits(currentSession)) {
-    els.unitsManager.hidden = true;
+    showPortalSection(null);
     els.portalsDenied.hidden = false;
     return;
   }
   setHeading("Unidades", "Administre os hoteis, marcas, servicos e navegacao dos portais.");
-  els.portalsHome.hidden = true;
-  els.mediaLibrary.hidden = true;
-  els.shortLinksManager.hidden = true;
-  els.unitsManager.hidden = false;
+  showPortalSection(els.unitsManager);
   const match = window.location.pathname.match(/^\/admin\/portais\/unidades\/([^/]+)\//);
   if (match) {
     openExistingUnit(decodeURIComponent(match[1]));
@@ -416,9 +480,9 @@ function renderUnitEditor() {
 function renderTabPanels() {
   const blockedMessage = '<div class="admin-empty">Salve os dados gerais para continuar.</div>';
   panel("general").innerHTML = `
-    ${field("Nome oficial", "name", currentUnit.name, "text", "Unidade Fioreze Demo")}
-    ${field("Nome curto", "short_name", currentUnit.short_name, "text", "Fioreze Demo")}
-    ${field("Endereco personalizado", "slug", currentUnit.slug, "text", "unidade-demo", currentUnit.hotel_id ? "" : "Define o endereco publico da unidade.")}
+    ${field("Nome oficial", "name", currentUnit.name, "text", "Hotel Exemplo")}
+    ${field("Nome curto", "short_name", currentUnit.short_name, "text", "Hotel Exemplo")}
+    ${field("Endereco personalizado", "slug", currentUnit.slug, "text", "hotel-exemplo", currentUnit.hotel_id ? "" : "Define o endereco publico da unidade.")}
     <div class="admin-form-grid">
       ${selectField("Status", "status", currentUnit.status, ["active", "inactive", "archived"])}
       ${field("Timezone", "timezone", currentUnit.timezone || "America/Sao_Paulo")}
@@ -762,11 +826,8 @@ async function handleNavigationAction(button) {
 
 function renderShortLinksManager(session) {
   setHeading("Links personalizados", "Crie enderecos curtos para campanhas, QR Codes, WhatsApp, mapas e motores de reserva.");
-  els.portalsHome.hidden = true;
-  els.unitsManager.hidden = true;
-  els.mediaLibrary.hidden = true;
   const allowed = canAccessLinks(session);
-  els.shortLinksManager.hidden = !allowed;
+  showPortalSection(allowed ? els.shortLinksManager : null);
   els.portalsDenied.hidden = allowed;
   if (!allowed) return;
 
@@ -995,12 +1056,9 @@ function shortLinkPreviewUrl(slug) {
 }
 
 function renderMediaLibrary(session) {
-  setHeading("Biblioteca de imagens", "Imagens privadas publicadas por rotas seguras do Worker.");
-  els.portalsHome.hidden = true;
-  els.unitsManager.hidden = true;
-  els.shortLinksManager.hidden = true;
+  setHeading("Biblioteca de imagens", "Organize as imagens utilizadas nos portais e servicos de cada unidade.");
   const allowed = canAccessMediaLibrary(session);
-  els.mediaLibrary.hidden = !allowed;
+  showPortalSection(allowed ? els.mediaLibrary : null);
   els.portalsDenied.hidden = allowed;
   if (!allowed) return;
 
@@ -1111,7 +1169,7 @@ async function editAltText(asset) {
 
 async function archiveAsset(asset) {
   if (!hasPermission(currentSession, PORTALS_MEDIA_ARCHIVE_PERMISSION)) return;
-  if (!window.confirm("Arquivar esta imagem? O objeto R2 nao sera excluido.")) return;
+  if (!window.confirm("Arquivar esta imagem? Ela deixara de aparecer, mas sera preservada.")) return;
   try {
     await adminApi(`/api/v1/admin/media/${encodeURIComponent(asset.id)}`, {
       method: "DELETE",
@@ -1229,7 +1287,7 @@ function renderEmbedPanel() {
     <label class="admin-field admin-field-wide">
       <span>Dominios autorizados</span>
       <textarea name="embed.allowed_origins" rows="4" placeholder="https://site-autorizado.example">${escapeHtml((embed.allowed_origins || []).join("\n"))}</textarea>
-      <small>Use origens completas HTTPS, sem caminho. Localhost e permitido apenas no desenvolvimento.</small>
+      <small>Informe origens HTTPS completas, sem caminhos adicionais.</small>
     </label>
     <div class="admin-module-toggle">
       <div>
@@ -1373,6 +1431,377 @@ function updatePreview() {
   if (!els.previewLogo.hidden) els.previewLogo.src = logo;
 }
 
+function renderContentManager(session) {
+  const allowed = canAccessContent(session);
+  setHeading("Conteudos", "Gerencie paginas, eventos e informacoes publicas por unidade.");
+  showPortalSection(allowed ? els.contentManager : null);
+  els.portalsDenied.hidden = allowed;
+  if (!allowed) return;
+  populateAuthorizedHotels(els.contentHotel, session);
+  loadPortalContent();
+}
+
+async function loadPortalContent() {
+  if (!els.contentHotel.value) return;
+  els.contentMessage.textContent = "Carregando conteudos...";
+  try {
+    const payload = await adminApi(`/api/v1/admin/portal/content?hotel_id=${encodeURIComponent(els.contentHotel.value)}`);
+    currentContent = payload.data;
+    renderContentList();
+  } catch (error) {
+    els.contentMessage.textContent = error.message || "Nao foi possivel carregar os conteudos.";
+  }
+}
+
+function renderContentList() {
+  const rows = currentContent[contentType] || [];
+  const labels = { pages: "pagina(s)", events: "evento(s)", information: "informacao(oes)" };
+  els.contentMessage.textContent = `${rows.length} ${labels[contentType]}.`;
+  els.contentList.innerHTML = rows.map((item) => renderContentRow(item, contentType)).join("") || '<p class="admin-empty">Nenhum conteudo cadastrado.</p>';
+}
+
+function renderContentRow(item, type) {
+  if (type === "pages") {
+    return `<article class="admin-data-row admin-content-row"><span class="admin-role-icon">${featureSvg("page")}</span><div class="admin-row-copy"><strong>${escapeHtml(item.title)}</strong><span>/${escapeHtml(item.slug)}</span><small>${Number(item.section_count || 0)} secao(oes) · ordem ${Number(item.sort_order || 0)}</small></div><span class="admin-status-chip" data-status="${escapeAttr(item.status)}">${contentStatus(item.status)}</span><div class="admin-row-actions"><button type="button" data-content-action="sections" data-id="${escapeAttr(item.id)}">Secoes</button><button type="button" data-content-action="edit" data-id="${escapeAttr(item.id)}">Editar</button></div></article>`;
+  }
+  if (type === "events") {
+    return `<article class="admin-data-row admin-content-row"><span class="admin-role-icon">${featureSvg("event")}</span><div class="admin-row-copy"><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(formatDate(item.starts_at, item.timezone))}</span><small>${escapeHtml(item.summary || "Sem resumo")}</small></div><span class="admin-status-chip" data-status="${escapeAttr(item.status)}">${contentStatus(item.status)}</span><div class="admin-row-actions"><button type="button" data-content-action="edit" data-id="${escapeAttr(item.id)}">Editar</button></div></article>`;
+  }
+  return `<article class="admin-data-row admin-content-row"><span class="admin-role-icon">${featureSvg("info")}</span><div class="admin-row-copy"><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.info_key)}</span><small>Ordem ${Number(item.sort_order || 0)}</small></div><span class="admin-status-chip" data-status="${item.is_public ? "active" : "disabled"}">${item.is_public ? "Publica" : "Oculta"}</span><div class="admin-row-actions"><button type="button" data-content-action="edit" data-id="${escapeAttr(item.id)}">Editar</button></div></article>`;
+}
+
+function handleContentClick(event) {
+  const tab = event.target.closest("[data-content-type]");
+  if (tab) {
+    contentType = tab.dataset.contentType;
+    for (const button of els.contentManager.querySelectorAll("[data-content-type]")) button.setAttribute("aria-selected", String(button === tab));
+    renderContentList();
+    return;
+  }
+  const action = event.target.closest("[data-content-action]");
+  if (!action) return;
+  if (action.dataset.contentAction === "sections") return openSectionsEditor(action.dataset.id);
+  const item = (currentContent[contentType] || []).find((entry) => entry.id === action.dataset.id);
+  if (item) openContentEditor(item);
+}
+
+function openContentEditor(item = null) {
+  const typeLabel = { pages: "pagina", events: "evento", information: "informacao" }[contentType];
+  const article = contentType === "events" ? "Novo" : "Nova";
+  els.dialogTitle.textContent = `${item ? "Editar" : article} ${typeLabel}`;
+  if (contentType === "pages") {
+    els.dialogBody.innerHTML = contentForm("page", `
+      ${dialogField("Titulo", "title", item?.title, "text", true)}
+      ${dialogField("Endereco", "slug", item?.slug, "text", true, "[a-z0-9-]+")}
+      ${dialogTextarea("Resumo", "summary", item?.summary)}
+      <div class="admin-form-grid">${dialogSelect("Status", "status", item?.status || "draft", [["draft", "Rascunho"], ["published", "Publicada"], ["archived", "Arquivada"]])}${dialogField("Ordem", "sort_order", item?.sort_order ?? 100, "number", true)}</div>`);
+  } else if (contentType === "events") {
+    els.dialogBody.innerHTML = contentForm("event", `
+      ${dialogField("Titulo", "title", item?.title, "text", true)}
+      ${dialogTextarea("Resumo", "summary", item?.summary)}
+      <div class="admin-form-grid">${dialogField("Inicio", "starts_at", toLocalDateTime(item?.starts_at), "datetime-local", true)}${dialogField("Termino", "ends_at", toLocalDateTime(item?.ends_at), "datetime-local")}</div>
+      <div class="admin-form-grid">${dialogField("Fuso horario", "timezone", item?.timezone || hotelTimezone(els.contentHotel.value), "text", true)}${dialogSelect("Status", "status", item?.status || "draft", [["draft", "Rascunho"], ["published", "Publicado"], ["cancelled", "Cancelado"], ["archived", "Arquivado"]])}</div>`);
+  } else {
+    els.dialogBody.innerHTML = contentForm("information", `
+      ${dialogField("Titulo", "title", item?.title, "text", true)}
+      ${dialogField("Identificador", "info_key", item?.info_key, "text", true, "[a-z0-9-]+")}
+      ${dialogTextarea("Conteudo", "body", item?.body, true)}
+      <div class="admin-form-grid">${dialogField("Ordem", "sort_order", item?.sort_order ?? 100, "number", true)}<label class="admin-choice admin-choice-standalone"><input name="is_public" type="checkbox" ${item?.is_public !== false ? "checked" : ""}><span><strong>Visivel no portal</strong></span></label></div>`);
+  }
+  openPortalsDialog();
+  bindDialogForm((event) => saveContent(event, item));
+}
+
+async function saveContent(event, item) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const data = new FormData(form);
+  const message = form.querySelector(".admin-dialog-message");
+  const body = Object.fromEntries(data.entries());
+  if (contentType === "pages") {
+    body.sort_order = Number(body.sort_order || 100);
+    body.hotel_id = els.contentHotel.value;
+  } else if (contentType === "events") {
+    body.hotel_id = els.contentHotel.value;
+    body.starts_at = fromLocalDateTime(body.starts_at);
+    body.ends_at = fromLocalDateTime(body.ends_at);
+  } else {
+    body.hotel_id = els.contentHotel.value;
+    body.sort_order = Number(body.sort_order || 100);
+    body.is_public = data.has("is_public");
+  }
+  const base = { pages: "pages", events: "events", information: "information" }[contentType];
+  const path = item ? `/api/v1/admin/portal/${base}/${encodeURIComponent(item.id)}` : `/api/v1/admin/portal/${base}`;
+  try {
+    message.textContent = "Salvando...";
+    await adminApi(path, { method: item ? "PATCH" : "POST", body });
+    closePortalsDialog();
+    await loadPortalContent();
+  } catch (error) {
+    message.textContent = error.message || "Nao foi possivel salvar o conteudo.";
+  }
+}
+
+async function openSectionsEditor(pageId) {
+  els.dialogTitle.textContent = "Secoes da pagina";
+  els.dialogBody.innerHTML = '<p class="admin-muted">Carregando secoes...</p>';
+  openPortalsDialog();
+  try {
+    const payload = await adminApi(`/api/v1/admin/portal/pages/${encodeURIComponent(pageId)}`);
+    const sections = payload.data.sections || [];
+    els.dialogBody.innerHTML = `
+      <div class="admin-section-editor-list">${sections.map((section) => `<button type="button" data-edit-section="${escapeAttr(section.id)}"><strong>${escapeHtml(section.title || section.section_key)}</strong><span>${escapeHtml(section.body || "Sem texto")}</span></button>`).join("") || '<p class="admin-empty">Nenhuma secao cadastrada.</p>'}</div>
+      <button class="admin-primary-button" type="button" data-new-section>Nova secao</button>`;
+    els.dialogBody.querySelector("[data-new-section]").addEventListener("click", () => openSectionForm(pageId));
+    els.dialogBody.querySelectorAll("[data-edit-section]").forEach((button) => button.addEventListener("click", () => openSectionForm(pageId, sections.find((item) => item.id === button.dataset.editSection))));
+  } catch (error) {
+    els.dialogBody.innerHTML = `<p class="admin-error">${escapeHtml(error.message || "Nao foi possivel carregar as secoes.")}</p>`;
+  }
+}
+
+function openSectionForm(pageId, section = null) {
+  els.dialogTitle.textContent = section ? "Editar secao" : "Nova secao";
+  els.dialogBody.innerHTML = contentForm("section", `
+    ${dialogField("Titulo", "title", section?.title)}
+    ${dialogField("Identificador", "section_key", section?.section_key, "text", true, "[a-z0-9-]+")}
+    ${dialogTextarea("Conteudo", "body", section?.body)}
+    ${dialogField("Ordem", "sort_order", section?.sort_order ?? 100, "number", true)}`);
+  bindDialogForm((event) => saveSection(event, pageId, section));
+}
+
+async function saveSection(event, pageId, section) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const data = Object.fromEntries(new FormData(form).entries());
+  data.sort_order = Number(data.sort_order || 100);
+  const path = section ? `/api/v1/admin/portal/sections/${encodeURIComponent(section.id)}` : `/api/v1/admin/portal/pages/${encodeURIComponent(pageId)}/sections`;
+  try {
+    form.querySelector(".admin-dialog-message").textContent = "Salvando...";
+    await adminApi(path, { method: section ? "PATCH" : "POST", body: data });
+    await openSectionsEditor(pageId);
+    await loadPortalContent();
+  } catch (error) {
+    form.querySelector(".admin-dialog-message").textContent = error.message || "Nao foi possivel salvar a secao.";
+  }
+}
+
+function renderAreasManager(session) {
+  const allowed = canAccessAreas(session);
+  setHeading("Areas", "Ative as experiencias disponiveis em cada unidade.");
+  showPortalSection(allowed ? els.areasManager : null);
+  els.portalsDenied.hidden = allowed;
+  if (!allowed) return;
+  populateAuthorizedHotels(els.areasHotel, session);
+  loadDedicatedAreas();
+}
+
+async function loadDedicatedAreas() {
+  if (!els.areasHotel.value) return;
+  els.areasMessage.textContent = "Carregando areas...";
+  try {
+    const payload = await adminApi(`/api/v1/admin/hotels/${encodeURIComponent(els.areasHotel.value)}/modules`);
+    dedicatedModules = payload.data.modules || [];
+    els.areasMessage.textContent = `${dedicatedModules.filter((item) => item.enabled).length} area(s) ativa(s).`;
+    els.areasList.innerHTML = dedicatedModules.map((module) => `<label class="admin-area-card"><input type="checkbox" data-area-key="${escapeAttr(module.module_key)}" ${module.enabled ? "checked" : ""}><span class="admin-feature-icon">${featureIcon(module.module_key === "guest-portal" ? "conteudos" : "modulos")}</span><span><strong>${escapeHtml(module.public_name || module.name)}</strong><small>${escapeHtml(module.description || module.module_key)}</small></span><em>${module.enabled ? "Ativa" : "Inativa"}</em></label>`).join("");
+  } catch (error) {
+    els.areasMessage.textContent = error.message || "Nao foi possivel carregar as areas.";
+  }
+}
+
+async function saveDedicatedArea(event) {
+  const input = event.target.closest("[data-area-key]");
+  if (!input) return;
+  const selected = dedicatedModules.map((module) => ({
+    module_key: module.module_key,
+    enabled: module.module_key === input.dataset.areaKey ? input.checked : module.enabled,
+    is_public: module.is_public,
+    public_name: module.public_name,
+    navigation_label: module.navigation_label,
+    sort_order: module.sort_order,
+  }));
+  els.areasMessage.textContent = "Salvando area...";
+  try {
+    await adminApi(`/api/v1/admin/hotels/${encodeURIComponent(els.areasHotel.value)}/modules`, { method: "PATCH", body: { modules: selected } });
+    await loadDedicatedAreas();
+  } catch (error) {
+    input.checked = !input.checked;
+    els.areasMessage.textContent = error.message || "Nao foi possivel salvar a area.";
+  }
+}
+
+function renderNavigationManager(session) {
+  const allowed = canAccessNavigation(session);
+  setHeading("Navegacao", "Organize os caminhos exibidos no portal de cada unidade.");
+  showPortalSection(allowed ? els.navigationManager : null);
+  els.portalsDenied.hidden = allowed;
+  if (!allowed) return;
+  populateAuthorizedHotels(els.navigationHotel, session);
+  loadDedicatedNavigation();
+}
+
+async function loadDedicatedNavigation() {
+  if (!els.navigationHotel.value) return;
+  els.navigationMessage.textContent = "Carregando navegacao...";
+  try {
+    const [navigation, modules] = await Promise.all([
+      adminApi(`/api/v1/admin/hotels/${encodeURIComponent(els.navigationHotel.value)}/navigation`),
+      adminApi(`/api/v1/admin/hotels/${encodeURIComponent(els.navigationHotel.value)}/modules`),
+    ]);
+    dedicatedNavigation = navigation.data.navigation || [];
+    dedicatedModules = modules.data.modules || [];
+    els.navigationMessage.textContent = `${dedicatedNavigation.length} item(ns) configurado(s).`;
+    els.navigationList.innerHTML = dedicatedNavigation.map((item) => `<article class="admin-data-row admin-content-row"><span class="admin-role-icon">${featureSvg("navigation")}</span><div class="admin-row-copy"><strong>${escapeHtml(item.label)}</strong><span>${escapeHtml(item.path)}</span><small>${escapeHtml(item.module_key)} · ordem ${Number(item.sort_order || 0)}</small></div><span class="admin-status-chip" data-status="${item.enabled ? "active" : "disabled"}">${item.enabled ? "Visivel" : "Oculto"}</span><div class="admin-row-actions"><button type="button" data-navigation-action="edit" data-id="${escapeAttr(item.id)}">Editar</button><button type="button" data-navigation-action="archive" data-id="${escapeAttr(item.id)}">Ocultar</button></div></article>`).join("") || '<p class="admin-empty">Nenhum item de navegacao cadastrado.</p>';
+  } catch (error) {
+    els.navigationMessage.textContent = error.message || "Nao foi possivel carregar a navegacao.";
+  }
+}
+
+function handleDedicatedNavigationAction(event) {
+  const button = event.target.closest("[data-navigation-action]");
+  if (!button) return;
+  const item = dedicatedNavigation.find((entry) => entry.id === button.dataset.id);
+  if (!item) return;
+  if (button.dataset.navigationAction === "edit") return openNavigationEditor(item);
+  if (!window.confirm(`Ocultar ${item.label} da navegacao?`)) return;
+  adminApi(`/api/v1/admin/hotels/${encodeURIComponent(els.navigationHotel.value)}/navigation/${encodeURIComponent(item.id)}`, { method: "DELETE", body: {} })
+    .then(loadDedicatedNavigation)
+    .catch((error) => { els.navigationMessage.textContent = error.message || "Nao foi possivel ocultar o item."; });
+}
+
+function openNavigationEditor(item = null) {
+  els.dialogTitle.textContent = item ? "Editar item de navegacao" : "Novo item de navegacao";
+  els.dialogBody.innerHTML = contentForm("navigation", `
+    ${dialogField("Nome", "label", item?.label, "text", true)}
+    ${dialogField("Caminho", "path", item?.path || "/", "text", true)}
+    <div class="admin-form-grid">${dialogSelect("Area", "module_key", item?.module_key || dedicatedModules[0]?.module_key || "guest-portal", dedicatedModules.map((module) => [module.module_key, module.public_name || module.name]))}${dialogField("Icone", "icon_key", item?.icon_key || "home")}</div>
+    <div class="admin-form-grid">${dialogField("Ordem", "sort_order", item?.sort_order ?? 100, "number", true)}<label class="admin-choice admin-choice-standalone"><input name="enabled" type="checkbox" ${item?.enabled !== false ? "checked" : ""}><span><strong>Visivel no portal</strong></span></label></div>`);
+  openPortalsDialog();
+  bindDialogForm((event) => saveNavigation(event, item));
+}
+
+async function saveNavigation(event, item) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const data = new FormData(form);
+  const body = Object.fromEntries(data.entries());
+  body.sort_order = Number(body.sort_order || 100);
+  body.enabled = data.has("enabled");
+  body.is_public = true;
+  const base = `/api/v1/admin/hotels/${encodeURIComponent(els.navigationHotel.value)}/navigation`;
+  try {
+    form.querySelector(".admin-dialog-message").textContent = "Salvando...";
+    await adminApi(item ? `${base}/${encodeURIComponent(item.id)}` : base, { method: item ? "PATCH" : "POST", body });
+    closePortalsDialog();
+    await loadDedicatedNavigation();
+  } catch (error) {
+    form.querySelector(".admin-dialog-message").textContent = error.message || "Nao foi possivel salvar o item.";
+  }
+}
+
+function renderAuditManager(session) {
+  const allowed = canAccessAudit(session);
+  setHeading("Auditoria", "Consulte as alteracoes realizadas na Central Administrativa.");
+  showPortalSection(allowed ? els.auditManager : null);
+  els.portalsDenied.hidden = allowed;
+  if (!allowed) return;
+  populateAuthorizedHotels(els.auditHotel, session, true);
+  loadAudit();
+}
+
+async function loadAudit() {
+  const params = new URLSearchParams({ limit: "150" });
+  if (els.auditHotel.value) params.set("hotel_id", els.auditHotel.value);
+  if (els.auditAction.value.trim()) params.set("action", els.auditAction.value.trim());
+  els.auditMessage.textContent = "Carregando auditoria...";
+  try {
+    const payload = await adminApi(`/api/v1/admin/audit?${params}`);
+    const entries = payload.data.entries || [];
+    els.auditMessage.textContent = `${entries.length} registro(s) encontrado(s).`;
+    els.auditList.innerHTML = entries.map((entry) => `<article class="admin-data-row admin-audit-row"><span class="admin-role-icon">${featureSvg("history")}</span><div class="admin-row-copy"><strong>${escapeHtml(auditActionLabel(entry.action))}</strong><span>${escapeHtml(entry.actor_name)} · ${escapeHtml(entry.hotel_id || "Administracao geral")}</span><small>${escapeHtml(entry.entity_type || "registro")} · ${escapeHtml(formatDate(entry.created_at))}</small></div><code>${escapeHtml(entry.action)}</code></article>`).join("") || '<p class="admin-empty">Nenhuma alteracao encontrada.</p>';
+  } catch (error) {
+    els.auditMessage.textContent = error.message || "Nao foi possivel carregar a auditoria.";
+  }
+}
+
+function showPortalSection(active) {
+  for (const section of [els.portalsHome, els.unitsManager, els.shortLinksManager, els.mediaLibrary, els.contentManager, els.areasManager, els.navigationManager, els.auditManager]) {
+    section.hidden = section !== active;
+  }
+}
+
+function populateAuthorizedHotels(select, session, includeAll = false) {
+  const options = getAuthorizedHotels(session).map((hotel) => `<option value="${escapeAttr(hotel.hotel_id)}">${escapeHtml(hotel.short_name || hotel.name)}</option>`).join("");
+  select.innerHTML = `${includeAll ? '<option value="">Todas as unidades</option>' : ""}${options}`;
+}
+
+function contentForm(name, fields) {
+  return `<form id="portal-${escapeAttr(name)}-form" class="admin-form-stack">${fields}<p class="admin-dialog-message" role="status"></p><div class="admin-dialog-actions"><button type="button" data-dialog-cancel>Cancelar</button><button class="admin-primary-button" type="submit">Salvar</button></div></form>`;
+}
+
+function bindDialogForm(handler) {
+  const form = els.dialogBody.querySelector("form");
+  form.addEventListener("submit", handler);
+  form.querySelector("[data-dialog-cancel]").addEventListener("click", closePortalsDialog);
+}
+
+function dialogField(label, name, value = "", type = "text", required = false, pattern = "") {
+  return `<label><span>${escapeHtml(label)}</span><input name="${escapeAttr(name)}" type="${escapeAttr(type)}" value="${escapeAttr(value ?? "")}" ${required ? "required" : ""} ${pattern ? `pattern="${escapeAttr(pattern)}"` : ""}></label>`;
+}
+
+function dialogTextarea(label, name, value = "", required = false) {
+  return `<label><span>${escapeHtml(label)}</span><textarea name="${escapeAttr(name)}" rows="5" ${required ? "required" : ""}>${escapeHtml(value || "")}</textarea></label>`;
+}
+
+function dialogSelect(label, name, value, options) {
+  return `<label><span>${escapeHtml(label)}</span><select name="${escapeAttr(name)}">${options.map(([key, text]) => `<option value="${escapeAttr(key)}" ${key === value ? "selected" : ""}>${escapeHtml(text)}</option>`).join("")}</select></label>`;
+}
+
+function openPortalsDialog() {
+  if (!els.dialog.open) els.dialog.showModal();
+}
+
+function closePortalsDialog() {
+  if (els.dialog.open) els.dialog.close();
+  els.dialogBody.innerHTML = "";
+}
+
+function hotelTimezone(hotelId) {
+  return getAuthorizedHotels(currentSession).find((hotel) => hotel.hotel_id === hotelId)?.timezone || "America/Sao_Paulo";
+}
+
+function contentStatus(status) {
+  return ({ draft: "Rascunho", published: "Publicado", archived: "Arquivado", cancelled: "Cancelado" })[status] || status;
+}
+
+function auditActionLabel(action) {
+  const labels = {
+    "portal-page.create": "Pagina criada",
+    "portal-page.update": "Pagina atualizada",
+    "portal-section.create": "Secao criada",
+    "portal-section.update": "Secao atualizada",
+    "portal-event.create": "Evento criado",
+    "portal-event.update": "Evento atualizado",
+    "hotel-information.create": "Informacao criada",
+    "hotel-information.update": "Informacao atualizada",
+    "hotel.modules.update": "Areas atualizadas",
+    "hotel.navigation.create": "Item de navegacao criado",
+    "hotel.navigation.update": "Item de navegacao atualizado",
+    "hotel.navigation.archive": "Item de navegacao ocultado",
+  };
+  return labels[action] || action.replaceAll("-", " ").replaceAll(".", " · ");
+}
+
+function featureSvg(type) {
+  const paths = {
+    page: '<path d="M6 3h9l3 3v15H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/>',
+    event: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/>',
+    info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>',
+    navigation: '<circle cx="12" cy="12" r="9"/><path d="m15 9-2 6-6 2 2-6z"/>',
+    history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>',
+  };
+  return `<svg class="admin-svg-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[type] || paths.page}</svg>`;
+}
+
 function navigateSoft(path) {
   window.history.pushState({}, "", path);
 }
@@ -1387,6 +1816,22 @@ function isLinksRoute() {
 
 function isUnitsRoute() {
   return window.location.pathname.startsWith("/admin/portais/unidades/");
+}
+
+function isContentRoute() {
+  return window.location.pathname.startsWith("/admin/portais/conteudos/");
+}
+
+function isAreasRoute() {
+  return window.location.pathname.startsWith("/admin/portais/areas/");
+}
+
+function isNavigationRoute() {
+  return window.location.pathname.startsWith("/admin/portais/navegacao/");
+}
+
+function isAuditRoute() {
+  return window.location.pathname.startsWith("/admin/portais/auditoria/");
 }
 
 function defaultBranding() {
@@ -1404,15 +1849,16 @@ function defaultBranding() {
 }
 
 function featureIcon(key) {
-  return {
-    unidades: "U",
-    media: "M",
-    links: "L",
-    conteudos: "C",
-    modulos: "D",
-    navegacao: "N",
-    auditoria: "A",
-  }[key] || ".";
+  const paths = {
+    unidades: '<path d="M5 20V8l7-4 7 4v12"/><path d="M9 20v-6h6v6"/>',
+    media: '<path d="M5 5h14v14H5z"/><path d="m7 16 4-4 3 3 2-2 3 3"/><circle cx="9" cy="9" r="1"/>',
+    links: '<path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/>',
+    conteudos: '<path d="M6 3h9l3 3v15H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/>',
+    modulos: '<rect x="4" y="4" width="6" height="6"/><rect x="14" y="4" width="6" height="6"/><rect x="4" y="14" width="6" height="6"/><rect x="14" y="14" width="6" height="6"/>',
+    navegacao: '<circle cx="12" cy="12" r="9"/><path d="m15 9-2 6-6 2 2-6z"/>',
+    auditoria: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>',
+  };
+  return `<svg class="admin-svg-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[key] || paths.modulos}</svg>`;
 }
 
 function mediaLabel(name) {

@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="/css/core/layout.css">
     <link rel="stylesheet" href="/css/core/components.css">
     <link rel="stylesheet" href="/css/modules/admin/admin.css">
+    <link rel="stylesheet" href="/css/modules/admin/admin-erp-aligned.css">
   </head>
   <body data-admin-section="portals">
     <main id="adminApp" class="admin-shell" data-state="loading">
@@ -215,7 +216,7 @@
                 <label class="admin-field admin-field-wide">
                   <span>Destino</span>
                   <input name="destination_url" type="url" maxlength="4096" placeholder="https://wa.me/5500000000000" required>
-                  <small>HTTP e permitido, mas HTTPS e recomendado. URLs com tokens devem ser evitadas.</small>
+                  <small>Prefira enderecos HTTPS permanentes e sem informacoes confidenciais.</small>
                 </label>
                 <div class="admin-form-grid">
                   <label class="admin-field">
@@ -250,7 +251,7 @@
             <div class="admin-panel-heading">
               <div>
                 <h2>Biblioteca de imagens</h2>
-                <p class="admin-muted">Imagens privadas no R2, publicadas por uma rota segura.</p>
+                <p class="admin-muted">Organize as imagens utilizadas nos portais e servicos de cada unidade.</p>
               </div>
             </div>
 
@@ -294,6 +295,51 @@
             <p id="mediaError" class="admin-error" role="alert" aria-live="polite"></p>
             <div id="mediaGrid" class="admin-media-grid" aria-live="polite"></div>
           </section>
+
+          <section id="contentManager" class="admin-content-manager" hidden>
+            <div class="admin-panel-heading">
+              <div><h2>Conteudos</h2><p class="admin-muted">Paginas, eventos e informacoes publicas de cada unidade.</p></div>
+              <button id="addContentButton" class="admin-primary-button" type="button">Novo conteudo</button>
+            </div>
+            <div class="admin-filters admin-content-filters">
+              <label><span>Unidade</span><select id="contentHotel"></select></label>
+              <div class="admin-segmented" role="tablist" aria-label="Tipo de conteudo">
+                <button type="button" data-content-type="pages" aria-selected="true">Paginas</button>
+                <button type="button" data-content-type="events">Eventos</button>
+                <button type="button" data-content-type="information">Informacoes</button>
+              </div>
+            </div>
+            <p id="contentMessage" class="admin-muted" role="status" aria-live="polite"></p>
+            <div id="contentList" class="admin-table-stack"></div>
+          </section>
+
+          <section id="areasManager" class="admin-content-manager" hidden>
+            <div class="admin-panel-heading"><div><h2>Areas</h2><p class="admin-muted">Defina quais experiencias ficam disponiveis em cada unidade.</p></div></div>
+            <div class="admin-filters"><label><span>Unidade</span><select id="areasHotel"></select></label></div>
+            <p id="areasMessage" class="admin-muted" role="status" aria-live="polite"></p>
+            <div id="areasList" class="admin-module-settings-grid"></div>
+          </section>
+
+          <section id="navigationManager" class="admin-content-manager" hidden>
+            <div class="admin-panel-heading">
+              <div><h2>Navegacao</h2><p class="admin-muted">Organize os acessos exibidos no portal da unidade.</p></div>
+              <button id="addNavigationButton" class="admin-primary-button" type="button">Novo item</button>
+            </div>
+            <div class="admin-filters"><label><span>Unidade</span><select id="navigationHotel"></select></label></div>
+            <p id="navigationMessage" class="admin-muted" role="status" aria-live="polite"></p>
+            <div id="navigationList" class="admin-table-stack"></div>
+          </section>
+
+          <section id="auditManager" class="admin-content-manager" hidden>
+            <div class="admin-panel-heading"><div><h2>Auditoria</h2><p class="admin-muted">Acompanhe as alteracoes realizadas na Central Administrativa.</p></div></div>
+            <form id="auditFilters" class="admin-filters">
+              <label><span>Unidade</span><select id="auditHotel"><option value="">Todas as unidades</option></select></label>
+              <label><span>Acao</span><input id="auditAction" type="search" placeholder="Ex.: portal-page.update"></label>
+              <button type="submit">Filtrar</button>
+            </form>
+            <p id="auditMessage" class="admin-muted" role="status" aria-live="polite"></p>
+            <div id="auditList" class="admin-table-stack"></div>
+          </section>
             </section>
           </div>
         </div>
@@ -302,10 +348,16 @@
       <section class="admin-loading" data-view="loading">
         <div class="admin-access-card">
           <div class="brand-mark" aria-hidden="true"></div>
-          <p id="adminStatus">Verificando sessao local...</p>
+          <p id="adminStatus">Verificando acesso...</p>
         </div>
       </section>
     </main>
+    <dialog id="portalsEditorDialog" class="admin-editor-dialog">
+      <div class="admin-dialog-shell">
+        <header><div><p id="portalsDialogEyebrow" class="eyebrow">Central de Portais</p><h2 id="portalsDialogTitle">Editor</h2></div><button type="button" data-dialog-close aria-label="Fechar">&times;</button></header>
+        <div id="portalsDialogBody" class="admin-dialog-body"></div>
+      </div>
+    </dialog>
     <script type="module" src="/js/modules/admin/portals.js"></script>
   </body>
 </html>

@@ -1,7 +1,11 @@
 import { adminApi } from "./admin-api.js";
 import {
+  canAccessAreas,
+  canAccessAudit,
+  canAccessContent,
   canAccessLinks,
   canAccessMediaLibrary,
+  canAccessNavigation,
   canAccessPortals,
   canAccessRoles,
   canAccessUnits,
@@ -203,6 +207,10 @@ function renderGlobalNav(session, section) {
     ["portals", "Unidades", "/admin/portais/unidades/", "units", canAccessUnits(session)],
     ["portals", "Imagens", "/admin/portais/media/", "image", canAccessMediaLibrary(session)],
     ["portals", "Links", "/admin/portais/links/", "link", canAccessLinks(session)],
+    ["portals", "Conteudos", "/admin/portais/conteudos/", "content", canAccessContent(session)],
+    ["portals", "Areas", "/admin/portais/areas/", "grid", canAccessAreas(session)],
+    ["portals", "Navegacao", "/admin/portais/navegacao/", "navigation", canAccessNavigation(session)],
+    ["portals", "Auditoria", "/admin/portais/auditoria/", "history", canAccessAudit(session)],
     ["users", "Usuarios", "/admin/usuarios/", "users", canAccessUsers(session)],
     ["roles", "Perfis e permissoes", "/admin/perfis/", "shield", canAccessRoles(session)],
     ["account", "Minha conta", "/admin/minha-conta/", "user", true],
@@ -219,6 +227,7 @@ function renderGlobalNav(session, section) {
 function isActive(href, section) {
   const path = window.location.pathname;
   if (href === "/admin/") return section === "home" && path === "/admin/";
+  if (href === "/admin/portais/") return path === href;
   return path.startsWith(href);
 }
 
@@ -259,6 +268,10 @@ function icon(name) {
     units: '<path d="M5 20V8l7-4 7 4v12"/><path d="M9 20v-6h6v6"/>',
     image: '<path d="M5 5h14v14H5z"/><path d="m7 16 4-4 3 3 2-2 3 3"/><circle cx="9" cy="9" r="1"/>',
     link: '<path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/>',
+    content: '<path d="M6 3h9l3 3v15H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/>',
+    grid: '<rect x="4" y="4" width="6" height="6"/><rect x="14" y="4" width="6" height="6"/><rect x="4" y="14" width="6" height="6"/><rect x="14" y="14" width="6" height="6"/>',
+    navigation: '<circle cx="12" cy="12" r="9"/><path d="m15 9-2 6-6 2 2-6z"/>',
+    history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>',
     users: '<path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.8"/><path d="M16 3.2a4 4 0 0 1 0 7.6"/>',
     shield: '<path d="M12 3 5 6v5c0 5 3 8 7 10 4-2 7-5 7-10V6z"/><path d="m9 12 2 2 4-4"/>',
     user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',

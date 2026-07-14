@@ -35,15 +35,23 @@ function createAssetsBinding() {
         "/erp/room-service/index.html":
           '<!doctype html><html><body data-erp="room-service"><h1>ERP Room Service Fioreze</h1><form id="loginForm"></form><div id="routeOutlet"></div><script type="module" src="/js/modules/room-service-erp/app.js"></script></body></html>',
         "/admin/portais/":
-          '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><div id="portalsDenied"></div><section id="mediaLibrary"></section><section id="unitsManager"></section><section id="shortLinksManager"></section></body></html>',
+          '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><div id="portalsDenied"></div><section id="mediaLibrary"></section><section id="unitsManager"></section><section id="shortLinksManager"></section><section id="contentManager"></section><section id="areasManager"></section><section id="navigationManager"></section><section id="auditManager"></section></body></html>',
         "/admin/portais/index.html":
-          '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><div id="portalsDenied"></div><section id="mediaLibrary"></section><section id="unitsManager"></section><section id="shortLinksManager"></section></body></html>',
+          '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><div id="portalsDenied"></div><section id="mediaLibrary"></section><section id="unitsManager"></section><section id="shortLinksManager"></section><section id="contentManager"></section><section id="areasManager"></section><section id="navigationManager"></section><section id="auditManager"></section></body></html>',
         "/admin/portais/media/":
           '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><section id="mediaLibrary"></section></body></html>',
         "/admin/portais/unidades/":
           '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><section id="unitsManager"></section></body></html>',
         "/admin/portais/links/":
           '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><section id="shortLinksManager"></section></body></html>',
+        "/admin/portais/conteudos/":
+          '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><section id="contentManager"></section></body></html>',
+        "/admin/portais/areas/":
+          '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><section id="areasManager"></section></body></html>',
+        "/admin/portais/navegacao/":
+          '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><section id="navigationManager"></section></body></html>',
+        "/admin/portais/auditoria/":
+          '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><section id="auditManager"></section></body></html>',
         "/admin/usuarios/":
           '<!doctype html><html><body><h1>Central Administrativa Fioreze</h1><form id="loginForm"></form><section id="usersManager"></section></body></html>',
         "/admin/perfis/":
