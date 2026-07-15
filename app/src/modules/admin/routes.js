@@ -19,6 +19,13 @@ import {
   updateAdminHotelEmbed,
 } from "./hotels.js";
 import { archiveAdminMedia, getAdminMedia, listAdminMedia, updateAdminMedia, uploadAdminMedia } from "./media.js";
+import {
+  archiveAdminMediaFolder,
+  createAdminMediaFolder,
+  listAdminMediaFolders,
+  updateAdminMediaFolder,
+} from "./media-folders.js";
+import { getAdminPreferences, updateAdminPreferences } from "./preferences.js";
 import { getAdminOrder, listAdminHotels as listOrderHotels, listAdminOrders, updateAdminOrderStatus } from "./orders.js";
 import {
   createRoomServiceErpOrder,
@@ -154,6 +161,16 @@ export function registerAdminRoutes(router) {
   router.get("/api/v1/admin/me", async ({ request, env }) => {
     const session = await requireAuthentication({ request, env });
     return ok(await getAdminMe({ env, session }));
+  });
+
+  router.get("/api/v1/admin/me/preferences", async ({ request, env }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await getAdminPreferences({ env, session }));
+  });
+
+  router.patch("/api/v1/admin/me/preferences", async ({ request, env }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await updateAdminPreferences({ request, env, session }));
   });
 
   router.post("/api/v1/admin/me/password", async ({ request, env }) => {
@@ -608,6 +625,26 @@ export function registerAdminRoutes(router) {
   router.delete("/api/v1/admin/media/:id", async ({ request, env, params }) => {
     const session = await requireAuthentication({ request, env });
     return ok(await archiveAdminMedia({ request, env, session, assetId: params.id }));
+  });
+
+  router.get("/api/v1/admin/media-folders", async ({ request, env, url }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await listAdminMediaFolders({ env, session, url }));
+  });
+
+  router.post("/api/v1/admin/media-folders", async ({ request, env }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await createAdminMediaFolder({ request, env, session }), { status: 201 });
+  });
+
+  router.patch("/api/v1/admin/media-folders/:id", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await updateAdminMediaFolder({ request, env, session, folderId: params.id }));
+  });
+
+  router.delete("/api/v1/admin/media-folders/:id", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await archiveAdminMediaFolder({ request, env, session, folderId: params.id }));
   });
 
   router.get("/api/v1/admin/short-links", async ({ request, env, url }) => {

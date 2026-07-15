@@ -11,7 +11,9 @@ A Central e o ERP usam a mesma linguagem visual, mas mantem navegacao, usuarios 
 
 ## Identidade
 
-O shell usa o nome `FIOREZE`, superficies brancas, fundo neutro e a cor institucional marrom `#513B2D` como destaque. O simbolo textual `F` permanece como fallback ate a disponibilizacao do asset oficial da marca.
+O shell usa a marca oficial FIOREZE em `/assets/shared/fioreze-central-logo.jpg`, superficies brancas e fundo neutro. O arquivo e uma copia versionada e sanitizada da midia de desenvolvimento aprovada `media_7449a1c9-2575-447d-a782-7b206b186985`. A URL relativa preserva a identidade no Worker local e publicado sem depender de CDN, sessao ou registro D1.
+
+A cor institucional permanece como paleta inicial. O menu da sessao permite que cada usuario escolha uma paleta propria entre `fioreze`, `terracotta`, `forest`, `ocean` e `graphite`. A escolha fica vinculada ao `admin_users.id` no D1, e nao ao navegador ou a unidade selecionada.
 
 ## Tokens
 
@@ -32,6 +34,8 @@ O shell usa o nome `FIOREZE`, superficies brancas, fundo neutro e a cor instituc
 - Navegacao baseada em permissoes;
 - Ajuda contextual;
 - Dialogos de edicao;
+- Seletor pessoal de paleta;
+- Areas de conteudo com rolagem vertical independente do shell;
 - Tabelas responsivas, filtros e estados vazios;
 - Estados de carregamento, erro e acesso negado.
 
@@ -69,3 +73,5 @@ Os controles mantem foco visivel, rotulos, mensagens com regioes vivas, fechamen
 ## Seguranca
 
 As telas respeitam a sessao administrativa, as permissoes e as unidades autorizadas. Senhas temporarias sao exibidas uma unica vez, nunca entram em logs ou auditoria, e as operacoes de escrita usam a protecao administrativa de origem e cabecalho.
+
+A Biblioteca de Imagens aplica o mesmo isolamento por unidade a pastas, subpastas e imagens. Mover um item modifica apenas sua organizacao administrativa e nao altera a URL publica nem o objeto salvo no R2.

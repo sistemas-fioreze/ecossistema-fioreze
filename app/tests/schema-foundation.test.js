@@ -8,6 +8,7 @@ const adminOrdersGuardsMigration = fs.readFileSync("migrations/0007_admin_orders
 const mediaLibraryMigration = fs.readFileSync("migrations/0008_media_library_foundation.sql", "utf8");
 const adminUnitsMigration = fs.readFileSync("migrations/0009_admin_units_management_permissions.sql", "utf8");
 const shortLinksMigration = fs.readFileSync("migrations/0011_short_links_foundation.sql", "utf8");
+const adminPreferencesMediaFoldersMigration = fs.readFileSync("migrations/0017_admin_preferences_media_folders.sql", "utf8");
 const seed = fs.readFileSync("seeds/dev.sql", "utf8");
 const wranglerConfig = JSON.parse(fs.readFileSync("wrangler.jsonc", "utf8"));
 const normalizedMigration = normalize(migration);
@@ -15,6 +16,7 @@ const normalizedAdminOrdersGuardsMigration = normalize(adminOrdersGuardsMigratio
 const normalizedMediaLibraryMigration = normalize(mediaLibraryMigration);
 const normalizedAdminUnitsMigration = normalize(adminUnitsMigration);
 const normalizedShortLinksMigration = normalize(shortLinksMigration);
+const normalizedAdminPreferencesMediaFoldersMigration = normalize(adminPreferencesMediaFoldersMigration);
 
 test("migration 0007 cria service_hours e media_assets", () => {
   assert.match(normalizedMigration, /create table if not exists service_hours/);
@@ -121,6 +123,18 @@ test("migration 0011 adiciona links personalizados e analytics agregada sem dado
   assert.match(normalizedShortLinksMigration, /portals\.links\.read/);
   assert.match(normalizedShortLinksMigration, /portals\.links\.analytics/);
   assert.equal(/user_agent|ip_address|referrer|cookie/i.test(shortLinksMigration), false);
+});
+
+test("migration 0017 separa preferencias por usuario e organiza midias em pastas por hotel", () => {
+  assert.match(normalizedAdminPreferencesMediaFoldersMigration, /create table if not exists admin_user_preferences/);
+  assert.match(normalizedAdminPreferencesMediaFoldersMigration, /user_id text primary key references admin_users\(id\)/);
+  assert.match(normalizedAdminPreferencesMediaFoldersMigration, /color_palette in \('fioreze', 'terracotta', 'forest', 'ocean', 'graphite'\)/);
+  assert.match(normalizedAdminPreferencesMediaFoldersMigration, /create table if not exists media_folders/);
+  assert.match(normalizedAdminPreferencesMediaFoldersMigration, /hotel_id text not null references hotels\(id\)/);
+  assert.match(normalizedAdminPreferencesMediaFoldersMigration, /parent_id text references media_folders\(id\)/);
+  assert.match(normalizedAdminPreferencesMediaFoldersMigration, /alter table media_assets add column folder_id text references media_folders\(id\)/);
+  assert.match(normalizedAdminPreferencesMediaFoldersMigration, /uq_media_folders_active_sibling_name/);
+  assert.match(normalizedAdminPreferencesMediaFoldersMigration, /idx_media_assets_hotel_folder_status/);
 });
 
 function normalize(value) {

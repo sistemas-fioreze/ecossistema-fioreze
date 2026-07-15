@@ -248,52 +248,112 @@
           </section>
 
           <section id="mediaLibrary" class="admin-media-library" hidden>
-            <div class="admin-panel-heading">
+            <div class="admin-panel-heading admin-media-heading">
               <div>
                 <h2>Biblioteca de imagens</h2>
-                <p class="admin-muted">Organize as imagens utilizadas nos portais e servicos de cada unidade.</p>
+                <p class="admin-muted">Organize, localize e reutilize as imagens de cada unidade.</p>
+              </div>
+              <div class="admin-media-heading-actions">
+                <button id="mediaNewFolderButton" type="button" class="admin-drive-button">
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 6h7l2 2h9v11H3z"/><path d="M12 11v5M9.5 13.5h5"/></svg>
+                  Nova pasta
+                </button>
+                <button id="mediaUploadToggle" type="button" class="admin-primary-button">
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 15v5h16v-5"/></svg>
+                  Enviar imagens
+                </button>
               </div>
             </div>
 
-            <form id="mediaFilters" class="admin-filters admin-media-filters">
-              <label>
-                <span>Unidade</span>
-                <select id="mediaHotel" name="hotel_id" required></select>
-              </label>
-              <label>
-                <span>Area do sistema</span>
-                <input id="mediaModule" name="module_key" type="text" inputmode="latin" placeholder="room-service">
-              </label>
-              <label>
-                <span>Status</span>
-                <select id="mediaStatus" name="status">
-                  <option value="active">Ativas</option>
-                  <option value="inactive">Inativas</option>
-                  <option value="archived">Arquivadas</option>
-                </select>
-              </label>
-              <label>
-                <span>Busca</span>
-                <input id="mediaSearch" name="q" type="search" placeholder="arquivo ou texto alternativo">
-              </label>
-              <button type="submit">Filtrar</button>
-            </form>
+            <div class="admin-media-drive">
+              <aside class="admin-media-drive-sidebar" aria-label="Locais da biblioteca">
+                <button id="mediaRootDropTarget" type="button" data-media-root aria-current="page">
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 6h7l2 2h9v11H3z"/></svg>
+                  Todos os arquivos
+                </button>
+                <div class="admin-media-storage-card">
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3 3 8l9 5 9-5z"/><path d="m3 12 9 5 9-5M3 16l9 5 9-5"/></svg>
+                  <span><strong>Biblioteca Fioreze</strong><small>Imagens protegidas no R2</small></span>
+                </div>
+              </aside>
 
-            <form id="mediaUploadForm" class="admin-media-upload" enctype="multipart/form-data" hidden>
-              <label>
-                <span>Imagem</span>
-                <input id="mediaFile" name="file" type="file" accept="image/jpeg,image/png,image/webp,image/avif" required>
-              </label>
-              <label>
-                <span>Texto alternativo</span>
-                <input id="mediaAltText" name="alt_text" type="text" maxlength="300">
-              </label>
-              <button id="mediaUploadButton" class="admin-primary-button" type="submit">Enviar imagem</button>
-              <p id="mediaUploadStatus" class="admin-muted" role="status" aria-live="polite"></p>
-            </form>
+              <div class="admin-media-drive-main">
+                <form id="mediaFilters" class="admin-filters admin-media-filters">
+                  <label>
+                    <span>Unidade</span>
+                    <select id="mediaHotel" name="hotel_id" required></select>
+                  </label>
+                  <label>
+                    <span>Area</span>
+                    <input id="mediaModule" name="module_key" type="text" inputmode="latin" placeholder="Todas as areas">
+                  </label>
+                  <label>
+                    <span>Status</span>
+                    <select id="mediaStatus" name="status">
+                      <option value="active">Ativas</option>
+                      <option value="inactive">Inativas</option>
+                      <option value="archived">Arquivadas</option>
+                    </select>
+                  </label>
+                  <label class="admin-media-search-field">
+                    <span>Buscar</span>
+                    <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+                    <input id="mediaSearch" name="q" type="search" placeholder="Buscar na biblioteca">
+                  </label>
+                  <button type="submit">Filtrar</button>
+                </form>
 
-            <p id="mediaError" class="admin-error" role="alert" aria-live="polite"></p>
-            <div id="mediaGrid" class="admin-media-grid" aria-live="polite"></div>
+                <div class="admin-media-toolbar">
+                  <nav id="mediaBreadcrumbs" class="admin-media-breadcrumbs" aria-label="Caminho da pasta"></nav>
+                  <div class="admin-media-view-options" aria-label="Modo de visualizacao">
+                    <button id="mediaViewGrid" type="button" aria-pressed="true" title="Grade">
+                      <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6"/><rect x="14" y="4" width="6" height="6"/><rect x="4" y="14" width="6" height="6"/><rect x="14" y="14" width="6" height="6"/></svg>
+                    </button>
+                    <button id="mediaViewList" type="button" aria-pressed="false" title="Lista">
+                      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="5" cy="6" r="1"/><circle cx="5" cy="12" r="1"/><circle cx="5" cy="18" r="1"/></svg>
+                    </button>
+                  </div>
+                </div>
+
+                <form id="mediaUploadForm" class="admin-media-upload admin-media-dropzone" enctype="multipart/form-data" hidden>
+                  <input id="mediaFolderId" name="folder_id" type="hidden">
+                  <label class="admin-media-file-drop" for="mediaFile">
+                    <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 15v5h16v-5"/></svg>
+                    <span><strong>Arraste uma imagem para esta area</strong><small>ou clique para escolher JPG, PNG, WebP ou AVIF</small></span>
+                    <input id="mediaFile" name="file" type="file" accept="image/jpeg,image/png,image/webp,image/avif" required>
+                  </label>
+                  <label>
+                    <span>Descricao da imagem</span>
+                    <input id="mediaAltText" name="alt_text" type="text" maxlength="300" placeholder="Ex.: Fachada iluminada da unidade">
+                  </label>
+                  <button id="mediaUploadButton" class="admin-primary-button" type="submit">Enviar para esta pasta</button>
+                  <p id="mediaUploadStatus" class="admin-muted" role="status" aria-live="polite"></p>
+                </form>
+
+                <p id="mediaError" class="admin-error" role="alert" aria-live="polite"></p>
+                <section class="admin-media-section" aria-labelledby="mediaFoldersTitle">
+                  <div class="admin-media-section-heading"><h3 id="mediaFoldersTitle">Pastas</h3><span id="mediaFolderCount"></span></div>
+                  <div id="mediaFolders" class="admin-media-folder-grid" aria-live="polite"></div>
+                </section>
+                <section class="admin-media-section" aria-labelledby="mediaFilesTitle">
+                  <div class="admin-media-section-heading"><h3 id="mediaFilesTitle">Imagens</h3><span id="mediaAssetCount"></span></div>
+                  <div id="mediaGrid" class="admin-media-grid" aria-live="polite"></div>
+                </section>
+              </div>
+            </div>
+
+            <dialog id="mediaFolderDialog" class="admin-media-folder-dialog">
+              <form id="mediaFolderForm" method="dialog">
+                <div class="admin-media-dialog-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 6h7l2 2h9v11H3z"/></svg></div>
+                <div><p class="eyebrow">Biblioteca</p><h3 id="mediaFolderDialogTitle">Nova pasta</h3></div>
+                <label><span>Nome da pasta</span><input id="mediaFolderName" name="name" type="text" maxlength="80" required autocomplete="off"></label>
+                <p id="mediaFolderError" class="admin-error" role="alert"></p>
+                <div class="admin-dialog-actions">
+                  <button type="button" data-media-folder-cancel>Cancelar</button>
+                  <button class="admin-primary-button" type="submit">Salvar pasta</button>
+                </div>
+              </form>
+            </dialog>
           </section>
 
           <section id="contentManager" class="admin-content-manager" hidden>

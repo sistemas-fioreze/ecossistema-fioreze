@@ -179,6 +179,143 @@ test("atualizacao altera somente alt_text e module_key permitidos", async () => 
   assert.equal(env.__data.adminAuditLog.at(-1).action, "media.update");
 });
 
+test("biblioteca cria, navega e renomeia pastas com trilha de navegacao", async () => {
+  const { json, env } = createWorkerTestContext();
+  grantMediaPermissions(env);
+  const cookie = await createSessionCookie(env);
+
+  const root = await createFolder(json, cookie, { name: "Cardapio", hotel_id: "muller-fioreze" });
+  const child = await createFolder(json, cookie, {
+    name: "Pratos principais",
+    hotel_id: "muller-fioreze",
+    parent_id: root.body.data.folder.id,
+  });
+  const rootList = await json("/api/v1/admin/media-folders?hotel_id=muller-fioreze", withCookie(cookie));
+  const childList = await json(
+    `/api/v1/admin/media-folders?hotel_id=muller-fioreze&parent_id=${encodeURIComponent(root.body.data.folder.id)}`,
+    withCookie(cookie),
+  );
+  const renamed = await json(
+    `/api/v1/admin/media-folders/${encodeURIComponent(child.body.data.folder.id)}`,
+    withCookie(cookie, adminJson("PATCH", { name: "Pratos" })),
+  );
+
+  assert.equal(root.response.status, 201);
+  assert.equal(child.response.status, 201);
+  assert.deepEqual(rootList.body.data.folders.map((folder) => folder.name), ["Cardapio"]);
+  assert.deepEqual(childList.body.data.breadcrumbs.map((folder) => folder.name), ["Cardapio"]);
+  assert.deepEqual(childList.body.data.folders.map((folder) => folder.name), ["Pratos principais"]);
+  assert.equal(renamed.body.data.folder.name, "Pratos");
+  assert.equal(env.__data.adminAuditLog.filter((entry) => entry.entity_type === "media_folder").length, 3);
+});
+
+test("pastas rejeitam nomes duplicados e preservam isolamento entre unidades", async () => {
+  const { json, env } = createWorkerTestContext();
+  grantMediaPermissions(env);
+  const mullerCookie = await createSessionCookie(env);
+  const auroraCookie = await createSessionCookie(env, AURORA_USER_ID);
+  const created = await createFolder(json, mullerCookie, { name: "Campanhas", hotel_id: "muller-fioreze" });
+  const duplicate = await createFolder(json, mullerCookie, { name: "campanhas", hotel_id: "muller-fioreze" });
+  const isolated = await json(
+    `/api/v1/admin/media-folders?hotel_id=aurora-demo&parent_id=${encodeURIComponent(created.body.data.folder.id)}`,
+    withCookie(auroraCookie),
+  );
+
+  assert.equal(created.response.status, 201);
+  assert.equal(duplicate.response.status, 409);
+  assert.equal(duplicate.body.error.code, "folder_name_conflict");
+  assert.equal(isolated.response.status, 400);
+  assert.equal(isolated.body.error.code, "bad_request");
+});
+
+test("pastas podem ser reorganizadas por arrastar sem permitir ciclos", async () => {
+  const { json, env } = createWorkerTestContext();
+  grantMediaPermissions(env);
+  const cookie = await createSessionCookie(env);
+  const menu = await createFolder(json, cookie, { name: "Menu", hotel_id: "muller-fioreze" });
+  const photos = await createFolder(json, cookie, { name: "Fotos", hotel_id: "muller-fioreze" });
+  const dishes = await createFolder(json, cookie, {
+    name: "Pratos",
+    hotel_id: "muller-fioreze",
+    parent_id: menu.body.data.folder.id,
+  });
+
+  const moved = await json(
+    `/api/v1/admin/media-folders/${encodeURIComponent(photos.body.data.folder.id)}`,
+    withCookie(cookie, adminJson("PATCH", { parent_id: menu.body.data.folder.id })),
+  );
+  const cycle = await json(
+    `/api/v1/admin/media-folders/${encodeURIComponent(menu.body.data.folder.id)}`,
+    withCookie(cookie, adminJson("PATCH", { parent_id: dishes.body.data.folder.id })),
+  );
+  const nested = await json(
+    `/api/v1/admin/media-folders?hotel_id=muller-fioreze&parent_id=${encodeURIComponent(menu.body.data.folder.id)}`,
+    withCookie(cookie),
+  );
+
+  assert.equal(moved.response.status, 200);
+  assert.deepEqual(moved.body.data.changed_fields, ["parent_id"]);
+  assert.equal(moved.body.data.folder.parent_id, menu.body.data.folder.id);
+  assert.equal(cycle.response.status, 400);
+  assert.deepEqual(nested.body.data.folders.map((folder) => folder.name), ["Fotos", "Pratos"]);
+  assert.equal(env.__data.adminAuditLog.at(-1).action, "media-folder.move");
+});
+
+test("arrastar imagem entre pastas altera somente organizacao e mantem URL e objeto", async () => {
+  const { json, env } = createWorkerTestContext();
+  grantMediaPermissions(env);
+  const cookie = await createSessionCookie(env);
+  const folder = await createFolder(json, cookie, { name: "Restaurante", hotel_id: "muller-fioreze" });
+  const upload = await uploadImage(json, cookie, {
+    file: imageFile(jpegBytes(), "prato.jpg", "image/jpeg"),
+  });
+  const storedBefore = { ...env.__data.mediaAssets.find((entry) => entry.id === upload.body.data.asset.id) };
+
+  const moved = await json(
+    `/api/v1/admin/media/${encodeURIComponent(upload.body.data.asset.id)}`,
+    withCookie(cookie, adminJson("PATCH", { folder_id: folder.body.data.folder.id })),
+  );
+  const rootList = await json("/api/v1/admin/media?hotel_id=muller-fioreze&folder_id=root", withCookie(cookie));
+  const folderList = await json(
+    `/api/v1/admin/media?hotel_id=muller-fioreze&folder_id=${encodeURIComponent(folder.body.data.folder.id)}`,
+    withCookie(cookie),
+  );
+  const storedAfter = env.__data.mediaAssets.find((entry) => entry.id === upload.body.data.asset.id);
+
+  assert.equal(moved.response.status, 200);
+  assert.equal(moved.body.data.asset.folder_id, folder.body.data.folder.id);
+  assert.equal(rootList.body.data.assets.some((entry) => entry.id === upload.body.data.asset.id), false);
+  assert.equal(folderList.body.data.assets.some((entry) => entry.id === upload.body.data.asset.id), true);
+  assert.equal(storedAfter.object_key, storedBefore.object_key);
+  assert.equal(storedAfter.public_url, storedBefore.public_url);
+  assert.equal(env.MEDIA_BUCKET.objects.size, 1);
+});
+
+test("pasta com conteudo nao pode ser arquivada e pasta vazia pode", async () => {
+  const { json, env } = createWorkerTestContext();
+  grantMediaPermissions(env);
+  const cookie = await createSessionCookie(env);
+  const folder = await createFolder(json, cookie, { name: "Eventos", hotel_id: "muller-fioreze" });
+  await uploadImage(json, cookie, {
+    folder_id: folder.body.data.folder.id,
+    file: imageFile(jpegBytes(), "evento.jpg", "image/jpeg"),
+  });
+  const blocked = await json(
+    `/api/v1/admin/media-folders/${encodeURIComponent(folder.body.data.folder.id)}`,
+    withCookie(cookie, adminJson("DELETE", {})),
+  );
+  const empty = await createFolder(json, cookie, { name: "Vazia", hotel_id: "muller-fioreze" });
+  const archived = await json(
+    `/api/v1/admin/media-folders/${encodeURIComponent(empty.body.data.folder.id)}`,
+    withCookie(cookie, adminJson("DELETE", {})),
+  );
+
+  assert.equal(blocked.response.status, 409);
+  assert.equal(blocked.body.error.code, "folder_not_empty");
+  assert.equal(archived.response.status, 200);
+  assert.equal(archived.body.data.archived, true);
+});
+
 test("arquivar e logico, nao deleta objeto R2 e bloqueia publicacao", async () => {
   const { json, fetch, env } = createWorkerTestContext();
   grantMediaPermissions(env);
@@ -286,10 +423,11 @@ test("sessao administrativa e Room Service continuam sem regressao", async () =>
   assert.ok(products.body.data.categories.length > 0);
 });
 
-function uploadImage(json, cookie, { hotel_id = "muller-fioreze", module_key = "room-service", alt_text = "Imagem demo", file }) {
+function uploadImage(json, cookie, { hotel_id = "muller-fioreze", module_key = "room-service", folder_id = "", alt_text = "Imagem demo", file }) {
   const form = new FormData();
   form.set("hotel_id", hotel_id);
   form.set("module_key", module_key);
+  form.set("folder_id", folder_id);
   form.set("alt_text", alt_text);
   form.set("file", file);
   return json("/api/v1/admin/media", {
@@ -302,6 +440,10 @@ function uploadImage(json, cookie, { hotel_id = "muller-fioreze", module_key = "
     },
     body: form,
   });
+}
+
+function createFolder(json, cookie, body) {
+  return json("/api/v1/admin/media-folders", withCookie(cookie, adminJson("POST", body)));
 }
 
 function adminJson(method, body) {

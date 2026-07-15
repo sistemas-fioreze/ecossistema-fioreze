@@ -4,6 +4,7 @@ import { createPublicId, isSafeIdentifier } from "../../core/identifiers.js";
 import { requestNow } from "../../core/time.js";
 import { optionalString, readJson, requireString } from "../../core/validation.js";
 import { assertAdminMutationAllowed, requireAdminHotelAccess, requirePermission } from "../../services/admin-auth.js";
+import { requireFolderInHotel } from "./media-folders.js";
 
 const READ_PERMISSION = "portals.media.read";
 const UPLOAD_PERMISSION = "portals.media.upload";
@@ -34,6 +35,8 @@ export async function uploadAdminMedia({ request, env, session }) {
   const hotelId = requireString(formText(form, "hotel_id"), "hotel_id", { max: 80 });
   requireAdminHotelAccess(session, hotelId);
   const moduleKey = await normalizeModuleKey(env, formText(form, "module_key"));
+  const folderId = normalizeFolderId(formText(form, "folder_id"));
+  if (folderId) await requireFolderInHotel(env, hotelId, folderId);
   const altText = optionalString(formText(form, "alt_text"), "alt_text", { max: 300 }) || null;
   const file = form.get("file");
   const validated = await validateImageFile(file);
@@ -71,15 +74,16 @@ export async function uploadAdminMedia({ request, env, session }) {
       statement(
         env,
         `INSERT INTO media_assets (
-           id, hotel_id, module_key, storage_provider, object_key, public_url,
+           id, hotel_id, module_key, folder_id, storage_provider, object_key, public_url,
            alt_text, mime_type, status, created_at, updated_at, archived_at,
            original_filename, size_bytes, checksum_sha256, storage_etag,
            uploaded_by_user_id, archived_by_user_id
-         ) VALUES (?, ?, ?, 'r2', ?, ?, ?, ?, 'active', ?, ?, NULL, ?, ?, ?, ?, ?, NULL)`,
+         ) VALUES (?, ?, ?, ?, 'r2', ?, ?, ?, ?, 'active', ?, ?, NULL, ?, ?, ?, ?, ?, NULL)`,
         [
           assetId,
           hotelId,
           moduleKey,
+          folderId,
           objectKey,
           publicUrl,
           altText,
@@ -116,6 +120,7 @@ export async function uploadAdminMedia({ request, env, session }) {
       id: assetId,
       hotel_id: hotelId,
       module_key: moduleKey,
+      folder_id: folderId,
       public_url: publicUrl,
       alt_text: altText,
       mime_type: validated.mimeType,
@@ -140,6 +145,8 @@ export async function listAdminMedia({ env, session, url }) {
   const moduleKey = optionalModuleKeyForQuery(url.searchParams.get("module_key"));
   const status = optionalString(url.searchParams.get("status"), "status", { max: 40 }) || "active";
   const search = optionalString(url.searchParams.get("q"), "q", { max: 120 });
+  const folderFilterRequested = url.searchParams.has("folder_id");
+  const folderId = folderFilterRequested ? normalizeFolderId(url.searchParams.get("folder_id")) : null;
   const limit = parsePaginationInteger(url.searchParams.get("limit"), { defaultValue: 24, max: 60 });
   const offset = parsePaginationInteger(url.searchParams.get("offset"), { defaultValue: 0, max: 10000 });
 
@@ -151,6 +158,15 @@ export async function listAdminMedia({ env, session, url }) {
     filters.push("module_key = ?");
     params.push(moduleKey);
   }
+  if (folderFilterRequested) {
+    if (folderId) {
+      await requireFolderInHotel(env, hotelId, folderId);
+      filters.push("folder_id = ?");
+      params.push(folderId);
+    } else {
+      filters.push("folder_id IS NULL");
+    }
+  }
   if (search) {
     filters.push("(lower(coalesce(original_filename, '')) LIKE ? OR lower(coalesce(alt_text, '')) LIKE ?)");
     const like = `%${search.toLowerCase()}%`;
@@ -160,7 +176,7 @@ export async function listAdminMedia({ env, session, url }) {
 
   const rows = await all(
     env,
-    `SELECT id, hotel_id, module_key, public_url, alt_text, mime_type,
+    `SELECT id, hotel_id, module_key, folder_id, public_url, alt_text, mime_type,
             status, created_at, updated_at, archived_at, original_filename,
             size_bytes, checksum_sha256, storage_etag, uploaded_by_user_id,
             archived_by_user_id
@@ -196,12 +212,13 @@ export async function updateAdminMedia({ request, env, session, assetId }) {
   if (current.status === "archived") throw badRequest("Midia arquivada nao pode ser alterada.");
 
   const payload = await readJson(request);
-  const allowedFields = new Set(["alt_text", "module_key"]);
+  const allowedFields = new Set(["alt_text", "module_key", "folder_id"]);
   const unknownFields = Object.keys(payload).filter((key) => !allowedFields.has(key));
   if (unknownFields.length) throw badRequest("Campos de midia nao permitidos.", { fields: unknownFields });
 
   let nextAltText = current.alt_text || null;
   let nextModuleKey = current.module_key || null;
+  let nextFolderId = current.folder_id || null;
   const changedFields = [];
 
   if (Object.hasOwn(payload, "alt_text")) {
@@ -212,6 +229,12 @@ export async function updateAdminMedia({ request, env, session, assetId }) {
   if (Object.hasOwn(payload, "module_key")) {
     nextModuleKey = await normalizeModuleKey(env, payload.module_key);
     if (nextModuleKey !== (current.module_key || null)) changedFields.push("module_key");
+  }
+
+  if (Object.hasOwn(payload, "folder_id")) {
+    nextFolderId = normalizeFolderId(payload.folder_id);
+    if (nextFolderId) await requireFolderInHotel(env, current.hotel_id, nextFolderId);
+    if (nextFolderId !== (current.folder_id || null)) changedFields.push("folder_id");
   }
 
   if (!changedFields.length) {
@@ -225,11 +248,12 @@ export async function updateAdminMedia({ request, env, session, assetId }) {
       `UPDATE media_assets
           SET alt_text = ?,
               module_key = ?,
+              folder_id = ?,
               updated_at = ?
         WHERE id = ?
           AND hotel_id = ?
           AND status <> 'archived'`,
-      [nextAltText, nextModuleKey, now, current.id, current.hotel_id],
+      [nextAltText, nextModuleKey, nextFolderId, now, current.id, current.hotel_id],
     ),
     auditStatement(env, {
       hotelId: current.hotel_id,
@@ -318,7 +342,7 @@ async function loadMediaForSession(env, session, assetId) {
   const placeholders = session.hotel_ids.map(() => "?").join(", ");
   return first(
     env,
-    `SELECT id, hotel_id, module_key, public_url, alt_text, mime_type,
+    `SELECT id, hotel_id, module_key, folder_id, public_url, alt_text, mime_type,
             status, created_at, updated_at, archived_at, original_filename,
             size_bytes, checksum_sha256, storage_etag, uploaded_by_user_id,
             archived_by_user_id
@@ -348,6 +372,13 @@ function optionalModuleKeyForQuery(value) {
     throw badRequest("module_key invalido.");
   }
   return moduleKey;
+}
+
+function normalizeFolderId(value) {
+  if (value == null || value === "" || value === "root") return null;
+  const folderId = requireString(value, "folder_id", { max: 100 });
+  if (!folderId.startsWith("folder_")) throw badRequest("folder_id invalido.");
+  return folderId;
 }
 
 function selectHotelForList(session, requestedHotelId) {
@@ -512,6 +543,7 @@ export function formatMediaAsset(row) {
     id: row.id,
     hotel_id: row.hotel_id,
     module_key: row.module_key || null,
+    folder_id: row.folder_id || null,
     public_url: row.public_url,
     alt_text: row.alt_text || null,
     mime_type: row.mime_type || null,
