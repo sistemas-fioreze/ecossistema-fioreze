@@ -51,6 +51,7 @@ const HELP_CONTENT = {
 
 export function createAdminAuthView({ onAuthenticated }) {
   document.body.dataset.adminShell = "erp";
+  document.body.dataset.adminPalette = "fioreze";
   const els = {
     app: document.getElementById("adminApp"),
     loginView: document.querySelector('[data-view="login"]'),
@@ -106,6 +107,7 @@ export function createAdminAuthView({ onAuthenticated }) {
 
   async function handleLogout() {
     await adminApi("/api/v1/admin/logout", { method: "POST", body: {} }).catch(() => null);
+    applyAdminPalette("fioreze");
     showView("login");
   }
 
@@ -149,19 +151,18 @@ function enhanceAdminExperience(session) {
     "afterbegin",
     `
       <aside class="admin-global-sidebar" data-admin-sidebar aria-label="Navegacao administrativa">
-        <a class="admin-brand-lockup" href="/admin/" aria-label="Ir para o inicio da Central Administrativa">
-          <span class="admin-brand-wordmark"><img src="${ADMIN_LOGO_URL}" alt="Fioreze Hoteis"></span>
-          <span class="admin-brand-symbol" aria-hidden="true"><img src="${ADMIN_LOGO_URL}" alt=""></span>
-        </a>
-        ${renderGlobalNav(session, section)}
-        <div class="admin-sidebar-footer">
-          <a class="admin-sidebar-account" href="/admin/minha-conta/" title="Minha conta">
-            ${renderAvatar(session?.user, userName)}
-            <span><strong>${escapeHtml(userName)}</strong><small>Minha conta</small></span>
+        <div class="admin-sidebar-head">
+          <button class="admin-shell-toggle admin-shell-toggle-sidebar" type="button" data-admin-shell-toggle aria-label="Recolher menu" title="Recolher menu">${icon("menu")}</button>
+          <a class="admin-brand-lockup" href="/admin/" aria-label="Ir para o inicio da Central Administrativa">
+            <span class="admin-brand-wordmark"><img src="${ADMIN_LOGO_URL}" alt="Fioreze Hoteis" loading="eager" decoding="async"></span>
           </a>
         </div>
+        ${renderGlobalNav(session, section)}
       </aside>
       <div class="admin-mobile-backdrop" data-admin-backdrop hidden></div>
+      <div class="admin-content-loader" data-admin-content-loader hidden aria-live="polite" aria-busy="true">
+        <div><span class="admin-modern-spinner" aria-hidden="true"></span><strong>Atualizando conteudo...</strong></div>
+      </div>
       <aside class="admin-help-drawer" data-admin-help hidden aria-label="Ajuda desta pagina">
         <div>
           <strong>${escapeHtml(HELP_CONTENT[section]?.title || "Ajuda desta pagina")}</strong>
@@ -182,7 +183,7 @@ function enhanceAdminExperience(session) {
     }
     topbar.insertAdjacentHTML(
       "afterbegin",
-      `<button class="admin-shell-toggle" type="button" data-admin-shell-toggle aria-label="Recolher menu" title="Recolher menu">${icon("menu")}</button>`,
+      `<button class="admin-shell-toggle admin-shell-toggle-mobile" type="button" data-admin-shell-toggle aria-label="Abrir menu" title="Abrir menu">${icon("menu")}</button>`,
     );
 
     const sessionBox = topbar.querySelector(".admin-session-box");
@@ -191,6 +192,7 @@ function enhanceAdminExperience(session) {
         <label>${icon("search")}<input type="search" placeholder="Pesquisar no sistema..." aria-label="Pesquisar no sistema" autocomplete="off"><kbd>Ctrl K</kbd></label>
         <div class="admin-command-results" data-admin-search-results hidden></div>
       </div>
+      <button class="admin-icon-button" type="button" data-admin-refresh aria-label="Atualizar esta tela" title="Atualizar">${icon("refresh")}</button>
       <button class="admin-icon-button" type="button" data-admin-help-open aria-label="Abrir ajuda desta pagina" title="Ajuda">${icon("help")}</button>
     `;
     if (sessionBox) sessionBox.insertAdjacentHTML("beforebegin", controls);
@@ -211,10 +213,16 @@ function enhanceAdminExperience(session) {
     if (event.target.closest("[data-admin-backdrop]")) setMenuOpen(false);
     if (event.target.closest("[data-admin-help-open]")) setHelpOpen(true);
     if (event.target.closest("[data-admin-help-close]")) setHelpOpen(false);
+    if (event.target.closest("[data-admin-refresh]")) requestContentRefresh();
     if (event.target.closest("[data-admin-session-toggle]")) setSessionOpen(!sessionBox?.classList.contains("is-open"));
     const paletteButton = event.target.closest("[data-admin-palette]");
     if (paletteButton) void savePalettePreference(paletteButton.dataset.adminPalette, session, sessionBox);
     if (!event.target.closest(".admin-session-box")) setSessionOpen(false);
+  });
+  dashboard.addEventListener("click", (event) => {
+    const link = event.target.closest('a[href^="/admin/"]');
+    if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    if (new URL(link.href, window.location.origin).pathname !== window.location.pathname) setContentLoading(true);
   });
   dashboard.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
@@ -222,6 +230,9 @@ function enhanceAdminExperience(session) {
       setHelpOpen(false);
       setSessionOpen(false);
     }
+  });
+  dashboard.addEventListener("fioreze:admin-content-loading", (event) => {
+    setContentLoading(Boolean(event.detail?.loading));
   });
 
   function setMenuOpen(open) {
@@ -232,8 +243,7 @@ function enhanceAdminExperience(session) {
 
   function setCompact(compact, persist = true) {
     dashboard.classList.toggle("is-sidebar-compact", compact);
-    const toggle = dashboard.querySelector("[data-admin-shell-toggle]");
-    if (toggle) {
+    for (const toggle of dashboard.querySelectorAll("[data-admin-shell-toggle]")) {
       const label = compact ? "Expandir menu" : "Recolher menu";
       toggle.setAttribute("aria-label", label);
       toggle.title = label;
@@ -259,6 +269,32 @@ function enhanceAdminExperience(session) {
     sessionBox.classList.toggle("is-open", open);
     sessionBox.querySelector("[data-admin-session-menu]")?.toggleAttribute("hidden", !open);
     sessionBox.querySelector("[data-admin-session-toggle]")?.setAttribute("aria-expanded", String(open));
+  }
+
+  function requestContentRefresh() {
+    setContentLoading(true);
+    let finished = false;
+    const complete = () => {
+      if (finished) return;
+      finished = true;
+      window.clearTimeout(fallbackTimer);
+      setContentLoading(false);
+    };
+    const fallbackTimer = window.setTimeout(complete, 12000);
+    const refreshEvent = new CustomEvent("fioreze:admin-refresh", {
+      bubbles: true,
+      cancelable: true,
+      detail: { complete },
+    });
+    dashboard.dispatchEvent(refreshEvent);
+    if (!refreshEvent.defaultPrevented) window.location.reload();
+  }
+
+  function setContentLoading(loading) {
+    const loader = dashboard.querySelector("[data-admin-content-loader]");
+    if (!loader) return;
+    loader.hidden = !loading;
+    loader.setAttribute("aria-busy", String(loading));
   }
 }
 
@@ -409,7 +445,7 @@ function renderGlobalNav(session, section) {
     ["home", "Inicio", "/admin/", "home", true],
     ["portals", "Portais", "/admin/portais/", "portal", canAccessPortals(session)],
     ["portals", "Unidades", "/admin/portais/unidades/", "units", canAccessUnits(session)],
-    ["portals", "Imagens", "/admin/portais/media/", "image", canAccessMediaLibrary(session)],
+    ["portals", "Midia", "/admin/portais/media/", "image", canAccessMediaLibrary(session)],
     ["portals", "Links", "/admin/portais/links/", "link", canAccessLinks(session)],
     ["portals", "Conteudos", "/admin/portais/conteudos/", "content", canAccessContent(session)],
     ["portals", "Areas", "/admin/portais/areas/", "grid", canAccessAreas(session)],
@@ -468,6 +504,7 @@ function icon(name) {
     close: '<path d="m6 6 12 12M18 6 6 18"/>',
     help: '<path d="M9.5 9a2.5 2.5 0 1 1 4.7 1.2c-.8 1.1-2.2 1.2-2.2 2.8"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="9"/>',
     search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
+    refresh: '<path d="M20 6v5h-5"/><path d="M4 18v-5h5"/><path d="M6.1 8a7 7 0 0 1 11.6-2L20 8M4 16l2.3 2a7 7 0 0 0 11.6-2"/>',
     chevron: '<path d="m9 10 3 3 3-3"/>',
     logout: '<path d="M10 5H5v14h5M13 8l4 4-4 4M17 12H9"/>',
     home: '<path d="m4 11 8-7 8 7"/><path d="M6 10v10h12V10"/>',

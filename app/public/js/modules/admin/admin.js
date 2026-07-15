@@ -6,6 +6,7 @@ import { renderRolesManager, renderUsersManager } from "./central-management.js"
 
 const section = currentSection();
 document.body.dataset.adminSection = section;
+let currentSession = null;
 
 const els = {
   welcomeTitle: document.getElementById("welcomeTitle"),
@@ -34,11 +35,18 @@ const els = {
 
 const auth = createAdminAuthView({
   onAuthenticated(session) {
-    renderLauncher(session);
+    currentSession = session;
+    return renderLauncher(session);
   },
 });
 
 auth.boot();
+
+window.addEventListener("fioreze:admin-refresh", (event) => {
+  if (!currentSession) return;
+  event.preventDefault();
+  Promise.resolve(renderLauncher(currentSession)).finally(() => event.detail?.complete?.());
+});
 
 function renderLauncher(session) {
   setPanelVisibility(section);

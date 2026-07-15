@@ -3,20 +3,20 @@
 O Ecossistema Fioreze separa metadados e binarios:
 
 - D1 guarda registros em `media_assets` e a organizacao em `media_folders`;
-- R2 guarda os binarios enviados pela Biblioteca de Imagens;
+- R2 guarda os binarios enviados pela Biblioteca de Midia;
 - Static Assets guarda somente arquivos versionados e sanitizados em `app/public/assets/`;
-- `/media/:id` entrega uma imagem ativa sem expor o `object_key` do R2.
+- `/media/:id` entrega uma imagem ou video ativo sem expor o `object_key` do R2.
 
 ## Regras
 
 - cada registro pertence a um `hotel_id` quando aplicavel;
 - pastas e subpastas nunca podem misturar hoteis;
 - o Worker gera `object_key`, `asset_id` e `public_url`;
-- mover imagens entre pastas altera somente `folder_id`;
+- mover arquivos entre pastas altera somente `folder_id`;
 - mover pastas valida a cadeia de pais e bloqueia ciclos;
-- arquivar uma imagem nao apaga automaticamente o objeto R2;
-- pastas com imagens ou subpastas ativas nao podem ser arquivadas;
-- D1 nunca armazena o corpo binario da imagem;
+- excluir na interface arquiva o registro e nao apaga automaticamente o objeto R2;
+- pastas com arquivos ou subpastas ativas nao podem ser excluidas;
+- D1 nunca armazena o corpo binario da midia;
 - credenciais, imagens privadas e arquivos com dados de hospedes nao podem ser versionados.
 
 ## Caminhos E URLs
@@ -37,10 +37,10 @@ A pasta administrativa nao faz parte desses caminhos. Assim, reorganizar a bibli
 
 ## Permissoes
 
-- `portals.media.read`: visualizar imagens e pastas;
-- `portals.media.upload`: enviar imagens;
-- `portals.media.update`: editar metadados e organizar imagens e pastas;
-- `portals.media.archive`: arquivar imagens.
+- `portals.media.read`: visualizar arquivos e pastas;
+- `portals.media.upload`: enviar imagens e videos;
+- `portals.media.update`: editar metadados e organizar arquivos e pastas;
+- `portals.media.archive`: mover arquivos para a lixeira logica.
 
 Todas as mutacoes exigem sessao, acesso explicito ao hotel e as protecoes administrativas de origem e cabecalho.
 
@@ -57,6 +57,6 @@ O servico em `app/src/services/media-service.js` rejeita URL remota como padrao 
 - redimensionamento e variantes responsivas;
 - compressao e remocao controlada de metadados EXIF;
 - selecao multipla e operacoes em lote;
-- lixeira com politica de retencao;
+- restauracao visual e politica de retencao da lixeira;
 - regras de lifecycle no R2;
 - dominios de midia dedicados, mantendo o bucket privado.

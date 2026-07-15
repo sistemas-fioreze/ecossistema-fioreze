@@ -123,6 +123,9 @@ function renderUserRow(user) {
   if (hasPermission(state.session, PERMISSIONS.usersSessionsRevoke)) {
     actions.push(actionButton("Encerrar sessoes", "revoke-user", user.id, "logout"));
   }
+  if (hasPermission(state.session, PERMISSIONS.usersDisable) && user.id !== state.session?.user?.id) {
+    actions.push(actionButton("Remover usuario", "remove-user", user.id, "trash", "danger"));
+  }
   return `
     <article class="admin-data-row admin-management-row">
       <span class="admin-avatar">${escapeHtml(initials(user.display_name))}</span>
@@ -139,6 +142,7 @@ function renderUserRow(user) {
 
 function renderRoleRow(role) {
   const edit = hasPermission(state.session, PERMISSIONS.rolesUpdate) || hasPermission(state.session, PERMISSIONS.rolesPermissions);
+  const removable = hasPermission(state.session, PERMISSIONS.rolesUpdate) && Number(role.user_count || 0) === 0 && !["demo-manager", "erp-master"].includes(role.role_key);
   return `
     <article class="admin-data-row admin-management-row">
       <span class="admin-role-icon">${icon("shield")}</span>
@@ -148,7 +152,7 @@ function renderRoleRow(role) {
         <small>${role.permissions.length} permissao(oes) · ${Number(role.user_count || 0)} usuario(s)</small>
       </div>
       <div class="admin-permission-preview">${role.permissions.slice(0, 3).map((item) => `<span>${escapeHtml(item.label || item.permission_key)}</span>`).join("")}</div>
-      <div class="admin-row-actions">${edit ? actionButton("Editar", "edit-role", role.id, "edit") : ""}</div>
+      <div class="admin-row-actions">${edit ? actionButton("Editar", "edit-role", role.id, "edit") : ""}${removable ? actionButton("Remover perfil", "remove-role", role.id, "trash", "danger") : ""}</div>
     </article>`;
 }
 
@@ -162,16 +166,18 @@ async function handleUserAction(event) {
   if (action === "disable-user" && !window.confirm(`Desativar o acesso de ${user.display_name}?`)) return;
   if (action === "reset-user" && !window.confirm(`Gerar uma nova senha temporaria para ${user.display_name}?`)) return;
   if (action === "revoke-user" && !window.confirm(`Encerrar todas as sessoes de ${user.display_name}?`)) return;
+  if (action === "remove-user" && !window.confirm(`Remover o acesso de ${user.display_name}? O historico administrativo sera preservado.`)) return;
   const paths = {
     "disable-user": `/api/v1/admin/users/${encodeURIComponent(user.id)}/disable`,
     "activate-user": `/api/v1/admin/users/${encodeURIComponent(user.id)}/activate`,
     "reset-user": `/api/v1/admin/users/${encodeURIComponent(user.id)}/password-reset`,
     "revoke-user": `/api/v1/admin/users/${encodeURIComponent(user.id)}/sessions/revoke`,
+    "remove-user": `/api/v1/admin/users/${encodeURIComponent(user.id)}`,
   };
   if (!paths[action]) return;
   button.disabled = true;
   try {
-    const payload = await adminApi(paths[action], { method: "POST", body: {} });
+    const payload = await adminApi(paths[action], { method: action === "remove-user" ? "DELETE" : "POST", body: {} });
     if (payload.data.temporary_password) showTemporaryPassword(payload.data.temporary_password, user.display_name);
     if (action === "revoke-user") window.alert(`${payload.data.revoked_sessions || 0} sessao(oes) encerrada(s).`);
     await loadUsers();
@@ -232,10 +238,25 @@ async function saveUser(event, user) {
 }
 
 async function handleRoleAction(event) {
-  const button = event.target.closest('[data-admin-action="edit-role"]');
+  const button = event.target.closest("[data-admin-action]");
   if (!button) return;
   const role = state.roles.find((item) => item.id === button.dataset.id);
-  if (role) openRoleEditor(role);
+  if (!role) return;
+  if (button.dataset.adminAction === "edit-role") {
+    openRoleEditor(role);
+    return;
+  }
+  if (button.dataset.adminAction !== "remove-role") return;
+  if (!window.confirm(`Remover o perfil "${role.name}"? Esta acao nao pode ser desfeita.`)) return;
+  button.disabled = true;
+  try {
+    await adminApi(`/api/v1/admin/roles/${encodeURIComponent(role.id)}`, { method: "DELETE", body: {} });
+    await renderRolesManager(state.session);
+  } catch (error) {
+    window.alert(error.message || "Nao foi possivel remover o perfil.");
+  } finally {
+    button.disabled = false;
+  }
 }
 
 function openRoleEditor(role = null) {
@@ -324,8 +345,8 @@ function checkbox(name, value, label, checked, description = "") {
   return `<label class="admin-choice"><input type="checkbox" name="${escapeAttr(name)}" value="${escapeAttr(value)}" ${checked ? "checked" : ""}><span><strong>${escapeHtml(label)}</strong>${description ? `<small>${escapeHtml(description)}</small>` : ""}</span></label>`;
 }
 
-function actionButton(label, action, id, iconName) {
-  return `<button type="button" data-admin-action="${escapeAttr(action)}" data-id="${escapeAttr(id)}" title="${escapeAttr(label)}">${icon(iconName)}<span>${escapeHtml(label)}</span></button>`;
+function actionButton(label, action, id, iconName, className = "") {
+  return `<button class="${escapeAttr(className)}" type="button" data-admin-action="${escapeAttr(action)}" data-id="${escapeAttr(id)}" title="${escapeAttr(label)}">${icon(iconName)}<span>${escapeHtml(label)}</span></button>`;
 }
 
 function icon(name) {
@@ -335,6 +356,7 @@ function icon(name) {
     play: '<path d="m5 3 14 9-14 9z"/>',
     key: '<circle cx="8" cy="15" r="4"/><path d="m11 12 8-8M15 8l2 2M17 6l2 2"/>',
     logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
+    trash: '<path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/>',
     shield: '<path d="M12 3 5 6v5c0 5 3 8 7 10 4-2 7-5 7-10V6z"/><path d="m9 12 2 2 4-4"/>',
   };
   return `<svg class="admin-svg-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[name] || paths.edit}</svg>`;

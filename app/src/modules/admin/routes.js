@@ -75,8 +75,10 @@ import {
 } from "./short-links.js";
 import {
   changeOwnPassword,
+  archiveAdminUser,
   createAdminRole,
   createAdminUser,
+  deleteAdminRole,
   deleteOwnAvatar,
   getAdminMe,
   getAdminRole,
@@ -235,6 +237,11 @@ export function registerAdminRoutes(router) {
     return ok(await updateAdminUser({ request, env, session, userId: params.id }));
   });
 
+  router.delete("/api/v1/admin/users/:id", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await archiveAdminUser({ request, env, session, userId: params.id }));
+  });
+
   router.post("/api/v1/admin/users/:id/disable", async ({ request, env, params }) => {
     const session = await requireAuthentication({ request, env });
     return ok(await setAdminUserStatus({ request, env, session, userId: params.id, status: "disabled" }));
@@ -273,6 +280,11 @@ export function registerAdminRoutes(router) {
   router.patch("/api/v1/admin/roles/:id", async ({ request, env, params }) => {
     const session = await requireAuthentication({ request, env });
     return ok(await updateAdminRole({ request, env, session, roleId: params.id }));
+  });
+
+  router.delete("/api/v1/admin/roles/:id", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await deleteAdminRole({ request, env, session, roleId: params.id }));
   });
 
   router.patch("/api/v1/admin/roles/:id/permissions", async ({ request, env, params }) => {

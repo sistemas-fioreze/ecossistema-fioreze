@@ -35,6 +35,8 @@ A cor institucional permanece como paleta inicial. O menu da sessao permite que 
 - Ajuda contextual;
 - Dialogos de edicao;
 - Seletor pessoal de paleta;
+- Marca estatica no login e carregamento moderno;
+- Atualizacao manual por tela com carregamento limitado a area de conteudo;
 - Areas de conteudo com rolagem vertical independente do shell;
 - Tabelas responsivas, filtros e estados vazios;
 - Estados de carregamento, erro e acesso negado.
@@ -44,7 +46,7 @@ A cor institucional permanece como paleta inicial. O menu da sessao permite que 
 A Central Administrativa oferece fluxos funcionais para:
 
 - Unidades, identidade, configuracoes e incorporacao;
-- Biblioteca de imagens;
+- Biblioteca de midia com imagens, videos, pastas e indicador de armazenamento;
 - Links personalizados;
 - Conteudos, paginas, secoes, eventos e informacoes;
 - Areas habilitadas por unidade;
@@ -54,6 +56,8 @@ A Central Administrativa oferece fluxos funcionais para:
 - Auditoria administrativa;
 - Minha conta e avatar.
 
+Usuarios podem ser removidos sem apagar o historico: a conta e arquivada, as sessoes sao revogadas e os vinculos ativos sao encerrados. Perfis sem usuarios podem ser excluidos, enquanto perfis administrativos protegidos permanecem bloqueados contra remocao.
+
 ## Linguagem
 
 A interface principal prefere termos de operacao:
@@ -61,7 +65,7 @@ A interface principal prefere termos de operacao:
 - Hotel -> Unidade;
 - Modulo -> Area;
 - Slug -> Endereco personalizado;
-- Asset -> Imagem;
+- Asset -> Arquivo ou midia;
 - Permission denied -> Voce nao tem acesso a esta funcao.
 
 IDs internos e chaves tecnicas ficam restritos a campos de configuracao ou suporte.
@@ -74,4 +78,4 @@ Os controles mantem foco visivel, rotulos, mensagens com regioes vivas, fechamen
 
 As telas respeitam a sessao administrativa, as permissoes e as unidades autorizadas. Senhas temporarias sao exibidas uma unica vez, nunca entram em logs ou auditoria, e as operacoes de escrita usam a protecao administrativa de origem e cabecalho.
 
-A Biblioteca de Imagens aplica o mesmo isolamento por unidade a pastas, subpastas e imagens. Mover um item modifica apenas sua organizacao administrativa e nao altera a URL publica nem o objeto salvo no R2.
+A Biblioteca de Midia aplica o mesmo isolamento por unidade a pastas, subpastas, imagens e videos. Mover um item modifica apenas sua organizacao administrativa e nao altera a URL publica nem o objeto salvo no R2.

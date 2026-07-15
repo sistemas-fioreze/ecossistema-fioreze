@@ -35,6 +35,7 @@ const AVATAR_TYPES = {
   "image/avif": { extension: "avif" },
 };
 const ACTIVE_STATUS = new Set(["active", "disabled"]);
+const PROTECTED_ROLE_KEYS = new Set(["demo-manager", "erp-master"]);
 const ROLE_GROUPS = [
   ["room-service.", "Pedidos"],
   ["portals.media.", "Imagens"],
@@ -79,6 +80,7 @@ export async function listAdminUsers({ env, session, url }) {
 
   const users = rows
     .map(formatUserRow)
+    .filter((user) => user.status !== "archived")
     .filter((user) => !search || [user.display_name, user.email].some((value) => value.toLowerCase().includes(search)))
     .filter((user) => !status || user.status === status)
     .filter((user) => !roleId || user.roles.some((role) => role.id === roleId))
@@ -275,6 +277,38 @@ export async function revokeAdminUserSessions({ request, env, session, userId })
   return { revoked_sessions: result?.meta?.changes || 0 };
 }
 
+export async function archiveAdminUser({ request, env, session, userId }) {
+  requirePermission(session, ADMIN_USERS_DISABLE);
+  assertAdminMutationAllowed({ request });
+  if (userId === session.user.id) throw conflict("Voce nao pode remover a propria conta.");
+  const current = await getUserBase(env, userId);
+  if (!current) throw notFoundError("Usuario administrativo nao encontrado.");
+  if (current.status === "archived") return { user_id: userId, removed: false };
+  await assertNotLastEffectiveAdmin(env, userId);
+  const now = requestNow({ request, env });
+  await batch(env, [
+    statement(
+      env,
+      `UPDATE admin_users
+          SET status = 'archived', archived_at = ?, updated_at = ?
+        WHERE id = ? AND status <> 'archived'`,
+      [now, now, userId],
+    ),
+    statement(env, `UPDATE admin_sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL`, [now, userId]),
+    statement(env, `DELETE FROM admin_user_roles WHERE user_id = ?`, [userId]),
+    statement(env, `DELETE FROM admin_hotel_access WHERE user_id = ?`, [userId]),
+    auditStatement(env, {
+      actorUserId: session.user.id,
+      action: "admin-user.archive",
+      entityType: "admin_user",
+      entityId: userId,
+      metadata: { status: "archived" },
+      createdAt: now,
+    }),
+  ]);
+  return { user_id: userId, removed: true };
+}
+
 export async function listAdminRoles({ env, session }) {
   requirePermission(session, ADMIN_ROLES_READ);
   const roles = await all(
@@ -387,6 +421,30 @@ export async function updateAdminRolePermissions({ request, env, session, roleId
   }
   await batch(env, statements);
   return { role: (await getAdminRole({ env, session, roleId })).role };
+}
+
+export async function deleteAdminRole({ request, env, session, roleId }) {
+  requirePermission(session, ADMIN_ROLES_UPDATE);
+  assertAdminMutationAllowed({ request });
+  const role = await first(env, `SELECT id, role_key, name FROM admin_roles WHERE id = ? LIMIT 1`, [roleId]);
+  if (!role) throw notFoundError("Perfil nao encontrado.");
+  if (PROTECTED_ROLE_KEYS.has(role.role_key)) throw conflict("Este perfil administrativo e protegido.");
+  const usage = await first(env, `SELECT COUNT(*) AS user_count FROM admin_user_roles WHERE role_id = ?`, [roleId]);
+  if (Number(usage?.user_count || 0) > 0) throw conflict("Remova este perfil dos usuarios antes de exclui-lo.");
+  const now = requestNow({ request, env });
+  await batch(env, [
+    statement(env, `DELETE FROM admin_role_permissions WHERE role_id = ?`, [roleId]),
+    statement(env, `DELETE FROM admin_roles WHERE id = ?`, [roleId]),
+    auditStatement(env, {
+      actorUserId: session.user.id,
+      action: "admin-role.delete",
+      entityType: "admin_role",
+      entityId: roleId,
+      metadata: { role_key: role.role_key },
+      createdAt: now,
+    }),
+  ]);
+  return { role_id: roleId, removed: true };
 }
 
 export async function listAdminPermissions({ env, session }) {

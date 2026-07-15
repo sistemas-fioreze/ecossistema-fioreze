@@ -1148,8 +1148,9 @@
 }
 
 .admin-media-storage-card {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: start;
   gap: 10px;
   margin-top: auto;
   padding: 12px;
@@ -1172,6 +1173,33 @@
 .admin-media-storage-card small {
   margin-top: 3px;
   font-size: 0.68rem;
+}
+
+.admin-media-storage-card progress {
+  width: 100%;
+  height: 6px;
+  display: block;
+  margin: 9px 0 6px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  background: var(--color-border);
+  color: var(--color-primary);
+}
+
+.admin-media-storage-card progress::-webkit-progress-bar {
+  border-radius: 999px;
+  background: var(--color-border);
+}
+
+.admin-media-storage-card progress::-webkit-progress-value {
+  border-radius: 999px;
+  background: var(--color-primary);
+}
+
+.admin-media-storage-card progress::-moz-progress-bar {
+  border-radius: 999px;
+  background: var(--color-primary);
 }
 
 .admin-media-drive-main {
@@ -1487,6 +1515,15 @@
   background: #f2f3f4;
 }
 
+.admin-media-preview img,
+.admin-media-preview video {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  display: block;
+  object-fit: cover;
+  background: #f2f3f4;
+}
+
 .admin-media-preview > span {
   position: absolute;
   left: 8px;
@@ -1551,6 +1588,12 @@
 }
 
 .admin-media-grid.is-list-view .admin-media-preview img {
+  width: 82px;
+  height: 64px;
+  aspect-ratio: auto;
+}
+
+.admin-media-grid.is-list-view .admin-media-preview video {
   width: 82px;
   height: 64px;
   aspect-ratio: auto;
