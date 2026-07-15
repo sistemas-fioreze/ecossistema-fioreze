@@ -41,6 +41,7 @@ const HELP_CONTENT = {
 };
 
 export function createAdminAuthView({ onAuthenticated }) {
+  document.body.dataset.adminShell = "erp";
   const els = {
     app: document.getElementById("adminApp"),
     loginView: document.querySelector('[data-view="login"]'),
@@ -120,24 +121,30 @@ function enhanceAdminExperience(session) {
   const dashboard = document.querySelector('[data-view="dashboard"]');
   if (!dashboard || dashboard.dataset.shellEnhanced === "true") return;
   dashboard.dataset.shellEnhanced = "true";
+  document.body.dataset.adminShell = "erp";
 
   const section = document.body.dataset.adminSection || "home";
   const area = adminArea(section);
   const userName = session?.user?.display_name || "Usuario";
   const hotels = session?.hotels || [];
+  const storedCompact = readShellPreference() === "compact";
+  if (storedCompact && !window.matchMedia("(max-width: 980px)").matches) dashboard.classList.add("is-sidebar-compact");
 
   dashboard.insertAdjacentHTML(
     "afterbegin",
     `
-      <button class="admin-mobile-menu" type="button" data-admin-menu aria-label="Abrir menu">
-        ${icon("menu")}
-      </button>
       <aside class="admin-global-sidebar" data-admin-sidebar aria-label="Navegacao administrativa">
         <a class="admin-brand-lockup" href="/admin/" aria-label="Ir para o inicio da Central Administrativa">
+          <span class="admin-brand-wordmark"><strong>FIOREZE</strong><small>Central Administrativa</small></span>
           <span class="admin-brand-symbol" aria-hidden="true">F</span>
-          <span><strong>FIOREZE</strong><small>Central Administrativa</small></span>
         </a>
         ${renderGlobalNav(session, section)}
+        <div class="admin-sidebar-footer">
+          <a class="admin-sidebar-account" href="/admin/minha-conta/" title="Minha conta">
+            ${renderAvatar(session?.user, userName)}
+            <span><strong>${escapeHtml(userName)}</strong><small>Minha conta</small></span>
+          </a>
+        </div>
       </aside>
       <div class="admin-mobile-backdrop" data-admin-backdrop hidden></div>
       <aside class="admin-help-drawer" data-admin-help hidden aria-label="Ajuda desta pagina">
@@ -154,35 +161,49 @@ function enhanceAdminExperience(session) {
 
   for (const topbar of dashboard.querySelectorAll(".admin-topbar")) {
     topbar.classList.add("admin-topbar-modern");
+    topbar.firstElementChild?.classList.add("admin-topbar-copy");
     if (!topbar.querySelector(".admin-page-kicker")) {
       topbar.querySelector("h1")?.insertAdjacentHTML("beforebegin", `<p class="admin-page-kicker">${escapeHtml(area)}</p>`);
     }
-    if (!topbar.querySelector("[data-admin-help-open]")) {
-      topbar.insertAdjacentHTML(
-        "beforeend",
-        `<button class="admin-icon-button" type="button" data-admin-help-open aria-label="Abrir ajuda desta pagina">${icon("help")}</button>`,
-      );
-    }
+    topbar.insertAdjacentHTML(
+      "afterbegin",
+      `<button class="admin-shell-toggle" type="button" data-admin-shell-toggle aria-label="Recolher menu" title="Recolher menu">${icon("menu")}</button>`,
+    );
+
+    const sessionBox = topbar.querySelector(".admin-session-box");
+    const controls = `
+      <div class="admin-command-search" data-admin-search>
+        <label>${icon("search")}<input type="search" placeholder="Pesquisar no sistema..." aria-label="Pesquisar no sistema" autocomplete="off"><kbd>Ctrl K</kbd></label>
+        <div class="admin-command-results" data-admin-search-results hidden></div>
+      </div>
+      <button class="admin-icon-button" type="button" data-admin-help-open aria-label="Abrir ajuda desta pagina" title="Ajuda">${icon("help")}</button>
+    `;
+    if (sessionBox) sessionBox.insertAdjacentHTML("beforebegin", controls);
+    else topbar.insertAdjacentHTML("beforeend", controls);
   }
 
   const sessionBox = dashboard.querySelector(".admin-session-box");
-  if (sessionBox && !sessionBox.querySelector(".admin-avatar")) {
-    sessionBox.insertAdjacentHTML(
-      "afterbegin",
-      `${renderAvatar(session?.user, userName)}<span class="admin-user-meta"><small>${escapeHtml(hotels.length ? `${hotels.length} unidade(s)` : "Acesso administrativo")}</small></span>`,
-    );
-  }
+  if (sessionBox && !sessionBox.querySelector("[data-admin-session-toggle]")) enhanceSessionControl(sessionBox, session, userName, hotels);
+
+  installAdminSearch(dashboard);
+  setCompact(dashboard.classList.contains("is-sidebar-compact"), false);
 
   dashboard.addEventListener("click", (event) => {
-    if (event.target.closest("[data-admin-menu]")) setMenuOpen(true);
+    if (event.target.closest("[data-admin-shell-toggle]")) {
+      if (window.matchMedia("(max-width: 980px)").matches) setMenuOpen(!dashboard.classList.contains("is-menu-open"));
+      else setCompact(!dashboard.classList.contains("is-sidebar-compact"));
+    }
     if (event.target.closest("[data-admin-backdrop]")) setMenuOpen(false);
     if (event.target.closest("[data-admin-help-open]")) setHelpOpen(true);
     if (event.target.closest("[data-admin-help-close]")) setHelpOpen(false);
+    if (event.target.closest("[data-admin-session-toggle]")) setSessionOpen(!sessionBox?.classList.contains("is-open"));
+    if (!event.target.closest(".admin-session-box")) setSessionOpen(false);
   });
   dashboard.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       setMenuOpen(false);
       setHelpOpen(false);
+      setSessionOpen(false);
     }
   });
 
@@ -192,11 +213,119 @@ function enhanceAdminExperience(session) {
     if (backdrop) backdrop.hidden = !open;
   }
 
+  function setCompact(compact, persist = true) {
+    dashboard.classList.toggle("is-sidebar-compact", compact);
+    const toggle = dashboard.querySelector("[data-admin-shell-toggle]");
+    if (toggle) {
+      const label = compact ? "Expandir menu" : "Recolher menu";
+      toggle.setAttribute("aria-label", label);
+      toggle.title = label;
+    }
+    if (persist) {
+      try {
+        localStorage.setItem("fioreze-admin-sidebar", compact ? "compact" : "expanded");
+      } catch {
+        // The shell remains usable when storage is unavailable.
+      }
+    }
+  }
+
   function setHelpOpen(open) {
     const drawer = dashboard.querySelector("[data-admin-help]");
     if (!drawer) return;
     drawer.hidden = !open;
     if (open) drawer.querySelector("[data-admin-help-close]")?.focus();
+  }
+
+  function setSessionOpen(open) {
+    if (!sessionBox) return;
+    sessionBox.classList.toggle("is-open", open);
+    sessionBox.querySelector("[data-admin-session-menu]")?.toggleAttribute("hidden", !open);
+    sessionBox.querySelector("[data-admin-session-toggle]")?.setAttribute("aria-expanded", String(open));
+  }
+}
+
+function enhanceSessionControl(sessionBox, session, userName, hotels) {
+  const sessionUser = sessionBox.querySelector("#sessionUser");
+  const logoutButton = sessionBox.querySelector("#logoutButton");
+  sessionBox.classList.add("admin-session-control");
+  sessionBox.insertAdjacentHTML(
+    "afterbegin",
+    `<button class="admin-session-trigger" type="button" data-admin-session-toggle aria-expanded="false">
+      ${renderAvatar(session?.user, userName)}
+      <span class="admin-session-copy"><small>Sessao</small><strong data-admin-session-name></strong></span>
+      ${icon("chevron")}
+    </button>
+    <div class="admin-session-menu" data-admin-session-menu hidden>
+      <p><strong>${escapeHtml(userName)}</strong><small>${escapeHtml(hotels.length ? `${hotels.length} unidade(s) autorizada(s)` : "Acesso administrativo")}</small></p>
+      <a href="/admin/minha-conta/">${icon("user")} Minha conta</a>
+    </div>`,
+  );
+  const nameSlot = sessionBox.querySelector("[data-admin-session-name]");
+  if (sessionUser && nameSlot) nameSlot.append(sessionUser);
+  if (logoutButton) {
+    logoutButton.textContent = "Sair";
+    logoutButton.insertAdjacentHTML("afterbegin", icon("logout"));
+    sessionBox.querySelector("[data-admin-session-menu]")?.append(logoutButton);
+  }
+}
+
+function installAdminSearch(dashboard) {
+  const root = dashboard.querySelector("[data-admin-search]");
+  const input = root?.querySelector("input");
+  const results = root?.querySelector("[data-admin-search-results]");
+  if (!root || !input || !results) return;
+
+  const items = [...dashboard.querySelectorAll(".admin-global-nav a")].map((link) => ({
+    href: link.getAttribute("href"),
+    label: link.textContent.trim(),
+  }));
+
+  input.addEventListener("input", renderResults);
+  input.addEventListener("focus", renderResults);
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      const first = results.querySelector("a");
+      if (first) {
+        event.preventDefault();
+        window.location.assign(first.href);
+      }
+    }
+    if (event.key === "Escape") {
+      results.hidden = true;
+      input.blur();
+    }
+  });
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest("[data-admin-search]")) results.hidden = true;
+  });
+  document.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase("pt-BR") === "k") {
+      event.preventDefault();
+      input.focus();
+    }
+  });
+
+  function renderResults() {
+    const query = input.value.trim().toLocaleLowerCase("pt-BR");
+    if (!query) {
+      results.hidden = true;
+      results.innerHTML = "";
+      return;
+    }
+    const matches = items.filter((item) => item.label.toLocaleLowerCase("pt-BR").includes(query)).slice(0, 6);
+    results.innerHTML = matches.length
+      ? matches.map((item) => `<a href="${escapeAttr(item.href)}">${icon("search")}<span>${escapeHtml(item.label)}</span></a>`).join("")
+      : '<p>Nenhuma area encontrada.</p>';
+    results.hidden = false;
+  }
+}
+
+function readShellPreference() {
+  try {
+    return localStorage.getItem("fioreze-admin-sidebar") || "expanded";
+  } catch {
+    return "expanded";
   }
 }
 
@@ -263,6 +392,9 @@ function icon(name) {
     menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
     close: '<path d="m6 6 12 12M18 6 6 18"/>',
     help: '<path d="M9.5 9a2.5 2.5 0 1 1 4.7 1.2c-.8 1.1-2.2 1.2-2.2 2.8"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="9"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
+    chevron: '<path d="m9 10 3 3 3-3"/>',
+    logout: '<path d="M10 5H5v14h5M13 8l4 4-4 4M17 12H9"/>',
     home: '<path d="m4 11 8-7 8 7"/><path d="M6 10v10h12V10"/>',
     portal: '<path d="M4 5h16v12H4z"/><path d="M8 21h8M12 17v4"/>',
     units: '<path d="M5 20V8l7-4 7 4v12"/><path d="M9 20v-6h6v6"/>',

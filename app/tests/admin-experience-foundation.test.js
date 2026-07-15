@@ -66,6 +66,22 @@ test("Central Administrativa usa a linguagem visual do ERP sem modulos de fachad
   assert.doesNotMatch(source, /#preparacao|Em preparacao|Unidade Fioreze Demo|Fioreze Demo|unidade-demo/);
 });
 
+test("Central compartilha as proporcoes e os controles do shell oficial do ERP", () => {
+  const shell = fs.readFileSync("public/js/modules/admin/shared/admin-auth-view.js", "utf8");
+  const css = fs.readFileSync("public/css/modules/admin/admin-erp-aligned.css", "utf8");
+
+  assert.match(css, /grid-template-columns: 258px minmax\(0, 1fr\)/);
+  assert.match(css, /grid-template-columns: 84px minmax\(0, 1fr\)/);
+  assert.match(css, /height: 66px/);
+  assert.match(css, /border-radius: 14px 0 0 0/);
+  assert.match(css, /background: #fbf8f4/);
+  assert.match(shell, /data-admin-shell-toggle/);
+  assert.match(shell, /fioreze-admin-sidebar/);
+  assert.match(shell, /data-admin-search-results/);
+  assert.match(shell, /data-admin-session-toggle/);
+  assert.match(shell, /admin-brand-wordmark/);
+});
+
 test("shells administrativos continuam respondendo sem fallback incorreto", async () => {
   const { fetch } = createWorkerTestContext();
   for (const path of ["/admin/", "/admin/portais/", "/admin/portais/unidades/", "/admin/portais/media/", "/admin/portais/links/", "/erp/room-service/"]) {

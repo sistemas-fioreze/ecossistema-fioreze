@@ -764,3 +764,906 @@ body {
     width: 100%;
   }
 }
+
+/* Exact shared shell used by the Central and the Room Service ERP. */
+body[data-admin-shell="erp"] {
+  min-width: 0;
+  overflow: hidden;
+  background: #fff;
+  color: #202124;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: 0;
+}
+
+body[data-admin-shell="erp"] .admin-shell {
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+  background: #fff;
+}
+
+body[data-admin-shell="erp"] .admin-dashboard {
+  width: 100%;
+  max-width: none;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 258px minmax(0, 1fr);
+  grid-template-rows: 66px minmax(0, 1fr);
+  gap: 0;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  background: #fff;
+  transition: grid-template-columns 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+body[data-admin-shell="erp"] .admin-dashboard.is-sidebar-compact {
+  grid-template-columns: 84px minmax(0, 1fr);
+}
+
+body[data-admin-shell="erp"] .admin-dashboard > :not(.admin-global-sidebar):not(.admin-mobile-backdrop):not(.admin-help-drawer) {
+  width: auto;
+  min-width: 0;
+  margin: 0;
+  grid-column: 2;
+}
+
+body[data-admin-shell="erp"] .admin-global-sidebar {
+  position: relative;
+  inset: auto;
+  z-index: 80;
+  width: auto;
+  min-width: 0;
+  min-height: 0;
+  height: 100vh;
+  height: 100dvh;
+  grid-column: 1;
+  grid-row: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  overflow: hidden;
+  padding: 22px 16px;
+  border: 0;
+  border-radius: 0;
+  background: #fff;
+  box-shadow: none;
+}
+
+body[data-admin-shell="erp"] .admin-brand-lockup {
+  width: 100%;
+  min-width: 0;
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  margin: 0 0 10px;
+  color: #202124;
+  text-decoration: none;
+}
+
+body[data-admin-shell="erp"] .admin-brand-wordmark {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: opacity 0.18s ease, max-width 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+body[data-admin-shell="erp"] .admin-brand-wordmark strong,
+body[data-admin-shell="erp"] .admin-brand-wordmark small {
+  display: block;
+}
+
+body[data-admin-shell="erp"] .admin-brand-wordmark strong {
+  color: #513b2d;
+  font-size: 1.24rem;
+  font-weight: 950;
+  line-height: 1;
+  letter-spacing: 0.08em;
+}
+
+body[data-admin-shell="erp"] .admin-brand-wordmark small {
+  margin-top: 6px;
+  color: #9aa1ad;
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+body[data-admin-shell="erp"] .admin-brand-symbol {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  display: none;
+  place-items: center;
+  border-radius: 8px;
+  background: #513b2d;
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 950;
+}
+
+body[data-admin-shell="erp"] .admin-global-nav {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+body[data-admin-shell="erp"] .admin-global-nav a,
+body[data-admin-shell="erp"] .admin-global-nav > span {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 14px;
+  background: transparent;
+  color: #68707a;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+body[data-admin-shell="erp"] .admin-global-nav a:hover {
+  background: #f4f1ef;
+  color: #513b2d;
+  transform: translateX(2px);
+}
+
+body[data-admin-shell="erp"] .admin-global-nav a[aria-current="page"] {
+  background: #513b2d;
+  color: #fff;
+  transform: none;
+}
+
+body[data-admin-shell="erp"] .admin-global-nav > span[aria-disabled="true"] {
+  color: #b2b8c2;
+  opacity: 0.66;
+}
+
+body[data-admin-shell="erp"] .admin-global-nav .admin-svg-icon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+}
+
+body[data-admin-shell="erp"] .admin-global-nav a > span,
+body[data-admin-shell="erp"] .admin-global-nav > span > span,
+body[data-admin-shell="erp"] .admin-sidebar-account > span:not(.admin-avatar) {
+  max-width: 190px;
+  overflow: hidden;
+  opacity: 1;
+  text-overflow: ellipsis;
+  transition: opacity 0.18s ease 0.08s, max-width 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+body[data-admin-shell="erp"] .admin-sidebar-footer {
+  display: grid;
+  gap: 10px;
+  margin-top: auto;
+}
+
+body[data-admin-shell="erp"] .admin-sidebar-account {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+  border-radius: 8px;
+  padding: 6px;
+  background: #f7f7f8;
+  color: #202124;
+  text-decoration: none;
+}
+
+body[data-admin-shell="erp"] .admin-sidebar-account:hover {
+  background: #f4f1ef;
+}
+
+body[data-admin-shell="erp"] .admin-sidebar-account .admin-avatar {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border-radius: 14px;
+  background: #513b2d;
+  color: #fff;
+}
+
+body[data-admin-shell="erp"] .admin-sidebar-account strong,
+body[data-admin-shell="erp"] .admin-sidebar-account small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body[data-admin-shell="erp"] .admin-sidebar-account strong {
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+body[data-admin-shell="erp"] .admin-sidebar-account small {
+  margin-top: 3px;
+  color: #8b929b;
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+
+body[data-admin-shell="erp"] .is-sidebar-compact .admin-brand-lockup {
+  justify-content: center;
+  padding: 0;
+}
+
+body[data-admin-shell="erp"] .is-sidebar-compact .admin-brand-wordmark {
+  max-width: 0;
+  opacity: 0;
+}
+
+body[data-admin-shell="erp"] .is-sidebar-compact .admin-brand-symbol {
+  display: grid;
+}
+
+body[data-admin-shell="erp"] .is-sidebar-compact .admin-global-nav a,
+body[data-admin-shell="erp"] .is-sidebar-compact .admin-global-nav > span {
+  width: 52px;
+  min-width: 52px;
+  justify-content: center;
+  gap: 0;
+  padding: 0;
+}
+
+body[data-admin-shell="erp"] .is-sidebar-compact .admin-global-nav a > span,
+body[data-admin-shell="erp"] .is-sidebar-compact .admin-global-nav > span > span,
+body[data-admin-shell="erp"] .is-sidebar-compact .admin-sidebar-account > span:not(.admin-avatar) {
+  max-width: 0;
+  opacity: 0;
+}
+
+body[data-admin-shell="erp"] .is-sidebar-compact .admin-sidebar-account {
+  width: 52px;
+  min-width: 52px;
+  justify-content: center;
+  padding: 5px;
+}
+
+body[data-admin-shell="erp"] .admin-dashboard > .admin-topbar,
+body[data-admin-shell="erp"] .admin-portal-layout .admin-topbar {
+  position: relative;
+  z-index: 70;
+  height: 66px;
+  min-height: 66px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  overflow: visible;
+  grid-column: 2;
+  grid-row: 1;
+  margin: 0;
+  padding: 10px 26px 10px 20px;
+  border: 0;
+  border-radius: 0;
+  background: #fff;
+  box-shadow: none;
+}
+
+body[data-admin-shell="erp"] .admin-shell-toggle,
+body[data-admin-shell="erp"] .admin-icon-button {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid #eceff1;
+  border-radius: 14px;
+  padding: 0;
+  background: #fff;
+  color: #513b2d;
+  cursor: pointer;
+}
+
+body[data-admin-shell="erp"] .admin-shell-toggle:hover,
+body[data-admin-shell="erp"] .admin-icon-button:hover {
+  border-color: rgba(81, 59, 45, 0.28);
+  background: #faf8f7;
+}
+
+body[data-admin-shell="erp"] .admin-shell-toggle {
+  border-color: #1f2937;
+  background: #1f2937;
+  color: #c9a985;
+}
+
+body[data-admin-shell="erp"] .admin-shell-toggle:hover {
+  border-color: #293548;
+  background: #293548;
+  color: #fff;
+}
+
+body[data-admin-shell="erp"] .admin-topbar-copy {
+  min-width: 200px;
+  display: grid;
+  gap: 2px;
+}
+
+body[data-admin-shell="erp"] .admin-topbar-copy .eyebrow,
+body[data-admin-shell="erp"] .admin-page-kicker {
+  margin: 0;
+  color: #9aa1ad;
+  font-size: 0.58rem;
+  font-weight: 950;
+  line-height: 1;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+body[data-admin-shell="erp"] .admin-topbar-copy h1 {
+  max-width: 350px;
+  overflow: hidden;
+  margin: 0;
+  color: #202124;
+  font-size: 1.02rem;
+  font-weight: 950;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body[data-admin-shell="erp"] .admin-topbar-copy > .admin-muted {
+  display: none;
+}
+
+body[data-admin-shell="erp"] .admin-command-search {
+  position: relative;
+  width: min(390px, 34vw);
+  min-width: 230px;
+  margin-left: auto;
+}
+
+body[data-admin-shell="erp"] .admin-command-search label {
+  height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid #eceff1;
+  border-radius: 14px;
+  padding: 0 13px;
+  background: #fff;
+  color: #9aa1ad;
+}
+
+body[data-admin-shell="erp"] .admin-command-search .admin-svg-icon {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+}
+
+body[data-admin-shell="erp"] .admin-command-search input {
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #202124;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+body[data-admin-shell="erp"] .admin-command-search kbd {
+  flex: 0 0 auto;
+  border: 1px solid #eceff1;
+  border-radius: 6px;
+  padding: 2px 6px;
+  background: #f7f7f8;
+  color: #9aa1ad;
+  font-size: 0.58rem;
+  font-family: inherit;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+body[data-admin-shell="erp"] .admin-command-results {
+  position: absolute;
+  inset: calc(100% + 8px) 0 auto;
+  z-index: 120;
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid #eceff1;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 20px 50px rgba(32, 33, 36, 0.15);
+}
+
+body[data-admin-shell="erp"] .admin-command-results[hidden] {
+  display: none;
+}
+
+body[data-admin-shell="erp"] .admin-command-results a,
+body[data-admin-shell="erp"] .admin-command-results p {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  border-radius: 7px;
+  padding: 0 10px;
+  color: #68707a;
+  font-size: 0.76rem;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+body[data-admin-shell="erp"] .admin-command-results a:hover {
+  background: #f4f1ef;
+  color: #513b2d;
+}
+
+body[data-admin-shell="erp"] .admin-session-box.admin-session-control {
+  position: relative;
+  min-height: 0;
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+body[data-admin-shell="erp"] .admin-session-trigger {
+  height: 38px;
+  max-width: 250px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  border: 1px solid #1f2937;
+  border-radius: 14px;
+  padding: 3px 9px 3px 4px;
+  background: #1f2937;
+  color: #fff;
+  cursor: pointer;
+}
+
+body[data-admin-shell="erp"] .admin-session-trigger:hover,
+body[data-admin-shell="erp"] .admin-session-control.is-open .admin-session-trigger {
+  border-color: #293548;
+  background: #293548;
+}
+
+body[data-admin-shell="erp"] .admin-session-trigger .admin-avatar {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  border-radius: 14px;
+  background: #513b2d;
+  color: #fff;
+  font-size: 0.68rem;
+}
+
+body[data-admin-shell="erp"] .admin-session-copy {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+  text-align: left;
+}
+
+body[data-admin-shell="erp"] .admin-session-copy small,
+body[data-admin-shell="erp"] .admin-session-copy strong,
+body[data-admin-shell="erp"] .admin-session-copy #sessionUser {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body[data-admin-shell="erp"] .admin-session-copy small {
+  color: #c5ccd6;
+  font-size: 0.5rem;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+body[data-admin-shell="erp"] .admin-session-copy strong {
+  max-width: 150px;
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+body[data-admin-shell="erp"] .admin-session-trigger > .admin-svg-icon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  color: #c5ccd6;
+}
+
+body[data-admin-shell="erp"] .admin-session-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 130;
+  width: 230px;
+  display: grid;
+  gap: 5px;
+  padding: 9px;
+  border: 1px solid #eceff1;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 20px 50px rgba(32, 33, 36, 0.15);
+}
+
+body[data-admin-shell="erp"] .admin-session-menu[hidden] {
+  display: none;
+}
+
+body[data-admin-shell="erp"] .admin-session-menu p {
+  display: grid;
+  gap: 3px;
+  margin: 0 0 4px;
+  padding: 8px 9px;
+  border-bottom: 1px solid #eceff1;
+}
+
+body[data-admin-shell="erp"] .admin-session-menu p strong {
+  font-size: 0.78rem;
+}
+
+body[data-admin-shell="erp"] .admin-session-menu p small {
+  color: #8b929b;
+  font-size: 0.66rem;
+}
+
+body[data-admin-shell="erp"] .admin-session-menu a,
+body[data-admin-shell="erp"] .admin-session-menu #logoutButton {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 0;
+  border-radius: 7px;
+  padding: 0 10px;
+  background: transparent;
+  color: #68707a;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 850;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+body[data-admin-shell="erp"] .admin-session-menu a:hover,
+body[data-admin-shell="erp"] .admin-session-menu #logoutButton:hover {
+  background: #f4f1ef;
+  color: #513b2d;
+}
+
+body[data-admin-shell="erp"] .admin-dashboard > .admin-launcher-grid,
+body[data-admin-shell="erp"] .admin-dashboard > .admin-management-panel,
+body[data-admin-shell="erp"] .admin-dashboard > .admin-access-denied {
+  min-height: 0;
+  grid-column: 2;
+  grid-row: 2;
+  overflow: auto;
+  margin: 0;
+  padding: 24px;
+  border: 1px solid #ece4dc;
+  border-right: 0;
+  border-bottom: 0;
+  border-radius: 14px 0 0 0;
+  background: #fbf8f4;
+  box-shadow: none;
+}
+
+body[data-admin-shell="erp"] .admin-dashboard > .admin-launcher-grid {
+  align-content: start;
+}
+
+body[data-admin-shell="erp"] .admin-portal-layout {
+  min-width: 0;
+  min-height: 0;
+  height: 100vh;
+  height: 100dvh;
+  grid-column: 2;
+  grid-row: 1 / -1;
+  display: grid;
+  grid-template-rows: 66px minmax(0, 1fr);
+  gap: 0;
+  overflow: hidden;
+  margin: 0;
+}
+
+body[data-admin-shell="erp"] .admin-portal-sidebar {
+  display: none;
+}
+
+body[data-admin-shell="erp"] .admin-portal-main {
+  display: contents;
+}
+
+body[data-admin-shell="erp"] .admin-portal-layout .admin-topbar {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+body[data-admin-shell="erp"] .admin-portals-surface,
+body[data-admin-shell="erp"] .admin-portal-layout > .admin-portal-main > .admin-access-denied {
+  min-width: 0;
+  min-height: 0;
+  grid-column: 1;
+  grid-row: 2;
+  overflow: auto;
+  margin: 0;
+  padding: 24px;
+  border: 1px solid #ece4dc;
+  border-right: 0;
+  border-bottom: 0;
+  border-radius: 14px 0 0 0;
+  background: #fbf8f4;
+  box-shadow: none;
+}
+
+body[data-admin-shell="erp"] .admin-launcher-panel,
+body[data-admin-shell="erp"] .admin-system-card,
+body[data-admin-shell="erp"] .admin-module-card,
+body[data-admin-shell="erp"] .admin-info-box,
+body[data-admin-shell="erp"] .admin-data-row,
+body[data-admin-shell="erp"] .admin-area-card,
+body[data-admin-shell="erp"] .admin-filters {
+  border-color: #eceff1;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: none;
+}
+
+body[data-admin-shell="erp"] .admin-system-card:hover,
+body[data-admin-shell="erp"] .admin-module-card:hover,
+body[data-admin-shell="erp"] .admin-area-card:hover {
+  border-color: rgba(81, 59, 45, 0.22);
+  box-shadow: 0 10px 24px rgba(32, 33, 36, 0.06);
+  transform: translateY(-1px);
+}
+
+body[data-admin-shell="erp"] .admin-help-drawer {
+  top: 76px;
+  right: 18px;
+  z-index: 150;
+  width: min(390px, calc(100vw - 36px));
+  border: 1px solid #eceff1;
+  border-radius: 8px;
+  box-shadow: 0 24px 70px rgba(32, 33, 36, 0.14);
+}
+
+body[data-admin-shell="erp"] .admin-login,
+body[data-admin-shell="erp"] .admin-loading {
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #f5f5f4;
+}
+
+body[data-admin-shell="erp"] .admin-access-card {
+  width: min(360px, 100%);
+  min-height: 330px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+body[data-admin-shell="erp"] .admin-access-card .brand-mark {
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 12px;
+  border-radius: 14px;
+  background: #513b2d;
+  color: #fff;
+}
+
+body[data-admin-shell="erp"] .admin-access-card .brand-mark::before {
+  content: "F";
+  font-size: 1.6rem;
+  font-weight: 950;
+}
+
+body[data-admin-shell="erp"] .admin-access-card .eyebrow {
+  margin: 0;
+  color: #513b2d;
+  font-size: 0.64rem;
+  font-weight: 950;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+body[data-admin-shell="erp"] .admin-access-card h1 {
+  margin: 0 0 8px;
+  color: #202124;
+  font-size: 1.3rem;
+  font-weight: 950;
+}
+
+body[data-admin-shell="erp"] .admin-access-card label {
+  width: min(292px, 100%);
+  position: relative;
+}
+
+body[data-admin-shell="erp"] .admin-access-card label > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+body[data-admin-shell="erp"] .admin-access-card input {
+  width: 100%;
+  min-height: 52px;
+  border: 1px solid rgba(81, 59, 45, 0.1);
+  border-radius: 14px;
+  padding: 0 14px;
+  background: #f7f5ef;
+  color: #202124;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 850;
+  text-align: center;
+}
+
+body[data-admin-shell="erp"] .admin-access-card input:focus {
+  border-color: #513b2d;
+  outline: 0;
+  box-shadow: 0 0 0 4px rgba(81, 59, 45, 0.1);
+}
+
+body[data-admin-shell="erp"] .admin-access-card .admin-primary-button {
+  width: 178px;
+  min-height: 46px;
+  margin-top: 2px;
+  border-radius: 14px;
+}
+
+body[data-admin-shell="erp"] .admin-dashboard :where(div, span, p, h1, h2, h3, section, article, nav, header, footer, label, button, a, [role="button"]) {
+  caret-color: transparent;
+}
+
+body[data-admin-shell="erp"] .admin-dashboard :where(input, textarea, [contenteditable="true"]) {
+  caret-color: auto;
+  user-select: text;
+}
+
+@media (max-width: 1180px) {
+  body[data-admin-shell="erp"] .admin-command-search {
+    width: min(300px, 28vw);
+    min-width: 190px;
+  }
+
+  body[data-admin-shell="erp"] .admin-topbar-copy {
+    min-width: 160px;
+  }
+}
+
+@media (max-width: 980px) {
+  body[data-admin-shell="erp"] .admin-dashboard,
+  body[data-admin-shell="erp"] .admin-dashboard.is-sidebar-compact {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body[data-admin-shell="erp"] .admin-global-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 110;
+    width: min(258px, 86vw);
+    transform: translateX(-100%);
+    transition: transform 0.18s ease;
+  }
+
+  body[data-admin-shell="erp"] .admin-dashboard.is-menu-open .admin-global-sidebar {
+    transform: translateX(0);
+  }
+
+  body[data-admin-shell="erp"] .admin-dashboard > :not(.admin-global-sidebar):not(.admin-mobile-backdrop):not(.admin-help-drawer),
+  body[data-admin-shell="erp"] .admin-dashboard > .admin-topbar,
+  body[data-admin-shell="erp"] .admin-dashboard > .admin-launcher-grid,
+  body[data-admin-shell="erp"] .admin-dashboard > .admin-management-panel,
+  body[data-admin-shell="erp"] .admin-dashboard > .admin-access-denied,
+  body[data-admin-shell="erp"] .admin-portal-layout {
+    grid-column: 1;
+  }
+
+  body[data-admin-shell="erp"] .admin-mobile-backdrop {
+    z-index: 100;
+  }
+
+  body[data-admin-shell="erp"] .admin-dashboard > .admin-topbar,
+  body[data-admin-shell="erp"] .admin-portal-layout .admin-topbar {
+    grid-column: 1;
+    padding: 10px 14px;
+  }
+
+  body[data-admin-shell="erp"] .admin-command-search {
+    width: min(300px, 34vw);
+    min-width: 170px;
+  }
+
+  body[data-admin-shell="erp"] .admin-portal-layout {
+    grid-column: 1;
+  }
+}
+
+@media (max-width: 720px) {
+  body[data-admin-shell="erp"] .admin-command-search {
+    display: none;
+  }
+
+  body[data-admin-shell="erp"] .admin-topbar-copy {
+    min-width: 0;
+    flex: 1;
+  }
+
+  body[data-admin-shell="erp"] .admin-topbar-copy h1 {
+    max-width: min(42vw, 250px);
+  }
+
+  body[data-admin-shell="erp"] .admin-session-copy {
+    display: none;
+  }
+
+  body[data-admin-shell="erp"] .admin-session-trigger {
+    width: 40px;
+    padding: 4px;
+  }
+
+  body[data-admin-shell="erp"] .admin-session-trigger > .admin-svg-icon {
+    display: none;
+  }
+
+  body[data-admin-shell="erp"] .admin-dashboard > .admin-launcher-grid,
+  body[data-admin-shell="erp"] .admin-dashboard > .admin-management-panel,
+  body[data-admin-shell="erp"] .admin-dashboard > .admin-access-denied,
+  body[data-admin-shell="erp"] .admin-portals-surface {
+    padding: 14px;
+    border-radius: 12px 0 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-admin-shell="erp"] *,
+  body[data-admin-shell="erp"] *::before,
+  body[data-admin-shell="erp"] *::after {
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}
