@@ -12,6 +12,15 @@ import {
   canAccessUsers,
 } from "./admin-session.js";
 
+const ADMIN_LOGO_URL = "/assets/shared/fioreze-central-logo.jpg";
+const ADMIN_PALETTES = [
+  ["fioreze", "Fioreze"],
+  ["terracotta", "Terracota"],
+  ["forest", "Floresta"],
+  ["ocean", "Oceano"],
+  ["graphite", "Grafite"],
+];
+
 const HELP_CONTENT = {
   home: {
     title: "Ajuda da Central",
@@ -101,6 +110,12 @@ export function createAdminAuthView({ onAuthenticated }) {
   }
 
   async function startAuthenticated(session) {
+    const fallbackPalette = readPalettePreference(session?.user?.id);
+    const preferencePayload = await adminApi("/api/v1/admin/me/preferences").catch(() => ({
+      data: { color_palette: fallbackPalette },
+    }));
+    session.preferences = preferencePayload.data || { color_palette: fallbackPalette };
+    applyAdminPalette(session.preferences.color_palette, session?.user?.id);
     els.sessionUser.textContent = session?.user?.display_name || "Usuario";
     showView("dashboard");
     enhanceAdminExperience(session);
@@ -135,8 +150,8 @@ function enhanceAdminExperience(session) {
     `
       <aside class="admin-global-sidebar" data-admin-sidebar aria-label="Navegacao administrativa">
         <a class="admin-brand-lockup" href="/admin/" aria-label="Ir para o inicio da Central Administrativa">
-          <span class="admin-brand-wordmark"><strong>FIOREZE</strong><small>Central Administrativa</small></span>
-          <span class="admin-brand-symbol" aria-hidden="true">F</span>
+          <span class="admin-brand-wordmark"><img src="${ADMIN_LOGO_URL}" alt="Fioreze Hoteis"></span>
+          <span class="admin-brand-symbol" aria-hidden="true"><img src="${ADMIN_LOGO_URL}" alt=""></span>
         </a>
         ${renderGlobalNav(session, section)}
         <div class="admin-sidebar-footer">
@@ -197,6 +212,8 @@ function enhanceAdminExperience(session) {
     if (event.target.closest("[data-admin-help-open]")) setHelpOpen(true);
     if (event.target.closest("[data-admin-help-close]")) setHelpOpen(false);
     if (event.target.closest("[data-admin-session-toggle]")) setSessionOpen(!sessionBox?.classList.contains("is-open"));
+    const paletteButton = event.target.closest("[data-admin-palette]");
+    if (paletteButton) void savePalettePreference(paletteButton.dataset.adminPalette, session, sessionBox);
     if (!event.target.closest(".admin-session-box")) setSessionOpen(false);
   });
   dashboard.addEventListener("keydown", (event) => {
@@ -258,6 +275,16 @@ function enhanceSessionControl(sessionBox, session, userName, hotels) {
     </button>
     <div class="admin-session-menu" data-admin-session-menu hidden>
       <p><strong>${escapeHtml(userName)}</strong><small>${escapeHtml(hotels.length ? `${hotels.length} unidade(s) autorizada(s)` : "Acesso administrativo")}</small></p>
+      <div class="admin-palette-picker" aria-label="Paleta da Central">
+        <span>Aparencia</span>
+        <div>${ADMIN_PALETTES.map(
+          ([key, label]) =>
+            `<button type="button" data-admin-palette="${key}" aria-label="Usar paleta ${label}" title="${label}" ${
+              key === (session.preferences?.color_palette || "fioreze") ? 'aria-pressed="true"' : 'aria-pressed="false"'
+            }><i aria-hidden="true"></i></button>`,
+        ).join("")}</div>
+        <small data-admin-palette-status>Escolha as cores da sua Central.</small>
+      </div>
       <a href="/admin/minha-conta/">${icon("user")} Minha conta</a>
     </div>`,
   );
@@ -267,6 +294,54 @@ function enhanceSessionControl(sessionBox, session, userName, hotels) {
     logoutButton.textContent = "Sair";
     logoutButton.insertAdjacentHTML("afterbegin", icon("logout"));
     sessionBox.querySelector("[data-admin-session-menu]")?.append(logoutButton);
+  }
+}
+
+async function savePalettePreference(palette, session, sessionBox) {
+  if (!ADMIN_PALETTES.some(([key]) => key === palette)) return;
+  const previous = session.preferences?.color_palette || "fioreze";
+  const status = sessionBox?.querySelector("[data-admin-palette-status]");
+  applyAdminPalette(palette, session?.user?.id);
+  updatePaletteButtons(sessionBox, palette);
+  if (status) status.textContent = "Salvando aparencia...";
+  try {
+    const payload = await adminApi("/api/v1/admin/me/preferences", {
+      method: "PATCH",
+      body: { color_palette: palette },
+    });
+    session.preferences = payload.data;
+    if (status) status.textContent = "Aparencia salva para sua conta.";
+  } catch {
+    applyAdminPalette(previous, session?.user?.id);
+    updatePaletteButtons(sessionBox, previous);
+    if (status) status.textContent = "Nao foi possivel salvar a aparencia.";
+  }
+}
+
+function updatePaletteButtons(sessionBox, selected) {
+  for (const button of sessionBox?.querySelectorAll("[data-admin-palette]") || []) {
+    button.setAttribute("aria-pressed", String(button.dataset.adminPalette === selected));
+  }
+}
+
+function applyAdminPalette(palette, userId) {
+  const safePalette = ADMIN_PALETTES.some(([key]) => key === palette) ? palette : "fioreze";
+  document.body.dataset.adminPalette = safePalette;
+  if (!userId) return;
+  try {
+    localStorage.setItem(`fioreze-admin-palette:${userId}`, safePalette);
+  } catch {
+    // The server preference remains authoritative when local storage is unavailable.
+  }
+}
+
+function readPalettePreference(userId) {
+  if (!userId) return "fioreze";
+  try {
+    const palette = localStorage.getItem(`fioreze-admin-palette:${userId}`) || "fioreze";
+    return ADMIN_PALETTES.some(([key]) => key === palette) ? palette : "fioreze";
+  } catch {
+    return "fioreze";
   }
 }
 

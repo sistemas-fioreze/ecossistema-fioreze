@@ -197,6 +197,13 @@ A migration `0008_media_library_foundation.sql` prepara a Biblioteca de Imagens:
 - permissoes `portals.media.read`, `portals.media.upload`, `portals.media.update` e `portals.media.archive`;
 - nenhuma permissao e atribuida a roles pela migration.
 
+A migration `0017_admin_preferences_media_folders.sql` adiciona:
+
+- preferencias visuais persistidas por usuario administrativo em `admin_user_preferences`;
+- pastas e subpastas isoladas por `hotel_id` em `media_folders`;
+- a associacao opcional `media_assets.folder_id`, sem alterar a URL publica nem o objeto R2 quando uma imagem e organizada;
+- indices para navegacao por pasta e unicidade de nomes entre pastas irmas ativas.
+
 Como `ALTER TABLE ... ADD COLUMN` no D1/SQLite nao e uma forma segura de adicionar foreign keys em colunas novas, `uploaded_by_user_id` e `archived_by_user_id` ficam nullable e a integridade e validada pela aplicacao. Uma migration futura pode reconstruir a tabela se uma FK fisica for necessaria.
 
 Aplicar migrations:
@@ -239,7 +246,10 @@ Os testes cobrem:
 - transicoes de status, idempotencia, concorrencia, historico e auditoria;
 - impressao desativada;
 - Biblioteca de Imagens com R2 mockado localmente;
-- validacao de upload JPEG, PNG, WebP, MIME, magic bytes, tamanho e arquivamento logico.
+- validacao de upload JPEG, PNG, WebP, MIME, magic bytes, tamanho e arquivamento logico;
+- preferencias de paleta separadas por usuario;
+- criacao, navegacao, renomeacao, movimentacao e arquivamento de pastas;
+- isolamento de pastas e imagens entre unidades e bloqueio de ciclos.
 
 ## Biblioteca De Imagens
 
@@ -250,6 +260,8 @@ A Central de Portais possui a rota `/admin/portais/media/`. Ela e um MVP adminis
 - rota publica segura `/media/:id`, com bucket privado e sem expor `object_key`;
 - `public_url` relativo e estavel no formato `/media/<asset_id>`;
 - `object_key` gerado exclusivamente no servidor como `hotels/<hotel_id>/<module_or_shared>/<yyyy>/<mm>/<asset_id>.<ext>`.
+- pastas e subpastas administrativas, com navegacao por breadcrumbs;
+- visualizacao em grade ou lista e movimentacao de imagens e pastas por arrastar e soltar.
 
 Formatos aceitos:
 
@@ -264,10 +276,14 @@ Permissoes administrativas:
 
 - `portals.media.read`: listar e visualizar biblioteca;
 - `portals.media.upload`: enviar imagem;
-- `portals.media.update`: alterar `alt_text` e `module_key`;
+- `portals.media.update`: alterar `alt_text`, `module_key`, organizar imagens e gerenciar pastas;
 - `portals.media.archive`: arquivar logicamente.
 
 Arquivamento nao apaga o objeto R2. Imagens arquivadas retornam 404 em `/media/:id`. Falha de metadados D1 depois de um `put` no R2 aciona compensacao local, removendo o objeto recem-enviado antes de retornar erro seguro.
+
+Mover uma imagem entre pastas altera somente `media_assets.folder_id`: `public_url`, `object_key`, checksum e o binario no R2 permanecem intactos. Pastas nao vazias nao podem ser arquivadas, e a API impede mover uma pasta para dentro dela mesma ou de uma descendente.
+
+O shell da Central usa uma copia versionada e sanitizada do asset oficial da marca em `/assets/shared/fioreze-central-logo.jpg`. A origem aprovada foi a midia de desenvolvimento `media_7449a1c9-2575-447d-a782-7b206b186985`; a copia local evita dependencia de sessao, registro D1 ou disponibilidade do R2 para renderizar a identidade administrativa. Cada usuario pode escolher uma das paletas no menu da sessao; a preferencia e validada no Worker e salva por `admin_users.id`.
 
 Como Static Assets usa `not_found_handling: single-page-application`, o `wrangler.jsonc` precisa manter `/media/*` em `assets.run_worker_first`, junto de `/api/*` e `/admin/*`. Sem isso, a borda da Cloudflare poderia entregar o fallback HTML antes da rota do Worker. Os testes locais chamam o export do Worker diretamente, entao nao reproduzem completamente a precedencia da borda; por isso tambem existe teste de configuracao para garantir `/media/*` em `run_worker_first`.
 

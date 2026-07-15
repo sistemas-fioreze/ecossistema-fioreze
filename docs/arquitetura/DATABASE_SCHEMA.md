@@ -15,10 +15,11 @@ O schema inicial e versionado por migrations em `app/migrations/`.
 - `rooms`: quartos ou acomodacoes por hotel.
 - `service_hours`: horarios operacionais por hotel e modulo.
 - `media_assets`: metadados de midias e assets, sem binarios no D1.
+- `media_folders`: pastas e subpastas de midia isoladas por hotel.
 
 `service_hours` e a fonte canonica de horarios operacionais. Cada linha pertence a um hotel e modulo, usa o timezone do proprio hotel em `hotels.timezone`, permite mais de uma faixa no mesmo dia por `sort_order` e aceita horarios que atravessem a meia-noite. `hotel_settings` deve guardar apenas configuracoes que nao possuam tabela especializada.
 
-`media_assets` guarda apenas metadados, como `storage_provider`, `object_key`, `public_url`, texto alternativo, tipo MIME e status. Nesta fase o seed usa somente `storage_provider = static`; R2 e externo ficam preparados para fases futuras.
+`media_assets` guarda apenas metadados, como `storage_provider`, `object_key`, `public_url`, texto alternativo, tipo MIME, pasta e status. Binarios R2 permanecem no bucket privado. `media_folders` organiza a biblioteca sem incorporar o caminho da pasta no `object_key`, portanto mover imagens nao quebra URLs publicas.
 
 ## Administracao
 
@@ -30,6 +31,9 @@ O schema inicial e versionado por migrations em `app/migrations/`.
 - `admin_hotel_access`;
 - `admin_sessions`;
 - `admin_audit_log`.
+- `admin_user_preferences`.
+
+`admin_user_preferences` pertence a `admin_users` e guarda somente configuracoes pessoais nao sensiveis do shell, como a paleta de cores.
 
 ## Portal Do Hospede
 
@@ -76,6 +80,9 @@ Pedidos guardam `hotel_id`, `module_key`, origem, acomodacao quando aplicavel, v
 - `service_hours.module_key` referencia `modules.module_key` com delecao restrita, seguindo o padrao de tabelas de modulo.
 - `media_assets.hotel_id` referencia `hotels.id` e pode ser nulo para assets compartilhados.
 - `media_assets.module_key` referencia `modules.module_key` e usa `ON DELETE SET NULL`, porque o asset pode continuar existindo como metadado compartilhado mesmo se deixar de pertencer a um modulo.
+- `media_assets.folder_id` referencia `media_folders.id` e usa `ON DELETE SET NULL`.
+- `media_folders.hotel_id` referencia `hotels.id`; `media_folders.parent_id` referencia outra pasta e a aplicacao impede ciclos e mistura de hoteis.
+- `admin_user_preferences.user_id` referencia `admin_users.id` com `ON DELETE CASCADE`.
 - `catalog_items` pertence a `hotels`, `catalogs`, `categories` e `modules`.
 - `orders` pertence a `hotels`, `modules` e opcionalmente `rooms`.
 - `order_items` pertence a `orders` e preserva snapshot de nome e preco.
@@ -93,7 +100,8 @@ Indices iniciais cobrem:
 - `catalog_id + category_id`;
 - `hotel_id + module_key + enabled`;
 - `service_hours`: `hotel_id + module_key + status`, `hotel_id + module_key + day_of_week`, `hotel_id + status`;
-- `media_assets`: `hotel_id + status`, `hotel_id + module_key + status`, `storage_provider + status`;
+- `media_assets`: `hotel_id + status`, `hotel_id + module_key + status`, `hotel_id + folder_id + status`, `storage_provider + status`;
+- `media_folders`: `hotel_id + parent_id + archived_at + name` e nome ativo unico por pasta-pai;
 - auditoria por hotel, modulo e data;
 - pedidos por hotel, modulo e status;
 - eventos por hotel, status e horario.

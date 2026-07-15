@@ -190,6 +190,7 @@ function createFixtureData() {
         id: "media-muller-logo",
         hotel_id: "muller-fioreze",
         module_key: "guest-portal",
+        folder_id: null,
         storage_provider: "static",
         object_key: "hotels/muller-fioreze/logo.png",
         public_url: "/assets/hotels/muller-fioreze/logo.png",
@@ -353,6 +354,15 @@ function createFixtureData() {
       { user_id: "user-aurora-admin", hotel_id: "aurora-demo", access_level: "manager" },
     ],
     adminSessions: [],
+    adminUserPreferences: [
+      {
+        user_id: "user-demo-admin",
+        color_palette: "fioreze",
+        created_at: "2026-07-04T00:00:00.000Z",
+        updated_at: "2026-07-04T00:00:00.000Z",
+      },
+    ],
+    mediaFolders: [],
     erpUsers: [
       {
         id: "erp-user-muller-1",
@@ -751,6 +761,33 @@ class MockD1Database {
     if (normalized.includes("from admin_users") && normalized.includes("lower(email) = lower(?)")) {
       const [email] = params;
       return this.data.adminUsers.find((user) => user.email.toLowerCase() === String(email).toLowerCase()) || null;
+    }
+
+    if (normalized.includes("from admin_user_preferences") && normalized.includes("where user_id = ?")) {
+      const [userId] = params;
+      return this.data.adminUserPreferences.find((entry) => entry.user_id === userId) || null;
+    }
+
+    if (normalized.includes("from media_folders") && normalized.includes("select") && normalized.includes("where id = ?") && normalized.includes("hotel_id = ?")) {
+      const [folderId, hotelId] = params;
+      return this.data.mediaFolders.find(
+        (entry) => entry.id === folderId && entry.hotel_id === hotelId && entry.archived_at == null,
+      ) || null;
+    }
+
+    if (normalized.includes("from media_folders") && normalized.includes("hotel_id in") && normalized.includes("where id = ?")) {
+      const [folderId, ...hotelIds] = params;
+      return this.data.mediaFolders.find(
+        (entry) => entry.id === folderId && hotelIds.includes(entry.hotel_id) && entry.archived_at == null,
+      ) || null;
+    }
+
+    if (normalized.startsWith("select (select count(*) from media_assets where folder_id = ?")) {
+      const [assetFolderId, childFolderId] = params;
+      return {
+        item_count: this.data.mediaAssets.filter((entry) => entry.folder_id === assetFolderId && entry.status !== "archived").length,
+        child_count: this.data.mediaFolders.filter((entry) => entry.parent_id === childFolderId && entry.archived_at == null).length,
+      };
     }
 
     if (normalized.includes("from admin_sessions s") && normalized.includes("s.token_hash = ?")) {
@@ -1494,12 +1531,29 @@ class MockD1Database {
         .slice(0, 100);
     }
 
+    if (normalized.includes("from media_folders f") && normalized.includes("order by lower(f.name)")) {
+      const [hotelId, parentId] = params;
+      const filtersRoot = normalized.includes("f.parent_id is null");
+      return this.data.mediaFolders
+        .filter((folder) => folder.hotel_id === hotelId && folder.archived_at == null)
+        .filter((folder) => (filtersRoot ? folder.parent_id == null : folder.parent_id === parentId))
+        .map((folder) => ({
+          ...folder,
+          item_count: this.data.mediaAssets.filter((asset) => asset.folder_id === folder.id && asset.status !== "archived").length,
+          child_count: this.data.mediaFolders.filter((child) => child.parent_id === folder.id && child.archived_at == null).length,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+    }
+
     if (normalized.includes("from media_assets") && normalized.includes("order by created_at desc")) {
       const [hotelId, status] = params;
       let cursor = 2;
       const hasModule = normalized.includes("module_key = ?");
       const moduleKey = hasModule ? params[cursor++] : "";
-      const hasSearch = normalized.includes("original_filename");
+      const hasFolder = normalized.includes("folder_id = ?");
+      const folderId = hasFolder ? params[cursor++] : null;
+      const rootOnly = normalized.includes("folder_id is null");
+      const hasSearch = normalized.includes("lower(coalesce(original_filename");
       const search = hasSearch ? String(params[cursor++] || "").replaceAll("%", "").toLowerCase() : "";
       if (hasSearch) cursor += 1;
       const limit = Number(params[cursor++] || 24);
@@ -1507,6 +1561,7 @@ class MockD1Database {
       return this.data.mediaAssets
         .filter((asset) => asset.hotel_id === hotelId && asset.status === status)
         .filter((asset) => !moduleKey || asset.module_key === moduleKey)
+        .filter((asset) => (hasFolder ? asset.folder_id === folderId : !rootOnly || asset.folder_id == null))
         .filter((asset) => {
           if (!search) return true;
           return [asset.original_filename, asset.alt_text]
@@ -1846,6 +1901,38 @@ class MockD1Database {
       return d1Result(1);
     }
 
+    if (normalized.startsWith("insert into admin_user_preferences")) {
+      const [user_id, color_palette, created_at, updated_at] = params;
+      const existing = this.data.adminUserPreferences.find((entry) => entry.user_id === user_id);
+      if (existing) Object.assign(existing, { color_palette, updated_at });
+      else this.data.adminUserPreferences.push({ user_id, color_palette, created_at, updated_at });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("insert into media_folders")) {
+      const [id, hotel_id, parent_id, name, created_by_user_id, updated_by_user_id, created_at, updated_at] = params;
+      const duplicate = this.data.mediaFolders.some(
+        (entry) =>
+          entry.hotel_id === hotel_id &&
+          (entry.parent_id || null) === (parent_id || null) &&
+          entry.archived_at == null &&
+          entry.name.toLowerCase() === String(name).toLowerCase(),
+      );
+      if (duplicate) throw new Error("UNIQUE constraint failed: media_folders sibling name");
+      this.data.mediaFolders.push({
+        id,
+        hotel_id,
+        parent_id,
+        name,
+        created_by_user_id,
+        updated_by_user_id,
+        created_at,
+        updated_at,
+        archived_at: null,
+      });
+      return d1Result(1);
+    }
+
     if (normalized.startsWith("insert into admin_user_roles") || normalized.startsWith("insert or ignore into admin_user_roles")) {
       const [user_id, role_id, created_at] = params;
       if (!this.data.adminUserRoles.some((entry) => entry.user_id === user_id && entry.role_id === role_id)) {
@@ -1881,42 +1968,40 @@ class MockD1Database {
         this.failNextMediaAssetInsert = false;
         throw new Error("media asset insert failed");
       }
-      const [
-        id,
-        hotel_id,
-        module_key,
-        object_key,
-        public_url,
-        alt_text,
-        mime_type,
-        created_at,
-        updated_at,
-        original_filename,
-        size_bytes,
-        checksum_sha256,
-        storage_etag,
-        uploaded_by_user_id,
-        uploaded_by_erp_user_id,
-      ] = params;
+      const hasFolder = normalized.includes("folder_id");
+      const values = hasFolder
+        ? {
+            id: params[0], hotel_id: params[1], module_key: params[2], folder_id: params[3], object_key: params[4],
+            public_url: params[5], alt_text: params[6], mime_type: params[7], created_at: params[8], updated_at: params[9],
+            original_filename: params[10], size_bytes: params[11], checksum_sha256: params[12], storage_etag: params[13],
+            uploaded_by_user_id: params[14], uploaded_by_erp_user_id: null,
+          }
+        : {
+            id: params[0], hotel_id: params[1], module_key: params[2], folder_id: null, object_key: params[3],
+            public_url: params[4], alt_text: params[5], mime_type: params[6], created_at: params[7], updated_at: params[8],
+            original_filename: params[9], size_bytes: params[10], checksum_sha256: params[11], storage_etag: params[12],
+            uploaded_by_user_id: params[13], uploaded_by_erp_user_id: params[14] || null,
+          };
       this.data.mediaAssets.push({
-        id,
-        hotel_id,
-        module_key,
+        id: values.id,
+        hotel_id: values.hotel_id,
+        module_key: values.module_key,
+        folder_id: values.folder_id,
         storage_provider: "r2",
-        object_key,
-        public_url,
-        alt_text,
-        mime_type,
+        object_key: values.object_key,
+        public_url: values.public_url,
+        alt_text: values.alt_text,
+        mime_type: values.mime_type,
         status: "active",
-        created_at,
-        updated_at,
+        created_at: values.created_at,
+        updated_at: values.updated_at,
         archived_at: null,
-        original_filename,
-        size_bytes,
-        checksum_sha256,
-        storage_etag,
-        uploaded_by_user_id,
-        uploaded_by_erp_user_id: params.length >= 15 ? uploaded_by_erp_user_id : null,
+        original_filename: values.original_filename,
+        size_bytes: values.size_bytes,
+        checksum_sha256: values.checksum_sha256,
+        storage_etag: values.storage_etag,
+        uploaded_by_user_id: values.uploaded_by_user_id,
+        uploaded_by_erp_user_id: values.uploaded_by_erp_user_id,
         archived_by_user_id: null,
       });
       return d1Result(1);
@@ -2261,14 +2346,56 @@ class MockD1Database {
     }
 
     if (normalized.startsWith("update media_assets") && normalized.includes("set alt_text = ?")) {
-      const [alt_text, module_key, updated_at, id, hotel_id] = params;
+      const hasFolder = normalized.includes("folder_id = ?");
+      const [alt_text, module_key] = params;
+      const folder_id = hasFolder ? params[2] : null;
+      const updated_at = params[hasFolder ? 3 : 2];
+      const id = params[hasFolder ? 4 : 3];
+      const hotel_id = params[hasFolder ? 5 : 4];
       const asset = this.data.mediaAssets.find(
         (entry) => entry.id === id && entry.hotel_id === hotel_id && entry.status !== "archived",
       );
       if (!asset) return d1Result(0);
       asset.alt_text = alt_text;
       asset.module_key = module_key;
+      if (hasFolder) asset.folder_id = folder_id;
       asset.updated_at = updated_at;
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update media_folders") && normalized.includes("set name = ?")) {
+      const hasParent = normalized.includes("parent_id = ?");
+      const [name] = params;
+      const parent_id = hasParent ? params[1] : null;
+      const updated_by_user_id = params[hasParent ? 2 : 1];
+      const updated_at = params[hasParent ? 3 : 2];
+      const id = params[hasParent ? 4 : 3];
+      const hotel_id = params[hasParent ? 5 : 4];
+      const folder = this.data.mediaFolders.find(
+        (entry) => entry.id === id && entry.hotel_id === hotel_id && entry.archived_at == null,
+      );
+      if (!folder) return d1Result(0);
+      const nextParentId = hasParent ? parent_id : folder.parent_id || null;
+      const duplicate = this.data.mediaFolders.some(
+        (entry) =>
+          entry.id !== id &&
+          entry.hotel_id === hotel_id &&
+          (entry.parent_id || null) === nextParentId &&
+          entry.archived_at == null &&
+          entry.name.toLowerCase() === String(name).toLowerCase(),
+      );
+      if (duplicate) throw new Error("UNIQUE constraint failed: media_folders sibling name");
+      Object.assign(folder, { name, parent_id: nextParentId, updated_by_user_id, updated_at });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update media_folders") && normalized.includes("set archived_at = ?")) {
+      const [archived_at, updated_by_user_id, updated_at, id, hotel_id] = params;
+      const folder = this.data.mediaFolders.find(
+        (entry) => entry.id === id && entry.hotel_id === hotel_id && entry.archived_at == null,
+      );
+      if (!folder) return d1Result(0);
+      Object.assign(folder, { archived_at, updated_by_user_id, updated_at });
       return d1Result(1);
     }
 
@@ -2545,6 +2672,22 @@ class MockD1Database {
           actor_erp_user_id,
           action,
           entity_type: "media_asset",
+          entity_id,
+          metadata_json,
+          created_at,
+        });
+        return d1Result(1);
+      }
+      if (normalized.includes("'media_folder'")) {
+        const [id, hotel_id, actor_user_id, action, entity_id, metadata_json, created_at] = params;
+        this.data.adminAuditLog.push({
+          id,
+          hotel_id,
+          module_key: null,
+          actor_user_id,
+          actor_erp_user_id: null,
+          action,
+          entity_type: "media_folder",
           entity_id,
           metadata_json,
           created_at,

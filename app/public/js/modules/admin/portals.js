@@ -62,12 +62,27 @@ const els = {
   mediaModule: document.getElementById("mediaModule"),
   mediaStatus: document.getElementById("mediaStatus"),
   mediaSearch: document.getElementById("mediaSearch"),
+  mediaFolderId: document.getElementById("mediaFolderId"),
   mediaUploadForm: document.getElementById("mediaUploadForm"),
   mediaFile: document.getElementById("mediaFile"),
   mediaAltText: document.getElementById("mediaAltText"),
   mediaUploadButton: document.getElementById("mediaUploadButton"),
   mediaUploadStatus: document.getElementById("mediaUploadStatus"),
   mediaError: document.getElementById("mediaError"),
+  mediaFolders: document.getElementById("mediaFolders"),
+  mediaFolderCount: document.getElementById("mediaFolderCount"),
+  mediaAssetCount: document.getElementById("mediaAssetCount"),
+  mediaBreadcrumbs: document.getElementById("mediaBreadcrumbs"),
+  mediaNewFolderButton: document.getElementById("mediaNewFolderButton"),
+  mediaUploadToggle: document.getElementById("mediaUploadToggle"),
+  mediaRootDropTarget: document.getElementById("mediaRootDropTarget"),
+  mediaViewGrid: document.getElementById("mediaViewGrid"),
+  mediaViewList: document.getElementById("mediaViewList"),
+  mediaFolderDialog: document.getElementById("mediaFolderDialog"),
+  mediaFolderDialogTitle: document.getElementById("mediaFolderDialogTitle"),
+  mediaFolderForm: document.getElementById("mediaFolderForm"),
+  mediaFolderName: document.getElementById("mediaFolderName"),
+  mediaFolderError: document.getElementById("mediaFolderError"),
   mediaGrid: document.getElementById("mediaGrid"),
   shortLinksManager: document.getElementById("shortLinksManager"),
   shortLinksFilters: document.getElementById("shortLinksFilters"),
@@ -160,6 +175,11 @@ const settingFields = [
 
 let currentSession = null;
 let currentAssets = [];
+let currentFolders = [];
+let currentMediaBreadcrumbs = [];
+let currentMediaFolderId = null;
+let currentMediaView = readMediaView();
+let editingMediaFolder = null;
 let currentShortLinks = [];
 let currentShortLink = null;
 let currentUnits = [];
@@ -186,8 +206,34 @@ els.mediaFilters.addEventListener("submit", (event) => {
   loadMediaLibrary();
 });
 els.mediaSearch.addEventListener("input", debounce(() => loadMediaLibrary(), 300));
+els.mediaHotel.addEventListener("change", () => {
+  currentMediaFolderId = null;
+  loadMediaLibrary();
+});
+els.mediaModule.addEventListener("change", () => loadMediaLibrary());
+els.mediaStatus.addEventListener("change", () => loadMediaLibrary());
 els.mediaUploadForm.addEventListener("submit", handleMediaUpload);
 els.mediaGrid.addEventListener("click", handleMediaAction);
+els.mediaGrid.addEventListener("dragstart", handleMediaDragStart);
+els.mediaFolders.addEventListener("click", handleFolderAction);
+els.mediaFolders.addEventListener("dragstart", handleFolderDragStart);
+els.mediaFolders.addEventListener("dragover", handleFolderDragOver);
+els.mediaFolders.addEventListener("dragleave", handleFolderDragLeave);
+els.mediaFolders.addEventListener("drop", handleFolderDrop);
+els.mediaBreadcrumbs.addEventListener("click", handleFolderAction);
+els.mediaNewFolderButton.addEventListener("click", () => openMediaFolderDialog());
+els.mediaUploadToggle.addEventListener("click", toggleMediaUploadPanel);
+els.mediaViewGrid.addEventListener("click", () => setMediaView("grid"));
+els.mediaViewList.addEventListener("click", () => setMediaView("list"));
+els.mediaRootDropTarget.addEventListener("click", () => openMediaFolder(null));
+els.mediaRootDropTarget.addEventListener("dragover", handleRootDragOver);
+els.mediaRootDropTarget.addEventListener("dragleave", handleRootDragLeave);
+els.mediaRootDropTarget.addEventListener("drop", handleRootDrop);
+els.mediaUploadForm.addEventListener("dragover", handleUploadDragOver);
+els.mediaUploadForm.addEventListener("dragleave", handleUploadDragLeave);
+els.mediaUploadForm.addEventListener("drop", handleUploadDrop);
+els.mediaFolderForm.addEventListener("submit", saveMediaFolder);
+els.mediaFolderDialog.querySelector("[data-media-folder-cancel]").addEventListener("click", closeMediaFolderDialog);
 els.shortLinksFilters.addEventListener("submit", (event) => {
   event.preventDefault();
   loadShortLinks();
@@ -1056,14 +1102,17 @@ function shortLinkPreviewUrl(slug) {
 }
 
 function renderMediaLibrary(session) {
-  setHeading("Biblioteca de imagens", "Organize as imagens utilizadas nos portais e servicos de cada unidade.");
+  setHeading("Biblioteca de imagens", "Organize e reutilize as imagens de cada unidade.");
   const allowed = canAccessMediaLibrary(session);
   showPortalSection(allowed ? els.mediaLibrary : null);
   els.portalsDenied.hidden = allowed;
   if (!allowed) return;
 
   populateHotelSelect(session);
-  els.mediaUploadForm.hidden = !hasPermission(session, PORTALS_MEDIA_UPLOAD_PERMISSION);
+  els.mediaUploadToggle.hidden = !hasPermission(session, PORTALS_MEDIA_UPLOAD_PERMISSION);
+  els.mediaNewFolderButton.hidden = !hasPermission(session, PORTALS_MEDIA_UPDATE_PERMISSION);
+  els.mediaUploadForm.hidden = true;
+  setMediaView(currentMediaView, false);
   loadMediaLibrary();
 }
 
@@ -1077,19 +1126,34 @@ function populateHotelSelect(session) {
 async function loadMediaLibrary() {
   if (!currentSession || !canAccessMediaLibrary(currentSession) || !els.mediaHotel.value) return;
   els.mediaError.textContent = "";
+  els.mediaFolders.innerHTML = '<div class="admin-empty">Carregando pastas...</div>';
   els.mediaGrid.innerHTML = '<div class="admin-empty">Carregando imagens...</div>';
   const params = new URLSearchParams({
     hotel_id: els.mediaHotel.value,
     status: els.mediaStatus.value,
+    folder_id: currentMediaFolderId || "root",
   });
   if (els.mediaModule.value.trim()) params.set("module_key", els.mediaModule.value.trim());
   if (els.mediaSearch.value.trim()) params.set("q", els.mediaSearch.value.trim());
+  const folderParams = new URLSearchParams({ hotel_id: els.mediaHotel.value });
+  if (currentMediaFolderId) folderParams.set("parent_id", currentMediaFolderId);
 
   try {
-    const payload = await adminApi(`/api/v1/admin/media?${params.toString()}`);
-    currentAssets = payload.data.assets || [];
+    const [assetPayload, folderPayload] = await Promise.all([
+      adminApi(`/api/v1/admin/media?${params.toString()}`),
+      adminApi(`/api/v1/admin/media-folders?${folderParams.toString()}`),
+    ]);
+    currentAssets = assetPayload.data.assets || [];
+    currentFolders = folderPayload.data.folders || [];
+    currentMediaBreadcrumbs = folderPayload.data.breadcrumbs || [];
+    els.mediaFolderId.value = currentMediaFolderId || "";
+    renderMediaBreadcrumbs();
+    renderMediaFolders();
     renderMediaGrid();
   } catch (error) {
+    currentAssets = [];
+    currentFolders = [];
+    els.mediaFolders.innerHTML = "";
     els.mediaGrid.innerHTML = "";
     els.mediaError.textContent = error.message || "Nao foi possivel carregar a biblioteca.";
   }
@@ -1105,6 +1169,7 @@ async function handleMediaUpload(event) {
   const formData = new FormData(els.mediaUploadForm);
   formData.set("hotel_id", els.mediaHotel.value);
   formData.set("module_key", els.mediaModule.value.trim());
+  formData.set("folder_id", currentMediaFolderId || "");
 
   try {
     await adminApi("/api/v1/admin/media", {
@@ -1125,13 +1190,23 @@ async function handleMediaUpload(event) {
 
 async function handleMediaAction(event) {
   const button = event.target.closest("[data-media-action]");
-  if (!button) return;
+  const card = event.target.closest("[data-media-id]");
+  if (!button) {
+    if (card) card.classList.toggle("is-selected");
+    return;
+  }
   const asset = currentAssets.find((entry) => entry.id === button.dataset.mediaId);
   if (!asset) return;
 
   if (button.dataset.mediaAction === "copy") {
     await copyMediaUrl(asset.public_url);
-    button.textContent = "Copiado";
+    button.title = "URL copiada";
+    button.setAttribute("aria-label", "URL copiada");
+    return;
+  }
+
+  if (button.dataset.mediaAction === "open") {
+    window.open(asset.public_url, "_blank", "noopener,noreferrer");
     return;
   }
 
@@ -1143,6 +1218,13 @@ async function handleMediaAction(event) {
   if (button.dataset.mediaAction === "archive") {
     await archiveAsset(asset);
   }
+}
+
+function toggleMediaUploadPanel() {
+  if (!hasPermission(currentSession, PORTALS_MEDIA_UPLOAD_PERMISSION)) return;
+  els.mediaUploadForm.hidden = !els.mediaUploadForm.hidden;
+  els.mediaUploadToggle.setAttribute("aria-expanded", String(!els.mediaUploadForm.hidden));
+  if (!els.mediaUploadForm.hidden) els.mediaFile.focus();
 }
 
 async function copyMediaUrl(path) {
@@ -1182,8 +1264,9 @@ async function archiveAsset(asset) {
 }
 
 function renderMediaGrid() {
+  els.mediaAssetCount.textContent = `${currentAssets.length} ${currentAssets.length === 1 ? "imagem" : "imagens"}`;
   if (!currentAssets.length) {
-    els.mediaGrid.innerHTML = '<div class="admin-empty">Nenhuma imagem encontrada.</div>';
+    els.mediaGrid.innerHTML = `<div class="admin-media-empty">${driveIcon("image")}<strong>Nenhuma imagem nesta pasta</strong><span>Envie uma imagem ou mova arquivos para este local.</span></div>`;
     return;
   }
 
@@ -1194,30 +1277,293 @@ function renderMediaCard(asset) {
   const canUpdate = hasPermission(currentSession, PORTALS_MEDIA_UPDATE_PERMISSION);
   const canArchive = hasPermission(currentSession, PORTALS_MEDIA_ARCHIVE_PERMISSION) && asset.status !== "archived";
   return `
-    <article class="admin-media-card">
-      <img src="${escapeAttr(asset.public_url)}" alt="${escapeAttr(asset.alt_text || "")}" loading="lazy">
+    <article class="admin-media-card" data-media-id="${escapeAttr(asset.id)}" draggable="${canUpdate}">
+      <div class="admin-media-preview">
+        <img src="${escapeAttr(asset.public_url)}" alt="${escapeAttr(asset.alt_text || "")}" loading="lazy">
+        <span>${driveIcon("image")}</span>
+      </div>
       <div class="admin-media-body">
         <strong>${escapeHtml(asset.original_filename || asset.id)}</strong>
-        <span>${escapeHtml(asset.mime_type || "")} - ${escapeHtml(formatBytes(asset.size_bytes))}</span>
-        <span>${escapeHtml(asset.module_key || "shared")} - ${escapeHtml(asset.status)}</span>
-        <span>${escapeHtml(formatDate(asset.created_at))}</span>
-        <p>${escapeHtml(asset.alt_text || "Sem texto alternativo")}</p>
+        <span>${escapeHtml(formatBytes(asset.size_bytes))} · ${escapeHtml(asset.module_key || "Compartilhado")}</span>
+        <p>${escapeHtml(asset.alt_text || "Sem descricao")}</p>
         <div class="admin-media-actions">
-          <button type="button" data-media-action="copy" data-media-id="${escapeAttr(asset.id)}">Copiar URL</button>
+          <button type="button" data-media-action="open" data-media-id="${escapeAttr(asset.id)}" aria-label="Abrir imagem" title="Abrir">${driveIcon("external")}</button>
+          <button type="button" data-media-action="copy" data-media-id="${escapeAttr(asset.id)}" aria-label="Copiar URL" title="Copiar URL">${driveIcon("copy")}</button>
           ${
             canUpdate
-              ? `<button type="button" data-media-action="edit-alt" data-media-id="${escapeAttr(asset.id)}">Editar alt</button>`
+              ? `<button type="button" data-media-action="edit-alt" data-media-id="${escapeAttr(asset.id)}" aria-label="Editar descricao" title="Editar descricao">${driveIcon("edit")}</button>`
               : ""
           }
           ${
             canArchive
-              ? `<button class="danger" type="button" data-media-action="archive" data-media-id="${escapeAttr(asset.id)}">Arquivar</button>`
+              ? `<button class="danger" type="button" data-media-action="archive" data-media-id="${escapeAttr(asset.id)}" aria-label="Arquivar imagem" title="Arquivar">${driveIcon("archive")}</button>`
               : ""
           }
         </div>
       </div>
     </article>
   `;
+}
+
+function renderMediaFolders() {
+  els.mediaFolderCount.textContent = `${currentFolders.length} ${currentFolders.length === 1 ? "pasta" : "pastas"}`;
+  if (!currentFolders.length) {
+    els.mediaFolders.innerHTML = '<p class="admin-media-no-folders">Nenhuma pasta neste local.</p>';
+    return;
+  }
+  const canUpdate = hasPermission(currentSession, PORTALS_MEDIA_UPDATE_PERMISSION);
+  els.mediaFolders.innerHTML = currentFolders
+    .map(
+      (folder) => `
+        <article class="admin-media-folder-card" data-folder-id="${escapeAttr(folder.id)}" draggable="${canUpdate}">
+          <button type="button" data-folder-action="open" data-folder-id="${escapeAttr(folder.id)}">
+            <span class="admin-folder-icon">${driveIcon("folder")}</span>
+            <span><strong>${escapeHtml(folder.name)}</strong><small>${Number(folder.item_count || 0)} arquivo(s) · ${Number(folder.child_count || 0)} subpasta(s)</small></span>
+          </button>
+          ${
+            canUpdate
+              ? `<div class="admin-folder-actions">
+                  <button type="button" data-folder-action="rename" data-folder-id="${escapeAttr(folder.id)}" aria-label="Renomear ${escapeAttr(folder.name)}" title="Renomear">${driveIcon("edit")}</button>
+                  <button type="button" data-folder-action="archive" data-folder-id="${escapeAttr(folder.id)}" aria-label="Arquivar ${escapeAttr(folder.name)}" title="Arquivar">${driveIcon("archive")}</button>
+                </div>`
+              : ""
+          }
+        </article>`,
+    )
+    .join("");
+}
+
+function renderMediaBreadcrumbs() {
+  const entries = [{ id: null, name: "Minha biblioteca" }, ...currentMediaBreadcrumbs];
+  els.mediaBreadcrumbs.innerHTML = entries
+    .map(
+      (entry, index) =>
+        `<button type="button" data-folder-action="breadcrumb" data-folder-id="${escapeAttr(entry.id || "root")}" ${
+          index === entries.length - 1 ? 'aria-current="page"' : ""
+        }>${index === 0 ? driveIcon("home") : ""}${escapeHtml(entry.name)}</button>${index < entries.length - 1 ? driveIcon("chevron") : ""}`,
+    )
+    .join("");
+  els.mediaRootDropTarget.setAttribute("aria-current", String(currentMediaFolderId == null));
+}
+
+function handleFolderAction(event) {
+  const action = event.target.closest("[data-folder-action]");
+  if (!action) return;
+  const folderId = action.dataset.folderId === "root" ? null : action.dataset.folderId;
+  if (action.dataset.folderAction === "open" || action.dataset.folderAction === "breadcrumb") {
+    openMediaFolder(folderId);
+    return;
+  }
+  const folder = currentFolders.find((entry) => entry.id === folderId);
+  if (!folder) return;
+  if (action.dataset.folderAction === "rename") openMediaFolderDialog(folder);
+  if (action.dataset.folderAction === "archive") void archiveMediaFolder(folder);
+}
+
+function openMediaFolder(folderId) {
+  currentMediaFolderId = folderId || null;
+  loadMediaLibrary();
+}
+
+function openMediaFolderDialog(folder = null) {
+  if (!hasPermission(currentSession, PORTALS_MEDIA_UPDATE_PERMISSION)) return;
+  editingMediaFolder = folder;
+  els.mediaFolderDialogTitle.textContent = folder ? "Renomear pasta" : "Nova pasta";
+  els.mediaFolderName.value = folder?.name || "";
+  els.mediaFolderError.textContent = "";
+  els.mediaFolderDialog.showModal();
+  els.mediaFolderName.focus();
+}
+
+function closeMediaFolderDialog() {
+  editingMediaFolder = null;
+  els.mediaFolderDialog.close();
+}
+
+async function saveMediaFolder(event) {
+  event.preventDefault();
+  const name = els.mediaFolderName.value.trim();
+  if (!name) return;
+  els.mediaFolderError.textContent = "";
+  try {
+    if (editingMediaFolder) {
+      await adminApi(`/api/v1/admin/media-folders/${encodeURIComponent(editingMediaFolder.id)}`, {
+        method: "PATCH",
+        body: { name },
+      });
+    } else {
+      await adminApi("/api/v1/admin/media-folders", {
+        method: "POST",
+        body: { hotel_id: els.mediaHotel.value, parent_id: currentMediaFolderId, name },
+      });
+    }
+    closeMediaFolderDialog();
+    await loadMediaLibrary();
+  } catch (error) {
+    els.mediaFolderError.textContent = error.message || "Nao foi possivel salvar a pasta.";
+  }
+}
+
+async function archiveMediaFolder(folder) {
+  if (!window.confirm(`Arquivar a pasta "${folder.name}"?`)) return;
+  try {
+    await adminApi(`/api/v1/admin/media-folders/${encodeURIComponent(folder.id)}`, { method: "DELETE", body: {} });
+    await loadMediaLibrary();
+  } catch (error) {
+    els.mediaError.textContent = error.message || "Nao foi possivel arquivar a pasta.";
+  }
+}
+
+function handleMediaDragStart(event) {
+  const card = event.target.closest("[data-media-id]");
+  if (!card || !hasPermission(currentSession, PORTALS_MEDIA_UPDATE_PERMISSION)) return;
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData("application/x-fioreze-media-id", card.dataset.mediaId);
+  card.classList.add("is-dragging");
+  card.addEventListener("dragend", () => card.classList.remove("is-dragging"), { once: true });
+}
+
+function handleFolderDragStart(event) {
+  const folder = event.target.closest("[data-folder-id]");
+  if (!folder || !hasPermission(currentSession, PORTALS_MEDIA_UPDATE_PERMISSION)) return;
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData("application/x-fioreze-folder-id", folder.dataset.folderId);
+  folder.classList.add("is-dragging");
+  folder.addEventListener("dragend", () => folder.classList.remove("is-dragging"), { once: true });
+}
+
+function handleFolderDragOver(event) {
+  const folder = event.target.closest("[data-folder-id]");
+  const hasMedia = event.dataTransfer.types.includes("application/x-fioreze-media-id");
+  const hasFolder = event.dataTransfer.types.includes("application/x-fioreze-folder-id");
+  if (!folder || (!hasMedia && !hasFolder)) return;
+  if (hasFolder && event.dataTransfer.getData("application/x-fioreze-folder-id") === folder.dataset.folderId) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = "move";
+  folder.classList.add("is-drop-target");
+}
+
+function handleFolderDragLeave(event) {
+  const folder = event.target.closest("[data-folder-id]");
+  if (folder && !folder.contains(event.relatedTarget)) folder.classList.remove("is-drop-target");
+}
+
+function handleFolderDrop(event) {
+  const folder = event.target.closest("[data-folder-id]");
+  if (!folder) return;
+  event.preventDefault();
+  folder.classList.remove("is-drop-target");
+  const assetId = event.dataTransfer.getData("application/x-fioreze-media-id");
+  const draggedFolderId = event.dataTransfer.getData("application/x-fioreze-folder-id");
+  if (assetId) void moveMediaAsset(assetId, folder.dataset.folderId);
+  if (draggedFolderId) void moveMediaFolder(draggedFolderId, folder.dataset.folderId);
+}
+
+function handleRootDragOver(event) {
+  if (
+    !event.dataTransfer.types.includes("application/x-fioreze-media-id") &&
+    !event.dataTransfer.types.includes("application/x-fioreze-folder-id")
+  ) return;
+  event.preventDefault();
+  els.mediaRootDropTarget.classList.add("is-drop-target");
+}
+
+function handleRootDragLeave() {
+  els.mediaRootDropTarget.classList.remove("is-drop-target");
+}
+
+function handleRootDrop(event) {
+  event.preventDefault();
+  els.mediaRootDropTarget.classList.remove("is-drop-target");
+  const assetId = event.dataTransfer.getData("application/x-fioreze-media-id");
+  const folderId = event.dataTransfer.getData("application/x-fioreze-folder-id");
+  if (assetId) void moveMediaAsset(assetId, null);
+  if (folderId) void moveMediaFolder(folderId, null);
+}
+
+async function moveMediaAsset(assetId, folderId) {
+  const asset = currentAssets.find((entry) => entry.id === assetId);
+  if (!asset || (asset.folder_id || null) === (folderId || null)) return;
+  try {
+    await adminApi(`/api/v1/admin/media/${encodeURIComponent(assetId)}`, {
+      method: "PATCH",
+      body: { folder_id: folderId },
+    });
+    await loadMediaLibrary();
+  } catch (error) {
+    els.mediaError.textContent = error.message || "Nao foi possivel mover a imagem.";
+  }
+}
+
+async function moveMediaFolder(folderId, parentId) {
+  if (!folderId || folderId === parentId) return;
+  try {
+    await adminApi(`/api/v1/admin/media-folders/${encodeURIComponent(folderId)}`, {
+      method: "PATCH",
+      body: { parent_id: parentId },
+    });
+    await loadMediaLibrary();
+  } catch (error) {
+    els.mediaError.textContent = error.message || "Nao foi possivel mover a pasta.";
+  }
+}
+
+function handleUploadDragOver(event) {
+  if (![...event.dataTransfer.items].some((item) => item.kind === "file")) return;
+  event.preventDefault();
+  els.mediaUploadForm.classList.add("is-file-over");
+}
+
+function handleUploadDragLeave(event) {
+  if (!els.mediaUploadForm.contains(event.relatedTarget)) els.mediaUploadForm.classList.remove("is-file-over");
+}
+
+function handleUploadDrop(event) {
+  const file = event.dataTransfer.files?.[0];
+  if (!file) return;
+  event.preventDefault();
+  els.mediaUploadForm.classList.remove("is-file-over");
+  const transfer = new DataTransfer();
+  transfer.items.add(file);
+  els.mediaFile.files = transfer.files;
+  els.mediaUploadStatus.textContent = `${file.name} pronto para envio.`;
+}
+
+function setMediaView(view, persist = true) {
+  currentMediaView = view === "list" ? "list" : "grid";
+  els.mediaGrid.classList.toggle("is-list-view", currentMediaView === "list");
+  els.mediaFolders.classList.toggle("is-list-view", currentMediaView === "list");
+  els.mediaViewGrid.setAttribute("aria-pressed", String(currentMediaView === "grid"));
+  els.mediaViewList.setAttribute("aria-pressed", String(currentMediaView === "list"));
+  if (persist) {
+    try {
+      localStorage.setItem("fioreze-media-view", currentMediaView);
+    } catch {
+      // Visualizacao continua funcional sem armazenamento local.
+    }
+  }
+}
+
+function readMediaView() {
+  try {
+    return localStorage.getItem("fioreze-media-view") === "list" ? "list" : "grid";
+  } catch {
+    return "grid";
+  }
+}
+
+function driveIcon(name) {
+  const paths = {
+    folder: '<path d="M3 6h7l2 2h9v11H3z"/>',
+    image: '<path d="M4 5h16v14H4z"/><path d="m6 16 4-4 3 3 2-2 3 3"/><circle cx="9" cy="9" r="1"/>',
+    home: '<path d="m4 11 8-7 8 7"/><path d="M6 10v10h12V10"/>',
+    chevron: '<path d="m9 6 6 6-6 6"/>',
+    copy: '<rect x="8" y="8" width="11" height="11"/><path d="M16 8V5H5v11h3"/>',
+    edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13 7 4 4"/>',
+    archive: '<path d="M4 7h16v13H4zM3 4h18v3H3z"/><path d="M9 11h6"/>',
+    external: '<path d="M14 5h5v5M19 5l-9 9"/><path d="M19 14v5H5V5h5"/>',
+  };
+  return `<svg class="admin-drive-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[name] || paths.image}</svg>`;
 }
 
 function renderModuleToggle(moduleRow) {

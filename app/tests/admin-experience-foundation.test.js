@@ -25,6 +25,9 @@ test("shell administrativo compartilhado possui navegacao, avatar, ajuda e SVG l
   assert.match(source, /admin-avatar/);
   assert.match(source, /canAccessPortals/);
   assert.match(source, /<svg class="admin-svg-icon"/);
+  assert.match(source, /fioreze-central-logo\.jpg/);
+  assert.match(source, /\/api\/v1\/admin\/me\/preferences/);
+  assert.match(source, /data-admin-palette/);
   assert.doesNotMatch(source, /Abra Pedidos|Ajuda de Pedidos|\/admin\/room-service/);
   assert.doesNotMatch(source, /https:\/\/|cdn|lucide|fontawesome/i);
 });
@@ -80,6 +83,22 @@ test("Central compartilha as proporcoes e os controles do shell oficial do ERP",
   assert.match(shell, /data-admin-search-results/);
   assert.match(shell, /data-admin-session-toggle/);
   assert.match(shell, /admin-brand-wordmark/);
+  assert.match(css, /overflow-y: auto/);
+  assert.match(css, /touch-action: pan-y/);
+});
+
+test("Biblioteca de Imagens possui pastas, arrastar e soltar e visual em grade ou lista", () => {
+  const html = fs.readFileSync("public/admin/portais/index.html", "utf8");
+  const source = fs.readFileSync("public/js/modules/admin/portals.js", "utf8");
+
+  for (const id of ["mediaFolders", "mediaBreadcrumbs", "mediaUploadForm", "mediaFolderDialog", "mediaViewGrid", "mediaViewList"]) {
+    assert.match(html, new RegExp(`id="${id}"`), id);
+  }
+  assert.match(source, /application\/x-fioreze-media-id/);
+  assert.match(source, /dataTransfer/);
+  assert.match(source, /\/api\/v1\/admin\/media-folders/);
+  assert.match(source, /folder_id/);
+  assert.equal(fs.existsSync("public/assets/shared/fioreze-central-logo.jpg"), true);
 });
 
 test("shells administrativos continuam respondendo sem fallback incorreto", async () => {
