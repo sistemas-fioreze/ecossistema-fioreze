@@ -119,6 +119,46 @@ test("reset administrativo de senha revoga sessoes e nao persiste segredo em aud
   assert.doesNotMatch(env.__data.adminAuditLog.at(-1).metadata_json, /password|hash|token/i);
 });
 
+test("remocao de usuario arquiva conta, revoga sessoes e remove vinculos", async () => {
+  const { json, env } = createWorkerTestContext();
+  const cookie = await createSessionCookie(env);
+  const created = await json(
+    "/api/v1/admin/users",
+    withCookie(cookie, adminJson("POST", {
+      display_name: "Pessoa Removivel",
+      email: "removivel@example.invalid",
+      role_ids: [],
+      hotel_ids: ["muller-fioreze"],
+    })),
+  );
+  const userId = created.body.data.user.id;
+  env.__data.adminSessions.push({ id: "session-removivel", user_id: userId, token_hash: "test-only", expires_at: "2026-08-01T00:00:00.000Z", revoked_at: null });
+
+  const removed = await json(`/api/v1/admin/users/${userId}`, withCookie(cookie, adminJson("DELETE", {})));
+  const listed = await json("/api/v1/admin/users", withCookie(cookie));
+  const stored = env.__data.adminUsers.find((user) => user.id === userId);
+
+  assert.equal(removed.response.status, 200);
+  assert.equal(removed.body.data.removed, true);
+  assert.equal(stored.status, "archived");
+  assert.ok(stored.archived_at);
+  assert.ok(env.__data.adminSessions.find((session) => session.id === "session-removivel").revoked_at);
+  assert.equal(env.__data.adminHotelAccess.some((entry) => entry.user_id === userId), false);
+  assert.equal(env.__data.adminUserRoles.some((entry) => entry.user_id === userId), false);
+  assert.equal(listed.body.data.users.some((user) => user.id === userId), false);
+  assert.equal(env.__data.adminAuditLog.at(-1).action, "admin-user.archive");
+});
+
+test("remocao bloqueia a propria conta e preserva administrador efetivo", async () => {
+  const { json, env } = createWorkerTestContext();
+  const cookie = await createSessionCookie(env);
+
+  const self = await json("/api/v1/admin/users/user-demo-admin", withCookie(cookie, adminJson("DELETE", {})));
+
+  assert.equal(self.response.status, 409);
+  assert.equal(env.__data.adminUsers.find((user) => user.id === "user-demo-admin").status, "active");
+});
+
 test("perfis e permissoes sao listados com rotulos humanos", async () => {
   const { json, env } = createWorkerTestContext();
   const cookie = await createSessionCookie(env);
@@ -131,6 +171,29 @@ test("perfis e permissoes sao listados com rotulos humanos", async () => {
   const managerRole = roles.body.data.roles.find((role) => role.role_key === "demo-manager");
   assert.ok(managerRole.permissions.some((permission) => permission.permission_key === "admin.users.read"));
   assert.ok(permissions.body.data.permissions.some((permission) => permission.label === "Ver usuarios"));
+});
+
+test("perfil sem usuarios pode ser removido, mas perfil protegido ou em uso nao", async () => {
+  const { json, env } = createWorkerTestContext();
+  const cookie = await createSessionCookie(env);
+  await json(
+    "/api/v1/admin/roles",
+    withCookie(cookie, adminJson("POST", { role_key: "perfil-removivel", name: "Perfil removivel", description: "Teste ficticio" })),
+  );
+  const role = env.__data.adminRoles.find((entry) => entry.role_key === "perfil-removivel");
+
+  const removed = await json(`/api/v1/admin/roles/${role.id}`, withCookie(cookie, adminJson("DELETE", {})));
+  const protectedRole = await json("/api/v1/admin/roles/role-demo-manager", withCookie(cookie, adminJson("DELETE", {})));
+
+  env.__data.adminRoles.push({ id: "role-em-uso", role_key: "perfil-em-uso", name: "Perfil em uso" });
+  env.__data.adminUserRoles.push({ user_id: "user-aurora-admin", role_id: "role-em-uso" });
+  const inUse = await json("/api/v1/admin/roles/role-em-uso", withCookie(cookie, adminJson("DELETE", {})));
+
+  assert.equal(removed.response.status, 200);
+  assert.equal(env.__data.adminRoles.some((entry) => entry.id === role.id), false);
+  assert.equal(protectedRole.response.status, 409);
+  assert.equal(inUse.response.status, 409);
+  assert.ok(env.__data.adminRoles.some((entry) => entry.id === "role-em-uso"));
 });
 
 test("alteracao da propria senha valida politica, troca hash e revoga sessao atual", async () => {

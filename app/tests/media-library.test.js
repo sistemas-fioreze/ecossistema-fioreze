@@ -52,6 +52,62 @@ test("upload PNG e WebP valida magic bytes e checksum", async () => {
   assert.equal(env.__data.mediaAssets.at(-1).checksum_sha256.length, 64);
 });
 
+test("upload MP4 e WebM valida assinatura, grava R2 e serve video", async () => {
+  const { json, fetch, env } = createWorkerTestContext();
+  grantMediaPermissions(env);
+  const cookie = await createSessionCookie(env);
+
+  const mp4 = await uploadImage(json, cookie, {
+    file: imageFile(mp4Bytes(), "apresentacao.mp4", "video/mp4"),
+    alt_text: "Video ficticio de apresentacao",
+  });
+  const webm = await uploadImage(json, cookie, {
+    file: imageFile(webmBytes(), "evento.webm", "video/webm"),
+    alt_text: "Video ficticio de evento",
+  });
+  const publicVideo = await fetch(mp4.body.data.asset.public_url);
+
+  assert.equal(mp4.response.status, 200);
+  assert.equal(webm.response.status, 200);
+  assert.equal(mp4.body.data.asset.mime_type, "video/mp4");
+  assert.equal(webm.body.data.asset.mime_type, "video/webm");
+  assert.match(publicVideo.headers.get("content-type") || "", /video\/mp4/);
+  assert.match([...env.MEDIA_BUCKET.objects.keys()].join("\n"), /\.mp4|\.webm/);
+});
+
+test("upload de video rejeita assinatura ou extensao divergente", async () => {
+  const { json, env } = createWorkerTestContext();
+  grantMediaPermissions(env);
+  const cookie = await createSessionCookie(env);
+
+  const badSignature = await uploadImage(json, cookie, {
+    file: imageFile(new Uint8Array([1, 2, 3, 4]), "video.mp4", "video/mp4"),
+  });
+  const badExtension = await uploadImage(json, cookie, {
+    file: imageFile(mp4Bytes(), "video.webm", "video/mp4"),
+  });
+
+  assert.equal(badSignature.response.status, 400);
+  assert.equal(badExtension.response.status, 400);
+  assert.equal(env.MEDIA_BUCKET.objects.size, 0);
+});
+
+test("listagem informa consumo total do armazenamento da unidade", async () => {
+  const { json, env } = createWorkerTestContext();
+  grantMediaPermissions(env);
+  const cookie = await createSessionCookie(env);
+  await uploadImage(json, cookie, { file: imageFile(jpegBytes(), "foto.jpg", "image/jpeg") });
+  await uploadImage(json, cookie, { file: imageFile(mp4Bytes(), "video.mp4", "video/mp4") });
+
+  const list = await json("/api/v1/admin/media?hotel_id=muller-fioreze&folder_id=root", withCookie(cookie));
+
+  assert.equal(list.response.status, 200);
+  assert.equal(list.body.data.storage.file_count, 2);
+  assert.equal(list.body.data.storage.used_bytes, jpegBytes().length + mp4Bytes().length);
+  assert.ok(list.body.data.storage.quota_bytes > list.body.data.storage.used_bytes);
+  assert.ok(list.body.data.storage.percent_used >= 0);
+});
+
 test("upload rejeita MIME falso, magic bytes invalidos, SVG, arquivo vazio e arquivo acima de 8MB", async () => {
   const { json, env } = createWorkerTestContext();
   grantMediaPermissions(env);
@@ -502,6 +558,21 @@ function webpBytes() {
     0x38,
     0x20,
   ]);
+}
+
+function mp4Bytes() {
+  return new Uint8Array([
+    0x00, 0x00, 0x00, 0x18,
+    0x66, 0x74, 0x79, 0x70,
+    0x69, 0x73, 0x6f, 0x6d,
+    0x00, 0x00, 0x00, 0x00,
+    0x69, 0x73, 0x6f, 0x6d,
+    0x6d, 0x70, 0x34, 0x32,
+  ]);
+}
+
+function webmBytes() {
+  return new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 0x9f, 0x42, 0x86, 0x81, 0x01]);
 }
 
 function largeJpegBytes() {

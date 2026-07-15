@@ -245,15 +245,15 @@ Os testes cobrem:
 - listagem e detalhe de pedidos limitados aos hoteis permitidos;
 - transicoes de status, idempotencia, concorrencia, historico e auditoria;
 - impressao desativada;
-- Biblioteca de Imagens com R2 mockado localmente;
-- validacao de upload JPEG, PNG, WebP, MIME, magic bytes, tamanho e arquivamento logico;
+- Biblioteca de Midia com R2 mockado localmente;
+- validacao de imagens JPEG, PNG, WebP e AVIF e de videos MP4, WebM e MOV por MIME, magic bytes, extensao e tamanho;
 - preferencias de paleta separadas por usuario;
 - criacao, navegacao, renomeacao, movimentacao e arquivamento de pastas;
 - isolamento de pastas e imagens entre unidades e bloqueio de ciclos.
 
-## Biblioteca De Imagens
+## Biblioteca De Midia
 
-A Central de Portais possui a rota `/admin/portais/media/`. Ela e um MVP administrativo para imagens publicas de hoteis e modulos, usando:
+A Central de Portais possui a rota `/admin/portais/media/`. Ela organiza imagens e videos publicos de hoteis e modulos em um gerenciador unificado, usando:
 
 - D1 para metadados em `media_assets`;
 - R2 para binarios via binding `MEDIA_BUCKET`;
@@ -261,7 +261,9 @@ A Central de Portais possui a rota `/admin/portais/media/`. Ela e um MVP adminis
 - `public_url` relativo e estavel no formato `/media/<asset_id>`;
 - `object_key` gerado exclusivamente no servidor como `hotels/<hotel_id>/<module_or_shared>/<yyyy>/<mm>/<asset_id>.<ext>`.
 - pastas e subpastas administrativas, com navegacao por breadcrumbs;
-- visualizacao em grade ou lista e movimentacao de imagens e pastas por arrastar e soltar.
+- visualizacao conjunta de pastas e arquivos em grade ou lista;
+- movimentacao de midias e pastas por arrastar e soltar;
+- indicador de uso calculado a partir dos objetos registrados no D1 para a unidade.
 
 Formatos aceitos:
 
@@ -269,19 +271,22 @@ Formatos aceitos:
 - `image/png`;
 - `image/webp`;
 - `image/avif`.
+- `video/mp4`;
+- `video/webm`;
+- `video/quicktime`.
 
-Limite inicial: 8MB por arquivo. SVG e arquivos vazios sao rejeitados. O Worker valida `Content-Type`, extensao, tamanho real e magic bytes, calcula SHA-256 e sanitiza `original_filename`, `alt_text` e `module_key`.
+Limite inicial: 8MB por imagem e 25MB por video. SVG e arquivos vazios sao rejeitados. O Worker valida `Content-Type`, extensao, tamanho real e magic bytes, calcula SHA-256 e sanitiza `original_filename`, `alt_text` e `module_key`.
 
 Permissoes administrativas:
 
 - `portals.media.read`: listar e visualizar biblioteca;
-- `portals.media.upload`: enviar imagem;
-- `portals.media.update`: alterar `alt_text`, `module_key`, organizar imagens e gerenciar pastas;
+- `portals.media.upload`: enviar imagem ou video;
+- `portals.media.update`: alterar `alt_text`, `module_key`, organizar arquivos e gerenciar pastas;
 - `portals.media.archive`: arquivar logicamente.
 
-Arquivamento nao apaga o objeto R2. Imagens arquivadas retornam 404 em `/media/:id`. Falha de metadados D1 depois de um `put` no R2 aciona compensacao local, removendo o objeto recem-enviado antes de retornar erro seguro.
+Na interface, Excluir move o registro para a lixeira logica. O objeto R2 permanece preservado para recuperacao e a midia passa a retornar 404 em `/media/:id`. Falha de metadados D1 depois de um `put` no R2 aciona compensacao local, removendo o objeto recem-enviado antes de retornar erro seguro.
 
-Mover uma imagem entre pastas altera somente `media_assets.folder_id`: `public_url`, `object_key`, checksum e o binario no R2 permanecem intactos. Pastas nao vazias nao podem ser arquivadas, e a API impede mover uma pasta para dentro dela mesma ou de uma descendente.
+Mover uma midia entre pastas altera somente `media_assets.folder_id`: `public_url`, `object_key`, checksum e o binario no R2 permanecem intactos. Pastas nao vazias nao podem ser excluidas, e a API impede mover uma pasta para dentro dela mesma ou de uma descendente.
 
 O shell da Central usa uma copia versionada e sanitizada do asset oficial da marca em `/assets/shared/fioreze-central-logo.jpg`. A origem aprovada foi a midia de desenvolvimento `media_7449a1c9-2575-447d-a782-7b206b186985`; a copia local evita dependencia de sessao, registro D1 ou disponibilidade do R2 para renderizar a identidade administrativa. Cada usuario pode escolher uma das paletas no menu da sessao; a preferencia e validada no Worker e salva por `admin_users.id`.
 

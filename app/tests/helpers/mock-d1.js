@@ -869,7 +869,12 @@ class MockD1Database {
     if (normalized.includes("from admin_roles") && normalized.includes("where id = ?")) {
       const [roleId] = params;
       const role = this.data.adminRoles.find((entry) => entry.id === roleId);
-      return role ? { id: role.id } : null;
+      return role ? { ...role } : null;
+    }
+
+    if (normalized.includes("count(*) as user_count") && normalized.includes("from admin_user_roles")) {
+      const [roleId] = params;
+      return { user_count: this.data.adminUserRoles.filter((entry) => entry.role_id === roleId).length };
     }
 
     if (normalized.includes("from admin_permissions") && normalized.includes("where permission_key = ?")) {
@@ -921,6 +926,17 @@ class MockD1Database {
         (entry) => entry.hotel_id === hotelId && entry.feature_key === featureKey && entry.enabled === 1,
       );
       return feature && hotelFeature ? { enabled: hotelFeature.enabled } : null;
+    }
+
+    if (normalized.includes("count(*) as file_count") && normalized.includes("sum(size_bytes)") && normalized.includes("from media_assets")) {
+      const [hotelId] = params;
+      const assets = this.data.mediaAssets.filter(
+        (entry) => entry.hotel_id === hotelId && entry.storage_provider === "r2",
+      );
+      return {
+        file_count: assets.length,
+        used_bytes: assets.reduce((total, entry) => total + Number(entry.size_bytes || 0), 0),
+      };
     }
 
     if (normalized.includes("from media_assets") && normalized.includes("storage_provider = 'r2'")) {
@@ -2260,6 +2276,14 @@ class MockD1Database {
       return d1Result(1);
     }
 
+    if (normalized.startsWith("update admin_users") && normalized.includes("set status = 'archived'")) {
+      const [archived_at, updated_at, id] = params;
+      const user = this.data.adminUsers.find((entry) => entry.id === id && entry.status !== "archived");
+      if (!user) return d1Result(0);
+      Object.assign(user, { status: "archived", archived_at, updated_at });
+      return d1Result(1);
+    }
+
     if (normalized.startsWith("update admin_users") && normalized.includes("password_hash = ?")) {
       const password_hash = params[0];
       const firstDate = params[1];
@@ -2329,6 +2353,13 @@ class MockD1Database {
       const before = this.data.adminRolePermissions.length;
       this.data.adminRolePermissions = this.data.adminRolePermissions.filter((entry) => entry.role_id !== role_id);
       return d1Result(before - this.data.adminRolePermissions.length);
+    }
+
+    if (normalized.startsWith("delete from admin_roles")) {
+      const [role_id] = params;
+      const before = this.data.adminRoles.length;
+      this.data.adminRoles = this.data.adminRoles.filter((entry) => entry.id !== role_id);
+      return d1Result(before - this.data.adminRoles.length);
     }
 
     if (normalized.startsWith("update orders")) {

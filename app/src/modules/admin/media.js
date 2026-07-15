@@ -10,20 +10,29 @@ const READ_PERMISSION = "portals.media.read";
 const UPLOAD_PERMISSION = "portals.media.upload";
 const UPDATE_PERMISSION = "portals.media.update";
 const ARCHIVE_PERMISSION = "portals.media.archive";
-const MAX_FILE_BYTES = 8 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 25 * 1024 * 1024;
+const DEFAULT_STORAGE_QUOTA_BYTES = 5 * 1024 * 1024 * 1024;
 export const PUBLIC_CACHE_CONTROL = "public, max-age=3600, stale-while-revalidate=86400";
-const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
+const IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
+const MEDIA_MIME_TYPES = new Set([...IMAGE_MIME_TYPES, "video/mp4", "video/webm", "video/quicktime"]);
 const MIME_EXTENSIONS = {
   "image/jpeg": "jpg",
   "image/png": "png",
   "image/webp": "webp",
   "image/avif": "avif",
+  "video/mp4": "mp4",
+  "video/webm": "webm",
+  "video/quicktime": "mov",
 };
 const FILENAME_EXTENSIONS = {
   "image/jpeg": new Set(["jpg", "jpeg"]),
   "image/png": new Set(["png"]),
   "image/webp": new Set(["webp"]),
   "image/avif": new Set(["avif"]),
+  "video/mp4": new Set(["mp4", "m4v"]),
+  "video/webm": new Set(["webm"]),
+  "video/quicktime": new Set(["mov", "qt"]),
 };
 const VALID_MEDIA_STATUSES = new Set(["active", "inactive", "archived"]);
 
@@ -39,7 +48,7 @@ export async function uploadAdminMedia({ request, env, session }) {
   if (folderId) await requireFolderInHotel(env, hotelId, folderId);
   const altText = optionalString(formText(form, "alt_text"), "alt_text", { max: 300 }) || null;
   const file = form.get("file");
-  const validated = await validateImageFile(file);
+  const validated = await validateMediaFile(file);
   const now = requestNow({ request, env });
   const assetId = createPublicId("media");
   const objectKey = buildObjectKey({
@@ -186,9 +195,25 @@ export async function listAdminMedia({ env, session, url }) {
       LIMIT ? OFFSET ?`,
     params,
   );
+  const storageRow = await first(
+    env,
+    `SELECT COUNT(*) AS file_count, COALESCE(SUM(size_bytes), 0) AS used_bytes
+       FROM media_assets
+      WHERE hotel_id = ?
+        AND storage_provider = 'r2'`,
+    [hotelId],
+  );
+  const quotaBytes = storageQuotaBytes(env);
+  const usedBytes = Number(storageRow?.used_bytes || 0);
 
   return {
     assets: rows.map(formatMediaAsset),
+    storage: {
+      used_bytes: usedBytes,
+      file_count: Number(storageRow?.file_count || 0),
+      quota_bytes: quotaBytes,
+      percent_used: quotaBytes > 0 ? Math.min(100, Number(((usedBytes / quotaBytes) * 100).toFixed(2))) : 0,
+    },
     pagination: {
       limit,
       offset,
@@ -415,22 +440,34 @@ export function formText(form, name) {
 }
 
 export async function validateImageFile(file) {
+  return validateFile(file, { allowedMimeTypes: IMAGE_MIME_TYPES, maxBytes: MAX_IMAGE_BYTES, mediaLabel: "imagem" });
+}
+
+export async function validateMediaFile(file) {
   if (!file || typeof file.arrayBuffer !== "function") {
-    throw badRequest("Arquivo de imagem obrigatorio.");
+    throw badRequest("Arquivo de midia obrigatorio.");
   }
-  if (!ALLOWED_MIME_TYPES.has(file.type)) {
-    throw badRequest("Formato de imagem nao permitido.");
+  const maxBytes = String(file.type || "").startsWith("video/") ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
+  return validateFile(file, { allowedMimeTypes: MEDIA_MIME_TYPES, maxBytes, mediaLabel: "midia" });
+}
+
+async function validateFile(file, { allowedMimeTypes, maxBytes, mediaLabel }) {
+  if (!file || typeof file.arrayBuffer !== "function") {
+    throw badRequest(`Arquivo de ${mediaLabel} obrigatorio.`);
   }
-  if (file.size <= 0) throw badRequest("Arquivo de imagem vazio.");
-  if (file.size > MAX_FILE_BYTES) throw badRequest("Arquivo de imagem excede 8MB.");
+  if (!allowedMimeTypes.has(file.type)) {
+    throw badRequest(`Formato de ${mediaLabel} nao permitido.`);
+  }
+  if (file.size <= 0) throw badRequest(`Arquivo de ${mediaLabel} vazio.`);
+  if (file.size > maxBytes) throw badRequest(`Arquivo de ${mediaLabel} excede ${formatMegabytes(maxBytes)}MB.`);
 
   const bytes = new Uint8Array(await file.arrayBuffer());
-  if (bytes.byteLength <= 0) throw badRequest("Arquivo de imagem vazio.");
-  if (bytes.byteLength > MAX_FILE_BYTES) throw badRequest("Arquivo de imagem excede 8MB.");
+  if (bytes.byteLength <= 0) throw badRequest(`Arquivo de ${mediaLabel} vazio.`);
+  if (bytes.byteLength > maxBytes) throw badRequest(`Arquivo de ${mediaLabel} excede ${formatMegabytes(maxBytes)}MB.`);
 
   const detectedMime = detectMimeType(bytes);
   if (detectedMime !== file.type) {
-    throw badRequest("Conteudo da imagem nao corresponde ao tipo informado.");
+    throw badRequest(`Conteudo da ${mediaLabel} nao corresponde ao tipo informado.`);
   }
 
   const originalFilename = sanitizeFilename(file.name || "imagem");
@@ -468,9 +505,13 @@ function detectMimeType(bytes) {
     return "image/webp";
   }
   if (bytes.length >= 16 && ascii(bytes, 4, 8) === "ftyp") {
-    const brands = ascii(bytes, 8, Math.min(bytes.length, 32));
+    const majorBrand = ascii(bytes, 8, 12);
+    const brands = ascii(bytes, 8, Math.min(bytes.length, 40));
     if (brands.includes("avif") || brands.includes("avis")) return "image/avif";
+    if (majorBrand === "qt  ") return "video/quicktime";
+    if (["isom", "iso2", "mp41", "mp42", "avc1", "M4V ", "dash"].includes(majorBrand)) return "video/mp4";
   }
+  if (bytes.length >= 4 && bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) return "video/webm";
   return "";
 }
 
@@ -478,8 +519,17 @@ function validateFilenameExtension(filename, mimeType) {
   const match = filename.toLowerCase().match(/\.([a-z0-9]+)$/);
   if (!match) throw badRequest("Extensao do arquivo obrigatoria.");
   if (!FILENAME_EXTENSIONS[mimeType]?.has(match[1])) {
-    throw badRequest("Extensao do arquivo nao corresponde ao formato da imagem.");
+    throw badRequest("Extensao do arquivo nao corresponde ao formato da midia.");
   }
+}
+
+function storageQuotaBytes(env) {
+  const configured = Number(env?.MEDIA_STORAGE_QUOTA_BYTES);
+  return Number.isSafeInteger(configured) && configured > 0 ? configured : DEFAULT_STORAGE_QUOTA_BYTES;
+}
+
+function formatMegabytes(bytes) {
+  return Math.round(bytes / (1024 * 1024));
 }
 
 export function buildObjectKey({ hotelId, moduleKey, createdAt, assetId, extension }) {

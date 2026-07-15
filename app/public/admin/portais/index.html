@@ -4,6 +4,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Central de Portais Fioreze</title>
+    <link rel="preload" as="image" href="/assets/shared/fioreze-central-logo.jpg" fetchpriority="high">
+    <link rel="modulepreload" href="/js/modules/admin/shared/admin-auth-view.js">
+    <link rel="modulepreload" href="/js/modules/admin/shared/admin-api.js">
     <link rel="stylesheet" href="/css/core/reset.css">
     <link rel="stylesheet" href="/css/core/tokens.css">
     <link rel="stylesheet" href="/css/core/layout.css">
@@ -11,7 +14,7 @@
     <link rel="stylesheet" href="/css/modules/admin/admin.css">
     <link rel="stylesheet" href="/css/modules/admin/admin-erp-aligned.css">
   </head>
-  <body data-admin-section="portals">
+  <body data-admin-section="portals" data-admin-palette="fioreze">
     <main id="adminApp" class="admin-shell" data-state="loading">
       <section class="admin-login" data-view="login" hidden>
         <form id="loginForm" class="admin-access-card" autocomplete="on">
@@ -250,8 +253,8 @@
           <section id="mediaLibrary" class="admin-media-library" hidden>
             <div class="admin-panel-heading admin-media-heading">
               <div>
-                <h2>Biblioteca de imagens</h2>
-                <p class="admin-muted">Organize, localize e reutilize as imagens de cada unidade.</p>
+                <h2>Biblioteca de midia</h2>
+                <p class="admin-muted">Organize imagens e videos das unidades em um unico lugar.</p>
               </div>
               <div class="admin-media-heading-actions">
                 <button id="mediaNewFolderButton" type="button" class="admin-drive-button">
@@ -260,7 +263,7 @@
                 </button>
                 <button id="mediaUploadToggle" type="button" class="admin-primary-button">
                   <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 15v5h16v-5"/></svg>
-                  Enviar imagens
+                  Enviar arquivo
                 </button>
               </div>
             </div>
@@ -273,7 +276,12 @@
                 </button>
                 <div class="admin-media-storage-card">
                   <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3 3 8l9 5 9-5z"/><path d="m3 12 9 5 9-5M3 16l9 5 9-5"/></svg>
-                  <span><strong>Biblioteca Fioreze</strong><small>Imagens protegidas no R2</small></span>
+                  <span>
+                    <strong>Armazenamento</strong>
+                    <small><b id="mediaStorageUsed">0 B</b> de <b id="mediaStorageLimit">5 GB</b></small>
+                    <progress id="mediaStorageProgress" max="100" value="0" aria-label="Uso do armazenamento"></progress>
+                    <small id="mediaStorageFiles">0 arquivos armazenados</small>
+                  </span>
                 </div>
               </aside>
 
@@ -319,11 +327,11 @@
                   <input id="mediaFolderId" name="folder_id" type="hidden">
                   <label class="admin-media-file-drop" for="mediaFile">
                     <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 15v5h16v-5"/></svg>
-                    <span><strong>Arraste uma imagem para esta area</strong><small>ou clique para escolher JPG, PNG, WebP ou AVIF</small></span>
-                    <input id="mediaFile" name="file" type="file" accept="image/jpeg,image/png,image/webp,image/avif" required>
+                    <span><strong>Arraste uma imagem ou video</strong><small>JPG, PNG, WebP e AVIF ate 8 MB; MP4, WebM e MOV ate 25 MB</small></span>
+                    <input id="mediaFile" name="file" type="file" accept="image/jpeg,image/png,image/webp,image/avif,video/mp4,video/webm,video/quicktime" required>
                   </label>
                   <label>
-                    <span>Descricao da imagem</span>
+                    <span>Descricao do arquivo</span>
                     <input id="mediaAltText" name="alt_text" type="text" maxlength="300" placeholder="Ex.: Fachada iluminada da unidade">
                   </label>
                   <button id="mediaUploadButton" class="admin-primary-button" type="submit">Enviar para esta pasta</button>
@@ -331,12 +339,8 @@
                 </form>
 
                 <p id="mediaError" class="admin-error" role="alert" aria-live="polite"></p>
-                <section class="admin-media-section" aria-labelledby="mediaFoldersTitle">
-                  <div class="admin-media-section-heading"><h3 id="mediaFoldersTitle">Pastas</h3><span id="mediaFolderCount"></span></div>
-                  <div id="mediaFolders" class="admin-media-folder-grid" aria-live="polite"></div>
-                </section>
                 <section class="admin-media-section" aria-labelledby="mediaFilesTitle">
-                  <div class="admin-media-section-heading"><h3 id="mediaFilesTitle">Imagens</h3><span id="mediaAssetCount"></span></div>
+                  <div class="admin-media-section-heading"><h3 id="mediaFilesTitle">Arquivos</h3><span id="mediaItemCount"></span></div>
                   <div id="mediaGrid" class="admin-media-grid" aria-live="polite"></div>
                 </section>
               </div>
@@ -406,9 +410,9 @@
       </section>
 
       <section class="admin-loading" data-view="loading">
-        <div class="admin-access-card">
-          <div class="brand-mark" aria-hidden="true"></div>
-          <p id="adminStatus">Verificando acesso...</p>
+        <div class="admin-loading-card" role="status">
+          <span class="admin-modern-spinner" aria-hidden="true"></span>
+          <strong id="adminStatus">Preparando a Central...</strong>
         </div>
       </section>
     </main>

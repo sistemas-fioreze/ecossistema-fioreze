@@ -47,7 +47,8 @@ test("CSS administrativo contem drawer mobile, ajuda e reduced motion", () => {
   assert.match(css, /admin-mobile-menu/);
   assert.match(css, /admin-help-drawer/);
   assert.match(css, /prefers-reduced-motion/);
-  assert.doesNotMatch(css, /backdrop-filter|blur\(/);
+  assert.match(css, /admin-content-loader[\s\S]*backdrop-filter: blur\(5px\)/);
+  assert.equal((css.match(/backdrop-filter:/g) || []).length, 1);
 });
 
 test("Central Administrativa usa a linguagem visual do ERP sem modulos de fachada", () => {
@@ -74,31 +75,56 @@ test("Central compartilha as proporcoes e os controles do shell oficial do ERP",
   const css = fs.readFileSync("public/css/modules/admin/admin-erp-aligned.css", "utf8");
 
   assert.match(css, /grid-template-columns: 258px minmax\(0, 1fr\)/);
-  assert.match(css, /grid-template-columns: 84px minmax\(0, 1fr\)/);
+  assert.match(css, /grid-template-columns: 72px minmax\(0, 1fr\)/);
   assert.match(css, /height: 66px/);
   assert.match(css, /border-radius: 14px 0 0 0/);
-  assert.match(css, /background: #fbf8f4/);
+  assert.match(css, /background: var\(--admin-canvas\)/);
   assert.match(shell, /data-admin-shell-toggle/);
   assert.match(shell, /fioreze-admin-sidebar/);
   assert.match(shell, /data-admin-search-results/);
   assert.match(shell, /data-admin-session-toggle/);
   assert.match(shell, /admin-brand-wordmark/);
+  assert.match(shell, /admin-sidebar-head[\s\S]*data-admin-shell-toggle[\s\S]*admin-brand-lockup/);
+  assert.match(shell, /data-admin-refresh/);
+  assert.match(shell, /fioreze:admin-refresh/);
+  assert.doesNotMatch(shell, /admin-sidebar-footer|admin-brand-symbol/);
+  assert.match(css, /\.is-sidebar-compact \.admin-brand-lockup,[\s\S]{0,160}display: none/);
+  assert.match(css, /\.is-sidebar-compact \.admin-global-nav a > span,[\s\S]{0,220}display: none/);
   assert.match(css, /overflow-y: auto/);
   assert.match(css, /touch-action: pan-y/);
 });
 
-test("Biblioteca de Imagens possui pastas, arrastar e soltar e visual em grade ou lista", () => {
+test("Biblioteca de Midia unifica pastas, imagens e videos em grade ou lista", () => {
   const html = fs.readFileSync("public/admin/portais/index.html", "utf8");
   const source = fs.readFileSync("public/js/modules/admin/portals.js", "utf8");
 
-  for (const id of ["mediaFolders", "mediaBreadcrumbs", "mediaUploadForm", "mediaFolderDialog", "mediaViewGrid", "mediaViewList"]) {
+  for (const id of ["mediaGrid", "mediaBreadcrumbs", "mediaUploadForm", "mediaFolderDialog", "mediaViewGrid", "mediaViewList", "mediaStorageProgress"]) {
     assert.match(html, new RegExp(`id="${id}"`), id);
   }
+  assert.doesNotMatch(html, /id="mediaFolders"|>Pastas<|>Imagens</);
+  assert.match(html, /video\/mp4,video\/webm,video\/quicktime/);
+  assert.match(source, /renderMediaItems/);
+  assert.match(source, /<video/);
+  assert.match(source, /mediaStorageProgress/);
   assert.match(source, /application\/x-fioreze-media-id/);
   assert.match(source, /dataTransfer/);
   assert.match(source, /\/api\/v1\/admin\/media-folders/);
   assert.match(source, /folder_id/);
   assert.equal(fs.existsSync("public/assets/shared/fioreze-central-logo.jpg"), true);
+});
+
+test("login usa marca estatica, paleta padrao e spinner proprio", () => {
+  const home = fs.readFileSync("public/admin/index.html", "utf8");
+  const portals = fs.readFileSync("public/admin/portais/index.html", "utf8");
+  const css = fs.readFileSync("public/css/modules/admin/admin-erp-aligned.css", "utf8");
+
+  for (const html of [home, portals]) {
+    assert.match(html, /data-admin-palette="fioreze"/);
+    assert.match(html, /rel="preload" as="image" href="\/assets\/shared\/fioreze-central-logo\.jpg"/);
+    assert.match(html, /admin-modern-spinner/);
+  }
+  assert.match(css, /admin-access-card \.brand-mark[\s\S]*animation: none/);
+  assert.match(css, /@keyframes admin-modern-spin/);
 });
 
 test("shells administrativos continuam respondendo sem fallback incorreto", async () => {

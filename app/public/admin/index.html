@@ -4,6 +4,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Central Administrativa Fioreze</title>
+    <link rel="preload" as="image" href="/assets/shared/fioreze-central-logo.jpg" fetchpriority="high">
+    <link rel="modulepreload" href="/js/modules/admin/shared/admin-auth-view.js">
+    <link rel="modulepreload" href="/js/modules/admin/shared/admin-api.js">
     <link rel="stylesheet" href="/css/core/reset.css">
     <link rel="stylesheet" href="/css/core/tokens.css">
     <link rel="stylesheet" href="/css/core/layout.css">
@@ -11,7 +14,7 @@
     <link rel="stylesheet" href="/css/modules/admin/admin.css">
     <link rel="stylesheet" href="/css/modules/admin/admin-erp-aligned.css">
   </head>
-  <body data-admin-section="home">
+  <body data-admin-section="home" data-admin-palette="fioreze">
     <main id="adminApp" class="admin-shell" data-state="loading">
       <section class="admin-login" data-view="login" hidden>
         <form id="loginForm" class="admin-access-card" autocomplete="on">
@@ -134,9 +137,9 @@
       </section>
 
       <section class="admin-loading" data-view="loading">
-        <div class="admin-access-card">
-          <div class="brand-mark" aria-hidden="true"></div>
-          <p id="adminStatus">Verificando acesso...</p>
+        <div class="admin-loading-card" role="status">
+          <span class="admin-modern-spinner" aria-hidden="true"></span>
+          <strong id="adminStatus">Preparando a Central...</strong>
         </div>
       </section>
     </main>
