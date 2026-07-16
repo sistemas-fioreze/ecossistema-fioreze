@@ -13,10 +13,11 @@ export async function listAdminMediaFolders({ env, session, url }) {
   const hotelId = requireString(url.searchParams.get("hotel_id"), "hotel_id", { max: 80 });
   requireAdminHotelAccess(session, hotelId);
   const parentId = optionalFolderId(url.searchParams.get("parent_id"));
+  const includeAll = url.searchParams.get("all") === "1";
   if (parentId) await requireFolderInHotel(env, hotelId, parentId);
 
-  const parentFilter = parentId ? "f.parent_id = ?" : "f.parent_id IS NULL";
-  const params = parentId ? [hotelId, parentId] : [hotelId];
+  const parentFilter = includeAll ? "1 = 1" : parentId ? "f.parent_id = ?" : "f.parent_id IS NULL";
+  const params = includeAll ? [hotelId] : parentId ? [hotelId, parentId] : [hotelId];
   const folders = await all(
     env,
     `SELECT f.id, f.hotel_id, f.parent_id, f.name, f.created_at, f.updated_at,
@@ -93,11 +94,11 @@ export async function updateAdminMediaFolder({ request, env, session, folderId }
   requirePermission(session, UPDATE_PERMISSION);
   assertAdminMutationAllowed({ request });
   const folder = await loadFolderForSession(env, session, folderId);
-  if (!folder) throw notFoundError("Pasta nao encontrada.");
+  if (!folder) throw notFoundError("Pasta não encontrada.");
   const payload = await readJson(request);
   const allowedFields = new Set(["name", "parent_id"]);
   const unknownFields = Object.keys(payload).filter((key) => !allowedFields.has(key));
-  if (unknownFields.length) throw badRequest("Campos de pasta nao permitidos.", { fields: unknownFields });
+  if (unknownFields.length) throw badRequest("Campos de pasta não permitidos.", { fields: unknownFields });
   const name = Object.hasOwn(payload, "name") ? normalizeFolderName(payload.name) : folder.name;
   const parentId = Object.hasOwn(payload, "parent_id") ? optionalFolderId(payload.parent_id) : folder.parent_id || null;
   if (parentId !== (folder.parent_id || null)) await assertValidFolderParent(env, folder, parentId);
@@ -147,7 +148,7 @@ export async function archiveAdminMediaFolder({ request, env, session, folderId 
   requirePermission(session, UPDATE_PERMISSION);
   assertAdminMutationAllowed({ request });
   const folder = await loadFolderForSession(env, session, folderId);
-  if (!folder) throw notFoundError("Pasta nao encontrada.");
+  if (!folder) throw notFoundError("Pasta não encontrada.");
 
   const usage = await first(
     env,
@@ -226,7 +227,7 @@ async function assertValidFolderParent(env, folder, parentId) {
   let currentId = parentId;
   const visited = new Set();
   while (currentId) {
-    if (currentId === folder.id) throw badRequest("Uma pasta nao pode ser movida para dentro dela mesma.");
+    if (currentId === folder.id) throw badRequest("Uma pasta não pode ser movida para dentro dela mesma.");
     if (visited.has(currentId) || visited.size >= 20) throw badRequest("Estrutura de pastas invalida.");
     visited.add(currentId);
     const parent = await requireFolderInHotel(env, folder.hotel_id, currentId);
@@ -237,14 +238,14 @@ async function assertValidFolderParent(env, folder, parentId) {
 function optionalFolderId(value) {
   if (value == null || value === "" || value === "root") return null;
   const folderId = requireString(value, "folder_id", { max: 100 });
-  if (!folderId.startsWith("folder_")) throw badRequest("folder_id invalido.");
+  if (!folderId.startsWith("folder_")) throw badRequest("folder_id inválido.");
   return folderId;
 }
 
 function normalizeFolderName(value) {
   const name = requireString(value, "name", { max: 80 }).replace(/\s+/g, " ");
   if (/[\\/:*?"<>|]/.test(name) || name === "." || name === "..") {
-    throw badRequest("Nome de pasta invalido.");
+    throw badRequest("Nome de pasta inválido.");
   }
   return name;
 }

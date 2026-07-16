@@ -85,6 +85,11 @@ const els = {
   mediaFolderForm: document.getElementById("mediaFolderForm"),
   mediaFolderName: document.getElementById("mediaFolderName"),
   mediaFolderError: document.getElementById("mediaFolderError"),
+  mediaMoveDialog: document.getElementById("mediaMoveDialog"),
+  mediaMoveForm: document.getElementById("mediaMoveForm"),
+  mediaMoveName: document.getElementById("mediaMoveName"),
+  mediaMoveTarget: document.getElementById("mediaMoveTarget"),
+  mediaMoveError: document.getElementById("mediaMoveError"),
   mediaGrid: document.getElementById("mediaGrid"),
   shortLinksManager: document.getElementById("shortLinksManager"),
   shortLinksFilters: document.getElementById("shortLinksFilters"),
@@ -128,13 +133,13 @@ const els = {
 };
 
 const portalCards = [
-  ["unidades", "Unidades", "Cadastre hoteis, identidade visual, modulos e navegacao.", "/admin/portais/unidades/"],
-  ["media", "Biblioteca de midia", "Gerencie imagens, videos e pastas dos portais e modulos.", "/admin/portais/media/"],
-  ["links", "Links personalizados", "Crie enderecos curtos para campanhas, QR Codes e comunicacao.", "/admin/portais/links/"],
-  ["conteudos", "Conteudos", "Paginas, eventos e informacoes dos hoteis.", "/admin/portais/conteudos/"],
-  ["modulos", "Areas", "Ativacao e ajustes das experiencias.", "/admin/portais/areas/"],
-  ["navegacao", "Navegacao", "Menus e caminhos dos portais.", "/admin/portais/navegacao/"],
-  ["auditoria", "Auditoria", "Historico das alteracoes administrativas.", "/admin/portais/auditoria/"],
+  ["unidades", "Unidades", "Cadastre hotéis, identidade visual, módulos e navegação.", "/admin/portais/unidades/"],
+  ["media", "Biblioteca de mídia", "Gerencie imagens, vídeos e pastas dos portais e módulos.", "/admin/portais/media/"],
+  ["links", "Links personalizados", "Crie endereços curtos para campanhas, QR Codes e comunicação.", "/admin/portais/links/"],
+  ["conteudos", "Conteúdos", "Páginas, eventos e informações dos hotéis.", "/admin/portais/conteudos/"],
+  ["modulos", "Áreas", "Ativação e ajustes das experiências.", "/admin/portais/areas/"],
+  ["navegacao", "Navegação", "Menus e caminhos dos portais.", "/admin/portais/navegacao/"],
+  ["auditoria", "Auditoria", "Histórico das alterações administrativas.", "/admin/portais/auditoria/"],
 ];
 const mediaFields = ["logo_url", "horizontal_logo_url", "icon_url", "favicon_url", "cover_image_url", "social_image_url"];
 const settingFields = [
@@ -183,6 +188,7 @@ let currentMediaBreadcrumbs = [];
 let currentMediaFolderId = null;
 let currentMediaView = readMediaView();
 let editingMediaFolder = null;
+let movingMediaAsset = null;
 let currentShortLinks = [];
 let currentShortLink = null;
 let currentUnits = [];
@@ -237,6 +243,8 @@ els.mediaUploadForm.addEventListener("dragleave", handleUploadDragLeave);
 els.mediaUploadForm.addEventListener("drop", handleUploadDrop);
 els.mediaFolderForm.addEventListener("submit", saveMediaFolder);
 els.mediaFolderDialog.querySelector("[data-media-folder-cancel]").addEventListener("click", closeMediaFolderDialog);
+els.mediaMoveForm.addEventListener("submit", saveMediaMove);
+els.mediaMoveDialog.querySelector("[data-media-move-cancel]").addEventListener("click", closeMediaMoveDialog);
 els.shortLinksFilters.addEventListener("submit", (event) => {
   event.preventDefault();
   loadShortLinks();
@@ -258,7 +266,7 @@ els.unitSearch.addEventListener("input", debounce(() => loadUnits(), 250));
 els.unitStatus.addEventListener("change", () => loadUnits());
 els.addUnitButton.addEventListener("click", () => openNewUnit());
 els.backToUnitsButton.addEventListener("click", () => {
-  if (dirty && !window.confirm("Existem alteracoes nao salvas. Voltar mesmo assim?")) return;
+  if (dirty && !window.confirm("Existem alterações não salvas. Voltar mesmo assim?")) return;
   navigateSoft("/admin/portais/unidades/");
   renderUnitsRoute();
 });
@@ -356,13 +364,13 @@ function setHeading(title, subtitle, eyebrow = "Central administrativa") {
 
 function renderNav(session) {
   const items = [
-    ["Inicio", "/admin/portais/", true],
+    ["Início", "/admin/portais/", true],
     ["Unidades", "/admin/portais/unidades/", canAccessUnits(session)],
     ["Biblioteca", "/admin/portais/media/", canAccessMediaLibrary(session)],
     ["Links", "/admin/portais/links/", canAccessLinks(session)],
-    ["Conteudos", "/admin/portais/conteudos/", canAccessContent(session)],
-    ["Areas", "/admin/portais/areas/", canAccessAreas(session)],
-    ["Navegacao", "/admin/portais/navegacao/", canAccessNavigation(session)],
+    ["Conteúdos", "/admin/portais/conteudos/", canAccessContent(session)],
+    ["Áreas", "/admin/portais/areas/", canAccessAreas(session)],
+    ["Navegação", "/admin/portais/navegacao/", canAccessNavigation(session)],
     ["Auditoria", "/admin/portais/auditoria/", canAccessAudit(session)],
   ];
   els.portalsNav.innerHTML = items
@@ -375,7 +383,7 @@ function renderNav(session) {
 }
 
 function renderHome(session) {
-  setHeading("Central de Portais Fioreze", "Gerencie unidades, experiencias digitais, conteudos e identidade visual.");
+  setHeading("Central de Portais Fioreze", "Gerencie unidades, experiências digitais, conteúdos e identidade visual.");
   showPortalSection(els.portalsHome);
   els.portalsModules.innerHTML = portalCards.map(([key, title, body, href]) => renderPortalCard(session, key, title, body, href)).join("");
 }
@@ -407,7 +415,7 @@ function renderUnitsRoute() {
     els.portalsDenied.hidden = false;
     return;
   }
-  setHeading("Unidades", "Administre os hoteis, marcas, servicos e navegacao dos portais.");
+  setHeading("Unidades", "Administre os hotéis, marcas, serviços e navegação dos portais.");
   showPortalSection(els.unitsManager);
   const match = window.location.pathname.match(/^\/admin\/portais\/unidades\/([^/]+)\//);
   if (match) {
@@ -438,13 +446,13 @@ async function loadUnits() {
     els.unitsMessage.textContent = `${currentUnits.length} unidade(s) encontrada(s).`;
     renderUnitsList();
   } catch (error) {
-    els.unitsMessage.textContent = error.message || "Nao foi possivel carregar unidades.";
+    els.unitsMessage.textContent = error.message || "Não foi possível carregar unidades.";
   }
 }
 
 function renderUnitsList() {
   if (!currentUnits.length) {
-    els.unitsList.innerHTML = '<div class="admin-empty">Nenhuma unidade disponivel para este usuario.</div>';
+    els.unitsList.innerHTML = '<div class="admin-empty">Nenhuma unidade disponível para este usuário.</div>';
     return;
   }
   els.unitsList.innerHTML = currentUnits.map(renderUnitRow).join("");
@@ -457,10 +465,10 @@ function renderUnitRow(unit) {
       <div>
         <strong>${escapeHtml(unit.name)}</strong>
         <span>${escapeHtml(unit.short_name)} - ${escapeHtml(unit.slug)}</span>
-        <small>${escapeHtml(unit.settings?.["contact.city"] || "Cidade nao informada")}</small>
+        <small>${escapeHtml(unit.settings?.["contact.city"] || "Cidade não informada")}</small>
       </div>
       <span class="admin-status">${escapeHtml(unit.status)}</span>
-      <span>${Number(unit.active_module_count || 0)} modulos</span>
+      <span>${Number(unit.active_module_count || 0)} módulos</span>
       <span>${unit.branding_configured ? "Identidade pronta" : "Identidade pendente"}</span>
       <span>${escapeHtml(formatDate(unit.updated_at, unit.timezone))}</span>
       <button type="button" data-edit-unit="${escapeAttr(unit.hotel_id)}">Editar</button>
@@ -548,24 +556,24 @@ function renderTabPanels() {
   panel("general").innerHTML = `
     ${field("Nome oficial", "name", currentUnit.name, "text", "Hotel Exemplo")}
     ${field("Nome curto", "short_name", currentUnit.short_name, "text", "Hotel Exemplo")}
-    ${field("Endereco personalizado", "slug", currentUnit.slug, "text", "hotel-exemplo", currentUnit.hotel_id ? "" : "Define o endereco publico da unidade.")}
+    ${field("Endereço personalizado", "slug", currentUnit.slug, "text", "hotel-exemplo", currentUnit.hotel_id ? "" : "Define o endereço público da unidade.")}
     <div class="admin-form-grid">
       ${selectField("Status", "status", currentUnit.status, ["active", "inactive", "archived"])}
       ${field("Timezone", "timezone", currentUnit.timezone || "America/Sao_Paulo")}
       ${field("Locale", "locale", currentUnit.locale || "pt-BR")}
       ${field("Moeda", "currency", currentUnit.currency || "BRL")}
     </div>
-    ${textarea("Descricao curta", "general.short_description")}
-    ${textarea("Descricao institucional", "general.institutional_description")}
-    ${field("Inauguracao", "general.opened_at", setting("general.opened_at"), "date")}
+    ${textarea("Descrição curta", "general.short_description")}
+    ${textarea("Descrição institucional", "general.institutional_description")}
+    ${field("Inauguração", "general.opened_at", setting("general.opened_at"), "date")}
     <button type="button" class="admin-copy-button" data-copy-slug>Copiar slug e URL</button>
   `;
   panel("branding").innerHTML = isNewUnitBlockedTab("branding")
     ? blockedMessage
     : `
     <div class="admin-form-grid">
-      ${colorField("Cor primaria", "primary_color")}
-      ${colorField("Cor secundaria", "secondary_color")}
+      ${colorField("Cor primária", "primary_color")}
+      ${colorField("Cor secundária", "secondary_color")}
       ${colorField("Cor de destaque", "accent_color")}
       ${colorField("Fundo", "background_color")}
       ${colorField("Superficie", "surface_color")}
@@ -582,14 +590,14 @@ function renderTabPanels() {
     ? blockedMessage
     : `
     <div class="admin-form-grid">
-      ${field("Endereco", "contact.address", setting("contact.address"))}
-      ${field("Numero", "contact.number", setting("contact.number"))}
+      ${field("Endereço", "contact.address", setting("contact.address"))}
+      ${field("Número", "contact.number", setting("contact.number"))}
       ${field("Complemento", "contact.complement", setting("contact.complement"))}
       ${field("Bairro", "contact.district", setting("contact.district"))}
       ${field("Cidade", "contact.city", setting("contact.city"))}
       ${field("Estado", "contact.state", setting("contact.state"))}
       ${field("CEP", "contact.postal_code", setting("contact.postal_code"))}
-      ${field("Pais", "contact.country", setting("contact.country") || "Brasil")}
+      ${field("País", "contact.country", setting("contact.country") || "Brasil")}
       ${field("Latitude", "contact.latitude", setting("contact.latitude"), "number")}
       ${field("Longitude", "contact.longitude", setting("contact.longitude"), "number")}
       ${field("Telefone", "contact.phone", setting("contact.phone"))}
@@ -618,7 +626,7 @@ function renderTabPanels() {
   `;
   panel("modules").innerHTML = currentModules.length
     ? currentModules.map(renderModuleToggle).join("")
-    : '<div class="admin-empty">Salve a unidade antes de gerenciar modulos.</div>';
+    : '<div class="admin-empty">Salve a unidade antes de gerenciar módulos.</div>';
   panel("navigation").innerHTML = `
     <div class="admin-navigation-list">${currentNavigation.map(renderNavigationItem).join("") || '<div class="admin-empty">Nenhum item cadastrado.</div>'}</div>
     ${currentUnit.hotel_id ? renderNavigationComposer() : ""}
@@ -629,8 +637,8 @@ function renderTabPanels() {
   panel("seo").innerHTML = isNewUnitBlockedTab("seo")
     ? blockedMessage
     : `
-    ${field("Titulo do portal", "seo.title", setting("seo.title"))}
-    ${textarea("Descricao para buscadores", "seo.description")}
+    ${field("Título do portal", "seo.title", setting("seo.title"))}
+    ${textarea("Descrição para buscadores", "seo.description")}
     ${mediaPicker("seo.social_image_asset_id", "Imagem social")}
     ${field("Canonical base", "seo.canonical_base", setting("seo.canonical_base"), "url")}
     ${field("Nome ao compartilhar", "seo.share_name", setting("seo.share_name"))}
@@ -725,7 +733,7 @@ async function saveCurrentUnit() {
     setMessage("Unidade salva com sucesso.");
     if (currentUnit.hotel_id) await openExistingUnit(currentUnit.hotel_id);
   } catch (error) {
-    setMessage(error.message || "Nao foi possivel salvar.");
+    setMessage(error.message || "Não foi possível salvar.");
   } finally {
     els.saveUnitButton.disabled = false;
   }
@@ -868,7 +876,7 @@ async function handleNavigationAction(button) {
   const action = button.dataset.navAction;
   const id = button.dataset.navId;
   if (action === "archive") {
-    if (!window.confirm("Arquivar este item de navegacao?")) return;
+    if (!window.confirm("Arquivar este item de navegação?")) return;
     await adminApi(`/api/v1/admin/hotels/${encodeURIComponent(currentUnit.hotel_id)}/navigation/${encodeURIComponent(id)}`, {
       method: "DELETE",
       body: {},
@@ -893,7 +901,7 @@ async function handleNavigationAction(button) {
 }
 
 function renderShortLinksManager(session) {
-  setHeading("Links personalizados", "Crie enderecos curtos para campanhas, QR Codes, WhatsApp, mapas e motores de reserva.");
+  setHeading("Links personalizados", "Crie endereços curtos para campanhas, QR Codes, WhatsApp, mapas e motores de reserva.");
   const allowed = canAccessLinks(session);
   showPortalSection(allowed ? els.shortLinksManager : null);
   els.portalsDenied.hidden = allowed;
@@ -933,7 +941,7 @@ async function loadShortLinks() {
     currentShortLinks = [];
     els.shortLinksSummary.innerHTML = "";
     els.shortLinksList.innerHTML = "";
-    els.shortLinksMessage.textContent = error.message || "Nao foi possivel carregar os links.";
+    els.shortLinksMessage.textContent = error.message || "Não foi possível carregar os links.";
   }
 }
 
@@ -1033,7 +1041,7 @@ async function saveShortLink(event) {
     closeShortLinkEditor();
     await loadShortLinks();
   } catch (error) {
-    els.shortLinksMessage.textContent = error.message || "Nao foi possivel salvar o link.";
+    els.shortLinksMessage.textContent = error.message || "Não foi possível salvar o link.";
   }
 }
 
@@ -1058,7 +1066,7 @@ async function handleShortLinkAction(event) {
     return;
   }
   if (action === "archive") {
-    if (!window.confirm("Arquivar este link? O historico agregado de cliques sera preservado.")) return;
+    if (!window.confirm("Arquivar este link? O histórico agregado de cliques será preservado.")) return;
     await archiveShortLink(link);
   }
 }
@@ -1071,7 +1079,7 @@ async function updateShortLinkStatus(link, status) {
     });
     await loadShortLinks();
   } catch (error) {
-    els.shortLinksMessage.textContent = error.message || "Nao foi possivel atualizar o status.";
+    els.shortLinksMessage.textContent = error.message || "Não foi possível atualizar o status.";
   }
 }
 
@@ -1084,7 +1092,7 @@ async function archiveShortLink(link) {
     closeShortLinkEditor();
     await loadShortLinks();
   } catch (error) {
-    els.shortLinksMessage.textContent = error.message || "Nao foi possivel arquivar o link.";
+    els.shortLinksMessage.textContent = error.message || "Não foi possível arquivar o link.";
   }
 }
 
@@ -1099,7 +1107,7 @@ async function loadShortLinkAnalytics(linkId) {
 
 function renderShortLinkAnalytics(analytics) {
   if (!analytics) {
-    els.shortLinksAnalytics.innerHTML = '<div class="admin-empty">Metricas agregadas aparecem aqui apos o primeiro acesso.</div>';
+    els.shortLinksAnalytics.innerHTML = '<div class="admin-empty">Métricas agregadas aparecem aqui após o primeiro acesso.</div>';
     return;
   }
   els.shortLinksAnalytics.innerHTML = `
@@ -1107,7 +1115,7 @@ function renderShortLinkAnalytics(analytics) {
       <article><span>Total</span><strong>${Number(analytics.total_clicks || 0)}</strong></article>
       <article><span>7 dias</span><strong>${Number(analytics.last_7_days || 0)}</strong></article>
       <article><span>30 dias</span><strong>${Number(analytics.last_30_days || 0)}</strong></article>
-      <article><span>Ultimo acesso</span><strong>${analytics.last_clicked_at ? escapeHtml(formatDate(analytics.last_clicked_at)) : "Nenhum"}</strong></article>
+      <article><span>Último acesso</span><strong>${analytics.last_clicked_at ? escapeHtml(formatDate(analytics.last_clicked_at)) : "Nenhum"}</strong></article>
     </div>
   `;
 }
@@ -1124,7 +1132,7 @@ function shortLinkPreviewUrl(slug) {
 }
 
 function renderMediaLibrary(session) {
-  setHeading("Biblioteca de midia", "Organize e reutilize imagens e videos de cada unidade.");
+  setHeading("Biblioteca de mídia", "Organize e reutilize imagens e vídeos de cada unidade.");
   const allowed = canAccessMediaLibrary(session);
   showPortalSection(allowed ? els.mediaLibrary : null);
   els.portalsDenied.hidden = allowed;
@@ -1176,7 +1184,7 @@ async function loadMediaLibrary() {
     currentAssets = [];
     currentFolders = [];
     els.mediaGrid.innerHTML = "";
-    els.mediaError.textContent = error.message || "Nao foi possivel carregar a biblioteca.";
+    els.mediaError.textContent = error.message || "Não foi possível carregar a biblioteca.";
   }
 }
 
@@ -1236,6 +1244,11 @@ async function handleMediaAction(event) {
     return;
   }
 
+  if (button.dataset.mediaAction === "move") {
+    await openMediaMoveDialog(asset);
+    return;
+  }
+
   if (button.dataset.mediaAction === "archive") {
     await archiveAsset(asset);
   }
@@ -1266,13 +1279,13 @@ async function editAltText(asset) {
     });
     await loadMediaLibrary();
   } catch (error) {
-    els.mediaError.textContent = error.message || "Nao foi possivel atualizar o arquivo.";
+    els.mediaError.textContent = error.message || "Não foi possível atualizar o arquivo.";
   }
 }
 
 async function archiveAsset(asset) {
   if (!hasPermission(currentSession, PORTALS_MEDIA_ARCHIVE_PERMISSION)) return;
-  if (!window.confirm("Excluir este arquivo da biblioteca? Ele sera preservado para recuperacao.")) return;
+  if (!window.confirm("Excluir este arquivo da biblioteca? Ele será preservado para recuperação.")) return;
   try {
     await adminApi(`/api/v1/admin/media/${encodeURIComponent(asset.id)}`, {
       method: "DELETE",
@@ -1280,7 +1293,7 @@ async function archiveAsset(asset) {
     });
     await loadMediaLibrary();
   } catch (error) {
-    els.mediaError.textContent = error.message || "Nao foi possivel excluir o arquivo.";
+    els.mediaError.textContent = error.message || "Não foi possível excluir o arquivo.";
   }
 }
 
@@ -1312,13 +1325,14 @@ function renderMediaCard(asset) {
       <div class="admin-media-body">
         <strong>${escapeHtml(asset.original_filename || asset.id)}</strong>
         <span>${escapeHtml(formatBytes(asset.size_bytes))} · ${escapeHtml(asset.module_key || "Compartilhado")}</span>
-        <p>${escapeHtml(asset.alt_text || "Sem descricao")}</p>
+        <p>${escapeHtml(asset.alt_text || "Sem descrição")}</p>
         <div class="admin-media-actions">
           <button type="button" data-media-action="open" data-media-id="${escapeAttr(asset.id)}" aria-label="Abrir arquivo" title="Abrir">${driveIcon("external")}</button>
           <button type="button" data-media-action="copy" data-media-id="${escapeAttr(asset.id)}" aria-label="Copiar URL" title="Copiar URL">${driveIcon("copy")}</button>
           ${
             canUpdate
-              ? `<button type="button" data-media-action="edit-alt" data-media-id="${escapeAttr(asset.id)}" aria-label="Editar descricao" title="Editar descricao">${driveIcon("edit")}</button>`
+              ? `<button type="button" data-media-action="move" data-media-id="${escapeAttr(asset.id)}" aria-label="Mover arquivo" title="Mover">${driveIcon("move")}</button>
+                 <button type="button" data-media-action="edit-alt" data-media-id="${escapeAttr(asset.id)}" aria-label="Editar descrição" title="Editar descrição">${driveIcon("edit")}</button>`
               : ""
           }
           ${
@@ -1356,7 +1370,7 @@ function renderMediaStorage() {
   const quota = Number(currentMediaStorage.quota_bytes || 0);
   const percent = Number(currentMediaStorage.percent_used || 0);
   els.mediaStorageUsed.textContent = formatBytes(used);
-  els.mediaStorageLimit.textContent = quota ? formatBytes(quota) : "limite nao informado";
+  els.mediaStorageLimit.textContent = quota ? formatBytes(quota) : "limite não informado";
   els.mediaStorageProgress.value = Math.min(100, Math.max(0, percent));
   els.mediaStorageProgress.setAttribute("aria-valuetext", `${percent.toFixed(2)}% utilizado`);
   const files = Number(currentMediaStorage.file_count || 0);
@@ -1410,6 +1424,66 @@ function closeMediaFolderDialog() {
   els.mediaFolderDialog.close();
 }
 
+async function openMediaMoveDialog(asset) {
+  if (!hasPermission(currentSession, PORTALS_MEDIA_UPDATE_PERMISSION)) return;
+  movingMediaAsset = asset;
+  els.mediaMoveName.textContent = asset.original_filename || asset.id;
+  els.mediaMoveError.textContent = "";
+  els.mediaMoveTarget.innerHTML = '<option value="">Carregando pastas...</option>';
+  els.mediaMoveDialog.showModal();
+  try {
+    const params = new URLSearchParams({ hotel_id: els.mediaHotel.value, all: "1" });
+    const payload = await adminApi(`/api/v1/admin/media-folders?${params.toString()}`);
+    const folders = payload.data.folders || [];
+    const folderPaths = buildFolderPaths(folders);
+    els.mediaMoveTarget.innerHTML = [
+      '<option value="root">Minha biblioteca</option>',
+      ...folders.map((folder) => `<option value="${escapeAttr(folder.id)}">${escapeHtml(folderPaths.get(folder.id) || folder.name)}</option>`),
+    ].join("");
+    els.mediaMoveTarget.value = asset.folder_id || "root";
+    els.mediaMoveTarget.focus();
+  } catch (error) {
+    els.mediaMoveError.textContent = error.message || "Não foi possível carregar as pastas.";
+  }
+}
+
+function closeMediaMoveDialog() {
+  movingMediaAsset = null;
+  if (els.mediaMoveDialog.open) els.mediaMoveDialog.close();
+}
+
+async function saveMediaMove(event) {
+  event.preventDefault();
+  if (!movingMediaAsset) return;
+  const target = els.mediaMoveTarget.value === "root" ? null : els.mediaMoveTarget.value;
+  els.mediaMoveError.textContent = "";
+  try {
+    await moveMediaAsset(movingMediaAsset.id, target, { reload: false });
+    closeMediaMoveDialog();
+    await loadMediaLibrary();
+  } catch (error) {
+    els.mediaMoveError.textContent = error.message || "Não foi possível mover o arquivo.";
+  }
+}
+
+function buildFolderPaths(folders) {
+  const byId = new Map(folders.map((folder) => [folder.id, folder]));
+  const paths = new Map();
+  for (const folder of folders) {
+    const names = [folder.name];
+    const visited = new Set([folder.id]);
+    let parentId = folder.parent_id;
+    while (parentId && byId.has(parentId) && !visited.has(parentId)) {
+      visited.add(parentId);
+      const parent = byId.get(parentId);
+      names.unshift(parent.name);
+      parentId = parent.parent_id;
+    }
+    paths.set(folder.id, names.join(" / "));
+  }
+  return paths;
+}
+
 async function saveMediaFolder(event) {
   event.preventDefault();
   const name = els.mediaFolderName.value.trim();
@@ -1430,7 +1504,7 @@ async function saveMediaFolder(event) {
     closeMediaFolderDialog();
     await loadMediaLibrary();
   } catch (error) {
-    els.mediaFolderError.textContent = error.message || "Nao foi possivel salvar a pasta.";
+    els.mediaFolderError.textContent = error.message || "Não foi possível salvar a pasta.";
   }
 }
 
@@ -1440,7 +1514,7 @@ async function archiveMediaFolder(folder) {
     await adminApi(`/api/v1/admin/media-folders/${encodeURIComponent(folder.id)}`, { method: "DELETE", body: {} });
     await loadMediaLibrary();
   } catch (error) {
-    els.mediaError.textContent = error.message || "Nao foi possivel excluir a pasta.";
+    els.mediaError.textContent = error.message || "Não foi possível excluir a pasta.";
   }
 }
 
@@ -1511,7 +1585,7 @@ function handleRootDrop(event) {
   if (folderId) void moveMediaFolder(folderId, null);
 }
 
-async function moveMediaAsset(assetId, folderId) {
+async function moveMediaAsset(assetId, folderId, { reload = true } = {}) {
   const asset = currentAssets.find((entry) => entry.id === assetId);
   if (!asset || (asset.folder_id || null) === (folderId || null)) return;
   try {
@@ -1519,9 +1593,10 @@ async function moveMediaAsset(assetId, folderId) {
       method: "PATCH",
       body: { folder_id: folderId },
     });
-    await loadMediaLibrary();
+    if (reload) await loadMediaLibrary();
   } catch (error) {
-    els.mediaError.textContent = error.message || "Nao foi possivel mover o arquivo.";
+    if (reload) els.mediaError.textContent = error.message || "Não foi possível mover o arquivo.";
+    else throw error;
   }
 }
 
@@ -1534,7 +1609,7 @@ async function moveMediaFolder(folderId, parentId) {
     });
     await loadMediaLibrary();
   } catch (error) {
-    els.mediaError.textContent = error.message || "Nao foi possivel mover a pasta.";
+    els.mediaError.textContent = error.message || "Não foi possível mover a pasta.";
   }
 }
 
@@ -1584,6 +1659,7 @@ function readMediaView() {
 function driveIcon(name) {
   const paths = {
     folder: '<path d="M3 6h7l2 2h9v11H3z"/>',
+    move: '<path d="M3 6h7l2 2h9v11H3z"/><path d="m9 14 3-3 3 3M12 11v6"/>',
     image: '<path d="M4 5h16v14H4z"/><path d="m6 16 4-4 3 3 2-2 3 3"/><circle cx="9" cy="9" r="1"/>',
     media: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 16 4-4 3 3 2-2 2 2"/><path d="m10 8 5 3-5 3z"/>',
     video: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3z"/>',
@@ -1610,7 +1686,7 @@ function renderModuleToggle(moduleRow) {
       <label><input name="module:${key}:enabled" type="checkbox" ${moduleRow.enabled ? "checked" : ""}> Ativo</label>
       <label><input name="module:${key}:public" type="checkbox" ${moduleRow.is_public ? "checked" : ""}> Publico</label>
       <input name="module:${key}:name" value="${escapeAttr(moduleRow.public_name || moduleRow.name)}" aria-label="Nome publico">
-      <input name="module:${key}:nav" value="${escapeAttr(moduleRow.navigation_label || moduleRow.name)}" aria-label="Rotulo de navegacao">
+      <input name="module:${key}:nav" value="${escapeAttr(moduleRow.navigation_label || moduleRow.name)}" aria-label="Rótulo de navegação">
       <input name="module:${key}:sort" type="number" min="0" max="10000" value="${escapeAttr(moduleRow.sort_order || 100)}" aria-label="Ordem">
     </article>
   `;
@@ -1634,8 +1710,8 @@ function renderNavigationComposer() {
     <div class="admin-navigation-composer">
       ${field("Rotulo", "nav.label", "")}
       ${field("Destino interno", "nav.path", `/${currentUnit.slug}`)}
-      ${field("Area do sistema", "nav.module_key", "guest-portal")}
-      ${selectField("Icone", "nav.icon_key", "home", ["home", "utensils", "shopping-bag", "sparkles", "calendar", "map-pin", "image", "info", "phone"])}
+      ${field("Área do sistema", "nav.module_key", "guest-portal")}
+      ${selectField("Ícone", "nav.icon_key", "home", ["home", "utensils", "shopping-bag", "sparkles", "calendar", "map-pin", "image", "info", "phone"])}
       ${field("Ordem", "nav.sort_order", "100", "number")}
       <button class="admin-primary-button" type="button" data-nav-action="create">Criar item</button>
     </div>
@@ -1644,7 +1720,7 @@ function renderNavigationComposer() {
 
 function renderEmbedPanel() {
   if (!hasPermission(currentSession, PORTALS_EMBED_READ_PERMISSION)) {
-    return '<div class="admin-empty">Voce nao tem acesso a esta funcao.</div>';
+    return '<div class="admin-empty">Você não tem acesso a esta função.</div>';
   }
   const embed = currentEmbed?.embed || {};
   const modules = currentEmbed?.modules || currentModules.filter((moduleRow) => moduleRow.enabled && moduleRow.is_public);
@@ -1669,8 +1745,8 @@ function renderEmbedPanel() {
     </label>
     <div class="admin-module-toggle">
       <div>
-        <strong>Areas incorporaveis</strong>
-        <span>Apenas areas publicas e ativas podem ser selecionadas.</span>
+        <strong>Áreas incorporáveis</strong>
+        <span>Apenas áreas públicas e ativas podem ser selecionadas.</span>
       </div>
       <div class="admin-embed-module-list">
         ${modules
@@ -1789,7 +1865,7 @@ function setMessage(message) {
 }
 
 function updateDirtyState() {
-  els.unitDirtyState.textContent = dirty ? "Alteracoes nao salvas." : "Tudo salvo.";
+  els.unitDirtyState.textContent = dirty ? "Alterações não salvas." : "Tudo salvo.";
 }
 
 function updatePreview() {
@@ -1811,7 +1887,7 @@ function updatePreview() {
 
 function renderContentManager(session) {
   const allowed = canAccessContent(session);
-  setHeading("Conteudos", "Gerencie paginas, eventos e informacoes publicas por unidade.");
+  setHeading("Conteúdos", "Gerencie páginas, eventos e informações públicas por unidade.");
   showPortalSection(allowed ? els.contentManager : null);
   els.portalsDenied.hidden = allowed;
   if (!allowed) return;
@@ -1821,31 +1897,31 @@ function renderContentManager(session) {
 
 async function loadPortalContent() {
   if (!els.contentHotel.value) return;
-  els.contentMessage.textContent = "Carregando conteudos...";
+  els.contentMessage.textContent = "Carregando conteúdos...";
   try {
     const payload = await adminApi(`/api/v1/admin/portal/content?hotel_id=${encodeURIComponent(els.contentHotel.value)}`);
     currentContent = payload.data;
     renderContentList();
   } catch (error) {
-    els.contentMessage.textContent = error.message || "Nao foi possivel carregar os conteudos.";
+    els.contentMessage.textContent = error.message || "Não foi possível carregar os conteúdos.";
   }
 }
 
 function renderContentList() {
   const rows = currentContent[contentType] || [];
-  const labels = { pages: "pagina(s)", events: "evento(s)", information: "informacao(oes)" };
+  const labels = { pages: "página(s)", events: "evento(s)", information: "informação(ões)" };
   els.contentMessage.textContent = `${rows.length} ${labels[contentType]}.`;
-  els.contentList.innerHTML = rows.map((item) => renderContentRow(item, contentType)).join("") || '<p class="admin-empty">Nenhum conteudo cadastrado.</p>';
+  els.contentList.innerHTML = rows.map((item) => renderContentRow(item, contentType)).join("") || '<p class="admin-empty">Nenhum conteúdo cadastrado.</p>';
 }
 
 function renderContentRow(item, type) {
   if (type === "pages") {
-    return `<article class="admin-data-row admin-content-row"><span class="admin-role-icon">${featureSvg("page")}</span><div class="admin-row-copy"><strong>${escapeHtml(item.title)}</strong><span>/${escapeHtml(item.slug)}</span><small>${Number(item.section_count || 0)} secao(oes) · ordem ${Number(item.sort_order || 0)}</small></div><span class="admin-status-chip" data-status="${escapeAttr(item.status)}">${contentStatus(item.status)}</span><div class="admin-row-actions"><button type="button" data-content-action="sections" data-id="${escapeAttr(item.id)}">Secoes</button><button type="button" data-content-action="edit" data-id="${escapeAttr(item.id)}">Editar</button></div></article>`;
+    return `<article class="admin-data-row admin-content-row"><span class="admin-role-icon">${featureSvg("page")}</span><div class="admin-row-copy"><strong>${escapeHtml(item.title)}</strong><span>/${escapeHtml(item.slug)}</span><small>${Number(item.section_count || 0)} seção(ões) · ordem ${Number(item.sort_order || 0)}</small></div><span class="admin-status-chip" data-status="${escapeAttr(item.status)}">${contentStatus(item.status)}</span><div class="admin-row-actions"><button type="button" data-content-action="sections" data-id="${escapeAttr(item.id)}">Seções</button><button type="button" data-content-action="edit" data-id="${escapeAttr(item.id)}">Editar</button></div></article>`;
   }
   if (type === "events") {
     return `<article class="admin-data-row admin-content-row"><span class="admin-role-icon">${featureSvg("event")}</span><div class="admin-row-copy"><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(formatDate(item.starts_at, item.timezone))}</span><small>${escapeHtml(item.summary || "Sem resumo")}</small></div><span class="admin-status-chip" data-status="${escapeAttr(item.status)}">${contentStatus(item.status)}</span><div class="admin-row-actions"><button type="button" data-content-action="edit" data-id="${escapeAttr(item.id)}">Editar</button></div></article>`;
   }
-  return `<article class="admin-data-row admin-content-row"><span class="admin-role-icon">${featureSvg("info")}</span><div class="admin-row-copy"><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.info_key)}</span><small>Ordem ${Number(item.sort_order || 0)}</small></div><span class="admin-status-chip" data-status="${item.is_public ? "active" : "disabled"}">${item.is_public ? "Publica" : "Oculta"}</span><div class="admin-row-actions"><button type="button" data-content-action="edit" data-id="${escapeAttr(item.id)}">Editar</button></div></article>`;
+  return `<article class="admin-data-row admin-content-row"><span class="admin-role-icon">${featureSvg("info")}</span><div class="admin-row-copy"><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.info_key)}</span><small>Ordem ${Number(item.sort_order || 0)}</small></div><span class="admin-status-chip" data-status="${item.is_public ? "active" : "disabled"}">${item.is_public ? "Pública" : "Oculta"}</span><div class="admin-row-actions"><button type="button" data-content-action="edit" data-id="${escapeAttr(item.id)}">Editar</button></div></article>`;
 }
 
 function handleContentClick(event) {
@@ -1866,27 +1942,27 @@ function handleContentClick(event) {
 }
 
 function openContentEditor(item = null) {
-  const typeLabel = { pages: "pagina", events: "evento", information: "informacao" }[contentType];
+  const typeLabel = { pages: "página", events: "evento", information: "informação" }[contentType];
   const article = contentType === "events" ? "Novo" : "Nova";
   els.dialogTitle.textContent = `${item ? "Editar" : article} ${typeLabel}`;
   if (contentType === "pages") {
     els.dialogBody.innerHTML = contentForm("page", `
-      ${dialogField("Titulo", "title", item?.title, "text", true)}
-      ${dialogField("Endereco", "slug", item?.slug, "text", true, "[a-z0-9-]+")}
+      ${dialogField("Título", "title", item?.title, "text", true)}
+      ${dialogField("Endereço", "slug", item?.slug, "text", true, "[a-z0-9-]+")}
       ${dialogTextarea("Resumo", "summary", item?.summary)}
       <div class="admin-form-grid">${dialogSelect("Status", "status", item?.status || "draft", [["draft", "Rascunho"], ["published", "Publicada"], ["archived", "Arquivada"]])}${dialogField("Ordem", "sort_order", item?.sort_order ?? 100, "number", true)}</div>`);
   } else if (contentType === "events") {
     els.dialogBody.innerHTML = contentForm("event", `
-      ${dialogField("Titulo", "title", item?.title, "text", true)}
+      ${dialogField("Título", "title", item?.title, "text", true)}
       ${dialogTextarea("Resumo", "summary", item?.summary)}
-      <div class="admin-form-grid">${dialogField("Inicio", "starts_at", toLocalDateTime(item?.starts_at), "datetime-local", true)}${dialogField("Termino", "ends_at", toLocalDateTime(item?.ends_at), "datetime-local")}</div>
-      <div class="admin-form-grid">${dialogField("Fuso horario", "timezone", item?.timezone || hotelTimezone(els.contentHotel.value), "text", true)}${dialogSelect("Status", "status", item?.status || "draft", [["draft", "Rascunho"], ["published", "Publicado"], ["cancelled", "Cancelado"], ["archived", "Arquivado"]])}</div>`);
+      <div class="admin-form-grid">${dialogField("Início", "starts_at", toLocalDateTime(item?.starts_at), "datetime-local", true)}${dialogField("Término", "ends_at", toLocalDateTime(item?.ends_at), "datetime-local")}</div>
+      <div class="admin-form-grid">${dialogField("Fuso horário", "timezone", item?.timezone || hotelTimezone(els.contentHotel.value), "text", true)}${dialogSelect("Status", "status", item?.status || "draft", [["draft", "Rascunho"], ["published", "Publicado"], ["cancelled", "Cancelado"], ["archived", "Arquivado"]])}</div>`);
   } else {
     els.dialogBody.innerHTML = contentForm("information", `
-      ${dialogField("Titulo", "title", item?.title, "text", true)}
+      ${dialogField("Título", "title", item?.title, "text", true)}
       ${dialogField("Identificador", "info_key", item?.info_key, "text", true, "[a-z0-9-]+")}
-      ${dialogTextarea("Conteudo", "body", item?.body, true)}
-      <div class="admin-form-grid">${dialogField("Ordem", "sort_order", item?.sort_order ?? 100, "number", true)}<label class="admin-choice admin-choice-standalone"><input name="is_public" type="checkbox" ${item?.is_public !== false ? "checked" : ""}><span><strong>Visivel no portal</strong></span></label></div>`);
+      ${dialogTextarea("Conteúdo", "body", item?.body, true)}
+      <div class="admin-form-grid">${dialogField("Ordem", "sort_order", item?.sort_order ?? 100, "number", true)}<label class="admin-choice admin-choice-standalone"><input name="is_public" type="checkbox" ${item?.is_public !== false ? "checked" : ""}><span><strong>Visível no portal</strong></span></label></div>`);
   }
   openPortalsDialog();
   bindDialogForm((event) => saveContent(event, item));
@@ -1918,33 +1994,33 @@ async function saveContent(event, item) {
     closePortalsDialog();
     await loadPortalContent();
   } catch (error) {
-    message.textContent = error.message || "Nao foi possivel salvar o conteudo.";
+    message.textContent = error.message || "Não foi possível salvar o conteúdo.";
   }
 }
 
 async function openSectionsEditor(pageId) {
-  els.dialogTitle.textContent = "Secoes da pagina";
-  els.dialogBody.innerHTML = '<p class="admin-muted">Carregando secoes...</p>';
+  els.dialogTitle.textContent = "Seções da página";
+  els.dialogBody.innerHTML = '<p class="admin-muted">Carregando seções...</p>';
   openPortalsDialog();
   try {
     const payload = await adminApi(`/api/v1/admin/portal/pages/${encodeURIComponent(pageId)}`);
     const sections = payload.data.sections || [];
     els.dialogBody.innerHTML = `
-      <div class="admin-section-editor-list">${sections.map((section) => `<button type="button" data-edit-section="${escapeAttr(section.id)}"><strong>${escapeHtml(section.title || section.section_key)}</strong><span>${escapeHtml(section.body || "Sem texto")}</span></button>`).join("") || '<p class="admin-empty">Nenhuma secao cadastrada.</p>'}</div>
-      <button class="admin-primary-button" type="button" data-new-section>Nova secao</button>`;
+      <div class="admin-section-editor-list">${sections.map((section) => `<button type="button" data-edit-section="${escapeAttr(section.id)}"><strong>${escapeHtml(section.title || section.section_key)}</strong><span>${escapeHtml(section.body || "Sem texto")}</span></button>`).join("") || '<p class="admin-empty">Nenhuma seção cadastrada.</p>'}</div>
+      <button class="admin-primary-button" type="button" data-new-section>Nova seção</button>`;
     els.dialogBody.querySelector("[data-new-section]").addEventListener("click", () => openSectionForm(pageId));
     els.dialogBody.querySelectorAll("[data-edit-section]").forEach((button) => button.addEventListener("click", () => openSectionForm(pageId, sections.find((item) => item.id === button.dataset.editSection))));
   } catch (error) {
-    els.dialogBody.innerHTML = `<p class="admin-error">${escapeHtml(error.message || "Nao foi possivel carregar as secoes.")}</p>`;
+    els.dialogBody.innerHTML = `<p class="admin-error">${escapeHtml(error.message || "Não foi possível carregar as seções.")}</p>`;
   }
 }
 
 function openSectionForm(pageId, section = null) {
-  els.dialogTitle.textContent = section ? "Editar secao" : "Nova secao";
+  els.dialogTitle.textContent = section ? "Editar seção" : "Nova seção";
   els.dialogBody.innerHTML = contentForm("section", `
-    ${dialogField("Titulo", "title", section?.title)}
+    ${dialogField("Título", "title", section?.title)}
     ${dialogField("Identificador", "section_key", section?.section_key, "text", true, "[a-z0-9-]+")}
-    ${dialogTextarea("Conteudo", "body", section?.body)}
+    ${dialogTextarea("Conteúdo", "body", section?.body)}
     ${dialogField("Ordem", "sort_order", section?.sort_order ?? 100, "number", true)}`);
   bindDialogForm((event) => saveSection(event, pageId, section));
 }
@@ -1961,13 +2037,13 @@ async function saveSection(event, pageId, section) {
     await openSectionsEditor(pageId);
     await loadPortalContent();
   } catch (error) {
-    form.querySelector(".admin-dialog-message").textContent = error.message || "Nao foi possivel salvar a secao.";
+    form.querySelector(".admin-dialog-message").textContent = error.message || "Não foi possível salvar a seção.";
   }
 }
 
 function renderAreasManager(session) {
   const allowed = canAccessAreas(session);
-  setHeading("Areas", "Ative as experiencias disponiveis em cada unidade.");
+  setHeading("Áreas", "Ative as experiências disponíveis em cada unidade.");
   showPortalSection(allowed ? els.areasManager : null);
   els.portalsDenied.hidden = allowed;
   if (!allowed) return;
@@ -1977,14 +2053,15 @@ function renderAreasManager(session) {
 
 async function loadDedicatedAreas() {
   if (!els.areasHotel.value) return;
-  els.areasMessage.textContent = "Carregando areas...";
+  els.areasMessage.textContent = "Carregando áreas...";
   try {
     const payload = await adminApi(`/api/v1/admin/hotels/${encodeURIComponent(els.areasHotel.value)}/modules`);
     dedicatedModules = payload.data.modules || [];
-    els.areasMessage.textContent = `${dedicatedModules.filter((item) => item.enabled).length} area(s) ativa(s).`;
+    const activeCount = dedicatedModules.filter((item) => item.enabled).length;
+    els.areasMessage.textContent = `${activeCount} ${activeCount === 1 ? "área ativa" : "áreas ativas"}.`;
     els.areasList.innerHTML = dedicatedModules.map((module) => `<label class="admin-area-card"><input type="checkbox" data-area-key="${escapeAttr(module.module_key)}" ${module.enabled ? "checked" : ""}><span class="admin-feature-icon">${featureIcon(module.module_key === "guest-portal" ? "conteudos" : "modulos")}</span><span><strong>${escapeHtml(module.public_name || module.name)}</strong><small>${escapeHtml(module.description || module.module_key)}</small></span><em>${module.enabled ? "Ativa" : "Inativa"}</em></label>`).join("");
   } catch (error) {
-    els.areasMessage.textContent = error.message || "Nao foi possivel carregar as areas.";
+    els.areasMessage.textContent = error.message || "Não foi possível carregar as áreas.";
   }
 }
 
@@ -1999,19 +2076,19 @@ async function saveDedicatedArea(event) {
     navigation_label: module.navigation_label,
     sort_order: module.sort_order,
   }));
-  els.areasMessage.textContent = "Salvando area...";
+  els.areasMessage.textContent = "Salvando área...";
   try {
     await adminApi(`/api/v1/admin/hotels/${encodeURIComponent(els.areasHotel.value)}/modules`, { method: "PATCH", body: { modules: selected } });
     await loadDedicatedAreas();
   } catch (error) {
     input.checked = !input.checked;
-    els.areasMessage.textContent = error.message || "Nao foi possivel salvar a area.";
+    els.areasMessage.textContent = error.message || "Não foi possível salvar a área.";
   }
 }
 
 function renderNavigationManager(session) {
   const allowed = canAccessNavigation(session);
-  setHeading("Navegacao", "Organize os caminhos exibidos no portal de cada unidade.");
+  setHeading("Navegação", "Organize os caminhos exibidos no portal de cada unidade.");
   showPortalSection(allowed ? els.navigationManager : null);
   els.portalsDenied.hidden = allowed;
   if (!allowed) return;
@@ -2021,7 +2098,7 @@ function renderNavigationManager(session) {
 
 async function loadDedicatedNavigation() {
   if (!els.navigationHotel.value) return;
-  els.navigationMessage.textContent = "Carregando navegacao...";
+  els.navigationMessage.textContent = "Carregando navegação...";
   try {
     const [navigation, modules] = await Promise.all([
       adminApi(`/api/v1/admin/hotels/${encodeURIComponent(els.navigationHotel.value)}/navigation`),
@@ -2030,9 +2107,9 @@ async function loadDedicatedNavigation() {
     dedicatedNavigation = navigation.data.navigation || [];
     dedicatedModules = modules.data.modules || [];
     els.navigationMessage.textContent = `${dedicatedNavigation.length} item(ns) configurado(s).`;
-    els.navigationList.innerHTML = dedicatedNavigation.map((item) => `<article class="admin-data-row admin-content-row"><span class="admin-role-icon">${featureSvg("navigation")}</span><div class="admin-row-copy"><strong>${escapeHtml(item.label)}</strong><span>${escapeHtml(item.path)}</span><small>${escapeHtml(item.module_key)} · ordem ${Number(item.sort_order || 0)}</small></div><span class="admin-status-chip" data-status="${item.enabled ? "active" : "disabled"}">${item.enabled ? "Visivel" : "Oculto"}</span><div class="admin-row-actions"><button type="button" data-navigation-action="edit" data-id="${escapeAttr(item.id)}">Editar</button><button type="button" data-navigation-action="archive" data-id="${escapeAttr(item.id)}">Ocultar</button></div></article>`).join("") || '<p class="admin-empty">Nenhum item de navegacao cadastrado.</p>';
+    els.navigationList.innerHTML = dedicatedNavigation.map((item) => `<article class="admin-data-row admin-content-row"><span class="admin-role-icon">${featureSvg("navigation")}</span><div class="admin-row-copy"><strong>${escapeHtml(item.label)}</strong><span>${escapeHtml(item.path)}</span><small>${escapeHtml(item.module_key)} · ordem ${Number(item.sort_order || 0)}</small></div><span class="admin-status-chip" data-status="${item.enabled ? "active" : "disabled"}">${item.enabled ? "Visível" : "Oculto"}</span><div class="admin-row-actions"><button type="button" data-navigation-action="edit" data-id="${escapeAttr(item.id)}">Editar</button><button type="button" data-navigation-action="archive" data-id="${escapeAttr(item.id)}">Ocultar</button></div></article>`).join("") || '<p class="admin-empty">Nenhum item de navegação cadastrado.</p>';
   } catch (error) {
-    els.navigationMessage.textContent = error.message || "Nao foi possivel carregar a navegacao.";
+    els.navigationMessage.textContent = error.message || "Não foi possível carregar a navegação.";
   }
 }
 
@@ -2042,19 +2119,19 @@ function handleDedicatedNavigationAction(event) {
   const item = dedicatedNavigation.find((entry) => entry.id === button.dataset.id);
   if (!item) return;
   if (button.dataset.navigationAction === "edit") return openNavigationEditor(item);
-  if (!window.confirm(`Ocultar ${item.label} da navegacao?`)) return;
+  if (!window.confirm(`Ocultar ${item.label} da navegação?`)) return;
   adminApi(`/api/v1/admin/hotels/${encodeURIComponent(els.navigationHotel.value)}/navigation/${encodeURIComponent(item.id)}`, { method: "DELETE", body: {} })
     .then(loadDedicatedNavigation)
-    .catch((error) => { els.navigationMessage.textContent = error.message || "Nao foi possivel ocultar o item."; });
+    .catch((error) => { els.navigationMessage.textContent = error.message || "Não foi possível ocultar o item."; });
 }
 
 function openNavigationEditor(item = null) {
-  els.dialogTitle.textContent = item ? "Editar item de navegacao" : "Novo item de navegacao";
+  els.dialogTitle.textContent = item ? "Editar item de navegação" : "Novo item de navegação";
   els.dialogBody.innerHTML = contentForm("navigation", `
     ${dialogField("Nome", "label", item?.label, "text", true)}
     ${dialogField("Caminho", "path", item?.path || "/", "text", true)}
-    <div class="admin-form-grid">${dialogSelect("Area", "module_key", item?.module_key || dedicatedModules[0]?.module_key || "guest-portal", dedicatedModules.map((module) => [module.module_key, module.public_name || module.name]))}${dialogField("Icone", "icon_key", item?.icon_key || "home")}</div>
-    <div class="admin-form-grid">${dialogField("Ordem", "sort_order", item?.sort_order ?? 100, "number", true)}<label class="admin-choice admin-choice-standalone"><input name="enabled" type="checkbox" ${item?.enabled !== false ? "checked" : ""}><span><strong>Visivel no portal</strong></span></label></div>`);
+    <div class="admin-form-grid">${dialogSelect("Área", "module_key", item?.module_key || dedicatedModules[0]?.module_key || "guest-portal", dedicatedModules.map((module) => [module.module_key, module.public_name || module.name]))}${dialogField("Ícone", "icon_key", item?.icon_key || "home")}</div>
+    <div class="admin-form-grid">${dialogField("Ordem", "sort_order", item?.sort_order ?? 100, "number", true)}<label class="admin-choice admin-choice-standalone"><input name="enabled" type="checkbox" ${item?.enabled !== false ? "checked" : ""}><span><strong>Visível no portal</strong></span></label></div>`);
   openPortalsDialog();
   bindDialogForm((event) => saveNavigation(event, item));
 }
@@ -2074,13 +2151,13 @@ async function saveNavigation(event, item) {
     closePortalsDialog();
     await loadDedicatedNavigation();
   } catch (error) {
-    form.querySelector(".admin-dialog-message").textContent = error.message || "Nao foi possivel salvar o item.";
+    form.querySelector(".admin-dialog-message").textContent = error.message || "Não foi possível salvar o item.";
   }
 }
 
 function renderAuditManager(session) {
   const allowed = canAccessAudit(session);
-  setHeading("Auditoria", "Consulte as alteracoes realizadas na Central Administrativa.");
+  setHeading("Auditoria", "Consulte as alterações realizadas na Central Administrativa.");
   showPortalSection(allowed ? els.auditManager : null);
   els.portalsDenied.hidden = allowed;
   if (!allowed) return;
@@ -2097,9 +2174,9 @@ async function loadAudit() {
     const payload = await adminApi(`/api/v1/admin/audit?${params}`);
     const entries = payload.data.entries || [];
     els.auditMessage.textContent = `${entries.length} registro(s) encontrado(s).`;
-    els.auditList.innerHTML = entries.map((entry) => `<article class="admin-data-row admin-audit-row"><span class="admin-role-icon">${featureSvg("history")}</span><div class="admin-row-copy"><strong>${escapeHtml(auditActionLabel(entry.action))}</strong><span>${escapeHtml(entry.actor_name)} · ${escapeHtml(entry.hotel_id || "Administracao geral")}</span><small>${escapeHtml(entry.entity_type || "registro")} · ${escapeHtml(formatDate(entry.created_at))}</small></div><code>${escapeHtml(entry.action)}</code></article>`).join("") || '<p class="admin-empty">Nenhuma alteracao encontrada.</p>';
+    els.auditList.innerHTML = entries.map((entry) => `<article class="admin-data-row admin-audit-row"><span class="admin-role-icon">${featureSvg("history")}</span><div class="admin-row-copy"><strong>${escapeHtml(auditActionLabel(entry.action))}</strong><span>${escapeHtml(entry.actor_name)} · ${escapeHtml(entry.hotel_id || "Administração geral")}</span><small>${escapeHtml(entry.entity_type || "registro")} · ${escapeHtml(formatDate(entry.created_at))}</small></div><code>${escapeHtml(entry.action)}</code></article>`).join("") || '<p class="admin-empty">Nenhuma alteração encontrada.</p>';
   } catch (error) {
-    els.auditMessage.textContent = error.message || "Nao foi possivel carregar a auditoria.";
+    els.auditMessage.textContent = error.message || "Não foi possível carregar a auditoria.";
   }
 }
 
@@ -2155,18 +2232,18 @@ function contentStatus(status) {
 
 function auditActionLabel(action) {
   const labels = {
-    "portal-page.create": "Pagina criada",
-    "portal-page.update": "Pagina atualizada",
-    "portal-section.create": "Secao criada",
-    "portal-section.update": "Secao atualizada",
+    "portal-page.create": "Página criada",
+    "portal-page.update": "Página atualizada",
+    "portal-section.create": "Seção criada",
+    "portal-section.update": "Seção atualizada",
     "portal-event.create": "Evento criado",
     "portal-event.update": "Evento atualizado",
-    "hotel-information.create": "Informacao criada",
-    "hotel-information.update": "Informacao atualizada",
-    "hotel.modules.update": "Areas atualizadas",
-    "hotel.navigation.create": "Item de navegacao criado",
-    "hotel.navigation.update": "Item de navegacao atualizado",
-    "hotel.navigation.archive": "Item de navegacao ocultado",
+    "hotel-information.create": "Informação criada",
+    "hotel-information.update": "Informação atualizada",
+    "hotel.modules.update": "Áreas atualizadas",
+    "hotel.navigation.create": "Item de navegação criado",
+    "hotel.navigation.update": "Item de navegação atualizado",
+    "hotel.navigation.archive": "Item de navegação ocultado",
   };
   return labels[action] || action.replaceAll("-", " ").replaceAll(".", " · ");
 }

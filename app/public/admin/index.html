@@ -39,7 +39,7 @@
           <div>
             <p class="eyebrow">Central administrativa</p>
             <h1 id="welcomeTitle">Bem-vindo ao Ecossistema Fioreze</h1>
-            <p id="welcomeSubtitle" class="admin-muted">Escolha uma area para cuidar da operacao e das experiencias digitais.</p>
+            <p id="welcomeSubtitle" class="admin-muted">Escolha uma área para cuidar da operação e das experiências digitais.</p>
           </div>
           <div class="admin-session-box">
             <span id="sessionUser"></span>
@@ -50,10 +50,10 @@
         <section class="admin-launcher-grid" aria-label="Sistemas administrativos">
           <article class="admin-launcher-panel">
             <div class="admin-panel-heading">
-              <h2>Atalhos rapidos</h2>
+              <h2>Atalhos rápidos</h2>
             </div>
             <div id="systemsList" class="admin-system-list"></div>
-            <p id="noSystemsMessage" class="admin-empty" hidden>Nenhum sistema administrativo disponivel para este usuario.</p>
+            <p id="noSystemsMessage" class="admin-empty" hidden>Nenhum sistema administrativo disponível para este usuário.</p>
           </article>
 
           <aside class="admin-launcher-panel">
@@ -62,9 +62,9 @@
             </div>
             <div id="authorizedHotels" class="admin-hotel-list"></div>
             <div class="admin-info-box">
-              <span>Impressao de pedidos</span>
+              <span>Impressão de pedidos</span>
               <strong>Gerenciada no ERP Room Service</strong>
-              <p class="admin-muted">A Central organiza unidades, acessos e experiencias digitais.</p>
+              <p class="admin-muted">A Central organiza unidades, acessos e experiências digitais.</p>
             </div>
           </aside>
         </section>
@@ -73,9 +73,9 @@
           <div class="admin-panel-heading">
             <div>
               <p class="eyebrow">Equipe</p>
-              <h2>Usuarios</h2>
+              <h2>Usuários</h2>
             </div>
-            <button id="addUserButton" class="admin-primary-button" type="button">Novo usuario</button>
+            <button id="addUserButton" class="admin-primary-button" type="button">Novo usuário</button>
           </div>
           <form id="usersFilters" class="admin-filters admin-management-filters">
             <label><span>Busca</span><input id="usersSearch" type="search" placeholder="Nome ou e-mail"></label>
@@ -90,12 +90,36 @@
           <div class="admin-panel-heading">
             <div>
               <p class="eyebrow">Acessos</p>
-              <h2>Perfis e permissoes</h2>
+              <h2>Perfis e permissões</h2>
             </div>
             <button id="addRoleButton" class="admin-primary-button" type="button">Novo perfil</button>
           </div>
           <div id="rolesSummary" class="admin-muted" aria-live="polite"></div>
           <div id="rolesList" class="admin-table-stack"></div>
+        </section>
+
+        <section id="messagesManager" class="admin-launcher-panel admin-management-panel admin-messages-manager" hidden>
+          <div class="admin-panel-heading">
+            <div>
+              <p class="eyebrow">Comunicação</p>
+              <h2>Mensagens</h2>
+              <p class="admin-muted">Converse com a equipe diretamente pela Central.</p>
+            </div>
+            <button id="composeMessageButton" class="admin-primary-button" type="button">Nova mensagem</button>
+          </div>
+          <div class="admin-messages-layout">
+            <aside class="admin-message-boxes" aria-label="Caixas de mensagens">
+              <button type="button" data-message-box="inbox" aria-pressed="true">Recebidas <span id="messagesUnreadCount" hidden></span></button>
+              <button type="button" data-message-box="sent" aria-pressed="false">Enviadas</button>
+            </aside>
+            <div class="admin-message-list-panel">
+              <p id="messagesStatus" class="admin-muted" role="status" aria-live="polite"></p>
+              <div id="messagesList" class="admin-message-list"></div>
+            </div>
+            <article id="messageDetail" class="admin-message-detail">
+              <div class="admin-empty">Selecione uma mensagem para visualizar.</div>
+            </article>
+          </div>
         </section>
 
         <section id="accountManager" class="admin-launcher-panel admin-management-panel" hidden>

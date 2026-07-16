@@ -34,6 +34,7 @@ O administrador ficticio de desenvolvimento recebe `erp.master` e pode acessar t
 Rotas administrativas:
 
 - `/admin/`: central de acesso administrativo e selecao de sistemas;
+- `/admin/mensagens/`: caixa interna para comunicacao entre usuarios administrativos autorizados;
 - `/erp/room-service/`: ERP operacional canonico do Room Service;
 - `/admin/room-service/`: redirecionamento de compatibilidade para o ERP;
 - `/admin/portais/`: Central de Portais Fioreze.
@@ -203,6 +204,13 @@ A migration `0017_admin_preferences_media_folders.sql` adiciona:
 - pastas e subpastas isoladas por `hotel_id` em `media_folders`;
 - a associacao opcional `media_assets.folder_id`, sem alterar a URL publica nem o objeto R2 quando uma imagem e organizada;
 - indices para navegacao por pasta e unicidade de nomes entre pastas irmas ativas.
+
+A migration `0018_admin_messages_and_reference_numbers.sql` adiciona:
+
+- numeros sequenciais de referencia para usuarios e perfis administrativos;
+- caixa de mensagens interna entre usuarios administrativos ativos;
+- indices para consulta eficiente de mensagens recebidas, enviadas e nao lidas;
+- exclusao protegida de perfis, mantendo bloqueados perfis do sistema ou ainda associados a usuarios.
 
 Como `ALTER TABLE ... ADD COLUMN` no D1/SQLite nao e uma forma segura de adicionar foreign keys em colunas novas, `uploaded_by_user_id` e `archived_by_user_id` ficam nullable e a integridade e validada pela aplicacao. Uma migration futura pode reconstruir a tabela se uma FK fisica for necessaria.
 

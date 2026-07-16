@@ -5,7 +5,18 @@ import { readJson, requireString } from "../../core/validation.js";
 import { assertAdminMutationAllowed } from "../../services/admin-auth.js";
 
 export const DEFAULT_ADMIN_PALETTE = "fioreze";
-export const ADMIN_PALETTES = new Set([DEFAULT_ADMIN_PALETTE, "terracotta", "forest", "ocean", "graphite"]);
+export const ADMIN_PALETTES = new Set([
+  DEFAULT_ADMIN_PALETTE,
+  "terracotta",
+  "forest",
+  "ocean",
+  "graphite",
+  "burgundy",
+  "sage",
+  "navy",
+  "plum",
+  "sunset",
+]);
 
 export async function getAdminPreferences({ env, session }) {
   const row = await first(
@@ -23,10 +34,10 @@ export async function updateAdminPreferences({ request, env, session }) {
   assertAdminMutationAllowed({ request });
   const payload = await readJson(request);
   const unknownFields = Object.keys(payload).filter((key) => key !== "color_palette");
-  if (unknownFields.length) throw badRequest("Preferencias nao permitidas.", { fields: unknownFields });
+  if (unknownFields.length) throw badRequest("Preferências não permitidas.", { fields: unknownFields });
 
   const colorPalette = requireString(payload.color_palette, "color_palette", { max: 40 });
-  if (!ADMIN_PALETTES.has(colorPalette)) throw badRequest("Paleta administrativa invalida.");
+  if (!ADMIN_PALETTES.has(colorPalette)) throw badRequest("Paleta administrativa inválida.");
 
   const now = requestNow({ request, env });
   await run(

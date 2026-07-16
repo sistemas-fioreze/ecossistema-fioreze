@@ -814,6 +814,46 @@ body[data-admin-shell="erp"][data-admin-palette="graphite"] {
   --admin-canvas: #f7f7f7;
 }
 
+body[data-admin-shell="erp"][data-admin-palette="burgundy"] {
+  --admin-primary: #7a3045;
+  --admin-primary-hover: #5f2435;
+  --admin-primary-soft: #f7eaee;
+  --admin-accent: #c59b4b;
+  --admin-canvas: #fcf7f8;
+}
+
+body[data-admin-shell="erp"][data-admin-palette="sage"] {
+  --admin-primary: #55705c;
+  --admin-primary-hover: #405545;
+  --admin-primary-soft: #edf3ee;
+  --admin-accent: #a9784f;
+  --admin-canvas: #f8faf8;
+}
+
+body[data-admin-shell="erp"][data-admin-palette="navy"] {
+  --admin-primary: #334e68;
+  --admin-primary-hover: #243b53;
+  --admin-primary-soft: #eaf0f5;
+  --admin-accent: #d19b52;
+  --admin-canvas: #f7f9fb;
+}
+
+body[data-admin-shell="erp"][data-admin-palette="plum"] {
+  --admin-primary: #68405f;
+  --admin-primary-hover: #4f3048;
+  --admin-primary-soft: #f2eaf0;
+  --admin-accent: #69a29b;
+  --admin-canvas: #faf7f9;
+}
+
+body[data-admin-shell="erp"][data-admin-palette="sunset"] {
+  --admin-primary: #a24f3d;
+  --admin-primary-hover: #7f3c2f;
+  --admin-primary-soft: #faece7;
+  --admin-accent: #397b83;
+  --admin-canvas: #fcf8f5;
+}
+
 body[data-admin-shell="erp"] .admin-shell {
   width: 100%;
   height: 100vh;
@@ -1239,18 +1279,18 @@ body[data-admin-shell="erp"] .admin-session-trigger {
   align-items: center;
   gap: 8px;
   overflow: hidden;
-  border: 1px solid var(--admin-primary);
+  border: 1px solid #e1e5e9;
   border-radius: 14px;
   padding: 3px 9px 3px 4px;
-  background: var(--admin-primary);
-  color: #fff;
+  background: #fff;
+  color: #202124;
   cursor: pointer;
 }
 
 body[data-admin-shell="erp"] .admin-session-trigger:hover,
 body[data-admin-shell="erp"] .admin-session-control.is-open .admin-session-trigger {
-  border-color: var(--admin-primary-hover);
-  background: var(--admin-primary-hover);
+  border-color: color-mix(in srgb, var(--admin-primary) 28%, #e1e5e9);
+  background: #fff;
 }
 
 body[data-admin-shell="erp"] .admin-session-trigger .admin-avatar {
@@ -1280,7 +1320,7 @@ body[data-admin-shell="erp"] .admin-session-copy #sessionUser {
 }
 
 body[data-admin-shell="erp"] .admin-session-copy small {
-  color: #c5ccd6;
+  color: #8b929b;
   font-size: 0.5rem;
   font-weight: 950;
   letter-spacing: 0.12em;
@@ -1289,7 +1329,7 @@ body[data-admin-shell="erp"] .admin-session-copy small {
 
 body[data-admin-shell="erp"] .admin-session-copy strong {
   max-width: 150px;
-  color: #fff;
+  color: #202124;
   font-size: 0.68rem;
   font-weight: 950;
   text-transform: uppercase;
@@ -1299,7 +1339,7 @@ body[data-admin-shell="erp"] .admin-session-trigger > .admin-svg-icon {
   width: 14px;
   height: 14px;
   flex: 0 0 14px;
-  color: #c5ccd6;
+  color: #8b929b;
 }
 
 body[data-admin-shell="erp"] .admin-session-menu {
@@ -1307,7 +1347,7 @@ body[data-admin-shell="erp"] .admin-session-menu {
   top: calc(100% + 8px);
   right: 0;
   z-index: 130;
-  width: 230px;
+  width: 310px;
   display: grid;
   gap: 5px;
   padding: 9px;
@@ -1377,18 +1417,19 @@ body[data-admin-shell="erp"] .admin-palette-picker > span {
 }
 
 body[data-admin-shell="erp"] .admin-palette-picker > div {
-  display: flex;
-  gap: 7px;
+  display: grid;
+  grid-template-columns: repeat(5, 38px);
+  gap: 9px;
 }
 
 body[data-admin-shell="erp"] .admin-palette-picker button {
-  width: 28px;
-  height: 28px;
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
   border: 1px solid #dfe3e7;
   border-radius: 50%;
-  padding: 3px;
+  padding: 4px;
   background: #fff;
   cursor: pointer;
 }
@@ -1422,6 +1463,31 @@ body[data-admin-shell="erp"] .admin-palette-picker button[data-admin-palette="gr
   box-shadow: inset -7px 0 0 #b69250;
 }
 
+body[data-admin-shell="erp"] .admin-palette-picker button[data-admin-palette="burgundy"] i {
+  background: #7a3045;
+  box-shadow: inset -9px 0 0 #c59b4b;
+}
+
+body[data-admin-shell="erp"] .admin-palette-picker button[data-admin-palette="sage"] i {
+  background: #55705c;
+  box-shadow: inset -9px 0 0 #a9784f;
+}
+
+body[data-admin-shell="erp"] .admin-palette-picker button[data-admin-palette="navy"] i {
+  background: #334e68;
+  box-shadow: inset -9px 0 0 #d19b52;
+}
+
+body[data-admin-shell="erp"] .admin-palette-picker button[data-admin-palette="plum"] i {
+  background: #68405f;
+  box-shadow: inset -9px 0 0 #69a29b;
+}
+
+body[data-admin-shell="erp"] .admin-palette-picker button[data-admin-palette="sunset"] i {
+  background: #a24f3d;
+  box-shadow: inset -9px 0 0 #397b83;
+}
+
 body[data-admin-shell="erp"] .admin-palette-picker button[aria-pressed="true"] {
   border-color: var(--admin-primary);
   box-shadow: 0 0 0 2px var(--admin-primary-soft);
@@ -1437,6 +1503,8 @@ body[data-admin-shell="erp"] .admin-dashboard > .admin-launcher-grid,
 body[data-admin-shell="erp"] .admin-dashboard > .admin-management-panel,
 body[data-admin-shell="erp"] .admin-dashboard > .admin-access-denied {
   min-height: 0;
+  height: 100%;
+  max-height: 100%;
   grid-column: 2;
   grid-row: 2;
   overflow: auto;
@@ -1503,6 +1571,13 @@ body[data-admin-shell="erp"] .admin-portal-layout > .admin-portal-main > .admin-
   border-radius: 14px 0 0 0;
   background: var(--admin-canvas);
   box-shadow: none;
+}
+
+body[data-admin-shell="erp"] .admin-portals-surface > section:not([hidden]),
+body[data-admin-shell="erp"] .admin-dashboard > .admin-management-panel:not([hidden]),
+body[data-admin-shell="erp"] .admin-dashboard > .admin-launcher-grid:not([hidden]) {
+  min-height: 100%;
+  align-content: start;
 }
 
 body[data-admin-shell="erp"] .admin-launcher-panel,
@@ -1790,7 +1865,7 @@ body[data-admin-shell="erp"] .admin-dashboard :where(input, textarea, [contented
     height: 66px;
     min-height: 66px;
     display: grid;
-    grid-template-columns: 34px minmax(0, 1fr) 40px 40px 40px;
+    grid-template-columns: 34px minmax(0, 1fr) 40px 40px 40px 40px;
     align-items: center;
     gap: 6px;
     padding: 8px 10px;
@@ -1817,13 +1892,18 @@ body[data-admin-shell="erp"] .admin-dashboard :where(input, textarea, [contented
   }
 
   body[data-admin-shell="erp"] .admin-topbar > [data-admin-help-open] {
+    grid-column: 5;
+    grid-row: 1;
+  }
+
+  body[data-admin-shell="erp"] .admin-topbar > .admin-mail-button {
     grid-column: 4;
     grid-row: 1;
   }
 
   body[data-admin-shell="erp"] .admin-topbar > .admin-session-box {
     width: 40px;
-    grid-column: 5;
+    grid-column: 6;
     grid-row: 1;
   }
 
@@ -1870,4 +1950,83 @@ body[data-admin-shell="erp"] .admin-dashboard :where(input, textarea, [contented
     scroll-behavior: auto !important;
     transition: none !important;
   }
+}
+
+/* Compact feedback keeps the administrative shell visible during navigation. */
+body[data-admin-shell="erp"] .admin-loading {
+  position: fixed;
+  inset: 78px 18px auto auto;
+  z-index: 190;
+  width: auto;
+  min-height: 0;
+  display: block;
+  padding: 0;
+  background: transparent;
+  pointer-events: none;
+}
+
+body[data-admin-shell="erp"] .admin-loading[hidden] {
+  display: none;
+}
+
+body[data-admin-shell="erp"] .admin-loading-card,
+body[data-admin-shell="erp"] .admin-content-loader > div {
+  width: auto;
+  min-width: 190px;
+  min-height: 46px;
+  display: flex;
+  place-items: initial;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #e1e5e9;
+  border-radius: 8px;
+  padding: 9px 13px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(32, 33, 36, 0.12);
+  color: #202124;
+  text-align: left;
+}
+
+body[data-admin-shell="erp"] .admin-loading-card .admin-modern-spinner,
+body[data-admin-shell="erp"] .admin-content-loader .admin-modern-spinner {
+  width: 24px;
+  height: 24px;
+  border-width: 2px;
+  flex: 0 0 24px;
+}
+
+body[data-admin-shell="erp"] .admin-content-loader,
+body[data-admin-shell="erp"] .is-sidebar-compact .admin-content-loader {
+  position: fixed;
+  inset: 78px 18px auto auto;
+  z-index: 180;
+  display: block;
+  background: transparent;
+  pointer-events: none;
+}
+
+body[data-admin-shell="erp"] .admin-mail-button {
+  position: relative;
+  text-decoration: none;
+}
+
+body[data-admin-shell="erp"] .admin-mail-button > span {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  padding: 0 4px;
+  background: #a23b3b;
+  color: #fff;
+  font-size: 0.58rem;
+  font-weight: 900;
+}
+
+body[data-admin-shell="erp"] .admin-mail-button > span[hidden] {
+  display: none;
 }

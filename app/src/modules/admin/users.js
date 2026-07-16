@@ -41,9 +41,9 @@ const ROLE_GROUPS = [
   ["portals.media.", "Imagens"],
   ["portals.hotels.", "Unidades"],
   ["portals.links.", "Links"],
-  ["portals.embed.", "Incorporacao"],
-  ["admin.users.", "Usuarios"],
-  ["admin.roles.", "Perfis e permissoes"],
+  ["portals.embed.", "Incorporação"],
+  ["admin.users.", "Usuários"],
+  ["admin.roles.", "Perfis e permissões"],
   ["admin.audit.", "Auditoria"],
 ];
 
@@ -54,12 +54,12 @@ export async function listAdminUsers({ env, session, url }) {
   const roleId = optionalString(url.searchParams.get("role_id"), "role_id", { max: 120 });
   const hotelId = optionalString(url.searchParams.get("hotel_id"), "hotel_id", { max: 120 });
 
-  if (status && !ACTIVE_STATUS.has(status)) throw badRequest("Status de usuario invalido.");
+  if (status && !ACTIVE_STATUS.has(status)) throw badRequest("Status de usuário inválido.");
   if (hotelId && !session.hotel_ids.includes(hotelId)) throw forbidden("Unidade fora do seu acesso administrativo.");
 
   const rows = await all(
     env,
-    `SELECT u.id, u.display_name, u.email, u.status, u.force_password_change,
+    `SELECT u.id, u.user_number, u.display_name, u.email, u.status, u.force_password_change,
             u.created_at, u.updated_at,
             GROUP_CONCAT(DISTINCT r.id || ':' || r.name) AS roles_text,
             GROUP_CONCAT(DISTINCT h.id || ':' || h.short_name) AS hotels_text,
@@ -92,7 +92,7 @@ export async function listAdminUsers({ env, session, url }) {
 export async function getAdminUser({ env, session, userId }) {
   requirePermission(session, ADMIN_USERS_READ);
   const user = await loadUserDetail(env, userId);
-  if (!user) throw notFoundError("Usuario administrativo nao encontrado.");
+  if (!user) throw notFoundError("Usuário administrativo não encontrado.");
   return { user };
 }
 
@@ -115,14 +115,15 @@ export async function createAdminUser({ request, env, session }) {
   const tempPassword = createTemporaryPassword();
   const passwordHash = await hashPassword(tempPassword);
   const userId = createPublicId("admin_user");
+  const userNumber = await nextReferenceNumber(env, "admin_users", "user_number");
   const statements = [
     statement(
       env,
       `INSERT INTO admin_users (
-         id, display_name, email, password_hash, password_strategy, status,
+         id, user_number, display_name, email, password_hash, password_strategy, status,
          force_password_change, password_changed_at, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, 'pbkdf2', 'active', 1, NULL, ?, ?)`,
-      [userId, displayName, email, passwordHash, now, now],
+       ) VALUES (?, ?, ?, ?, ?, 'pbkdf2', 'active', 1, NULL, ?, ?)`,
+      [userId, userNumber, displayName, email, passwordHash, now, now],
     ),
     auditStatement(env, {
       actorUserId: session.user.id,
@@ -164,7 +165,7 @@ export async function updateAdminUser({ request, env, session, userId }) {
   const now = requestNow({ request, env });
   const current = await getUserBase(env, userId);
 
-  if (!current) throw notFoundError("Usuario administrativo nao encontrado.");
+  if (!current) throw notFoundError("Usuário administrativo não encontrado.");
   if (!hotelIds.length) throw badRequest("Informe pelo menos uma unidade.");
   ensureHotelsAllowed(session, hotelIds);
   await assertEmailAvailable(env, email, userId);
@@ -210,9 +211,9 @@ export async function updateAdminUser({ request, env, session, userId }) {
 export async function setAdminUserStatus({ request, env, session, userId, status }) {
   requirePermission(session, status === "disabled" ? ADMIN_USERS_DISABLE : ADMIN_USERS_UPDATE);
   assertAdminMutationAllowed({ request });
-  if (userId === session.user.id && status === "disabled") throw conflict("Voce nao pode desativar a propria conta.");
+  if (userId === session.user.id && status === "disabled") throw conflict("Você não pode desativar a própria conta.");
   const current = await getUserBase(env, userId);
-  if (!current) throw notFoundError("Usuario administrativo nao encontrado.");
+  if (!current) throw notFoundError("Usuário administrativo não encontrado.");
   if (status === "disabled") await assertNotLastEffectiveAdmin(env, userId);
   const now = requestNow({ request, env });
   await batch(env, [
@@ -233,7 +234,7 @@ export async function resetAdminUserPassword({ request, env, session, userId }) 
   requirePermission(session, ADMIN_USERS_PASSWORD_RESET);
   assertAdminMutationAllowed({ request });
   const current = await getUserBase(env, userId);
-  if (!current) throw notFoundError("Usuario administrativo nao encontrado.");
+  if (!current) throw notFoundError("Usuário administrativo não encontrado.");
   const now = requestNow({ request, env });
   const tempPassword = createTemporaryPassword();
   const passwordHash = await hashPassword(tempPassword);
@@ -263,7 +264,7 @@ export async function revokeAdminUserSessions({ request, env, session, userId })
   requirePermission(session, ADMIN_USERS_SESSIONS_REVOKE);
   assertAdminMutationAllowed({ request });
   const current = await getUserBase(env, userId);
-  if (!current) throw notFoundError("Usuario administrativo nao encontrado.");
+  if (!current) throw notFoundError("Usuário administrativo não encontrado.");
   const now = requestNow({ request, env });
   const result = await run(env, `UPDATE admin_sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL`, [now, userId]);
   await audit(env, {
@@ -280,9 +281,9 @@ export async function revokeAdminUserSessions({ request, env, session, userId })
 export async function archiveAdminUser({ request, env, session, userId }) {
   requirePermission(session, ADMIN_USERS_DISABLE);
   assertAdminMutationAllowed({ request });
-  if (userId === session.user.id) throw conflict("Voce nao pode remover a propria conta.");
+  if (userId === session.user.id) throw conflict("Você não pode remover a própria conta.");
   const current = await getUserBase(env, userId);
-  if (!current) throw notFoundError("Usuario administrativo nao encontrado.");
+  if (!current) throw notFoundError("Usuário administrativo não encontrado.");
   if (current.status === "archived") return { user_id: userId, removed: false };
   await assertNotLastEffectiveAdmin(env, userId);
   const now = requestNow({ request, env });
@@ -313,7 +314,7 @@ export async function listAdminRoles({ env, session }) {
   requirePermission(session, ADMIN_ROLES_READ);
   const roles = await all(
     env,
-    `SELECT r.id, r.role_key, r.name, r.description,
+    `SELECT r.id, r.role_number, r.role_key, r.name, r.description,
             COUNT(DISTINCT ur.user_id) AS user_count,
             GROUP_CONCAT(DISTINCT p.permission_key) AS permissions_text
        FROM admin_roles r
@@ -331,7 +332,7 @@ export async function getAdminRole({ env, session, roleId }) {
   requirePermission(session, ADMIN_ROLES_READ);
   const roles = (await listAdminRoles({ env, session })).roles;
   const role = roles.find((entry) => entry.id === roleId);
-  if (!role) throw notFoundError("Perfil nao encontrado.");
+  if (!role) throw notFoundError("Perfil não encontrado.");
   return { role };
 }
 
@@ -339,17 +340,19 @@ export async function createAdminRole({ request, env, session }) {
   requirePermission(session, ADMIN_ROLES_CREATE);
   assertAdminMutationAllowed({ request });
   const payload = await readJson(request);
-  const roleKey = requireString(payload.role_key, "endereco do perfil", { max: 80 });
-  if (!isSafeIdentifier(roleKey)) throw badRequest("Endereco do perfil invalido.");
+  const roleKey = requireString(payload.role_key, "endereço do perfil", { max: 80 });
+  if (!isSafeIdentifier(roleKey)) throw badRequest("Endereço do perfil inválido.");
   const name = requireString(payload.name, "nome", { max: 120 });
-  const description = optionalString(payload.description, "descricao", { max: 500 }) || null;
+  const description = optionalString(payload.description, "descrição", { max: 500 }) || null;
   const now = requestNow({ request, env });
+  const roleId = createPublicId("role");
+  const roleNumber = await nextReferenceNumber(env, "admin_roles", "role_number");
   await batch(env, [
     statement(
       env,
-      `INSERT INTO admin_roles (id, role_key, name, description, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [createPublicId("role"), roleKey, name, description, now, now],
+      `INSERT INTO admin_roles (id, role_number, role_key, name, description, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [roleId, roleNumber, roleKey, name, description, now, now],
     ),
     auditStatement(env, {
       actorUserId: session.user.id,
@@ -360,7 +363,7 @@ export async function createAdminRole({ request, env, session }) {
       createdAt: now,
     }),
   ]);
-  return { created: true };
+  return { created: true, role: (await getAdminRole({ env, session, roleId })).role };
 }
 
 export async function updateAdminRole({ request, env, session, roleId }) {
@@ -368,7 +371,7 @@ export async function updateAdminRole({ request, env, session, roleId }) {
   assertAdminMutationAllowed({ request });
   const payload = await readJson(request);
   const name = requireString(payload.name, "nome", { max: 120 });
-  const description = optionalString(payload.description, "descricao", { max: 500 }) || null;
+  const description = optionalString(payload.description, "descrição", { max: 500 }) || null;
   const now = requestNow({ request, env });
   const result = await run(env, `UPDATE admin_roles SET name = ?, description = ?, updated_at = ? WHERE id = ?`, [
     name,
@@ -376,7 +379,7 @@ export async function updateAdminRole({ request, env, session, roleId }) {
     now,
     roleId,
   ]);
-  if (!result?.meta?.changes) throw notFoundError("Perfil nao encontrado.");
+  if (!result?.meta?.changes) throw notFoundError("Perfil não encontrado.");
   await audit(env, {
     actorUserId: session.user.id,
     action: "admin-role.update",
@@ -392,8 +395,8 @@ export async function updateAdminRolePermissions({ request, env, session, roleId
   requirePermission(session, ADMIN_ROLES_PERMISSIONS);
   assertAdminMutationAllowed({ request });
   const payload = await readJson(request);
-  const permissionKeys = requireArray(payload.permission_keys || [], "permissoes", { min: 0, max: 200 });
-  for (const key of permissionKeys) requireString(key, "permissao", { max: 160 });
+  const permissionKeys = requireArray(payload.permission_keys || [], "permissões", { min: 0, max: 200 });
+  for (const key of permissionKeys) requireString(key, "permissão", { max: 160 });
   await assertRoleExists(env, roleId);
   await assertPermissionsExist(env, permissionKeys);
   await assertNoLockoutOnRolePermissionChange(env, roleId, permissionKeys);
@@ -427,10 +430,10 @@ export async function deleteAdminRole({ request, env, session, roleId }) {
   requirePermission(session, ADMIN_ROLES_UPDATE);
   assertAdminMutationAllowed({ request });
   const role = await first(env, `SELECT id, role_key, name FROM admin_roles WHERE id = ? LIMIT 1`, [roleId]);
-  if (!role) throw notFoundError("Perfil nao encontrado.");
-  if (PROTECTED_ROLE_KEYS.has(role.role_key)) throw conflict("Este perfil administrativo e protegido.");
+  if (!role) throw notFoundError("Perfil não encontrado.");
+  if (PROTECTED_ROLE_KEYS.has(role.role_key)) throw conflict("Este perfil administrativo é protegido.");
   const usage = await first(env, `SELECT COUNT(*) AS user_count FROM admin_user_roles WHERE role_id = ?`, [roleId]);
-  if (Number(usage?.user_count || 0) > 0) throw conflict("Remova este perfil dos usuarios antes de exclui-lo.");
+  if (Number(usage?.user_count || 0) > 0) throw conflict("Remova este perfil dos usuários antes de excluí-lo.");
   const now = requestNow({ request, env });
   await batch(env, [
     statement(env, `DELETE FROM admin_role_permissions WHERE role_id = ?`, [roleId]),
@@ -474,7 +477,7 @@ export async function getAdminMe({ env, session }) {
 export async function serveAdminUserAvatar({ env, session, userId, head = false }) {
   if (userId !== session.user.id) requirePermission(session, ADMIN_USERS_READ);
   const user = await getUserBase(env, userId);
-  if (!user) throw notFoundError("Usuario administrativo nao encontrado.");
+  if (!user) throw notFoundError("Usuário administrativo não encontrado.");
   if (!user.avatar_object_key) return fallbackAvatarResponse(user, head);
   const bucket = requireAvatarBucket(env);
   const object = head ? await bucket.head(user.avatar_object_key) : await bucket.get(user.avatar_object_key);
@@ -498,7 +501,7 @@ export async function uploadOwnAvatar({ request, env, session }) {
   const file = form.get("avatar");
   const validated = await validateAvatarFile(file);
   const current = await getUserBase(env, session.user.id);
-  if (!current) throw notFoundError("Usuario administrativo nao encontrado.");
+  if (!current) throw notFoundError("Usuário administrativo não encontrado.");
 
   const now = requestNow({ request, env });
   const objectKey = `${AVATAR_PREFIX}/${session.user.id}/${createPublicId("avatar")}.${validated.extension}`;
@@ -540,7 +543,7 @@ export async function uploadOwnAvatar({ request, env, session }) {
     ]);
   } catch {
     await bucket.delete(objectKey).catch(() => null);
-    throw new AppError(500, "avatar_metadata_failed", "Avatar enviado, mas os metadados nao puderam ser salvos.");
+    throw new AppError(500, "avatar_metadata_failed", "Avatar enviado, mas os metadados não puderam ser salvos.");
   }
 
   if (current.avatar_object_key && current.avatar_object_key !== objectKey) {
@@ -560,7 +563,7 @@ export async function deleteOwnAvatar({ request, env, session }) {
   assertAdminMutationAllowed({ request });
   const bucket = requireAvatarBucket(env);
   const current = await getUserBase(env, session.user.id);
-  if (!current) throw notFoundError("Usuario administrativo nao encontrado.");
+  if (!current) throw notFoundError("Usuário administrativo não encontrado.");
   const oldObjectKey = current.avatar_object_key;
   const now = requestNow({ request, env });
   await batch(env, [
@@ -593,13 +596,13 @@ export async function changeOwnPassword({ request, env, session }) {
   const currentPassword = requireString(payload.current_password, "senha atual", { max: PASSWORD_MAX_LENGTH });
   const newPassword = requireString(payload.new_password, "nova senha", { min: PASSWORD_MIN_LENGTH, max: PASSWORD_MAX_LENGTH });
   const confirmation = requireString(payload.confirm_password, "confirmacao", { min: PASSWORD_MIN_LENGTH, max: PASSWORD_MAX_LENGTH });
-  if (newPassword !== confirmation) throw badRequest("A confirmacao da senha nao confere.");
+  if (newPassword !== confirmation) throw badRequest("A confirmação da senha não confere.");
   const user = await first(
     env,
     `SELECT id, display_name, email, password_hash, password_strategy FROM admin_users WHERE id = ? LIMIT 1`,
     [session.user.id],
   );
-  if (!user) throw notFoundError("Usuario administrativo nao encontrado.");
+  if (!user) throw notFoundError("Usuário administrativo não encontrado.");
   if (!(await verifyPassword(currentPassword, user.password_hash))) throw unauthorizedPassword();
   if (await verifyPassword(newPassword, user.password_hash)) throw badRequest("A nova senha precisa ser diferente da atual.");
   validatePasswordPolicy(newPassword, user);
@@ -684,6 +687,7 @@ async function loadUserDetail(env, userId) {
   );
   return {
     id: base.id,
+    number: Number(base.user_number || 0) || null,
     display_name: base.display_name,
     email: base.email,
     status: base.status,
@@ -712,7 +716,7 @@ async function loadUserDetail(env, userId) {
 function getUserBase(env, userId) {
   return first(
     env,
-    `SELECT id, display_name, email, password_hash, password_strategy,
+    `SELECT id, user_number, display_name, email, password_hash, password_strategy,
             status, force_password_change, password_changed_at,
             avatar_object_key, avatar_mime_type, avatar_updated_at,
             created_at, updated_at
@@ -726,6 +730,7 @@ function getUserBase(env, userId) {
 function formatUserRow(row) {
   return {
     id: row.id,
+    number: Number(row.user_number || 0) || null,
     display_name: row.display_name,
     email: row.email,
     status: row.status,
@@ -746,6 +751,7 @@ function formatRoleRow(row) {
     .sort();
   return {
     id: row.id,
+    number: Number(row.role_number || 0) || null,
     role_key: row.role_key,
     name: row.name,
     description: row.description || "",
@@ -780,7 +786,7 @@ function ensureHotelsAllowed(session, hotelIds) {
 
 async function assertEmailAvailable(env, email, currentUserId = "") {
   const existing = await first(env, `SELECT id FROM admin_users WHERE lower(email) = lower(?) LIMIT 1`, [email]);
-  if (existing && existing.id !== currentUserId) throw conflict("Ja existe um usuario com este e-mail.");
+  if (existing && existing.id !== currentUserId) throw conflict("Já existe um usuário com este e-mail.");
 }
 
 async function assertRolesExist(env, roleIds) {
@@ -789,20 +795,20 @@ async function assertRolesExist(env, roleIds) {
 
 async function assertRoleExists(env, roleId) {
   const role = await first(env, `SELECT id FROM admin_roles WHERE id = ? LIMIT 1`, [roleId]);
-  if (!role) throw badRequest("Perfil informado nao existe.");
+  if (!role) throw badRequest("Perfil informado não existe.");
 }
 
 async function assertPermissionsExist(env, permissionKeys) {
   for (const key of permissionKeys) {
     const permission = await first(env, `SELECT id FROM admin_permissions WHERE permission_key = ? LIMIT 1`, [key]);
-    if (!permission) throw badRequest("Permissao informada nao existe.");
+    if (!permission) throw badRequest("Permissão informada não existe.");
   }
 }
 
 async function assertHotelsExist(env, hotelIds) {
   for (const hotelId of hotelIds) {
     const hotel = await first(env, `SELECT id FROM hotels WHERE id = ? AND archived_at IS NULL LIMIT 1`, [hotelId]);
-    if (!hotel) throw badRequest("Unidade informada nao existe.");
+    if (!hotel) throw badRequest("Unidade informada não existe.");
   }
 }
 
@@ -812,7 +818,7 @@ async function assertNoLockoutOnRoleChange(env, userId, roleIds) {
   const rolePermissions = await permissionsForRoles(env, roleIds);
   if (hasAdminManagementCapability(rolePermissions)) return;
   const remaining = await countEffectiveAdmins(env, { excludeUserId: userId });
-  if (remaining < 1) throw conflict("E preciso manter pelo menos um administrador com acesso a usuarios e perfis.");
+  if (remaining < 1) throw conflict("É preciso manter pelo menos um administrador com acesso a usuários e perfis.");
 }
 
 async function assertNoLockoutOnRolePermissionChange(env, roleId, permissionKeys) {
@@ -826,7 +832,7 @@ async function assertNoLockoutOnRolePermissionChange(env, roleId, permissionKeys
     const permissions = await permissionsForRoles(env, otherRoles.map((row) => row.role_id));
     if (!hasAdminManagementCapability(permissions)) {
       const remaining = await countEffectiveAdmins(env, { excludeUserId: user.user_id });
-      if (remaining < 1) throw conflict("Esta alteracao removeria o ultimo administrador efetivo.");
+      if (remaining < 1) throw conflict("Esta alteração removeria o último administrador efetivo.");
     }
   }
 }
@@ -877,8 +883,8 @@ function validatePasswordPolicy(password, user) {
   const lower = password.toLowerCase();
   const emailUser = String(user.email || "").split("@")[0].toLowerCase();
   const namePart = String(user.display_name || "").split(/\s+/)[0]?.toLowerCase() || "";
-  if (emailUser && lower === emailUser) throw badRequest("A senha nao pode ser baseada apenas no e-mail.");
-  if (namePart && lower === namePart) throw badRequest("A senha nao pode ser baseada apenas no nome.");
+  if (emailUser && lower === emailUser) throw badRequest("A senha não pode ser baseada apenas no e-mail.");
+  if (namePart && lower === namePart) throw badRequest("A senha não pode ser baseada apenas no nome.");
 }
 
 function requireAvatarBucket(env) {
@@ -890,11 +896,11 @@ async function validateAvatarFile(file) {
   if (!file || typeof file.arrayBuffer !== "function") throw badRequest("Arquivo de avatar obrigatorio.");
   const mimeType = String(file.type || "").toLowerCase();
   const config = AVATAR_TYPES[mimeType];
-  if (!config) throw badRequest("Formato de avatar nao permitido.");
+  if (!config) throw badRequest("Formato de avatar não permitido.");
   const bytes = new Uint8Array(await file.arrayBuffer());
   if (!bytes.byteLength) throw badRequest("Arquivo de avatar vazio.");
   if (bytes.byteLength > MAX_AVATAR_BYTES) throw badRequest("Avatar excede 3 MB.");
-  if (!hasAvatarMagicBytes(bytes, mimeType)) throw badRequest("Conteudo do avatar nao corresponde ao formato informado.");
+  if (!hasAvatarMagicBytes(bytes, mimeType)) throw badRequest("Conteúdo do avatar não corresponde ao formato informado.");
   return {
     bytes,
     mimeType,
@@ -924,7 +930,7 @@ function fallbackAvatarResponse(user, head) {
 }
 
 function initials(name) {
-  return String(name || "Usuario")
+  return String(name || "Usuário")
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
@@ -943,8 +949,18 @@ function text(bytes) {
 
 function normalizeEmail(email) {
   const normalized = email.toLowerCase();
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalized)) throw badRequest("E-mail invalido.");
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalized)) throw badRequest("E-mail inválido.");
   return normalized;
+}
+
+async function nextReferenceNumber(env, table, column) {
+  const allowed = new Map([
+    ["admin_users", "user_number"],
+    ["admin_roles", "role_number"],
+  ]);
+  if (allowed.get(table) !== column) throw new Error("Invalid reference number target.");
+  const row = await first(env, `SELECT COALESCE(MAX(${column}), 0) + 1 AS next_number FROM ${table}`, []);
+  return Math.max(1, Number(row?.next_number || 1));
 }
 
 function createTemporaryPassword() {
@@ -960,23 +976,23 @@ function unauthorizedPassword() {
 
 function humanPermissionLabel(permissionKey) {
   const labels = {
-    "admin.users.read": "Ver usuarios",
-    "admin.users.create": "Criar usuarios",
-    "admin.users.update": "Editar usuarios",
-    "admin.users.disable": "Ativar ou desativar usuarios",
+    "admin.users.read": "Ver usuários",
+    "admin.users.create": "Criar usuários",
+    "admin.users.update": "Editar usuários",
+    "admin.users.disable": "Ativar ou desativar usuários",
     "admin.users.password_reset": "Redefinir senhas",
-    "admin.users.sessions_revoke": "Encerrar sessoes",
+    "admin.users.sessions_revoke": "Encerrar sessões",
     "admin.roles.read": "Ver perfis",
     "admin.roles.create": "Criar perfis",
     "admin.roles.update": "Editar perfis",
-    "admin.roles.permissions": "Alterar permissoes",
+    "admin.roles.permissions": "Alterar permissões",
     "admin.audit.read": "Ver auditoria",
   };
   return labels[permissionKey] || permissionKey;
 }
 
 function permissionGroup(permissionKey) {
-  return ROLE_GROUPS.find(([prefix]) => permissionKey.startsWith(prefix))?.[1] || "Configuracoes";
+  return ROLE_GROUPS.find(([prefix]) => permissionKey.startsWith(prefix))?.[1] || "Configurações";
 }
 
 function auditStatement(env, { actorUserId, action, entityType, entityId, metadata, createdAt }) {

@@ -56,6 +56,8 @@ function createAssetsBinding() {
           '<!doctype html><html><body><h1>Central Administrativa Fioreze</h1><form id="loginForm"></form><section id="usersManager"></section></body></html>',
         "/admin/perfis/":
           '<!doctype html><html><body><h1>Central Administrativa Fioreze</h1><form id="loginForm"></form><section id="rolesManager"></section></body></html>',
+        "/admin/mensagens/":
+          '<!doctype html><html><body><h1>Central Administrativa Fioreze</h1><form id="loginForm"></form><section id="messagesManager"></section></body></html>',
         "/admin/minha-conta/":
           '<!doctype html><html><body><h1>Central Administrativa Fioreze</h1><form id="loginForm"></form><section id="accountManager"></section></body></html>',
       };
@@ -259,6 +261,7 @@ function createFixtureData() {
     adminUsers: [
       {
         id: "user-demo-admin",
+        user_number: 1,
         display_name: "Usuario Admin Demo",
         email: "admin-demo@example.invalid",
         password_hash:
@@ -275,6 +278,7 @@ function createFixtureData() {
       },
       {
         id: "user-aurora-admin",
+        user_number: 2,
         display_name: "Usuario Aurora Demo",
         email: "aurora-demo@example.invalid",
         password_hash:
@@ -291,8 +295,8 @@ function createFixtureData() {
       },
     ],
     adminRoles: [
-      { id: "role-demo-manager", role_key: "demo-manager", name: "Gerente demo", description: "Role ficticia." },
-      { id: "role-erp-master", role_key: "erp-master", name: "Administrador mestre dos ERPs", description: "Perfil tecnico." },
+      { id: "role-demo-manager", role_number: 1, role_key: "demo-manager", name: "Gerente demo", description: "Role ficticia." },
+      { id: "role-erp-master", role_number: 2, role_key: "erp-master", name: "Administrador mestre dos ERPs", description: "Perfil tecnico." },
     ],
     adminPermissions: [
       { id: "perm-orders-read", permission_key: "room-service.orders.read", module_key: "room-service" },
@@ -362,6 +366,7 @@ function createFixtureData() {
         updated_at: "2026-07-04T00:00:00.000Z",
       },
     ],
+    adminMessages: [],
     mediaFolders: [],
     erpUsers: [
       {
@@ -763,6 +768,28 @@ class MockD1Database {
       return this.data.adminUsers.find((user) => user.email.toLowerCase() === String(email).toLowerCase()) || null;
     }
 
+    if (normalized.includes("select coalesce(max(user_number), 0) + 1 as next_number from admin_users")) {
+      return { next_number: Math.max(0, ...this.data.adminUsers.map((user) => Number(user.user_number || 0))) + 1 };
+    }
+
+    if (normalized.includes("select coalesce(max(role_number), 0) + 1 as next_number from admin_roles")) {
+      return { next_number: Math.max(0, ...this.data.adminRoles.map((role) => Number(role.role_number || 0))) + 1 };
+    }
+
+    if (normalized.includes("from admin_messages") && normalized.includes("where id = ?") && normalized.includes("limit 1")) {
+      const [messageId] = params;
+      return this.data.adminMessages.find((message) => message.id === messageId) || null;
+    }
+
+    if (normalized.includes("from admin_users u") && normalized.includes("where u.id = ?") && normalized.includes("recipient_access")) {
+      const [recipientUserId, senderUserId] = params;
+      const recipient = this.data.adminUsers.find((user) => user.id === recipientUserId && user.status === "active");
+      if (!recipient) return null;
+      const senderHotels = this.data.adminHotelAccess.filter((access) => access.user_id === senderUserId).map((access) => access.hotel_id);
+      const recipientHotels = this.data.adminHotelAccess.filter((access) => access.user_id === recipientUserId).map((access) => access.hotel_id);
+      return !senderHotels.length || senderHotels.some((hotelId) => recipientHotels.includes(hotelId)) ? { id: recipient.id } : null;
+    }
+
     if (normalized.includes("from admin_user_preferences") && normalized.includes("where user_id = ?")) {
       const [userId] = params;
       return this.data.adminUserPreferences.find((entry) => entry.user_id === userId) || null;
@@ -989,6 +1016,42 @@ class MockD1Database {
 
   selectAll(sql, params) {
     const normalized = normalize(sql);
+
+    if (normalized.includes("select distinct u.id, u.user_number") && normalized.includes("from admin_users u")) {
+      const [senderUserId] = params;
+      const senderHotels = this.data.adminHotelAccess.filter((access) => access.user_id === senderUserId).map((access) => access.hotel_id);
+      return this.data.adminUsers
+        .filter((user) => user.status === "active" && user.id !== senderUserId)
+        .filter((user) => {
+          if (!senderHotels.length) return true;
+          const recipientHotels = this.data.adminHotelAccess.filter((access) => access.user_id === user.id).map((access) => access.hotel_id);
+          return senderHotels.some((hotelId) => recipientHotels.includes(hotelId));
+        })
+        .map(({ id, user_number, display_name, email }) => ({ id, user_number, display_name, email }))
+        .sort((a, b) => a.display_name.localeCompare(b.display_name) || a.id.localeCompare(b.id));
+    }
+
+    if (normalized.includes("from admin_messages m") && normalized.includes("join admin_users sender")) {
+      const [ownerUserId] = params;
+      const sent = normalized.includes("m.sender_user_id = ?");
+      return this.data.adminMessages
+        .filter((message) => (sent ? message.sender_user_id : message.recipient_user_id) === ownerUserId)
+        .filter((message) => (sent ? message.archived_by_sender_at : message.archived_by_recipient_at) == null)
+        .map((message) => {
+          const counterpart = this.data.adminUsers.find((user) => user.id === (sent ? message.recipient_user_id : message.sender_user_id));
+          return {
+            id: message.id,
+            subject: message.subject,
+            body: message.body,
+            created_at: message.created_at,
+            read_at: message.read_at || null,
+            counterpart_number: counterpart?.user_number || null,
+            counterpart_name: counterpart?.display_name || "",
+            counterpart_email: counterpart?.email || "",
+          };
+        })
+        .sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id));
+    }
 
     if (
       normalized.includes("from hotels h") &&
@@ -1278,6 +1341,7 @@ class MockD1Database {
           );
           return {
             id: user.id,
+            user_number: user.user_number,
             display_name: user.display_name,
             email: user.email,
             status: user.status,
@@ -1323,6 +1387,7 @@ class MockD1Database {
             .sort();
           return {
             id: role.id,
+            role_number: role.role_number,
             role_key: role.role_key,
             name: role.name,
             description: role.description || "",
@@ -1549,10 +1614,11 @@ class MockD1Database {
 
     if (normalized.includes("from media_folders f") && normalized.includes("order by lower(f.name)")) {
       const [hotelId, parentId] = params;
+      const includeAll = normalized.includes("and 1 = 1");
       const filtersRoot = normalized.includes("f.parent_id is null");
       return this.data.mediaFolders
         .filter((folder) => folder.hotel_id === hotelId && folder.archived_at == null)
-        .filter((folder) => (filtersRoot ? folder.parent_id == null : folder.parent_id === parentId))
+        .filter((folder) => includeAll || (filtersRoot ? folder.parent_id == null : folder.parent_id === parentId))
         .map((folder) => ({
           ...folder,
           item_count: this.data.mediaAssets.filter((asset) => asset.folder_id === folder.id && asset.status !== "archived").length,
@@ -1895,12 +1961,13 @@ class MockD1Database {
     }
 
     if (normalized.startsWith("insert into admin_users")) {
-      const [id, display_name, email, password_hash, created_at, updated_at] = params;
+      const [id, user_number, display_name, email, password_hash, created_at, updated_at] = params;
       if (this.data.adminUsers.some((user) => user.email.toLowerCase() === String(email).toLowerCase())) {
         throw new Error("UNIQUE constraint failed: admin_users.email");
       }
       this.data.adminUsers.push({
         id,
+        user_number,
         display_name,
         email,
         password_hash,
@@ -1971,11 +2038,27 @@ class MockD1Database {
     }
 
     if (normalized.startsWith("insert into admin_roles")) {
-      const [id, role_key, name, description, created_at, updated_at] = params;
+      const [id, role_number, role_key, name, description, created_at, updated_at] = params;
       if (this.data.adminRoles.some((role) => role.role_key === role_key)) {
         throw new Error("UNIQUE constraint failed: admin_roles.role_key");
       }
-      this.data.adminRoles.push({ id, role_key, name, description, created_at, updated_at });
+      this.data.adminRoles.push({ id, role_number, role_key, name, description, created_at, updated_at });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("insert into admin_messages")) {
+      const [id, sender_user_id, recipient_user_id, subject, body, created_at] = params;
+      this.data.adminMessages.push({
+        id,
+        sender_user_id,
+        recipient_user_id,
+        subject,
+        body,
+        created_at,
+        read_at: null,
+        archived_by_sender_at: null,
+        archived_by_recipient_at: null,
+      });
       return d1Result(1);
     }
 
@@ -2148,6 +2231,16 @@ class MockD1Database {
           updated_at,
         });
       }
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update admin_messages")) {
+      const [read_at, id, recipient_user_id] = params;
+      const message = this.data.adminMessages.find(
+        (entry) => entry.id === id && entry.recipient_user_id === recipient_user_id && entry.read_at == null,
+      );
+      if (!message) return d1Result(0);
+      message.read_at = read_at;
       return d1Result(1);
     }
 
@@ -2719,6 +2812,22 @@ class MockD1Database {
           actor_erp_user_id: null,
           action,
           entity_type: "media_folder",
+          entity_id,
+          metadata_json,
+          created_at,
+        });
+        return d1Result(1);
+      }
+      if (normalized.includes("'admin_message'")) {
+        const [id, actor_user_id, action, entity_id, metadata_json, created_at] = params;
+        this.data.adminAuditLog.push({
+          id,
+          hotel_id: null,
+          module_key: null,
+          actor_user_id,
+          actor_erp_user_id: null,
+          action,
+          entity_type: "admin_message",
           entity_id,
           metadata_json,
           created_at,
