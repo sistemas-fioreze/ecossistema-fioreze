@@ -19,33 +19,45 @@ const ADMIN_PALETTES = [
   ["forest", "Floresta"],
   ["ocean", "Oceano"],
   ["graphite", "Grafite"],
+  ["burgundy", "Vinho"],
+  ["sage", "Sálvia"],
+  ["navy", "Azul noturno"],
+  ["plum", "Ameixa"],
+  ["sunset", "Pôr do sol"],
 ];
+const ADMIN_SHELL_CACHE_KEY = "fioreze-admin-shell-cache";
+const ADMIN_SHELL_CACHE_TTL_MS = 2 * 60 * 1000;
 
 const HELP_CONTENT = {
   home: {
     title: "Ajuda da Central",
-    body: "Use a Central Administrativa para acessar as areas disponiveis para seu perfil e sua unidade.",
-    examples: ["Entre em Portais para cuidar de unidades, imagens e links.", "Use Usuarios e Perfis para revisar acessos."],
+    body: "Use a Central Administrativa para acessar as áreas disponíveis para seu perfil e sua unidade.",
+    examples: ["Entre em Portais para cuidar de unidades, imagens e links.", "Use Usuários e Perfis para revisar acessos."],
   },
   portals: {
     title: "Ajuda de Portais",
-    body: "Gerencie as experiencias digitais das unidades Fioreze em um unico lugar.",
+    body: "Gerencie as experiências digitais das unidades Fioreze em um único lugar.",
     examples: ["Atualize dados e identidade das unidades.", "Envie imagens e crie links curtos para campanhas."],
   },
   users: {
-    title: "Ajuda de Usuarios",
+    title: "Ajuda de Usuários",
     body: "Gerencie quem pode acessar a Central Administrativa e quais unidades cada pessoa acompanha.",
-    examples: ["Crie usuarios com senha temporaria.", "Desative acessos sem apagar historico."],
+    examples: ["Crie usuários com senha temporária.", "Desative acessos sem apagar histórico."],
   },
   roles: {
     title: "Ajuda de Perfis",
-    body: "Organize permissoes em perfis simples para cada tipo de trabalho.",
-    examples: ["Revise permissoes por grupo.", "Evite conceder acesso alem do necessario."],
+    body: "Organize permissões em perfis simples para cada tipo de trabalho.",
+    examples: ["Revise permissões por grupo.", "Evite conceder acesso além do necessário."],
+  },
+  messages: {
+    title: "Ajuda de Mensagens",
+    body: "Use a caixa de mensagens para conversar com usuários que trabalham nas mesmas unidades.",
+    examples: ["Envie orientações sem sair da Central.", "Acompanhe mensagens recebidas e enviadas."],
   },
   account: {
     title: "Ajuda da Conta",
-    body: "Atualize sua senha e encerre sessoes quando precisar proteger seu acesso.",
-    examples: ["Troque a senha com frequencia.", "Use sair de todos os dispositivos se perder acesso a algum aparelho."],
+    body: "Atualize sua senha e encerre sessões quando precisar proteger seu acesso.",
+    examples: ["Troque a senha com frequência.", "Use sair de todos os dispositivos se perder acesso a algum aparelho."],
   },
 };
 
@@ -70,13 +82,23 @@ export function createAdminAuthView({ onAuthenticated }) {
   els.logoutButton.addEventListener("click", handleLogout);
 
   async function boot() {
-    showView("loading");
+    const cachedSession = readAdminShellCache();
+    if (cachedSession) {
+      els.sessionUser.textContent = cachedSession.user?.display_name || "Usuário";
+      applyAdminPalette(cachedSession.preferences?.color_palette || "fioreze", cachedSession.user?.id);
+      showView("dashboard");
+      enhanceAdminExperience(cachedSession);
+      setCachedShellLoading(true);
+    } else {
+      showView("loading");
+    }
     try {
       const payload = await adminApi("/api/v1/admin/session");
       await startAuthenticated(payload.data);
     } catch (error) {
+      clearAdminShellCache();
       if (error.status !== 401) {
-        els.loginError.textContent = "Nao foi possivel verificar a sessao administrativa.";
+        els.loginError.textContent = "Não foi possível verificar a sessão administrativa.";
       }
       showView("login");
     }
@@ -107,6 +129,7 @@ export function createAdminAuthView({ onAuthenticated }) {
 
   async function handleLogout() {
     await adminApi("/api/v1/admin/logout", { method: "POST", body: {} }).catch(() => null);
+    clearAdminShellCache();
     applyAdminPalette("fioreze");
     showView("login");
   }
@@ -118,10 +141,20 @@ export function createAdminAuthView({ onAuthenticated }) {
     }));
     session.preferences = preferencePayload.data || { color_palette: fallbackPalette };
     applyAdminPalette(session.preferences.color_palette, session?.user?.id);
-    els.sessionUser.textContent = session?.user?.display_name || "Usuario";
+    els.sessionUser.textContent = session?.user?.display_name || "Usuário";
+    writeAdminShellCache(session);
     showView("dashboard");
     enhanceAdminExperience(session);
+    synchronizeAdminExperience(session);
+    setCachedShellLoading(false);
     await onAuthenticated(session);
+  }
+
+  function setCachedShellLoading(loading) {
+    els.dashboardView.dispatchEvent(new CustomEvent("fioreze:admin-content-loading", {
+      bubbles: true,
+      detail: { loading },
+    }));
   }
 
   function showView(view) {
@@ -134,6 +167,25 @@ export function createAdminAuthView({ onAuthenticated }) {
   return { boot, showView };
 }
 
+function synchronizeAdminExperience(session) {
+  const dashboard = document.querySelector('[data-view="dashboard"]');
+  if (!dashboard?.dataset.shellEnhanced) return;
+  const section = document.body.dataset.adminSection || "home";
+  const nav = dashboard.querySelector(".admin-global-nav");
+  if (nav) nav.outerHTML = renderGlobalNav(session, section);
+  const userName = session?.user?.display_name || "Usuário";
+  const sessionUser = dashboard.querySelector("#sessionUser");
+  if (sessionUser) sessionUser.textContent = userName;
+  const menuUser = dashboard.querySelector("[data-admin-session-user]");
+  if (menuUser) menuUser.textContent = userName;
+  const menuHotels = dashboard.querySelector("[data-admin-session-hotels]");
+  if (menuHotels) {
+    const total = session?.hotels?.length || 0;
+    menuHotels.textContent = total ? `${total} unidade(s) autorizada(s)` : "Acesso administrativo";
+  }
+  updatePaletteButtons(dashboard.querySelector(".admin-session-box"), session.preferences?.color_palette || "fioreze");
+}
+
 function enhanceAdminExperience(session) {
   const dashboard = document.querySelector('[data-view="dashboard"]');
   if (!dashboard || dashboard.dataset.shellEnhanced === "true") return;
@@ -142,7 +194,7 @@ function enhanceAdminExperience(session) {
 
   const section = document.body.dataset.adminSection || "home";
   const area = adminArea(section);
-  const userName = session?.user?.display_name || "Usuario";
+  const userName = session?.user?.display_name || "Usuário";
   const hotels = session?.hotels || [];
   const storedCompact = readShellPreference() === "compact";
   if (storedCompact && !window.matchMedia("(max-width: 980px)").matches) dashboard.classList.add("is-sidebar-compact");
@@ -150,26 +202,26 @@ function enhanceAdminExperience(session) {
   dashboard.insertAdjacentHTML(
     "afterbegin",
     `
-      <aside class="admin-global-sidebar" data-admin-sidebar aria-label="Navegacao administrativa">
+      <aside class="admin-global-sidebar" data-admin-sidebar aria-label="Navegação administrativa">
         <div class="admin-sidebar-head">
           <button class="admin-shell-toggle admin-shell-toggle-sidebar" type="button" data-admin-shell-toggle aria-label="Recolher menu" title="Recolher menu">${icon("menu")}</button>
-          <a class="admin-brand-lockup" href="/admin/" aria-label="Ir para o inicio da Central Administrativa">
-            <span class="admin-brand-wordmark"><img src="${ADMIN_LOGO_URL}" alt="Fioreze Hoteis" loading="eager" decoding="async"></span>
+          <a class="admin-brand-lockup" href="/admin/" aria-label="Ir para o início da Central Administrativa">
+            <span class="admin-brand-wordmark"><img src="${ADMIN_LOGO_URL}" alt="Fioreze Hotéis" loading="eager" decoding="async"></span>
           </a>
         </div>
         ${renderGlobalNav(session, section)}
       </aside>
       <div class="admin-mobile-backdrop" data-admin-backdrop hidden></div>
       <div class="admin-content-loader" data-admin-content-loader hidden aria-live="polite" aria-busy="true">
-        <div><span class="admin-modern-spinner" aria-hidden="true"></span><strong>Atualizando conteudo...</strong></div>
+        <div><span class="admin-modern-spinner" aria-hidden="true"></span><strong>Atualizando conteúdo...</strong></div>
       </div>
-      <aside class="admin-help-drawer" data-admin-help hidden aria-label="Ajuda desta pagina">
+      <aside class="admin-help-drawer" data-admin-help hidden aria-label="Ajuda desta página">
         <div>
-          <strong>${escapeHtml(HELP_CONTENT[section]?.title || "Ajuda desta pagina")}</strong>
+          <strong>${escapeHtml(HELP_CONTENT[section]?.title || "Ajuda desta página")}</strong>
           <button type="button" data-admin-help-close aria-label="Fechar ajuda">${icon("close")}</button>
         </div>
-        <p>${escapeHtml(HELP_CONTENT[section]?.body || "Encontre aqui orientacoes simples para esta area.")}</p>
-        <h2>O que voce pode fazer aqui</h2>
+        <p>${escapeHtml(HELP_CONTENT[section]?.body || "Encontre aqui orientações simples para esta área.")}</p>
+        <h2>O que você pode fazer aqui</h2>
         <ul>${(HELP_CONTENT[section]?.examples || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
       </aside>
     `,
@@ -193,7 +245,8 @@ function enhanceAdminExperience(session) {
         <div class="admin-command-results" data-admin-search-results hidden></div>
       </div>
       <button class="admin-icon-button" type="button" data-admin-refresh aria-label="Atualizar esta tela" title="Atualizar">${icon("refresh")}</button>
-      <button class="admin-icon-button" type="button" data-admin-help-open aria-label="Abrir ajuda desta pagina" title="Ajuda">${icon("help")}</button>
+      <a class="admin-icon-button admin-mail-button" href="/admin/mensagens/" aria-label="Abrir mensagens" title="Mensagens">${icon("mail")}<span data-admin-unread hidden></span></a>
+      <button class="admin-icon-button" type="button" data-admin-help-open aria-label="Abrir ajuda desta página" title="Ajuda">${icon("help")}</button>
     `;
     if (sessionBox) sessionBox.insertAdjacentHTML("beforebegin", controls);
     else topbar.insertAdjacentHTML("beforeend", controls);
@@ -203,6 +256,7 @@ function enhanceAdminExperience(session) {
   if (sessionBox && !sessionBox.querySelector("[data-admin-session-toggle]")) enhanceSessionControl(sessionBox, session, userName, hotels);
 
   installAdminSearch(dashboard);
+  updateMessageBadge(dashboard);
   setCompact(dashboard.classList.contains("is-sidebar-compact"), false);
 
   dashboard.addEventListener("click", (event) => {
@@ -306,13 +360,13 @@ function enhanceSessionControl(sessionBox, session, userName, hotels) {
     "afterbegin",
     `<button class="admin-session-trigger" type="button" data-admin-session-toggle aria-expanded="false">
       ${renderAvatar(session?.user, userName)}
-      <span class="admin-session-copy"><small>Sessao</small><strong data-admin-session-name></strong></span>
+      <span class="admin-session-copy"><small>Sessão</small><strong data-admin-session-name></strong></span>
       ${icon("chevron")}
     </button>
     <div class="admin-session-menu" data-admin-session-menu hidden>
-      <p><strong>${escapeHtml(userName)}</strong><small>${escapeHtml(hotels.length ? `${hotels.length} unidade(s) autorizada(s)` : "Acesso administrativo")}</small></p>
+      <p><strong data-admin-session-user>${escapeHtml(userName)}</strong><small data-admin-session-hotels>${escapeHtml(hotels.length ? `${hotels.length} unidade(s) autorizada(s)` : "Acesso administrativo")}</small></p>
       <div class="admin-palette-picker" aria-label="Paleta da Central">
-        <span>Aparencia</span>
+        <span>Aparência</span>
         <div>${ADMIN_PALETTES.map(
           ([key, label]) =>
             `<button type="button" data-admin-palette="${key}" aria-label="Usar paleta ${label}" title="${label}" ${
@@ -339,18 +393,18 @@ async function savePalettePreference(palette, session, sessionBox) {
   const status = sessionBox?.querySelector("[data-admin-palette-status]");
   applyAdminPalette(palette, session?.user?.id);
   updatePaletteButtons(sessionBox, palette);
-  if (status) status.textContent = "Salvando aparencia...";
+  if (status) status.textContent = "Salvando aparência...";
   try {
     const payload = await adminApi("/api/v1/admin/me/preferences", {
       method: "PATCH",
       body: { color_palette: palette },
     });
     session.preferences = payload.data;
-    if (status) status.textContent = "Aparencia salva para sua conta.";
+    if (status) status.textContent = "Aparência salva para sua conta.";
   } catch {
     applyAdminPalette(previous, session?.user?.id);
     updatePaletteButtons(sessionBox, previous);
-    if (status) status.textContent = "Nao foi possivel salvar a aparencia.";
+    if (status) status.textContent = "Não foi possível salvar a aparência.";
   }
 }
 
@@ -387,11 +441,6 @@ function installAdminSearch(dashboard) {
   const results = root?.querySelector("[data-admin-search-results]");
   if (!root || !input || !results) return;
 
-  const items = [...dashboard.querySelectorAll(".admin-global-nav a")].map((link) => ({
-    href: link.getAttribute("href"),
-    label: link.textContent.trim(),
-  }));
-
   input.addEventListener("input", renderResults);
   input.addEventListener("focus", renderResults);
   input.addEventListener("keydown", (event) => {
@@ -424,10 +473,14 @@ function installAdminSearch(dashboard) {
       results.innerHTML = "";
       return;
     }
+    const items = [...dashboard.querySelectorAll(".admin-global-nav a")].map((link) => ({
+      href: link.getAttribute("href"),
+      label: link.textContent.trim(),
+    }));
     const matches = items.filter((item) => item.label.toLocaleLowerCase("pt-BR").includes(query)).slice(0, 6);
     results.innerHTML = matches.length
       ? matches.map((item) => `<a href="${escapeAttr(item.href)}">${icon("search")}<span>${escapeHtml(item.label)}</span></a>`).join("")
-      : '<p>Nenhuma area encontrada.</p>';
+      : '<p>Nenhuma área encontrada.</p>';
     results.hidden = false;
   }
 }
@@ -440,19 +493,79 @@ function readShellPreference() {
   }
 }
 
+function writeAdminShellCache(session) {
+  try {
+    const safeSession = {
+      user: {
+        id: session?.user?.id,
+        display_name: session?.user?.display_name,
+        avatar: session?.user?.avatar || null,
+      },
+      hotels: (session?.hotels || []).map((hotel) => ({
+        hotel_id: hotel.hotel_id,
+        name: hotel.name,
+        short_name: hotel.short_name,
+        access_level: hotel.access_level,
+      })),
+      hotel_ids: [...(session?.hotel_ids || [])],
+      permissions: [...(session?.permissions || [])],
+      preferences: { color_palette: session?.preferences?.color_palette || "fioreze" },
+    };
+    sessionStorage.setItem(ADMIN_SHELL_CACHE_KEY, JSON.stringify({ saved_at: Date.now(), session: safeSession }));
+  } catch {
+    // O cache visual é opcional e nunca substitui a autorização do servidor.
+  }
+}
+
+function readAdminShellCache() {
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(ADMIN_SHELL_CACHE_KEY) || "null");
+    if (!cached?.saved_at || Date.now() - cached.saved_at > ADMIN_SHELL_CACHE_TTL_MS) {
+      clearAdminShellCache();
+      return null;
+    }
+    return cached.session || null;
+  } catch {
+    clearAdminShellCache();
+    return null;
+  }
+}
+
+function clearAdminShellCache() {
+  try {
+    sessionStorage.removeItem(ADMIN_SHELL_CACHE_KEY);
+  } catch {
+    // Nada precisa ser feito quando o armazenamento da sessão está indisponível.
+  }
+}
+
+async function updateMessageBadge(dashboard) {
+  const badge = dashboard.querySelector("[data-admin-unread]");
+  if (!badge) return;
+  try {
+    const payload = await adminApi("/api/v1/admin/messages?box=inbox");
+    const unread = (payload.data.messages || []).filter((message) => !message.read_at).length;
+    badge.textContent = unread ? String(unread) : "";
+    badge.hidden = unread === 0;
+  } catch {
+    badge.hidden = true;
+  }
+}
+
 function renderGlobalNav(session, section) {
   const items = [
-    ["home", "Inicio", "/admin/", "home", true],
+    ["home", "Início", "/admin/", "home", true],
     ["portals", "Portais", "/admin/portais/", "portal", canAccessPortals(session)],
     ["portals", "Unidades", "/admin/portais/unidades/", "units", canAccessUnits(session)],
-    ["portals", "Midia", "/admin/portais/media/", "image", canAccessMediaLibrary(session)],
+    ["portals", "Mídia", "/admin/portais/media/", "image", canAccessMediaLibrary(session)],
     ["portals", "Links", "/admin/portais/links/", "link", canAccessLinks(session)],
-    ["portals", "Conteudos", "/admin/portais/conteudos/", "content", canAccessContent(session)],
-    ["portals", "Areas", "/admin/portais/areas/", "grid", canAccessAreas(session)],
-    ["portals", "Navegacao", "/admin/portais/navegacao/", "navigation", canAccessNavigation(session)],
+    ["portals", "Conteúdos", "/admin/portais/conteudos/", "content", canAccessContent(session)],
+    ["portals", "Áreas", "/admin/portais/areas/", "grid", canAccessAreas(session)],
+    ["portals", "Navegação", "/admin/portais/navegacao/", "navigation", canAccessNavigation(session)],
     ["portals", "Auditoria", "/admin/portais/auditoria/", "history", canAccessAudit(session)],
-    ["users", "Usuarios", "/admin/usuarios/", "users", canAccessUsers(session)],
-    ["roles", "Perfis e permissoes", "/admin/perfis/", "shield", canAccessRoles(session)],
+    ["users", "Usuários", "/admin/usuarios/", "users", canAccessUsers(session)],
+    ["roles", "Perfis e permissões", "/admin/perfis/", "shield", canAccessRoles(session)],
+    ["messages", "Mensagens", "/admin/mensagens/", "mail", true],
     ["account", "Minha conta", "/admin/minha-conta/", "user", true],
   ];
   return `<nav class="admin-global-nav">${items
@@ -473,16 +586,17 @@ function isActive(href, section) {
 
 function adminArea(section) {
   return {
-    home: "Inicio",
-    portals: "Experiencias digitais",
+    home: "Início",
+    portals: "Experiências digitais",
     users: "Equipe",
     roles: "Equipe",
+    messages: "Comunicação",
     account: "Conta",
   }[section] || "Central Administrativa";
 }
 
 function initials(name) {
-  return String(name || "Usuario")
+  return String(name || "Usuário")
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
@@ -519,6 +633,7 @@ function icon(name) {
     users: '<path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.8"/><path d="M16 3.2a4 4 0 0 1 0 7.6"/>',
     shield: '<path d="M12 3 5 6v5c0 5 3 8 7 10 4-2 7-5 7-10V6z"/><path d="m9 12 2 2 4-4"/>',
     user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+    mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
   };
   return `<svg class="admin-svg-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[name] || paths.help}</svg>`;
 }

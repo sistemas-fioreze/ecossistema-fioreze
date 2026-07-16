@@ -170,7 +170,7 @@ test("perfis e permissoes sao listados com rotulos humanos", async () => {
   assert.equal(permissions.response.status, 200);
   const managerRole = roles.body.data.roles.find((role) => role.role_key === "demo-manager");
   assert.ok(managerRole.permissions.some((permission) => permission.permission_key === "admin.users.read"));
-  assert.ok(permissions.body.data.permissions.some((permission) => permission.label === "Ver usuarios"));
+  assert.ok(permissions.body.data.permissions.some((permission) => permission.label === "Ver usuários"));
 });
 
 test("perfil sem usuarios pode ser removido, mas perfil protegido ou em uso nao", async () => {

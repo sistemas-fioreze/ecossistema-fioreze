@@ -3,6 +3,7 @@ import { adminApi } from "./shared/admin-api.js";
 import { canAccessPortals, canAccessRoles, canAccessUsers, getAuthorizedHotels } from "./shared/admin-session.js";
 import { escapeAttr, escapeHtml } from "./shared/format.js";
 import { renderRolesManager, renderUsersManager } from "./central-management.js";
+import { renderMessagesManager } from "./admin-messages.js";
 
 const section = currentSection();
 document.body.dataset.adminSection = section;
@@ -20,6 +21,7 @@ const els = {
   rolesManager: document.getElementById("rolesManager"),
   rolesSummary: document.getElementById("rolesSummary"),
   rolesList: document.getElementById("rolesList"),
+  messagesManager: document.getElementById("messagesManager"),
   accountManager: document.getElementById("accountManager"),
   accountDetails: document.getElementById("accountDetails"),
   avatarForm: document.getElementById("avatarForm"),
@@ -52,12 +54,13 @@ function renderLauncher(session) {
   setPanelVisibility(section);
   if (section === "users") return renderUsers(session);
   if (section === "roles") return renderRoles(session);
+  if (section === "messages") return renderMessages(session);
   if (section === "account") return renderAccount(session);
 
   const systems = buildSystems(session);
-  const firstName = String(session?.user?.display_name || "Usuario").split(/\s+/)[0] || "Usuario";
-  els.welcomeTitle.textContent = `Ola, ${firstName}.`;
-  els.welcomeSubtitle.textContent = "Escolha uma area para cuidar da operacao e das experiencias digitais.";
+  const firstName = String(session?.user?.display_name || "Usuário").split(/\s+/)[0] || "Usuário";
+  els.welcomeTitle.textContent = `Olá, ${firstName}.`;
+  els.welcomeSubtitle.textContent = "Escolha uma área para cuidar da operação e das experiências digitais.";
   els.systemsList.innerHTML = systems.map(renderSystemCard).join("");
   els.noSystemsMessage.hidden = systems.length > 0;
   els.authorizedHotels.innerHTML = renderHotels(getAuthorizedHotels(session));
@@ -68,50 +71,61 @@ function buildSystems(session) {
   if (canAccessPortals(session)) {
     systems.push({
       title: "Central de Portais",
-      description: "Unidades, portais, conteudos e equipe",
+      description: "Unidades, portais, conteúdos e equipe",
       href: "/admin/portais/",
     });
   }
   if (canAccessUsers(session)) {
     systems.push({
-      title: "Usuarios",
-      description: "Equipe, acessos e sessoes",
+      title: "Usuários",
+      description: "Equipe, acessos e sessões",
       href: "/admin/usuarios/",
     });
   }
   if (canAccessRoles(session)) {
     systems.push({
-      title: "Perfis e permissoes",
+      title: "Perfis e permissões",
       description: "Grupos de acesso administrativo",
       href: "/admin/perfis/",
     });
   }
+  systems.push({
+    title: "Mensagens",
+    description: "Comunicação interna da equipe",
+    href: "/admin/mensagens/",
+  });
   return systems;
 }
 
 async function renderUsers(session) {
-  els.welcomeTitle.textContent = "Usuarios";
-  els.welcomeSubtitle.textContent = "Gerencie a equipe e as unidades autorizadas de cada usuario.";
+  els.welcomeTitle.textContent = "Usuários";
+  els.welcomeSubtitle.textContent = "Gerencie a equipe e as unidades autorizadas de cada usuário.";
   if (!canAccessUsers(session)) {
-    els.usersList.innerHTML = '<p class="admin-empty">Voce nao tem acesso a esta funcao.</p>';
+    els.usersList.innerHTML = '<p class="admin-empty">Você não tem acesso a esta função.</p>';
     return;
   }
   await renderUsersManager(session);
 }
 
 async function renderRoles(session) {
-  els.welcomeTitle.textContent = "Perfis e permissoes";
-  els.welcomeSubtitle.textContent = "Defina responsabilidades e acessos administrativos com seguranca.";
+  els.welcomeTitle.textContent = "Perfis e permissões";
+  els.welcomeSubtitle.textContent = "Defina responsabilidades e acessos administrativos com segurança.";
   if (!canAccessRoles(session)) {
-    els.rolesList.innerHTML = '<p class="admin-empty">Voce nao tem acesso a esta funcao.</p>';
+    els.rolesList.innerHTML = '<p class="admin-empty">Você não tem acesso a esta função.</p>';
     return;
   }
   await renderRolesManager(session);
 }
 
+async function renderMessages() {
+  els.welcomeTitle.textContent = "Mensagens";
+  els.welcomeSubtitle.textContent = "Envie e receba mensagens da equipe administrativa.";
+  await renderMessagesManager();
+}
+
 async function renderAccount(session) {
   els.welcomeTitle.textContent = "Minha conta";
-  els.welcomeSubtitle.textContent = "Atualize sua foto, senha e sessoes administrativas.";
+  els.welcomeSubtitle.textContent = "Atualize sua foto, senha e sessões administrativas.";
   try {
     const payload = await adminApi("/api/v1/admin/me");
     const user = payload.data.user;
@@ -126,7 +140,7 @@ async function renderAccount(session) {
       </div>
     `;
   } catch (error) {
-    els.accountDetails.innerHTML = `<p class="admin-empty">${escapeHtml(error.message || "Nao foi possivel carregar sua conta.")}</p>`;
+    els.accountDetails.innerHTML = `<p class="admin-empty">${escapeHtml(error.message || "Não foi possível carregar sua conta.")}</p>`;
   }
 }
 
@@ -145,7 +159,7 @@ els.passwordForm?.addEventListener("submit", async (event) => {
     els.passwordForm.reset();
     els.accountMessage.textContent = "Senha alterada. Entre novamente para continuar.";
   } catch (error) {
-    els.accountMessage.textContent = error.message || "Nao foi possivel alterar a senha.";
+    els.accountMessage.textContent = error.message || "Não foi possível alterar a senha.";
   }
 });
 
@@ -164,7 +178,7 @@ els.avatarForm?.addEventListener("submit", async (event) => {
     els.accountMessage.textContent = "Foto atualizada.";
     await renderAccount();
   } catch (error) {
-    els.accountMessage.textContent = error.message || "Nao foi possivel atualizar a foto.";
+    els.accountMessage.textContent = error.message || "Não foi possível atualizar a foto.";
   }
 });
 
@@ -175,18 +189,18 @@ els.deleteAvatarButton?.addEventListener("click", async () => {
     els.accountMessage.textContent = "Foto removida.";
     await renderAccount();
   } catch (error) {
-    els.accountMessage.textContent = error.message || "Nao foi possivel remover a foto.";
+    els.accountMessage.textContent = error.message || "Não foi possível remover a foto.";
   }
 });
 
 els.revokeOwnSessionsButton?.addEventListener("click", async () => {
-  if (!window.confirm("Encerrar suas outras sessoes administrativas?")) return;
-  els.accountMessage.textContent = "Encerrando sessoes...";
+  if (!window.confirm("Encerrar suas outras sessões administrativas?")) return;
+  els.accountMessage.textContent = "Encerrando sessões...";
   try {
     const payload = await adminApi("/api/v1/admin/me/sessions/revoke", { method: "POST", body: {} });
-    els.accountMessage.textContent = `${payload.data.revoked_sessions || 0} sessao(oes) encerrada(s).`;
+    els.accountMessage.textContent = `${payload.data.revoked_sessions || 0} sessão(ões) encerrada(s).`;
   } catch (error) {
-    els.accountMessage.textContent = error.message || "Nao foi possivel encerrar as sessoes.";
+    els.accountMessage.textContent = error.message || "Não foi possível encerrar as sessões.";
   }
 });
 
@@ -227,6 +241,7 @@ function setPanelVisibility(activeSection) {
   document.querySelector(".admin-launcher-grid").hidden = !home;
   els.usersManager.hidden = activeSection !== "users";
   els.rolesManager.hidden = activeSection !== "roles";
+  els.messagesManager.hidden = activeSection !== "messages";
   els.accountManager.hidden = activeSection !== "account";
 }
 
@@ -234,12 +249,13 @@ function currentSection() {
   const path = window.location.pathname;
   if (path.startsWith("/admin/usuarios/")) return "users";
   if (path.startsWith("/admin/perfis/")) return "roles";
+  if (path.startsWith("/admin/mensagens/")) return "messages";
   if (path.startsWith("/admin/minha-conta/")) return "account";
   return "home";
 }
 
 function initials(name) {
-  return String(name || "Usuario")
+  return String(name || "Usuário")
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)

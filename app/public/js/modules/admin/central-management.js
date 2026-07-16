@@ -57,10 +57,10 @@ export async function renderRolesManager(session) {
     ]);
     state.roles = rolesPayload.data.roles || [];
     state.permissions = permissionsPayload.data.permissions || [];
-    els.rolesSummary.textContent = `${state.roles.length} perfil(is) configurado(s).`;
+    els.rolesSummary.textContent = `${state.roles.length} ${state.roles.length === 1 ? "perfil configurado" : "perfis configurados"}.`;
     els.rolesList.innerHTML = state.roles.map(renderRoleRow).join("") || empty("Nenhum perfil cadastrado.");
   } catch (error) {
-    els.rolesSummary.textContent = error.message || "Nao foi possivel carregar os perfis.";
+    els.rolesSummary.textContent = error.message || "Não foi possível carregar os perfis.";
   }
 }
 
@@ -94,22 +94,23 @@ async function loadUserDependencies() {
 }
 
 async function loadUsers() {
-  els.usersSummary.textContent = "Carregando usuarios...";
+  els.usersSummary.textContent = "Carregando usuários...";
   const params = new URLSearchParams();
   if (els.usersSearch?.value.trim()) params.set("q", els.usersSearch.value.trim());
   if (els.usersStatus?.value) params.set("status", els.usersStatus.value);
   try {
     const payload = await adminApi(`/api/v1/admin/users${params.size ? `?${params}` : ""}`);
     state.users = payload.data.users || [];
-    els.usersSummary.textContent = `${state.users.length} usuario(s) encontrado(s).`;
-    els.usersList.innerHTML = state.users.map(renderUserRow).join("") || empty("Nenhum usuario encontrado.");
+    els.usersSummary.textContent = `${state.users.length} ${state.users.length === 1 ? "usuário encontrado" : "usuários encontrados"}.`;
+    els.usersList.innerHTML = state.users.map(renderUserRow).join("") || empty("Nenhum usuário encontrado.");
   } catch (error) {
-    els.usersSummary.textContent = error.message || "Nao foi possivel carregar os usuarios.";
+    els.usersSummary.textContent = error.message || "Não foi possível carregar os usuários.";
   }
 }
 
 function renderUserRow(user) {
   const actions = [];
+  if (user.id !== state.session?.user?.id) actions.push(actionButton("Enviar mensagem", "message-user", user.id, "mail"));
   if (hasPermission(state.session, PERMISSIONS.usersUpdate)) actions.push(actionButton("Editar", "edit-user", user.id, "edit"));
   if (user.status === "active" && hasPermission(state.session, PERMISSIONS.usersDisable)) {
     actions.push(actionButton("Desativar", "disable-user", user.id, "pause"));
@@ -121,35 +122,35 @@ function renderUserRow(user) {
     actions.push(actionButton("Redefinir senha", "reset-user", user.id, "key"));
   }
   if (hasPermission(state.session, PERMISSIONS.usersSessionsRevoke)) {
-    actions.push(actionButton("Encerrar sessoes", "revoke-user", user.id, "logout"));
+    actions.push(actionButton("Encerrar sessões", "revoke-user", user.id, "logout"));
   }
   if (hasPermission(state.session, PERMISSIONS.usersDisable) && user.id !== state.session?.user?.id) {
-    actions.push(actionButton("Remover usuario", "remove-user", user.id, "trash", "danger"));
+    actions.push(actionButton("Remover usuário", "remove-user", user.id, "trash", "danger"));
   }
   return `
     <article class="admin-data-row admin-management-row">
       <span class="admin-avatar">${escapeHtml(initials(user.display_name))}</span>
       <div class="admin-row-copy">
-        <strong>${escapeHtml(user.display_name)}</strong>
+        <strong>Usuário nº ${escapeHtml(user.number || "-")} · ${escapeHtml(user.display_name)}</strong>
         <span>${escapeHtml(user.email)}</span>
         <small>${escapeHtml(user.roles.map((role) => role.name).join(", ") || "Sem perfil")} · ${escapeHtml(user.hotels.map((hotel) => hotel.short_name).join(", ") || "Sem unidade")}</small>
       </div>
       <span class="admin-status-chip" data-status="${escapeAttr(user.status)}">${user.status === "active" ? "Ativo" : "Desativado"}</span>
-      <span class="admin-session-count">${Number(user.active_session_count || 0)} sessao(oes)</span>
+      <span class="admin-session-count">${Number(user.active_session_count || 0)} ${Number(user.active_session_count || 0) === 1 ? "sessão" : "sessões"}</span>
       <div class="admin-row-actions">${actions.join("")}</div>
     </article>`;
 }
 
 function renderRoleRow(role) {
   const edit = hasPermission(state.session, PERMISSIONS.rolesUpdate) || hasPermission(state.session, PERMISSIONS.rolesPermissions);
-  const removable = hasPermission(state.session, PERMISSIONS.rolesUpdate) && Number(role.user_count || 0) === 0 && !["demo-manager", "erp-master"].includes(role.role_key);
+  const removable = hasPermission(state.session, PERMISSIONS.rolesUpdate);
   return `
     <article class="admin-data-row admin-management-row">
       <span class="admin-role-icon">${icon("shield")}</span>
       <div class="admin-row-copy">
-        <strong>${escapeHtml(role.name)}</strong>
+        <strong>Perfil nº ${escapeHtml(role.number || "-")} · ${escapeHtml(role.name)}</strong>
         <span>${escapeHtml(role.description || "Perfil administrativo")}</span>
-        <small>${role.permissions.length} permissao(oes) · ${Number(role.user_count || 0)} usuario(s)</small>
+        <small>${role.permissions.length} ${role.permissions.length === 1 ? "permissão" : "permissões"} · ${Number(role.user_count || 0)} ${Number(role.user_count || 0) === 1 ? "usuário" : "usuários"}</small>
       </div>
       <div class="admin-permission-preview">${role.permissions.slice(0, 3).map((item) => `<span>${escapeHtml(item.label || item.permission_key)}</span>`).join("")}</div>
       <div class="admin-row-actions">${edit ? actionButton("Editar", "edit-role", role.id, "edit") : ""}${removable ? actionButton("Remover perfil", "remove-role", role.id, "trash", "danger") : ""}</div>
@@ -162,11 +163,15 @@ async function handleUserAction(event) {
   const user = state.users.find((item) => item.id === button.dataset.id);
   if (!user) return;
   const action = button.dataset.adminAction;
+  if (action === "message-user") {
+    window.location.assign(`/admin/mensagens/?to=${encodeURIComponent(user.id)}`);
+    return;
+  }
   if (action === "edit-user") return openUserEditor(user);
   if (action === "disable-user" && !window.confirm(`Desativar o acesso de ${user.display_name}?`)) return;
-  if (action === "reset-user" && !window.confirm(`Gerar uma nova senha temporaria para ${user.display_name}?`)) return;
-  if (action === "revoke-user" && !window.confirm(`Encerrar todas as sessoes de ${user.display_name}?`)) return;
-  if (action === "remove-user" && !window.confirm(`Remover o acesso de ${user.display_name}? O historico administrativo sera preservado.`)) return;
+  if (action === "reset-user" && !window.confirm(`Gerar uma nova senha temporária para ${user.display_name}?`)) return;
+  if (action === "revoke-user" && !window.confirm(`Encerrar todas as sessões de ${user.display_name}?`)) return;
+  if (action === "remove-user" && !window.confirm(`Remover o acesso de ${user.display_name}? O histórico administrativo será preservado.`)) return;
   const paths = {
     "disable-user": `/api/v1/admin/users/${encodeURIComponent(user.id)}/disable`,
     "activate-user": `/api/v1/admin/users/${encodeURIComponent(user.id)}/activate`,
@@ -179,17 +184,17 @@ async function handleUserAction(event) {
   try {
     const payload = await adminApi(paths[action], { method: action === "remove-user" ? "DELETE" : "POST", body: {} });
     if (payload.data.temporary_password) showTemporaryPassword(payload.data.temporary_password, user.display_name);
-    if (action === "revoke-user") window.alert(`${payload.data.revoked_sessions || 0} sessao(oes) encerrada(s).`);
+    if (action === "revoke-user") window.alert(`${payload.data.revoked_sessions || 0} sessão(ões) encerrada(s).`);
     await loadUsers();
   } catch (error) {
-    window.alert(error.message || "Nao foi possivel concluir a acao.");
+    window.alert(error.message || "Não foi possível concluir a ação.");
   } finally {
     button.disabled = false;
   }
 }
 
 function openUserEditor(user = null) {
-  els.dialogTitle.textContent = user ? "Editar usuario" : "Novo usuario";
+  els.dialogTitle.textContent = user ? "Editar usuário" : "Novo usuário";
   const selectedRoles = new Set((user?.roles || []).map((role) => role.id));
   const selectedHotels = new Set((user?.hotels || []).map((hotel) => hotel.hotel_id));
   els.dialogBody.innerHTML = `
@@ -198,10 +203,10 @@ function openUserEditor(user = null) {
         <label><span>Nome</span><input name="display_name" maxlength="160" value="${escapeAttr(user?.display_name || "")}" required></label>
         <label><span>E-mail</span><input name="email" type="email" maxlength="180" value="${escapeAttr(user?.email || "")}" required></label>
       </div>
-      <fieldset><legend>Perfis</legend><div class="admin-choice-grid">${state.roles.map((role) => checkbox("role_ids", role.id, role.name, selectedRoles.has(role.id))).join("") || '<p class="admin-muted">Nenhum perfil disponivel.</p>'}</div></fieldset>
+      <fieldset><legend>Perfis</legend><div class="admin-choice-grid">${state.roles.map((role) => checkbox("role_ids", role.id, role.name, selectedRoles.has(role.id))).join("") || '<p class="admin-muted">Nenhum perfil disponível.</p>'}</div></fieldset>
       <fieldset><legend>Unidades autorizadas</legend><div class="admin-choice-grid">${state.hotels.map((hotel) => checkbox("hotel_ids", hotel.hotel_id, hotel.short_name || hotel.name, selectedHotels.has(hotel.hotel_id))).join("")}</div></fieldset>
       <p class="admin-dialog-message" role="status"></p>
-      <div class="admin-dialog-actions"><button type="button" data-dialog-cancel>Cancelar</button><button class="admin-primary-button" type="submit">${user ? "Salvar alteracoes" : "Criar usuario"}</button></div>
+      <div class="admin-dialog-actions"><button type="button" data-dialog-cancel>Cancelar</button><button class="admin-primary-button" type="submit">${user ? "Salvar alterações" : "Criar usuário"}</button></div>
     </form>`;
   openDialog();
   els.dialogBody.querySelector("[data-dialog-cancel]").addEventListener("click", closeDialog);
@@ -231,7 +236,7 @@ async function saveUser(event, user) {
     await loadUsers();
     if (payload.data.temporary_password) showTemporaryPassword(payload.data.temporary_password, body.display_name);
   } catch (error) {
-    message.textContent = error.message || "Nao foi possivel salvar o usuario.";
+    message.textContent = error.message || "Não foi possível salvar o usuário.";
   } finally {
     submit.disabled = false;
   }
@@ -247,13 +252,13 @@ async function handleRoleAction(event) {
     return;
   }
   if (button.dataset.adminAction !== "remove-role") return;
-  if (!window.confirm(`Remover o perfil "${role.name}"? Esta acao nao pode ser desfeita.`)) return;
+  if (!window.confirm(`Remover o perfil "${role.name}"? Esta ação não pode ser desfeita.`)) return;
   button.disabled = true;
   try {
     await adminApi(`/api/v1/admin/roles/${encodeURIComponent(role.id)}`, { method: "DELETE", body: {} });
     await renderRolesManager(state.session);
   } catch (error) {
-    window.alert(error.message || "Nao foi possivel remover o perfil.");
+    window.alert(error.message || "Não foi possível remover o perfil. Perfis em uso ou protegidos devem ser preservados.");
   } finally {
     button.disabled = false;
   }
@@ -269,7 +274,7 @@ function openRoleEditor(role = null) {
         <label><span>Nome</span><input name="name" maxlength="120" value="${escapeAttr(role?.name || "")}" required></label>
         <label><span>Identificador</span><input name="role_key" maxlength="80" pattern="[a-z0-9-]+" value="${escapeAttr(role?.role_key || "")}" ${role ? "disabled" : "required"}></label>
       </div>
-      <label><span>Descricao</span><textarea name="description" maxlength="500" rows="2">${escapeHtml(role?.description || "")}</textarea></label>
+      <label><span>Descrição</span><textarea name="description" maxlength="500" rows="2">${escapeHtml(role?.description || "")}</textarea></label>
       <div class="admin-permission-groups">${Object.entries(groups).map(([group, permissions]) => `
         <fieldset><legend>${escapeHtml(group)}</legend><div class="admin-choice-grid">${permissions.map((permission) => checkbox("permission_keys", permission.permission_key, permission.label, selected.has(permission.permission_key), permission.description)).join("")}</div></fieldset>`).join("")}</div>
       <p class="admin-dialog-message" role="status"></p>
@@ -312,17 +317,17 @@ async function saveRole(event, role) {
     closeDialog();
     await renderRolesManager(state.session);
   } catch (error) {
-    message.textContent = error.message || "Nao foi possivel salvar o perfil.";
+    message.textContent = error.message || "Não foi possível salvar o perfil.";
   } finally {
     submit.disabled = false;
   }
 }
 
 function showTemporaryPassword(password, displayName) {
-  els.dialogTitle.textContent = "Acesso temporario criado";
+  els.dialogTitle.textContent = "Acesso temporário criado";
   els.dialogBody.innerHTML = `
     <div class="admin-secret-once">
-      <p>Entregue esta senha a ${escapeHtml(displayName)} por um canal seguro. Ela sera exibida somente agora.</p>
+      <p>Entregue esta senha a ${escapeHtml(displayName)} por um canal seguro. Ela será exibida somente agora.</p>
       <code data-temporary-password>${escapeHtml(password)}</code>
       <div class="admin-dialog-actions"><button type="button" data-copy-password>Copiar senha</button><button class="admin-primary-button" type="button" data-dialog-done>Concluir</button></div>
     </div>`;
@@ -336,7 +341,7 @@ function showTemporaryPassword(password, displayName) {
 
 function groupPermissions(permissions) {
   return permissions.reduce((groups, permission) => {
-    (groups[permission.group || "Configuracoes"] ||= []).push(permission);
+    (groups[permission.group || "Configurações"] ||= []).push(permission);
     return groups;
   }, {});
 }
@@ -356,6 +361,7 @@ function icon(name) {
     play: '<path d="m5 3 14 9-14 9z"/>',
     key: '<circle cx="8" cy="15" r="4"/><path d="m11 12 8-8M15 8l2 2M17 6l2 2"/>',
     logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
+    mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
     trash: '<path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/>',
     shield: '<path d="M12 3 5 6v5c0 5 3 8 7 10 4-2 7-5 7-10V6z"/><path d="m9 12 2 2 4-4"/>',
   };
@@ -372,7 +378,7 @@ function closeDialog() {
 }
 
 function initials(name) {
-  return String(name || "Usuario").split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
+  return String(name || "Usuário").split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
 }
 
 function empty(message) {

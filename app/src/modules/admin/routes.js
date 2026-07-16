@@ -26,6 +26,12 @@ import {
   updateAdminMediaFolder,
 } from "./media-folders.js";
 import { getAdminPreferences, updateAdminPreferences } from "./preferences.js";
+import {
+  createAdminMessage,
+  listAdminMessageRecipients,
+  listAdminMessages,
+  markAdminMessageRead,
+} from "./messages.js";
 import { getAdminOrder, listAdminHotels as listOrderHotels, listAdminOrders, updateAdminOrderStatus } from "./orders.js";
 import {
   createRoomServiceErpOrder,
@@ -133,6 +139,26 @@ export function registerAdminRoutes(router) {
   router.get("/api/v1/admin/session", async ({ request, env }) => {
     const session = await requireAuthentication({ request, env });
     return ok(toSessionPayload(session));
+  });
+
+  router.get("/api/v1/admin/messages", async ({ request, env, url }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await listAdminMessages({ env, session, url }));
+  });
+
+  router.get("/api/v1/admin/messages/recipients", async ({ request, env }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await listAdminMessageRecipients({ env, session }));
+  });
+
+  router.post("/api/v1/admin/messages", async ({ request, env }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await createAdminMessage({ request, env, session }), { status: 201 });
+  });
+
+  router.patch("/api/v1/admin/messages/:id/read", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await markAdminMessageRead({ request, env, session, messageId: params.id }));
   });
 
   router.get("/api/v1/admin/room-service/login-context", async ({ env }) => {
