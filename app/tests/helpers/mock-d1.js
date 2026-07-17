@@ -475,6 +475,104 @@ function createFixtureData() {
     ],
     shortLinkClicksDaily: [],
     customPortalPages: [],
+    portalPages: [
+      {
+        id: "page-muller-home",
+        hotel_id: "muller-fioreze",
+        module_key: "guest-portal",
+        slug: "inicio",
+        title: "Boas-vindas",
+        summary: "Conteudo institucional ficticio.",
+        status: "published",
+        sort_order: 10,
+        updated_at: "2026-07-04T00:00:00.000Z",
+        archived_at: null,
+      },
+      {
+        id: "page-muller-guide",
+        hotel_id: "muller-fioreze",
+        module_key: "guest-portal",
+        slug: "guia-local",
+        title: "Guia local",
+        summary: "Sugestoes ficticias para a estadia.",
+        status: "published",
+        sort_order: 20,
+        updated_at: "2026-07-04T00:00:00.000Z",
+        archived_at: null,
+      },
+      {
+        id: "page-aurora-home",
+        hotel_id: "aurora-demo",
+        module_key: "guest-portal",
+        slug: "inicio",
+        title: "Aurora",
+        summary: "Conteudo ficticio de isolamento.",
+        status: "published",
+        sort_order: 10,
+        updated_at: "2026-07-04T00:00:00.000Z",
+        archived_at: null,
+      },
+    ],
+    events: [
+      {
+        id: "event-muller-welcome",
+        hotel_id: "muller-fioreze",
+        title: "Encontro de boas-vindas",
+        summary: "Evento inteiramente ficticio.",
+        starts_at: "2026-08-10T20:00:00.000Z",
+        ends_at: "2026-08-10T22:00:00.000Z",
+        timezone: "America/Sao_Paulo",
+        status: "published",
+      },
+      {
+        id: "event-aurora-welcome",
+        hotel_id: "aurora-demo",
+        title: "Evento Aurora",
+        summary: "Evento ficticio de outra unidade.",
+        starts_at: "2026-08-11T20:00:00.000Z",
+        ends_at: "2026-08-11T22:00:00.000Z",
+        timezone: "America/Sao_Paulo",
+        status: "published",
+      },
+    ],
+    hotelInformation: [
+      {
+        id: "info-muller-wifi",
+        hotel_id: "muller-fioreze",
+        info_key: "wifi",
+        title: "Wi-Fi",
+        body: "Consulte os dados de acesso na recepcao.",
+        is_public: 1,
+        sort_order: 10,
+      },
+      {
+        id: "info-muller-breakfast",
+        hotel_id: "muller-fioreze",
+        info_key: "breakfast",
+        title: "Cafe da manha",
+        body: "Horario ficticio para testes locais.",
+        is_public: 1,
+        sort_order: 20,
+      },
+      {
+        id: "info-muller-private",
+        hotel_id: "muller-fioreze",
+        info_key: "internal",
+        title: "Informacao interna",
+        body: "Nao deve aparecer publicamente.",
+        is_public: 0,
+        sort_order: 30,
+      },
+      {
+        id: "info-aurora-wifi",
+        hotel_id: "aurora-demo",
+        info_key: "wifi",
+        title: "Wi-Fi Aurora",
+        body: "Conteudo ficticio de outra unidade.",
+        is_public: 1,
+        sort_order: 10,
+      },
+    ],
     orders: [],
     orderItems: [],
     orderStatusHistory: [],
@@ -1077,6 +1175,33 @@ class MockD1Database {
 
   selectAll(sql, params) {
     const normalized = normalize(sql);
+
+    if (normalized.includes("from portal_pages") && normalized.includes("status = 'published'")) {
+      const [hotelId, moduleKey] = params;
+      return this.data.portalPages
+        .filter(
+          (entry) =>
+            entry.hotel_id === hotelId &&
+            entry.module_key === moduleKey &&
+            entry.status === "published" &&
+            entry.archived_at == null,
+        )
+        .sort((left, right) => left.sort_order - right.sort_order || left.title.localeCompare(right.title));
+    }
+
+    if (normalized.includes("from events") && normalized.includes("status = 'published'")) {
+      const [hotelId] = params;
+      return this.data.events
+        .filter((entry) => entry.hotel_id === hotelId && entry.status === "published")
+        .sort((left, right) => left.starts_at.localeCompare(right.starts_at) || left.title.localeCompare(right.title));
+    }
+
+    if (normalized.includes("from hotel_information") && normalized.includes("is_public = 1")) {
+      const [hotelId] = params;
+      return this.data.hotelInformation
+        .filter((entry) => entry.hotel_id === hotelId && entry.is_public === 1)
+        .sort((left, right) => left.sort_order - right.sort_order || left.title.localeCompare(right.title));
+    }
 
     if (normalized.includes("select distinct u.id, u.user_number") && normalized.includes("from admin_users u")) {
       const [senderUserId] = params;

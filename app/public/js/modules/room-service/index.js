@@ -3,6 +3,7 @@ import { escapeHtml } from "../../core/errors.js";
 import { createCartStore, createOrderAttemptKey } from "./cart.js";
 import { filterCatalog, flattenCatalog, formatMoney, getCatalogItemMap } from "./catalog.js";
 import { describeServiceStatus, evaluateServiceStatus } from "./service-status.js";
+import { sanitizePublicAssetUrl } from "../../core/theme.js";
 
 const MODULE_KEY = "room-service";
 let cleanupCurrentRender = () => {};
@@ -716,9 +717,7 @@ function setText(container, selector, value) {
 }
 
 function sanitizeAssetPath(path) {
-  const value = String(path || "").trim();
-  if (value.startsWith("/assets/")) return value;
-  return null;
+  return sanitizePublicAssetUrl(path);
 }
 
 function cssEscape(value) {

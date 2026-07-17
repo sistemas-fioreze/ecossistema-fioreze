@@ -16,15 +16,30 @@ export async function getHotelBySlug(env, slug) {
 }
 
 export async function getHotelBranding(env, hotelId) {
-  return first(
+  const row = await first(
     env,
     `SELECT logo_url, icon_url, primary_color, secondary_color, accent_color,
-            background_color, text_color, font_family
+            background_color, text_color, font_family, custom_css_json
        FROM hotel_branding
       WHERE hotel_id = ?
       LIMIT 1`,
     [hotelId],
   );
+  if (!row) return null;
+
+  const custom = parseJsonObject(row.custom_css_json);
+  return {
+    logo_url: row.logo_url,
+    icon_url: row.icon_url,
+    horizontal_logo_url: custom.horizontal_logo_url || row.logo_url || null,
+    cover_image_url: custom.cover_image_url || null,
+    primary_color: row.primary_color,
+    secondary_color: row.secondary_color,
+    accent_color: row.accent_color,
+    background_color: row.background_color,
+    text_color: row.text_color,
+    font_family: row.font_family,
+  };
 }
 
 export async function getHotelSettings(env, hotelId) {
@@ -83,6 +98,15 @@ function parseSettingValue(value, type) {
     }
   }
   return value;
+}
+
+function parseJsonObject(value) {
+  try {
+    const parsed = JSON.parse(value || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
 }
 
 export async function getEnabledModules(env, hotelId, { publicOnly = true } = {}) {

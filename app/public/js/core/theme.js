@@ -12,3 +12,9 @@ export function applyBranding(branding = {}) {
     if (value) root.style.setProperty(property, value);
   }
 }
+
+export function sanitizePublicAssetUrl(value) {
+  const path = String(value || "").trim();
+  if (/^\/(?:assets|media)\/[A-Za-z0-9._~!$&()*+,;=:@%/-]+$/.test(path)) return path;
+  return null;
+}
