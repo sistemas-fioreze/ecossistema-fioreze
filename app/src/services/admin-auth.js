@@ -7,6 +7,7 @@ import {
   createLoginSecurityContext,
   createProtectedAdminSession,
   prepareLoginSecurity,
+  recordLoginChallengeFailure,
   recordLoginFailure,
   verifyAdminTurnstile,
 } from "./admin-login-security.js";
@@ -41,7 +42,7 @@ export async function loginAdmin({ request, env }) {
     context: securityContext,
   });
   if (turnstile.enabled && !turnstile.valid) {
-    await recordLoginFailure({ env, context: securityContext, reasonCode: turnstile.reasonCode });
+    await recordLoginChallengeFailure({ env, context: securityContext, reasonCode: turnstile.reasonCode });
   }
 
   const user = await findUserByEmail(env, email);

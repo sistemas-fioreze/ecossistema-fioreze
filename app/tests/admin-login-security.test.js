@@ -165,11 +165,80 @@ test("rate limit falha fechado quando a chave HMAC nao esta configurada", async 
   assert.equal(context.env.__data.adminSessions.length, 0);
 });
 
-test("bloqueio progressivo por conta retorna 429 e Retry-After", async () => {
-  const context = createWorkerTestContext();
+test("cinco falhas de desafio para o mesmo e-mail nao bloqueiam a conta", async () => {
+  for (const challengeFailure of ["missing", "invalid"]) {
+    const context = turnstileContext(async (_url, init) => {
+      const token = new URLSearchParams(String(init.body)).get("response");
+      if (token?.startsWith("token-invalido")) {
+        return jsonResponse({ success: false, "error-codes": ["invalid-input-response"] });
+      }
+      return jsonResponse({ success: true, action: "admin_login", hostname: "local.test" });
+    });
+    const responses = [];
+
+    for (let index = 0; index < 5; index += 1) {
+      const payload =
+        challengeFailure === "missing"
+          ? { password: ADMIN_PASSWORD }
+          : { password: ADMIN_PASSWORD, turnstile_token: `token-invalido-${index}` };
+      responses.push(await login(context, payload, { ip: `198.51.100.${index + 60}` }));
+    }
+
+    assert.deepEqual(responses.map((entry) => entry.response.status), [401, 401, 401, 401, 401]);
+    assert.equal(
+      context.env.__data.adminLoginAttempts.some((entry) => entry.identifier_type === "account"),
+      false,
+    );
+
+    const authenticated = await login(
+      context,
+      { password: ADMIN_PASSWORD, turnstile_token: `token-valido-${challengeFailure}` },
+      { ip: "198.51.100.99" },
+    );
+    assert.equal(authenticated.response.status, 200);
+  }
+});
+
+test("falhas de desafio bloqueiam somente o IP no limite definido", async () => {
+  const context = turnstileContext(
+    async () => jsonResponse({ success: false, "error-codes": ["invalid-input-response"] }),
+  );
+  const responses = [];
+
+  for (let index = 0; index < 10; index += 1) {
+    responses.push(
+      await login(
+        context,
+        { password: ADMIN_PASSWORD, turnstile_token: `token-invalido-${index}` },
+        { ip: "203.0.113.77" },
+      ),
+    );
+  }
+
+  assert.deepEqual(responses.map((entry) => entry.response.status), [401, 401, 401, 401, 401, 401, 401, 401, 401, 429]);
+  assert.equal(responses[9].response.headers.get("retry-after"), "60");
+  const attempts = context.env.__data.adminLoginAttempts;
+  assert.equal(attempts.some((entry) => entry.identifier_type === "account"), false);
+  const ipAttempt = attempts.find((entry) => entry.identifier_type === "ip");
+  assert.equal(ipAttempt.lock_level, 1);
+  assert.equal(ipAttempt.failure_count, 0);
+  assert.equal(context.env.__data.adminLoginSecurityEvents.length >= 10, true);
+  const serializedEvents = JSON.stringify(context.env.__data.adminLoginSecurityEvents);
+  assert.equal(serializedEvents.includes("203.0.113.77"), false);
+  assert.equal(serializedEvents.includes(ADMIN_EMAIL), false);
+});
+
+test("cinco senhas incorretas apos Turnstile valido bloqueiam a conta", async () => {
+  const context = turnstileContext(successfulChallenge());
   const responses = [];
   for (let index = 0; index < 5; index += 1) {
-    responses.push(await login(context, { password: "senha-incorreta" }, { ip: `198.51.100.${index + 1}` }));
+    responses.push(
+      await login(
+        context,
+        { password: "senha-incorreta", turnstile_token: `token-valido-${index}` },
+        { ip: `198.51.100.${index + 1}` },
+      ),
+    );
   }
 
   assert.deepEqual(responses.map((entry) => entry.response.status), [401, 401, 401, 401, 429]);

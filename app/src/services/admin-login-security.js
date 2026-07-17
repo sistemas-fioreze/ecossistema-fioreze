@@ -127,18 +127,47 @@ export async function verifyAdminTurnstile({ request, env, token, context }) {
 }
 
 export async function recordLoginFailure({ env, context, reasonCode }) {
-  const accountStatement = failureUpsertStatement(env, {
-    identifierType: "account",
-    identifierHash: context.accountHash,
-    threshold: ACCOUNT_FAILURE_LIMIT,
-    now: context.now,
+  return recordFailure({
+    env,
+    context,
+    reasonCode,
+    identifiers: [
+      {
+        identifierType: "account",
+        identifierHash: context.accountHash,
+        threshold: ACCOUNT_FAILURE_LIMIT,
+      },
+      {
+        identifierType: "ip",
+        identifierHash: context.ipHash,
+        threshold: IP_FAILURE_LIMIT,
+      },
+    ],
   });
-  const ipStatement = failureUpsertStatement(env, {
-    identifierType: "ip",
-    identifierHash: context.ipHash,
-    threshold: IP_FAILURE_LIMIT,
-    now: context.now,
+}
+
+export async function recordLoginChallengeFailure({ env, context, reasonCode }) {
+  return recordFailure({
+    env,
+    context,
+    reasonCode,
+    identifiers: [
+      {
+        identifierType: "ip",
+        identifierHash: context.ipHash,
+        threshold: IP_FAILURE_LIMIT,
+      },
+    ],
   });
+}
+
+async function recordFailure({ env, context, reasonCode, identifiers }) {
+  const attemptStatements = identifiers.map((identifier) =>
+    failureUpsertStatement(env, {
+      ...identifier,
+      now: context.now,
+    }),
+  );
   const eventStatement = securityEventStatement(env, {
     eventType: "login_failure",
     reasonCode,
@@ -147,13 +176,13 @@ export async function recordLoginFailure({ env, context, reasonCode }) {
 
   let results;
   try {
-    results = await env.DB.batch([accountStatement, ipStatement, eventStatement]);
+    results = await env.DB.batch([...attemptStatements, eventStatement]);
   } catch {
     throw securityUnavailable();
   }
 
   const lockRows = results
-    .slice(0, 2)
+    .slice(0, attemptStatements.length)
     .flatMap((result) => result.results || [])
     .filter((row) => row.locked_until && row.locked_until > context.now)
     .sort((left, right) => right.locked_until.localeCompare(left.locked_until));

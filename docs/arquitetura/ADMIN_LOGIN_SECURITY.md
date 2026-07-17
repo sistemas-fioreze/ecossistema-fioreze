@@ -8,7 +8,7 @@ O login da Central Administrativa combina sessao server-side, limitacao progress
 2. Bloqueios ativos sao consultados antes de qualquer chamada ao Turnstile.
 3. Quando `TURNSTILE_ENABLED=true`, o token e validado no Siteverify com action `admin_login` e hostname permitido.
 4. A senha sempre passa por PBKDF2, inclusive para contas inexistentes por meio de um hash ficticio, reduzindo diferencas de tempo.
-5. Falhas atualizam os contadores atomicos no D1. Um login valido cria a sessao somente se nenhum bloqueio tiver surgido durante a verificacao.
+5. Falhas do desafio atualizam somente o contador do IP. Depois de um Turnstile valido, ou quando ele esta desativado, falhas de credenciais atualizam os contadores da conta e do IP.
 6. O estado de falhas da conta e removido depois da criacao valida da sessao. O estado do IP permanece independente.
 
 As respostas para usuario inexistente, senha incorreta e desafio invalido nao revelam qual verificacao falhou. Respostas administrativas usam `Cache-Control: no-store`.
@@ -40,6 +40,7 @@ Politica inicial:
 
 - conta: 5 falhas em 15 minutos;
 - IP: 10 falhas em 15 minutos;
+- desafios ausentes ou invalidos nunca aumentam o contador da conta;
 - bloqueios progressivos de 1, 5, 15 e 60 minutos;
 - resposta `429` com `Retry-After` durante o bloqueio;
 - limpeza de tentativas expiradas e eventos antigos durante o fluxo seguro de login.
