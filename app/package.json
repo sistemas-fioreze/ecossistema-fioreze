@@ -7,9 +7,13 @@
   "scripts": {
     "dev": "wrangler dev",
     "test": "node --test \"tests/**/*.test.js\"",
-    "validate": "npm run structure:check && npm run lint && npm test && npm run wrangler:check",
+    "validate": "npm run structure:check && npm run lint && npm run pages:check && npm test && npm run wrangler:check",
     "lint": "node scripts/lint-no-remote.js",
     "wrangler:check": "node scripts/validate-wrangler-config.js",
+    "pages:build": "node scripts/build-pages.js",
+    "pages:check": "npm run pages:build && node scripts/validate-pages-build.js",
+    "pages:dev": "npm run pages:build && node scripts/run-pages-wrangler.js dev",
+    "pages:deploy": "npm run pages:build && node scripts/run-pages-wrangler.js deploy",
     "db:migrate:local": "wrangler d1 migrations apply fioreze-portais-db-dev --local",
     "db:seed:local": "wrangler d1 execute fioreze-portais-db-dev --local --file=./seeds/dev.sql",
     "db:reset:local": "node scripts/reset-local-db.js",
@@ -19,6 +23,7 @@
   },
   "devDependencies": {
     "ajv": "^8.17.1",
+    "esbuild": "^0.28.1",
     "wrangler": "^4.0.0"
   }
 }

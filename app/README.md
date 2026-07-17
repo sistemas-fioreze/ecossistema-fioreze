@@ -177,9 +177,18 @@ npm test
 npm run db:migrate:local
 npm run db:seed:local
 npm run dev
+npm run pages:build
+npm run pages:check
+npm run pages:dev
 ```
 
-Todos os scripts D1 usam modo local. Nao ha scripts remotos nesta fase.
+Todos os scripts D1 usam modo local. O script `pages:deploy` publica somente o projeto Pages separado e deve ser usado apenas em uma etapa remota controlada; ele nao executa migration, seed ou deploy do Worker atual.
+
+## Cloudflare Pages Paralelo
+
+`wrangler.jsonc` permanece como a configuracao do Worker `fioreze-portais-dev`. A configuracao independente `pages/wrangler.jsonc` prepara o projeto Pages `fioreze-portais-pages-dev`, com saida em `pages/dist` e Pages Functions no modo avancado `_worker.js`.
+
+O build reutiliza `src/index.js`, copia todos os arquivos de `public/` e preserva os bindings `DB`, `MEDIA_BUCKET` e `ASSETS`. As instrucoes de criacao do projeto, bindings do painel, variaveis e validacao estao em `docs/arquitetura/CLOUDFLARE_PAGES_PARALLEL.md`.
 
 ## Migrations E Seeds Locais
 

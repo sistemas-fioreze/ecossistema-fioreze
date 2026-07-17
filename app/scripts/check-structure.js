@@ -38,6 +38,9 @@ const required = [
   "src/modules/short-links/public.js",
   "src/modules/short-links/shared.js",
   "src/services/erp-auth.js",
+  "scripts/build-pages.js",
+  "scripts/run-pages-wrangler.js",
+  "scripts/validate-pages-build.js",
   "migrations/0001_core_initial.sql",
   "migrations/0002_core_admin.sql",
   "migrations/0003_guest_portal_foundation.sql",
@@ -57,6 +60,7 @@ const required = [
   "migrations/0016_catalog_item_tags.sql",
   "seeds/dev.sql",
   "wrangler.jsonc",
+  "pages/wrangler.jsonc",
   ".dev.vars.example",
 ];
 
@@ -73,22 +77,35 @@ for (const dir of forbiddenDirs) {
 
 const wrangler = fs.readFileSync(path.join(root, "wrangler.jsonc"), "utf8");
 const wranglerConfig = JSON.parse(wrangler);
+const pagesWrangler = fs.readFileSync(path.join(root, "pages", "wrangler.jsonc"), "utf8");
+const pagesWranglerConfig = JSON.parse(pagesWrangler);
 const databaseId = wranglerConfig.d1_databases?.[0]?.database_id || "";
+const pagesDatabase = pagesWranglerConfig.d1_databases?.find((database) => database.binding === "DB");
 const mediaBucket = wranglerConfig.r2_buckets?.find((bucket) => bucket.binding === "MEDIA_BUCKET");
+const pagesMediaBucket = pagesWranglerConfig.r2_buckets?.find((bucket) => bucket.binding === "MEDIA_BUCKET");
 const idMatches = databaseId ? countOccurrences(wrangler, databaseId) : [];
 const otherFilesWithDatabaseId = listFiles(root).filter((file) => {
   const relative = path.relative(root, file).replaceAll("\\", "/");
-  if (relative === "wrangler.jsonc") return false;
+  if (relative === "wrangler.jsonc" || relative === "pages/wrangler.jsonc") return false;
   if (relative.startsWith("node_modules/") || relative === "package-lock.json") return false;
   if (isBinaryPath(relative)) return false;
   return databaseId && fs.readFileSync(file, "utf8").includes(databaseId);
 });
 if (!databaseId || idMatches !== 1) failures.push("database_id deve aparecer uma vez em wrangler.jsonc");
-if (otherFilesWithDatabaseId.length) failures.push("database_id apareceu fora do wrangler.jsonc");
+if (pagesDatabase?.database_id !== databaseId || countOccurrences(pagesWrangler, databaseId) !== 1) {
+  failures.push("Pages deve preservar o mesmo database_id no binding DB");
+}
+if (otherFilesWithDatabaseId.length) failures.push("database_id apareceu fora das configuracoes Wrangler");
 if (!mediaBucket || mediaBucket.bucket_name !== "fioreze-portais-media-dev") {
   failures.push("MEDIA_BUCKET deve existir e apontar para fioreze-portais-media-dev");
 }
+if (pagesMediaBucket?.bucket_name !== mediaBucket?.bucket_name) {
+  failures.push("Pages deve preservar o binding MEDIA_BUCKET");
+}
 if (mediaBucket?.remote === true) failures.push("MEDIA_BUCKET nao deve usar remote=true");
+if (pagesMediaBucket?.remote === true) failures.push("MEDIA_BUCKET do Pages nao deve usar remote=true");
+if (pagesWranglerConfig.name === wranglerConfig.name) failures.push("Pages nao pode reutilizar o nome do Worker atual");
+if (pagesWranglerConfig.pages_build_output_dir !== "./dist") failures.push("diretorio de build Pages invalido");
 
 if (failures.length) {
   console.error(failures.join("\n"));

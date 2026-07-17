@@ -1,0 +1,25 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "fioreze-portais-pages-dev",
+  "pages_build_output_dir": "./dist",
+  "compatibility_date": "2026-07-04",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "fioreze-portais-db-dev",
+      "database_id": "883e953a-4280-454b-8aed-a3148f8008f1",
+      "preview_database_id": "DB"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA_BUCKET",
+      "bucket_name": "fioreze-portais-media-dev"
+    }
+  ],
+  "vars": {
+    "ENVIRONMENT": "development",
+    "IMPRESSION_ENABLED": "false",
+    "DEFAULT_HOTEL_SLUG": "muller-fioreze"
+  }
+}
