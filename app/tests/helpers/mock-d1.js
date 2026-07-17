@@ -324,6 +324,7 @@ function createFixtureData() {
       { id: "perm-portals-links-update", permission_key: "portals.links.update", module_key: null },
       { id: "perm-portals-links-archive", permission_key: "portals.links.archive", module_key: null },
       { id: "perm-portals-links-analytics", permission_key: "portals.links.analytics", module_key: null },
+      { id: "perm-portals-links-delete", permission_key: "portals.links.delete", module_key: null },
       { id: "perm-admin-users-read", permission_key: "admin.users.read", module_key: "admin", description: "Ver usuarios" },
       { id: "perm-admin-users-create", permission_key: "admin.users.create", module_key: "admin", description: "Criar usuarios" },
       { id: "perm-admin-users-update", permission_key: "admin.users.update", module_key: "admin", description: "Editar usuarios" },
@@ -473,6 +474,7 @@ function createFixtureData() {
       },
     ],
     shortLinkClicksDaily: [],
+    customPortalPages: [],
     orders: [],
     orderItems: [],
     orderStatusHistory: [],
@@ -1011,6 +1013,45 @@ class MockD1Database {
             (entry.hotel_id === hotelId || entry.hotel_id == null),
         ) || null
       );
+    }
+
+    if (normalized.includes("from custom_portal_pages") && normalized.includes("lower(slug) = lower(?)")) {
+      const [hotelId, slug, excludedId] = params;
+      return (
+        this.data.customPortalPages.find(
+          (page) =>
+            page.hotel_id === hotelId &&
+            page.slug.toLowerCase() === String(slug).toLowerCase() &&
+            (!normalized.includes("id <> ?") || page.id !== excludedId),
+        ) || null
+      );
+    }
+
+    if (normalized.includes("from custom_portal_pages cp") && normalized.includes("where cp.id = ?") && normalized.includes("cp.hotel_id in")) {
+      const [pageId, ...hotelIds] = params;
+      const page = this.data.customPortalPages.find((entry) => entry.id === pageId && hotelIds.includes(entry.hotel_id));
+      if (!page) return null;
+      const hotel = this.data.hotels.find((entry) => entry.id === page.hotel_id) || {};
+      return { ...page, hotel_name: hotel.name, hotel_slug: hotel.slug };
+    }
+
+    if (normalized.includes("from custom_portal_pages cp") && normalized.includes("join hotel_modules hm")) {
+      const [hotelSlug, pageSlug] = params;
+      const hotel = this.data.hotels.find(
+        (entry) => entry.slug === hotelSlug && entry.status === "active" && entry.archived_at == null,
+      );
+      if (!hotel) return null;
+      const module = this.data.hotelModules.find(
+        (entry) => entry.hotel_id === hotel.id && entry.module_key === "guest-portal" && entry.enabled === 1 && entry.is_public === 1,
+      );
+      const page = this.data.customPortalPages.find(
+        (entry) =>
+          entry.hotel_id === hotel.id &&
+          entry.slug === pageSlug &&
+          entry.status === "published" &&
+          entry.archived_at == null,
+      );
+      return module && page ? { id: page.id, title: page.title, sanitized_html: page.sanitized_html } : null;
     }
 
     if (normalized.includes("from short_links") && normalized.includes("lower(slug) = lower(?)")) {
@@ -1582,6 +1623,15 @@ class MockD1Database {
       return this.data.printEvents
         .filter((entry) => entry.order_id === orderId && entry.hotel_id === hotelId && entry.module_key === moduleKey)
         .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id));
+    }
+
+    if (normalized.includes("from custom_portal_pages cp") && normalized.includes("join hotels h") && normalized.includes("where cp.hotel_id = ?")) {
+      const [hotelId] = params;
+      const hotel = this.data.hotels.find((entry) => entry.id === hotelId) || {};
+      return this.data.customPortalPages
+        .filter((page) => page.hotel_id === hotelId)
+        .sort((a, b) => b.updated_at.localeCompare(a.updated_at) || a.title.localeCompare(b.title))
+        .map(({ sanitized_html: _sanitizedHtml, ...page }) => ({ ...page, hotel_name: hotel.name, hotel_slug: hotel.slug }));
     }
 
     if (normalized.includes("from short_links sl") && normalized.includes("join hotels h")) {
@@ -2258,6 +2308,63 @@ class MockD1Database {
       return d1Result(1);
     }
 
+    if (normalized.startsWith("insert into custom_portal_pages")) {
+      const [
+        id,
+        hotel_id,
+        slug,
+        title,
+        sanitized_html,
+        content_sha256,
+        sanitizer_version,
+        status,
+        created_by_user_id,
+        updated_by_user_id,
+        created_at,
+        updated_at,
+      ] = params;
+      if (this.data.customPortalPages.some((page) => page.hotel_id === hotel_id && page.slug.toLowerCase() === String(slug).toLowerCase())) {
+        throw new Error("UNIQUE constraint failed: custom_portal_pages.hotel_id, custom_portal_pages.slug");
+      }
+      this.data.customPortalPages.push({
+        id,
+        hotel_id,
+        slug,
+        title,
+        sanitized_html,
+        content_sha256,
+        sanitizer_version,
+        status,
+        created_by_user_id,
+        updated_by_user_id,
+        archived_by_user_id: null,
+        created_at,
+        updated_at,
+        archived_at: null,
+      });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update custom_portal_pages") && normalized.includes("set slug = ?")) {
+      const [slug, title, sanitized_html, content_sha256, sanitizer_version, status, updated_by_user_id, updated_at, id, hotel_id] = params;
+      const page = this.data.customPortalPages.find(
+        (entry) => entry.id === id && entry.hotel_id === hotel_id && entry.status !== "archived",
+      );
+      if (!page) return d1Result(0);
+      Object.assign(page, { slug, title, sanitized_html, content_sha256, sanitizer_version, status, updated_by_user_id, updated_at });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update custom_portal_pages") && normalized.includes("set status = 'archived'")) {
+      const [archived_by_user_id, archived_at, updated_by_user_id, updated_at, id, hotel_id] = params;
+      const page = this.data.customPortalPages.find(
+        (entry) => entry.id === id && entry.hotel_id === hotel_id && entry.status !== "archived",
+      );
+      if (!page) return d1Result(0);
+      Object.assign(page, { status: "archived", archived_by_user_id, archived_at, updated_by_user_id, updated_at });
+      return d1Result(1);
+    }
+
     if (normalized.startsWith("insert into short_links")) {
       const [
         id,
@@ -2739,6 +2846,17 @@ class MockD1Database {
       return d1Result(1);
     }
 
+    if (normalized.startsWith("delete from short_links")) {
+      const [id, hotelId] = params;
+      const index = this.data.shortLinks.findIndex(
+        (entry) => entry.id === id && entry.hotel_id === hotelId && entry.status === "archived",
+      );
+      if (index === -1) return d1Result(0);
+      this.data.shortLinks.splice(index, 1);
+      this.data.shortLinkClicksDaily = this.data.shortLinkClicksDaily.filter((entry) => entry.short_link_id !== id);
+      return d1Result(1);
+    }
+
     if (normalized.startsWith("update hotels")) {
       const [name, short_name, slug, timezone, locale, currency, status, updated_at, archiveStatus, archived_at, id] = params;
       const hotel = this.data.hotels.find((entry) => entry.id === id);
@@ -3002,6 +3120,25 @@ class MockD1Database {
         return d1Result(1);
       }
       if (normalized.includes("'short_link'")) {
+        if (normalized.includes("from short_links sl")) {
+          const [id, actor_user_id, metadata_json, created_at, entity_id, hotel_id] = params;
+          const link = this.data.shortLinks.find(
+            (entry) => entry.id === entity_id && entry.hotel_id === hotel_id && entry.status === "archived",
+          );
+          if (!link) return d1Result(0);
+          this.data.adminAuditLog.push({
+            id,
+            hotel_id,
+            module_key: null,
+            actor_user_id,
+            action: "short-link.delete",
+            entity_type: "short_link",
+            entity_id,
+            metadata_json,
+            created_at,
+          });
+          return d1Result(1);
+        }
         const [id, hotel_id, actor_user_id, action, entity_id, metadata_json, created_at] = params;
         this.data.adminAuditLog.push({
           id,

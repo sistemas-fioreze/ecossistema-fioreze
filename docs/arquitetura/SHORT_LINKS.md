@@ -106,7 +106,14 @@ Falha de analytics nao deve bloquear o redirect.
 
 ## QR Code
 
-O MVP nao gera QR Code nativo. Para campanhas, use ferramentas externas apontando para a URL curta. Futuramente a plataforma pode gerar QR Codes com base no mesmo `/go/<slug>`.
+A Central gera o QR Code diretamente a partir do `public_url` calculado pelo backend. O QR nao cria uma segunda URL e nao duplica dados: ele representa exatamente o link curto atual.
+
+- `GET /api/v1/admin/short-links/:id/qrcode.svg` exibe o SVG autenticado;
+- `?download=1` entrega o mesmo SVG como arquivo;
+- a resposta usa `Cache-Control: no-store`;
+- a geracao funciona offline no Worker e nao envia a URL para servicos externos.
+
+Links ativos, pausados e arquivados mantem o QR disponivel para consulta administrativa. A disponibilidade publica continua sendo determinada pelo status do link.
 
 ## Dominio Oficial e Custom Domain Futuro
 
@@ -136,9 +143,12 @@ DNS e certificado TLS devem ser gerenciados pela Cloudflare a partir do Custom D
 - `portals.links.create`
 - `portals.links.update`
 - `portals.links.archive`
+- `portals.links.delete`
 - `portals.links.analytics`
 
 Mutacoes exigem sessao administrativa, permissao, acesso ao hotel, header administrativo e origem valida.
+
+A exclusao definitiva exige `portals.links.delete` e somente e aceita depois que o link foi arquivado. A remocao apaga as metricas diarias vinculadas por cascata, preserva um registro de auditoria e nao afeta outros hoteis.
 
 ## Auditoria
 
@@ -147,6 +157,7 @@ Acoes registradas:
 - `short-link.create`
 - `short-link.update`
 - `short-link.archive`
+- `short-link.delete`
 
 A auditoria registra entidade, ID, hotel, slug, campos alterados e usuario. O destino completo nao e gravado no audit log para reduzir risco de expor tokens ou parametros sensiveis.
 

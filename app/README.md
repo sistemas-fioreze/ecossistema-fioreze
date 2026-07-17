@@ -72,7 +72,7 @@ Tabelas principais:
 - core: `hotels`, `hotel_domains`, `hotel_branding`, `hotel_settings`, `modules`, `hotel_modules`, `navigation_items`, `features`, `hotel_features`, `rooms`, `service_hours`, `media_assets`;
 - admin: `admin_users`, `admin_roles`, `admin_permissions`, `admin_user_roles`, `admin_role_permissions`, `admin_hotel_access`, `admin_sessions`, `admin_audit_log`;
 - usuarios operacionais do ERP: `erp_users`, `erp_user_permissions`, `erp_sessions`;
-- portal: `portal_pages`, `portal_sections`, `portal_content_items`, `events`, `hotel_information`;
+- portal: `portal_pages`, `portal_sections`, `portal_content_items`, `custom_portal_pages`, `events`, `hotel_information`;
 - catalogos: `catalogs`, `categories`, `catalog_items`, `catalog_item_availability`;
 - pedidos: `orders`, `order_items`, `order_status_history`, `print_events`;
 - spa: `spa_services`, `spa_service_requests`, `spa_appointments`;
@@ -123,6 +123,13 @@ Implementados:
 - `GET /api/v1/admin/media/:id`
 - `PATCH /api/v1/admin/media/:id`
 - `DELETE /api/v1/admin/media/:id`
+- `GET /api/v1/admin/custom-portal-pages`
+- `POST /api/v1/admin/custom-portal-pages`
+- `GET /api/v1/admin/custom-portal-pages/:id`
+- `PATCH /api/v1/admin/custom-portal-pages/:id`
+- `DELETE /api/v1/admin/custom-portal-pages/:id`
+- `GET /api/v1/admin/short-links/:id/qrcode.svg`
+- `DELETE /api/v1/admin/short-links/:id/permanent`
 - `GET /api/v1/admin/portal/content`
 - `POST /api/v1/admin/portal/pages`
 - `GET /api/v1/admin/portal/pages/:id`
@@ -136,6 +143,8 @@ Implementados:
 - `GET /api/v1/admin/audit`
 - `GET /media/:id`
 - `HEAD /media/:id`
+- `GET /portal-content/:hotel_slug/:page_slug`
+- `HEAD /portal-content/:hotel_slug/:page_slug`
 
 Contratos futuros:
 
@@ -218,6 +227,8 @@ A migration `0017_admin_preferences_media_folders.sql` adiciona:
 - pastas e subpastas isoladas por `hotel_id` em `media_folders`;
 - a associacao opcional `media_assets.folder_id`, sem alterar a URL publica nem o objeto R2 quando uma imagem e organizada;
 - indices para navegacao por pasta e unicidade de nomes entre pastas irmas ativas.
+
+A migration `0020_portal_custom_pages_qr_links.sql` adiciona paginas HTML sanitizadas por unidade e a permissao de exclusao definitiva de links arquivados. O HTML original nunca e persistido; a publicacao usa `iframe` sandbox, CSP restritiva e rota Worker-first em `/portal-content/*`. QR Codes sao gerados localmente como SVG a partir do `public_url` do link, sem servico externo.
 
 A migration `0018_admin_messages_and_reference_numbers.sql` adiciona:
 
