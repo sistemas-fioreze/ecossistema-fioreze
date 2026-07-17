@@ -139,7 +139,7 @@ test("mensagens bloqueiam ausência de sessão, autoenvio e destinatário isolad
   assert.equal(env.__data.adminMessages.length, 0);
 });
 
-test("shell inclui mensagens, cache seguro, paletas ampliadas e mídia compacta com ação de mover", () => {
+test("shell inclui mensagens, sessao sem cache, paletas ampliadas e mídia compacta com ação de mover", () => {
   const html = fs.readFileSync("public/admin/index.html", "utf8");
   const authView = fs.readFileSync("public/js/modules/admin/shared/admin-auth-view.js", "utf8");
   const portals = fs.readFileSync("public/js/modules/admin/portals.js", "utf8");
@@ -147,7 +147,7 @@ test("shell inclui mensagens, cache seguro, paletas ampliadas e mídia compacta 
   const alignedCss = fs.readFileSync("public/css/modules/admin/admin-erp-aligned.css", "utf8");
 
   assert.match(html, /id="messagesManager"/);
-  assert.match(authView, /fioreze-admin-shell-cache/);
+  assert.doesNotMatch(authView, /sessionStorage|fioreze-admin-shell-cache/);
   assert.match(authView, /burgundy/);
   assert.match(authView, /sunset/);
   assert.match(portals, /data-media-action="move"/);

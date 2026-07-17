@@ -25,8 +25,9 @@ const ADMIN_PALETTES = [
   ["plum", "Ameixa"],
   ["sunset", "Pôr do sol"],
 ];
-const ADMIN_SHELL_CACHE_KEY = "fioreze-admin-shell-cache";
-const ADMIN_SHELL_CACHE_TTL_MS = 2 * 60 * 1000;
+const TURNSTILE_ACTION = "admin_login";
+const TURNSTILE_SCRIPT_URL = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+let turnstileScriptPromise = null;
 
 const HELP_CONTENT = {
   home: {
@@ -61,7 +62,7 @@ const HELP_CONTENT = {
   },
 };
 
-export function createAdminAuthView({ onAuthenticated }) {
+export function createAdminAuthView({ onAuthenticated, onLoggedOut = () => {} }) {
   document.body.dataset.adminShell = "erp";
   document.body.dataset.adminPalette = "fioreze";
   const els = {
@@ -74,32 +75,28 @@ export function createAdminAuthView({ onAuthenticated }) {
     loginPassword: document.getElementById("loginPassword"),
     loginButton: document.getElementById("loginButton"),
     loginError: document.getElementById("loginError"),
+    loginTurnstile: document.getElementById("loginTurnstile"),
     sessionUser: document.getElementById("sessionUser"),
     logoutButton: document.getElementById("logoutButton"),
   };
+  let activeSession = null;
+  let turnstileEnabled = false;
+  let turnstileToken = "";
+  let turnstileWidgetId = null;
 
   els.loginForm.addEventListener("submit", handleLogin);
   els.logoutButton.addEventListener("click", handleLogout);
 
   async function boot() {
-    const cachedSession = readAdminShellCache();
-    if (cachedSession) {
-      els.sessionUser.textContent = cachedSession.user?.display_name || "Usuário";
-      applyAdminPalette(cachedSession.preferences?.color_palette || "fioreze", cachedSession.user?.id);
-      showView("dashboard");
-      enhanceAdminExperience(cachedSession);
-      setCachedShellLoading(true);
-    } else {
-      showView("loading");
-    }
+    showView("loading");
     try {
       const payload = await adminApi("/api/v1/admin/session");
       await startAuthenticated(payload.data);
     } catch (error) {
-      clearAdminShellCache();
       if (error.status !== 401) {
         els.loginError.textContent = "Não foi possível verificar a sessão administrativa.";
       }
+      await prepareLoginSecurityWidget();
       showView("login");
     }
   }
@@ -107,6 +104,10 @@ export function createAdminAuthView({ onAuthenticated }) {
   async function handleLogin(event) {
     event.preventDefault();
     els.loginError.textContent = "";
+    if (turnstileEnabled && !turnstileToken) {
+      els.loginError.textContent = "Conclua a verificação de segurança para entrar.";
+      return;
+    }
     els.loginButton.disabled = true;
     els.loginButton.textContent = "Entrando...";
     try {
@@ -115,13 +116,17 @@ export function createAdminAuthView({ onAuthenticated }) {
         body: {
           email: els.loginEmail.value,
           password: els.loginPassword.value,
+          turnstile_token: turnstileToken || undefined,
         },
       });
       els.loginPassword.value = "";
       await startAuthenticated(payload.data);
     } catch (error) {
-      els.loginError.textContent = error.message || "Falha ao entrar.";
+      els.loginError.textContent = error.status === 429
+        ? "Muitas tentativas. Aguarde alguns minutos e tente novamente."
+        : "Não foi possível concluir o acesso. Verifique os dados e tente novamente.";
     } finally {
+      resetTurnstileWidget();
       els.loginButton.disabled = false;
       els.loginButton.textContent = "Entrar";
     }
@@ -129,28 +134,81 @@ export function createAdminAuthView({ onAuthenticated }) {
 
   async function handleLogout() {
     await adminApi("/api/v1/admin/logout", { method: "POST", body: {} }).catch(() => null);
-    clearAdminShellCache();
+    activeSession = null;
+    turnstileToken = "";
+    els.sessionUser.textContent = "";
+    els.loginPassword.value = "";
+    onLoggedOut();
     applyAdminPalette("fioreze");
-    showView("login");
+    window.location.replace("/admin/");
   }
 
   async function startAuthenticated(session) {
-    const fallbackPalette = readPalettePreference(session?.user?.id);
+    activeSession = session;
     const preferencePayload = await adminApi("/api/v1/admin/me/preferences").catch(() => ({
-      data: { color_palette: fallbackPalette },
+      data: { color_palette: "fioreze" },
     }));
-    session.preferences = preferencePayload.data || { color_palette: fallbackPalette };
-    applyAdminPalette(session.preferences.color_palette, session?.user?.id);
+    session.preferences = preferencePayload.data || { color_palette: "fioreze" };
+    applyAdminPalette(session.preferences.color_palette);
     els.sessionUser.textContent = session?.user?.display_name || "Usuário";
-    writeAdminShellCache(session);
     showView("dashboard");
     enhanceAdminExperience(session);
     synchronizeAdminExperience(session);
-    setCachedShellLoading(false);
+    setDashboardLoading(false);
     await onAuthenticated(session);
   }
 
-  function setCachedShellLoading(loading) {
+  async function prepareLoginSecurityWidget() {
+    let config;
+    try {
+      const payload = await adminApi("/api/v1/public/admin/login-config");
+      config = payload.data || {};
+    } catch {
+      els.loginButton.disabled = true;
+      els.loginError.textContent = "Não foi possível preparar a verificação de segurança.";
+      return;
+    }
+
+    turnstileEnabled = config.TURNSTILE_ENABLED === true;
+    els.loginTurnstile.hidden = !turnstileEnabled;
+    if (!turnstileEnabled) return;
+    if (!config.TURNSTILE_SITE_KEY) {
+      els.loginButton.disabled = true;
+      els.loginError.textContent = "O acesso administrativo está temporariamente indisponível.";
+      return;
+    }
+
+    try {
+      await loadTurnstileScript();
+      turnstileWidgetId = window.turnstile.render(els.loginTurnstile, {
+        sitekey: config.TURNSTILE_SITE_KEY,
+        action: TURNSTILE_ACTION,
+        callback(token) {
+          turnstileToken = token;
+          els.loginError.textContent = "";
+        },
+        "expired-callback"() {
+          turnstileToken = "";
+        },
+        "error-callback"() {
+          turnstileToken = "";
+          els.loginError.textContent = "Não foi possível concluir a verificação de segurança.";
+        },
+      });
+    } catch {
+      els.loginButton.disabled = true;
+      els.loginError.textContent = "Não foi possível preparar a verificação de segurança.";
+    }
+  }
+
+  function resetTurnstileWidget() {
+    turnstileToken = "";
+    if (turnstileEnabled && turnstileWidgetId !== null && window.turnstile?.reset) {
+      window.turnstile.reset(turnstileWidgetId);
+    }
+  }
+
+  function setDashboardLoading(loading) {
     els.dashboardView.dispatchEvent(new CustomEvent("fioreze:admin-content-loading", {
       bubbles: true,
       detail: { loading },
@@ -164,7 +222,28 @@ export function createAdminAuthView({ onAuthenticated }) {
     els.app.dataset.state = view;
   }
 
-  return { boot, showView };
+  return {
+    boot,
+    showView,
+    getSession() {
+      return activeSession;
+    },
+  };
+}
+
+function loadTurnstileScript() {
+  if (window.turnstile?.render) return Promise.resolve(window.turnstile);
+  if (turnstileScriptPromise) return turnstileScriptPromise;
+  turnstileScriptPromise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = TURNSTILE_SCRIPT_URL;
+    script.async = true;
+    script.defer = true;
+    script.addEventListener("load", () => resolve(window.turnstile), { once: true });
+    script.addEventListener("error", () => reject(new Error("turnstile_load_failed")), { once: true });
+    document.head.append(script);
+  });
+  return turnstileScriptPromise;
 }
 
 function synchronizeAdminExperience(session) {
@@ -391,7 +470,7 @@ async function savePalettePreference(palette, session, sessionBox) {
   if (!ADMIN_PALETTES.some(([key]) => key === palette)) return;
   const previous = session.preferences?.color_palette || "fioreze";
   const status = sessionBox?.querySelector("[data-admin-palette-status]");
-  applyAdminPalette(palette, session?.user?.id);
+  applyAdminPalette(palette);
   updatePaletteButtons(sessionBox, palette);
   if (status) status.textContent = "Salvando aparência...";
   try {
@@ -402,7 +481,7 @@ async function savePalettePreference(palette, session, sessionBox) {
     session.preferences = payload.data;
     if (status) status.textContent = "Aparência salva para sua conta.";
   } catch {
-    applyAdminPalette(previous, session?.user?.id);
+    applyAdminPalette(previous);
     updatePaletteButtons(sessionBox, previous);
     if (status) status.textContent = "Não foi possível salvar a aparência.";
   }
@@ -414,25 +493,9 @@ function updatePaletteButtons(sessionBox, selected) {
   }
 }
 
-function applyAdminPalette(palette, userId) {
+function applyAdminPalette(palette) {
   const safePalette = ADMIN_PALETTES.some(([key]) => key === palette) ? palette : "fioreze";
   document.body.dataset.adminPalette = safePalette;
-  if (!userId) return;
-  try {
-    localStorage.setItem(`fioreze-admin-palette:${userId}`, safePalette);
-  } catch {
-    // The server preference remains authoritative when local storage is unavailable.
-  }
-}
-
-function readPalettePreference(userId) {
-  if (!userId) return "fioreze";
-  try {
-    const palette = localStorage.getItem(`fioreze-admin-palette:${userId}`) || "fioreze";
-    return ADMIN_PALETTES.some(([key]) => key === palette) ? palette : "fioreze";
-  } catch {
-    return "fioreze";
-  }
 }
 
 function installAdminSearch(dashboard) {
@@ -490,52 +553,6 @@ function readShellPreference() {
     return localStorage.getItem("fioreze-admin-sidebar") || "expanded";
   } catch {
     return "expanded";
-  }
-}
-
-function writeAdminShellCache(session) {
-  try {
-    const safeSession = {
-      user: {
-        id: session?.user?.id,
-        display_name: session?.user?.display_name,
-        avatar: session?.user?.avatar || null,
-      },
-      hotels: (session?.hotels || []).map((hotel) => ({
-        hotel_id: hotel.hotel_id,
-        name: hotel.name,
-        short_name: hotel.short_name,
-        access_level: hotel.access_level,
-      })),
-      hotel_ids: [...(session?.hotel_ids || [])],
-      permissions: [...(session?.permissions || [])],
-      preferences: { color_palette: session?.preferences?.color_palette || "fioreze" },
-    };
-    sessionStorage.setItem(ADMIN_SHELL_CACHE_KEY, JSON.stringify({ saved_at: Date.now(), session: safeSession }));
-  } catch {
-    // O cache visual é opcional e nunca substitui a autorização do servidor.
-  }
-}
-
-function readAdminShellCache() {
-  try {
-    const cached = JSON.parse(sessionStorage.getItem(ADMIN_SHELL_CACHE_KEY) || "null");
-    if (!cached?.saved_at || Date.now() - cached.saved_at > ADMIN_SHELL_CACHE_TTL_MS) {
-      clearAdminShellCache();
-      return null;
-    }
-    return cached.session || null;
-  } catch {
-    clearAdminShellCache();
-    return null;
-  }
-}
-
-function clearAdminShellCache() {
-  try {
-    sessionStorage.removeItem(ADMIN_SHELL_CACHE_KEY);
-  } catch {
-    // Nada precisa ser feito quando o armazenamento da sessão está indisponível.
   }
 }
 

@@ -117,6 +117,7 @@ import {
 } from "./portal-content.js";
 import { ok } from "../../core/responses.js";
 import { notFoundError } from "../../core/errors.js";
+import { getAdminLoginPublicConfig } from "../../services/admin-login-security.js";
 import {
   getCurrentRoomServiceErpSession,
   listRoomServiceErpLoginHotels,
@@ -126,6 +127,10 @@ import {
 } from "../../services/erp-auth.js";
 
 export function registerAdminRoutes(router) {
+  router.get("/api/v1/public/admin/login-config", async ({ env }) => {
+    return ok(getAdminLoginPublicConfig(env));
+  });
+
   router.post("/api/v1/admin/login", async ({ request, env }) => {
     const { session, headers } = await loginAdmin({ request, env });
     return ok(toSessionPayload(session), { headers });

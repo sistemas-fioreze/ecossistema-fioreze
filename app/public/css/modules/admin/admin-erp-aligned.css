@@ -1778,6 +1778,16 @@ body[data-admin-shell="erp"] .admin-access-card .admin-primary-button {
   border-radius: 14px;
 }
 
+body[data-admin-shell="erp"] .admin-turnstile {
+  min-height: 65px;
+  overflow: hidden;
+}
+
+body[data-admin-shell="erp"] .admin-turnstile[hidden] {
+  display: none;
+  min-height: 0;
+}
+
 body[data-admin-shell="erp"] .admin-dashboard :where(div, span, p, h1, h2, h3, section, article, nav, header, footer, label, button, a, [role="button"]) {
   caret-color: transparent;
 }

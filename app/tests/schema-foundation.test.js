@@ -9,6 +9,7 @@ const mediaLibraryMigration = fs.readFileSync("migrations/0008_media_library_fou
 const adminUnitsMigration = fs.readFileSync("migrations/0009_admin_units_management_permissions.sql", "utf8");
 const shortLinksMigration = fs.readFileSync("migrations/0011_short_links_foundation.sql", "utf8");
 const adminPreferencesMediaFoldersMigration = fs.readFileSync("migrations/0017_admin_preferences_media_folders.sql", "utf8");
+const adminLoginSecurityMigration = fs.readFileSync("migrations/0019_admin_login_security.sql", "utf8");
 const seed = fs.readFileSync("seeds/dev.sql", "utf8");
 const wranglerConfig = JSON.parse(fs.readFileSync("wrangler.jsonc", "utf8"));
 const normalizedMigration = normalize(migration);
@@ -17,6 +18,7 @@ const normalizedMediaLibraryMigration = normalize(mediaLibraryMigration);
 const normalizedAdminUnitsMigration = normalize(adminUnitsMigration);
 const normalizedShortLinksMigration = normalize(shortLinksMigration);
 const normalizedAdminPreferencesMediaFoldersMigration = normalize(adminPreferencesMediaFoldersMigration);
+const normalizedAdminLoginSecurityMigration = normalize(adminLoginSecurityMigration);
 
 test("migration 0007 cria service_hours e media_assets", () => {
   assert.match(normalizedMigration, /create table if not exists service_hours/);
@@ -135,6 +137,15 @@ test("migration 0017 separa preferencias por usuario e organiza midias em pastas
   assert.match(normalizedAdminPreferencesMediaFoldersMigration, /alter table media_assets add column folder_id text references media_folders\(id\)/);
   assert.match(normalizedAdminPreferencesMediaFoldersMigration, /uq_media_folders_active_sibling_name/);
   assert.match(normalizedAdminPreferencesMediaFoldersMigration, /idx_media_assets_hotel_folder_status/);
+});
+
+test("migration 0019 protege tentativas sem armazenar IP ou e-mail brutos", () => {
+  assert.match(normalizedAdminLoginSecurityMigration, /create table if not exists admin_login_attempts/);
+  assert.match(normalizedAdminLoginSecurityMigration, /primary key \(identifier_type, identifier_hash\)/);
+  assert.match(normalizedAdminLoginSecurityMigration, /create table if not exists admin_login_security_events/);
+  assert.match(normalizedAdminLoginSecurityMigration, /idx_admin_login_attempts_locked_until/);
+  assert.match(normalizedAdminLoginSecurityMigration, /idx_admin_login_security_events_expires_at/);
+  assert.equal(/\bip_address\b|\bemail\b|password|token/i.test(adminLoginSecurityMigration), false);
 });
 
 function normalize(value) {

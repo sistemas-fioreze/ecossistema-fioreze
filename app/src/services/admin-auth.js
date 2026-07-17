@@ -3,6 +3,13 @@ import { forbidden, unauthorized } from "../core/errors.js";
 import { createPublicId } from "../core/identifiers.js";
 import { requestNow } from "../core/time.js";
 import { readJson, requireString } from "../core/validation.js";
+import {
+  createLoginSecurityContext,
+  createProtectedAdminSession,
+  prepareLoginSecurity,
+  recordLoginFailure,
+  verifyAdminTurnstile,
+} from "./admin-login-security.js";
 
 export const ADMIN_SESSION_COOKIE = "fioreze_admin_session";
 export const ADMIN_MUTATION_HEADER = "x-fioreze-admin-action";
@@ -16,24 +23,32 @@ const PBKDF2_MIN_ITERATIONS = PBKDF2_ITERATIONS;
 const PBKDF2_MAX_ITERATIONS = PBKDF2_ITERATIONS;
 const FULL_SESSION_TYPE = "full";
 const PASSWORD_CHANGE_SESSION_TYPE = "password_change_required";
+const DUMMY_PASSWORD_HASH =
+  "pbkdf2$sha256$100000$ZmlvcmV6ZS1kdW1teS1zYWx0LTIwMjY=$mXQQxO28jbsrTZwq2R4c6bUcLzkM5YQm4cHhaxI8W+E=";
 
 export async function loginAdmin({ request, env }) {
   const payload = await readJson(request);
   const email = requireString(payload.email, "email", { max: 180 }).toLowerCase();
   const password = requireString(payload.password, "password", { max: 300 });
+  const createdAt = requestNow({ request, env });
+  const securityContext = await createLoginSecurityContext({ request, env, email, now: createdAt });
+  await prepareLoginSecurity({ env, context: securityContext });
+
+  const turnstile = await verifyAdminTurnstile({
+    request,
+    env,
+    token: payload.turnstile_token,
+    context: securityContext,
+  });
+  if (turnstile.enabled && !turnstile.valid) {
+    await recordLoginFailure({ env, context: securityContext, reasonCode: turnstile.reasonCode });
+  }
+
   const user = await findUserByEmail(env, email);
-
-  if (!user || user.status !== "active") {
-    throw unauthorized("Credenciais administrativas invalidas.");
-  }
-
-  if (!isSupportedPasswordRecord(user)) {
-    throw unauthorized("Credenciais administrativas invalidas.");
-  }
-
-  const verified = await verifyPassword(password, user.password_hash);
-  if (!verified) {
-    throw unauthorized("Credenciais administrativas invalidas.");
+  const userEligible = user?.status === "active" && isSupportedPasswordRecord(user);
+  const verified = await verifyPassword(password, userEligible ? user.password_hash : DUMMY_PASSWORD_HASH);
+  if (!userEligible || !verified) {
+    return recordLoginFailure({ env, context: securityContext, reasonCode: "credentials_invalid" });
   }
 
   const sessionType = Number(user.force_password_change || 0) === 1 ? PASSWORD_CHANGE_SESSION_TYPE : FULL_SESSION_TYPE;
@@ -42,19 +57,26 @@ export async function loginAdmin({ request, env }) {
   const tokenHash = await sha256Hex(token);
   const userAgentHash = await optionalHeaderHash(request, "user-agent");
   const ipHash = await optionalHeaderHash(request, "cf-connecting-ip");
-  const createdAt = requestNow({ request, env });
   const expiresAt = new Date(Date.parse(createdAt) + SESSION_TTL_SECONDS * 1000).toISOString();
+  const sessionId = createPublicId("sess");
 
-  await run(
+  await createProtectedAdminSession({
     env,
-    `INSERT INTO admin_sessions (
-       id, user_id, token_hash, user_agent_hash, ip_hash, session_type, created_at, expires_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [createPublicId("sess"), user.id, tokenHash, userAgentHash, ipHash, sessionType, createdAt, expiresAt],
-  );
+    context: securityContext,
+    sessionRecord: {
+      id: sessionId,
+      userId: user.id,
+      tokenHash,
+      userAgentHash,
+      ipHash,
+      sessionType,
+      createdAt,
+      expiresAt,
+    },
+  });
 
   const session = await buildAdminSession(env, {
-    session_id: null,
+    session_id: sessionId,
     user_id: user.id,
     display_name: user.display_name,
     email: user.email,

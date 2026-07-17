@@ -151,9 +151,14 @@ Contratos futuros:
 ENVIRONMENT=development
 IMPRESSION_ENABLED=false
 DEFAULT_HOTEL_SLUG=muller-fioreze
+TURNSTILE_ENABLED=false
+TURNSTILE_SITE_KEY=TURNSTILE_SITE_KEY_PUBLICA_AQUI
+TURNSTILE_ALLOWED_HOSTNAMES=localhost,127.0.0.1
+TURNSTILE_SECRET_KEY=TURNSTILE_SECRET_KEY_LOCAL_NAO_VERSIONADA
+LOGIN_RATE_LIMIT_KEY=LOGIN_RATE_LIMIT_KEY_LOCAL_COM_32_CARACTERES_OU_MAIS
 ```
 
-Nao colocar credenciais reais em `.dev.vars`, `wrangler.jsonc` ou seeds.
+Nao colocar credenciais reais em `.dev.vars`, `wrangler.jsonc` ou seeds. `TURNSTILE_SECRET_KEY` e `LOGIN_RATE_LIMIT_KEY` devem ser secrets separados no Worker e no Pages; somente placeholders locais aparecem em `.dev.vars.example`.
 
 O `wrangler.jsonc` de desenvolvimento declara o binding R2:
 
@@ -340,6 +345,10 @@ O MVP administrativo implementa login real para ambiente local e desenvolvimento
 - o cabecalho `x-fioreze-test-now` so e aceito quando `ENVIRONMENT=test`;
 - POSTs administrativos autenticados exigem origem same-origin, quando `Origin` existir, e o cabecalho `x-fioreze-admin-action: erp-admin`;
 - acesso por hotel vem de `admin_hotel_access`;
+- tentativas usam HMAC da conta e do IP, sem armazenar os valores brutos;
+- bloqueios progressivos retornam `429` e `Retry-After`;
+- Turnstile usa action `admin_login`, validacao server-side e permanece desligado por padrao;
+- o shell aguarda `/api/v1/admin/session` e nao guarda usuario, hoteis ou permissoes em `sessionStorage`;
 - permissoes usadas pelo MVP:
   - `room-service.orders.read`;
   - `room-service.orders.write`;

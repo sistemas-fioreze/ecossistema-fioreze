@@ -40,6 +40,9 @@ const auth = createAdminAuthView({
     currentSession = session;
     return renderLauncher(session);
   },
+  onLoggedOut() {
+    currentSession = null;
+  },
 });
 
 auth.boot();
