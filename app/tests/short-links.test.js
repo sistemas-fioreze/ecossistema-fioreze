@@ -244,7 +244,7 @@ test("workers.dev preserva /go/:slug e nao transforma /:slug em link curto", asy
 
   assert.equal(technical.status, 302);
   assert.equal(plain.status, 200);
-  assert.match(await plain.text(), /\/index\.html/);
+  assert.match(await plain.text(), /<body>\/<\/body>/);
   assert.equal(otherHost.status, 200);
   assert.equal(env.__data.shortLinks.find((entry) => entry.slug === "reservas").total_clicks, 1);
 });

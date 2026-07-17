@@ -22,6 +22,8 @@ O build copia `public/` para `pages/dist/`, gera o bundle `pages/dist/_worker.js
 
 O arquivo `pages/wrangler.jsonc` fica em uma raiz propria porque o Wrangler Pages nao aceita `--config` com caminho alternativo. Os scripts `pages:dev` e `pages:deploy` entram nessa raiz por um lancador Node multiplataforma, sem carregar ou alterar o `wrangler.jsonc` do Worker.
 
+O fallback SPA solicita o asset pelo caminho canonico `/`. O codigo nao solicita `/index.html`, pois o Pages redireciona esse caminho para `/` e, com `/*` passando pelo `_worker.js`, isso criaria um loop de redirecionamento. O mesmo caminho canonico funciona no binding Static Assets do Worker atual.
+
 O diretorio `dist/` e temporario e permanece ignorado pelo Git.
 
 ## Bindings
