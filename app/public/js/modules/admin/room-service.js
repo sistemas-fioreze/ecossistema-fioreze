@@ -40,6 +40,13 @@ const auth = createAdminAuthView({
     state.session = session;
     await startDashboard();
   },
+  onLoggedOut() {
+    state.session = null;
+    state.hotels = [];
+    state.orders = [];
+    state.selectedOrderId = null;
+    state.selectedOrder = null;
+  },
 });
 
 auth.boot();

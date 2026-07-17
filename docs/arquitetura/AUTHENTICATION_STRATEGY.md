@@ -58,6 +58,16 @@ POSTs administrativos autenticados, como logout e mudanca de status, exigem:
 
 O front-end envia esse cabecalho nas mutacoes administrativas e nao armazena tokens em `localStorage`.
 
+O shell administrativo tambem nao usa `sessionStorage` para antecipar usuario, unidades ou permissoes. A interface permanece em carregamento ate a API de sessao responder e todas as decisoes de autorizacao continuam no backend.
+
+## Protecao Do Login
+
+A migration `0019_admin_login_security.sql` adiciona contadores de falhas e eventos de seguranca com hashes HMAC. A chave `LOGIN_RATE_LIMIT_KEY` permanece fora do repositorio. A politica inicial limita cinco falhas por conta e dez por IP em quinze minutos, com bloqueios progressivos e `Retry-After`.
+
+O Turnstile e opcional por feature flag. Quando `TURNSTILE_ENABLED=true`, o backend valida o token no Siteverify, exige action `admin_login` e aceita apenas hostnames de `TURNSTILE_ALLOWED_HOSTNAMES`. `TURNSTILE_SECRET_KEY` existe somente no runtime Cloudflare. Configuracao incompleta ou indisponibilidade da verificacao falham de forma segura.
+
+Detalhes operacionais estao em `docs/arquitetura/ADMIN_LOGIN_SECURITY.md`.
+
 ## Autorizacao
 
 O MVP usa:

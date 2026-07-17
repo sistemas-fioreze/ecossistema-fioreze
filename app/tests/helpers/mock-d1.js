@@ -7,6 +7,10 @@ export function createTestEnv(overrides = {}) {
     ENVIRONMENT: "test",
     IMPRESSION_ENABLED: "false",
     DEFAULT_HOTEL_SLUG: "muller-fioreze",
+    TURNSTILE_ENABLED: "false",
+    TURNSTILE_SITE_KEY: "",
+    TURNSTILE_ALLOWED_HOSTNAMES: "local.test,localhost,127.0.0.1",
+    LOGIN_RATE_LIMIT_KEY: "test-login-rate-limit-key-with-more-than-32-characters",
     __data: data,
     ...overrides,
   };
@@ -358,6 +362,8 @@ function createFixtureData() {
       { user_id: "user-aurora-admin", hotel_id: "aurora-demo", access_level: "manager" },
     ],
     adminSessions: [],
+    adminLoginAttempts: [],
+    adminLoginSecurityEvents: [],
     adminUserPreferences: [
       {
         user_id: "user-demo-admin",
@@ -597,6 +603,20 @@ class MockD1Database {
 
   selectFirst(sql, params) {
     const normalized = normalize(sql);
+
+    if (normalized.includes("from admin_login_attempts") && normalized.includes("locked_until > ?")) {
+      const [accountHash, ipHash, now] = params;
+      return (
+        this.data.adminLoginAttempts
+          .filter(
+            (entry) =>
+              ((entry.identifier_type === "account" && entry.identifier_hash === accountHash) ||
+                (entry.identifier_type === "ip" && entry.identifier_hash === ipHash)) &&
+              entry.locked_until > now,
+          )
+          .sort((left, right) => right.locked_until.localeCompare(left.locked_until))[0] || null
+      );
+    }
 
     if (normalized.includes("from hotels") && normalized.includes("where slug = ?")) {
       const [slug] = params;
@@ -1797,6 +1817,138 @@ class MockD1Database {
         line_total_cents,
         selected_options_snapshot,
         created_at,
+      });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("insert into admin_login_attempts")) {
+      const [identifier_type, identifier_hash, now, last_failed_at, expires_at, created_at, updated_at, cutoff, threshold] = params;
+      let attempt = this.data.adminLoginAttempts.find(
+        (entry) => entry.identifier_type === identifier_type && entry.identifier_hash === identifier_hash,
+      );
+      if (!attempt) {
+        attempt = {
+          identifier_type,
+          identifier_hash,
+          failure_count: 1,
+          lock_level: 0,
+          window_started_at: now,
+          last_failed_at,
+          locked_until: null,
+          expires_at,
+          created_at,
+          updated_at,
+        };
+        this.data.adminLoginAttempts.push(attempt);
+      } else if (!(attempt.locked_until && attempt.locked_until > now)) {
+        if (attempt.window_started_at <= cutoff) {
+          attempt.failure_count = 1;
+          attempt.window_started_at = now;
+          attempt.locked_until = null;
+        } else {
+          const candidate = attempt.failure_count + 1;
+          if (candidate >= Number(threshold)) {
+            attempt.failure_count = 0;
+            attempt.lock_level = Math.min(attempt.lock_level + 1, 4);
+            attempt.window_started_at = now;
+            attempt.locked_until = params[15 + attempt.lock_level];
+          } else {
+            attempt.failure_count = candidate;
+            if (attempt.locked_until && attempt.locked_until <= now) attempt.locked_until = null;
+          }
+        }
+        attempt.last_failed_at = now;
+        attempt.expires_at = expires_at;
+        attempt.updated_at = updated_at;
+      }
+      return d1Result(1, [
+        {
+          identifier_type: attempt.identifier_type,
+          failure_count: attempt.failure_count,
+          lock_level: attempt.lock_level,
+          locked_until: attempt.locked_until,
+        },
+      ]);
+    }
+
+    if (normalized.startsWith("delete from admin_login_attempts") && normalized.includes("expires_at <= ?")) {
+      const [now] = params;
+      const before = this.data.adminLoginAttempts.length;
+      this.data.adminLoginAttempts = this.data.adminLoginAttempts.filter((entry) => entry.expires_at > now);
+      return d1Result(before - this.data.adminLoginAttempts.length);
+    }
+
+    if (normalized.startsWith("delete from admin_login_attempts") && normalized.includes("identifier_type = 'account'")) {
+      const [accountHash, sessionId] = params;
+      if (!this.data.adminSessions.some((entry) => entry.id === sessionId)) return d1Result(0);
+      const before = this.data.adminLoginAttempts.length;
+      this.data.adminLoginAttempts = this.data.adminLoginAttempts.filter(
+        (entry) => !(entry.identifier_type === "account" && entry.identifier_hash === accountHash),
+      );
+      return d1Result(before - this.data.adminLoginAttempts.length);
+    }
+
+    if (normalized.startsWith("delete from admin_login_security_events")) {
+      const [now] = params;
+      const before = this.data.adminLoginSecurityEvents.length;
+      this.data.adminLoginSecurityEvents = this.data.adminLoginSecurityEvents.filter((entry) => entry.expires_at > now);
+      return d1Result(before - this.data.adminLoginSecurityEvents.length);
+    }
+
+    if (normalized.startsWith("insert into admin_login_security_events")) {
+      let event;
+      if (normalized.includes("select ?, 'login_success'")) {
+        const [id, account_hash, ip_hash, created_at, expires_at, sessionId] = params;
+        if (!this.data.adminSessions.some((entry) => entry.id === sessionId)) return d1Result(0);
+        event = {
+          id,
+          event_type: "login_success",
+          account_hash,
+          ip_hash,
+          reason_code: "credentials_valid",
+          metadata_json: null,
+          created_at,
+          expires_at,
+        };
+      } else if (normalized.includes("'challenge_unavailable'")) {
+        const [id, account_hash, ip_hash, reason_code, created_at, expires_at] = params;
+        event = {
+          id,
+          event_type: "challenge_unavailable",
+          account_hash,
+          ip_hash,
+          reason_code,
+          metadata_json: null,
+          created_at,
+          expires_at,
+        };
+      } else {
+        const [id, event_type, account_hash, ip_hash, reason_code, created_at, expires_at] = params;
+        event = { id, event_type, account_hash, ip_hash, reason_code, metadata_json: null, created_at, expires_at };
+      }
+      this.data.adminLoginSecurityEvents.push(event);
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("insert into admin_sessions") && normalized.includes("where not exists")) {
+      const [id, user_id, token_hash, user_agent_hash, ip_hash, session_type, created_at, expires_at, accountHash, rateIpHash, now] = params;
+      const blocked = this.data.adminLoginAttempts.some(
+        (entry) =>
+          ((entry.identifier_type === "account" && entry.identifier_hash === accountHash) ||
+            (entry.identifier_type === "ip" && entry.identifier_hash === rateIpHash)) &&
+          entry.locked_until > now,
+      );
+      if (blocked) return d1Result(0);
+      this.data.adminSessions.push({
+        id,
+        user_id,
+        token_hash,
+        user_agent_hash,
+        ip_hash,
+        session_type,
+        created_at,
+        expires_at,
+        revoked_at: null,
       });
       return d1Result(1);
     }

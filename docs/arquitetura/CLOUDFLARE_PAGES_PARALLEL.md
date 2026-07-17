@@ -44,8 +44,11 @@ Variaveis obrigatorias:
 | `ENVIRONMENT` | `development` |
 | `IMPRESSION_ENABLED` | `false` |
 | `DEFAULT_HOTEL_SLUG` | `muller-fioreze` |
+| `TURNSTILE_ENABLED` | `false` ate ativacao controlada |
+| `TURNSTILE_SITE_KEY` | chave publica do widget |
+| `TURNSTILE_ALLOWED_HOSTNAMES` | hostnames administrativos separados por virgula |
 
-Nao cadastre segredos no repositorio. Se uma variavel secreta for necessaria no futuro, use **Settings > Variables and Secrets** no projeto Pages.
+Nao cadastre segredos no repositorio. `TURNSTILE_SECRET_KEY` e `LOGIN_RATE_LIMIT_KEY` devem ser cadastradas como secrets em **Settings > Variables and Secrets** no projeto Pages e no Worker correspondente.
 
 ## Configuracao Pelo Dashboard
 

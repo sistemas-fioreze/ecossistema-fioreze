@@ -20,6 +20,10 @@ test("rotas administrativas declaram a secao do shell global", () => {
 
 test("shell administrativo compartilhado possui navegacao, avatar, ajuda e SVG local", () => {
   const source = fs.readFileSync("public/js/modules/admin/shared/admin-auth-view.js", "utf8");
+  const sourceWithoutTurnstile = source.replace(
+    "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit",
+    "",
+  );
   assert.match(source, /admin-global-sidebar/);
   assert.match(source, /admin-help-drawer/);
   assert.match(source, /admin-avatar/);
@@ -29,7 +33,8 @@ test("shell administrativo compartilhado possui navegacao, avatar, ajuda e SVG l
   assert.match(source, /\/api\/v1\/admin\/me\/preferences/);
   assert.match(source, /data-admin-palette/);
   assert.doesNotMatch(source, /Abra Pedidos|Ajuda de Pedidos|\/admin\/room-service/);
-  assert.doesNotMatch(source, /https:\/\/|cdn|lucide|fontawesome/i);
+  assert.match(source, /https:\/\/challenges\.cloudflare\.com\/turnstile\/v0\/api\.js\?render=explicit/);
+  assert.doesNotMatch(sourceWithoutTurnstile, /https:\/\/|cdn|lucide|fontawesome/i);
 });
 
 test("design system administrativo documenta identidade e modulos ativos", () => {

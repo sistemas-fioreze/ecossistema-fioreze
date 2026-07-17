@@ -208,6 +208,14 @@ const auth = createAdminAuthView({
     currentSession = session;
     renderPortals(session);
   },
+  onLoggedOut() {
+    currentSession = null;
+    currentAssets = [];
+    currentFolders = [];
+    currentShortLinks = [];
+    currentUnits = [];
+    currentUnit = null;
+  },
 });
 
 els.mediaFilters.addEventListener("submit", (event) => {

@@ -178,7 +178,7 @@ export default {
       });
     } catch (error) {
       if (error instanceof AppError) {
-        return withSecurityHeaders(fail(error.status, error.code, error.message, error.details), {
+        return withSecurityHeaders(fail(error.status, error.code, error.message, error.details, { headers: error.headers }), {
           embed: pathname.startsWith("/embed/"),
           admin: pathname.startsWith("/admin/") || pathname.startsWith("/erp/"),
           shortLinkHost,

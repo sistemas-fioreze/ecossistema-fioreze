@@ -67,4 +67,16 @@ if (Object.hasOwn(config.vars || {}, "SHORT_LINK_PUBLIC_ORIGIN")) {
   process.exit(1);
 }
 
+if (String(config.vars?.TURNSTILE_ENABLED).toLowerCase() !== "false") {
+  console.error("TURNSTILE_ENABLED deve permanecer false na configuracao padrao ate ativacao controlada.");
+  process.exit(1);
+}
+
+for (const secretName of ["TURNSTILE_SECRET_KEY", "LOGIN_RATE_LIMIT_KEY"]) {
+  if (Object.hasOwn(config.vars || {}, secretName)) {
+    console.error(`${secretName} nao pode ser versionada nas vars do Wrangler.`);
+    process.exit(1);
+  }
+}
+
 console.log("wrangler-config: ok");
