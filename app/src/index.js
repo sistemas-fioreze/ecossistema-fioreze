@@ -74,7 +74,9 @@ async function handleRequest(request, env, ctx) {
     return serveAsset(request, env);
   }
 
-  return serveAsset(request, env, "/index.html");
+  // Pages canonicaliza /index.html para /. Usar a rota canonica evita que o
+  // redirect volte ao _worker.js e repita indefinidamente o fallback SPA.
+  return serveAsset(request, env, "/");
 }
 
 function handleShortLinkCustomDomainRequest({ request, env, ctx, url }) {

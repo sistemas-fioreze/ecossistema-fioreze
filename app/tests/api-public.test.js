@@ -128,7 +128,7 @@ test("shell publico e servido para rotas de hotel sem baixar HTML remoto", async
   const text = await response.text();
 
   assert.equal(response.status, 200);
-  assert.match(text, /\/index\.html/);
+  assert.match(text, /<body>\/<\/body>/);
 });
 
 test("rota administrativa sem autenticacao retorna 401", async () => {
