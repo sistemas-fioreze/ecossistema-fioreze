@@ -15,6 +15,7 @@ import {
   PORTALS_LINKS_ANALYTICS_PERMISSION,
   PORTALS_LINKS_ARCHIVE_PERMISSION,
   PORTALS_LINKS_CREATE_PERMISSION,
+  PORTALS_LINKS_DELETE_PERMISSION,
   PORTALS_LINKS_UPDATE_PERMISSION,
   canAccessAreas,
   canAccessAudit,
@@ -105,6 +106,11 @@ const els = {
   shortLinksForm: document.getElementById("shortLinksForm"),
   shortLinksPreview: document.getElementById("shortLinksPreview"),
   shortLinksAnalytics: document.getElementById("shortLinksAnalytics"),
+  shortLinkQrPanel: document.getElementById("shortLinkQrPanel"),
+  shortLinkQrImage: document.getElementById("shortLinkQrImage"),
+  shortLinkQrUrl: document.getElementById("shortLinkQrUrl"),
+  shortLinkQrDownload: document.getElementById("shortLinkQrDownload"),
+  copyShortLinkQrButton: document.getElementById("copyShortLinkQrButton"),
   addShortLinkButton: document.getElementById("addShortLinkButton"),
   cancelShortLinkButton: document.getElementById("cancelShortLinkButton"),
   contentManager: document.getElementById("contentManager"),
@@ -135,7 +141,7 @@ const els = {
 const portalCards = [
   ["unidades", "Unidades", "Cadastre hotéis, identidade visual, módulos e navegação.", "/admin/portais/unidades/"],
   ["media", "Biblioteca de mídia", "Gerencie imagens, vídeos e pastas dos portais e módulos.", "/admin/portais/media/"],
-  ["links", "Links personalizados", "Crie endereços curtos para campanhas, QR Codes e comunicação.", "/admin/portais/links/"],
+  ["links", "Links e QR Codes", "Crie endereços curtos, QR Codes e acompanhe acessos.", "/admin/portais/links/"],
   ["conteudos", "Conteúdos", "Páginas, eventos e informações dos hotéis.", "/admin/portais/conteudos/"],
   ["modulos", "Áreas", "Ativação e ajustes das experiências.", "/admin/portais/areas/"],
   ["navegacao", "Navegação", "Menus e caminhos dos portais.", "/admin/portais/navegacao/"],
@@ -199,7 +205,7 @@ let currentEmbed = null;
 let activeUnitTab = "general";
 let dirty = false;
 let contentType = "pages";
-let currentContent = { pages: [], events: [], information: [] };
+let currentContent = { pages: [], custom_pages: [], events: [], information: [] };
 let dedicatedModules = [];
 let dedicatedNavigation = [];
 
@@ -265,6 +271,7 @@ els.cancelShortLinkButton.addEventListener("click", () => closeShortLinkEditor()
 els.shortLinksForm.addEventListener("submit", saveShortLink);
 els.shortLinksForm.addEventListener("input", updateShortLinkPreview);
 els.shortLinksList.addEventListener("click", handleShortLinkAction);
+els.copyShortLinkQrButton.addEventListener("click", copyCurrentShortLinkUrl);
 
 els.unitFilters.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -909,7 +916,7 @@ async function handleNavigationAction(button) {
 }
 
 function renderShortLinksManager(session) {
-  setHeading("Links personalizados", "Crie endereços curtos para campanhas, QR Codes, WhatsApp, mapas e motores de reserva.");
+  setHeading("Links e QR Codes", "Centralize endereços curtos, QR Codes e métricas de acesso das unidades.");
   const allowed = canAccessLinks(session);
   showPortalSection(allowed ? els.shortLinksManager : null);
   els.portalsDenied.hidden = allowed;
@@ -970,7 +977,7 @@ function renderShortLinksSummary() {
 
 function renderShortLinksList() {
   if (!currentShortLinks.length) {
-    els.shortLinksList.innerHTML = '<div class="admin-empty">Nenhum link personalizado encontrado.</div>';
+    els.shortLinksList.innerHTML = '<div class="admin-empty">Nenhum link encontrado para estes filtros.</div>';
     return;
   }
   els.shortLinksList.innerHTML = currentShortLinks.map(renderShortLinkRow).join("");
@@ -979,42 +986,50 @@ function renderShortLinksList() {
 function renderShortLinkRow(link) {
   const canUpdate = hasPermission(currentSession, PORTALS_LINKS_UPDATE_PERMISSION) && link.status !== "archived";
   const canArchive = hasPermission(currentSession, PORTALS_LINKS_ARCHIVE_PERMISSION) && link.status !== "archived";
+  const canDelete = hasPermission(currentSession, PORTALS_LINKS_DELETE_PERMISSION) && link.status === "archived";
   return `
-    <article class="admin-short-link-row">
-      <div>
-        <strong>${escapeHtml(link.internal_name)}</strong>
-        <span>${escapeHtml(link.public_url)}</span>
-        <small>${escapeHtml(link.destination_summary || link.destination_scheme)}</small>
+    <article class="admin-short-link-row admin-link-card">
+      <span class="admin-link-card-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.2 1.2"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.2-1.2"/></svg>
+      </span>
+      <div class="admin-link-card-copy">
+        <div><strong>${escapeHtml(link.internal_name)}</strong><span class="admin-status" data-status="${escapeAttr(link.status)}">${escapeHtml(shortLinkStatus(link.status))}</span></div>
+        <a href="${escapeAttr(link.public_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(link.public_url)}</a>
+        <small>Destino: ${escapeHtml(link.destination_summary || link.destination_scheme)}</small>
       </div>
-      <span class="admin-status">${escapeHtml(link.status)}</span>
-      <span>${escapeHtml(link.hotel_name || link.hotel_id)}</span>
-      <span>${Number(link.total_clicks || 0)} cliques</span>
-      <span>${link.last_clicked_at ? escapeHtml(formatDate(link.last_clicked_at, link.hotel_timezone)) : "Sem acesso"}</span>
+      <div class="admin-link-card-metrics">
+        <span><strong>${Number(link.total_clicks || 0)}</strong> cliques</span>
+        <span>${link.last_clicked_at ? `Último acesso ${escapeHtml(formatDate(link.last_clicked_at, link.hotel_timezone))}` : "Ainda sem acessos"}</span>
+        <small>${escapeHtml(link.hotel_name || link.hotel_id)}</small>
+      </div>
       <div class="admin-row-actions">
         <button type="button" data-link-action="edit" data-link-id="${escapeAttr(link.id)}">Abrir</button>
         <button type="button" data-link-action="copy" data-link-id="${escapeAttr(link.id)}">Copiar</button>
+        <button type="button" data-link-action="qr" data-link-id="${escapeAttr(link.id)}">QR Code</button>
         ${canUpdate ? `<button type="button" data-link-action="toggle" data-link-id="${escapeAttr(link.id)}">${link.status === "active" ? "Pausar" : "Reativar"}</button>` : ""}
         ${canArchive ? `<button class="danger" type="button" data-link-action="archive" data-link-id="${escapeAttr(link.id)}">Arquivar</button>` : ""}
+        ${canDelete ? `<button class="danger" type="button" data-link-action="delete" data-link-id="${escapeAttr(link.id)}">Excluir</button>` : ""}
       </div>
     </article>
   `;
 }
 
-function openShortLinkEditor(link = null) {
+function openShortLinkEditor(link = null, defaults = {}) {
   currentShortLink = link;
   els.shortLinksEditor.hidden = false;
   els.shortLinksEditorTitle.textContent = link ? "Editar link personalizado" : "Novo link personalizado";
   const form = els.shortLinksForm;
-  form.elements.hotel_id.value = link?.hotel_id || els.shortLinksHotel.value || getAuthorizedHotels(currentSession)[0]?.hotel_id || "";
-  form.elements.internal_name.value = link?.internal_name || "";
-  form.elements.slug.value = link?.slug || "";
+  form.elements.hotel_id.value = link?.hotel_id || defaults.hotel_id || els.shortLinksHotel.value || getAuthorizedHotels(currentSession)[0]?.hotel_id || "";
+  form.elements.internal_name.value = link?.internal_name || defaults.internal_name || "";
+  form.elements.slug.value = link?.slug || defaults.slug || "";
   form.elements.slug.disabled = Boolean(link);
-  form.elements.destination_url.value = link?.destination_url || "";
+  form.elements.destination_url.value = link?.destination_url || defaults.destination_url || "";
   form.elements.status.value = link?.status === "archived" ? "paused" : link?.status || "active";
   form.elements.starts_at.value = toLocalDateTime(link?.starts_at);
   form.elements.expires_at.value = toLocalDateTime(link?.expires_at);
   form.elements.notes.value = link?.notes || "";
   renderShortLinkAnalytics(null);
+  renderShortLinkQr(link);
   updateShortLinkPreview();
   if (link && hasPermission(currentSession, PORTALS_LINKS_ANALYTICS_PERMISSION)) loadShortLinkAnalytics(link.id);
 }
@@ -1024,6 +1039,7 @@ function closeShortLinkEditor() {
   els.shortLinksEditor.hidden = true;
   els.shortLinksForm.reset();
   els.shortLinksPreview.textContent = "";
+  renderShortLinkQr(null);
   renderShortLinkAnalytics(null);
 }
 
@@ -1069,6 +1085,11 @@ async function handleShortLinkAction(event) {
     button.textContent = "Copiado";
     return;
   }
+  if (action === "qr") {
+    openShortLinkEditor(link);
+    els.shortLinkQrPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    return;
+  }
   if (action === "toggle") {
     await updateShortLinkStatus(link, link.status === "active" ? "paused" : "active");
     return;
@@ -1076,6 +1097,12 @@ async function handleShortLinkAction(event) {
   if (action === "archive") {
     if (!window.confirm("Arquivar este link? O histórico agregado de cliques será preservado.")) return;
     await archiveShortLink(link);
+    return;
+  }
+  if (action === "delete") {
+    const confirmation = window.prompt(`Digite ${link.slug} para excluir este link definitivamente.`);
+    if (confirmation !== link.slug) return;
+    await deleteShortLink(link);
   }
 }
 
@@ -1102,6 +1129,46 @@ async function archiveShortLink(link) {
   } catch (error) {
     els.shortLinksMessage.textContent = error.message || "Não foi possível arquivar o link.";
   }
+}
+
+async function deleteShortLink(link) {
+  try {
+    await adminApi(`/api/v1/admin/short-links/${encodeURIComponent(link.id)}/permanent`, {
+      method: "DELETE",
+      body: {},
+    });
+    closeShortLinkEditor();
+    await loadShortLinks();
+  } catch (error) {
+    els.shortLinksMessage.textContent = error.message || "Não foi possível excluir o link.";
+  }
+}
+
+function renderShortLinkQr(link) {
+  els.shortLinkQrPanel.hidden = !link;
+  if (!link) {
+    els.shortLinkQrImage.removeAttribute("src");
+    els.shortLinkQrDownload.href = "#";
+    els.shortLinkQrUrl.textContent = "";
+    return;
+  }
+  const endpoint = `/api/v1/admin/short-links/${encodeURIComponent(link.id)}/qrcode.svg`;
+  els.shortLinkQrImage.src = endpoint;
+  els.shortLinkQrDownload.href = `${endpoint}?download=1`;
+  els.shortLinkQrUrl.textContent = link.public_url;
+}
+
+async function copyCurrentShortLinkUrl() {
+  if (!currentShortLink?.public_url) return;
+  await navigator.clipboard?.writeText(currentShortLink.public_url);
+  els.copyShortLinkQrButton.textContent = "Endereço copiado";
+  window.setTimeout(() => {
+    els.copyShortLinkQrButton.textContent = "Copiar endereço";
+  }, 1600);
+}
+
+function shortLinkStatus(status) {
+  return ({ active: "Ativo", paused: "Pausado", archived: "Arquivado" })[status] || status;
 }
 
 async function loadShortLinkAnalytics(linkId) {
@@ -1907,8 +1974,15 @@ async function loadPortalContent() {
   if (!els.contentHotel.value) return;
   els.contentMessage.textContent = "Carregando conteúdos...";
   try {
-    const payload = await adminApi(`/api/v1/admin/portal/content?hotel_id=${encodeURIComponent(els.contentHotel.value)}`);
-    currentContent = payload.data;
+    const hotelId = encodeURIComponent(els.contentHotel.value);
+    const [contentPayload, customPagesPayload] = await Promise.all([
+      adminApi(`/api/v1/admin/portal/content?hotel_id=${hotelId}`),
+      adminApi(`/api/v1/admin/custom-portal-pages?hotel_id=${hotelId}`),
+    ]);
+    currentContent = {
+      ...contentPayload.data,
+      custom_pages: customPagesPayload.data.pages || [],
+    };
     renderContentList();
   } catch (error) {
     els.contentMessage.textContent = error.message || "Não foi possível carregar os conteúdos.";
@@ -1917,7 +1991,7 @@ async function loadPortalContent() {
 
 function renderContentList() {
   const rows = currentContent[contentType] || [];
-  const labels = { pages: "página(s)", events: "evento(s)", information: "informação(ões)" };
+  const labels = { pages: "página(s)", custom_pages: "página(s) HTML", events: "evento(s)", information: "informação(ões)" };
   els.contentMessage.textContent = `${rows.length} ${labels[contentType]}.`;
   els.contentList.innerHTML = rows.map((item) => renderContentRow(item, contentType)).join("") || '<p class="admin-empty">Nenhum conteúdo cadastrado.</p>';
 }
@@ -1925,6 +1999,11 @@ function renderContentList() {
 function renderContentRow(item, type) {
   if (type === "pages") {
     return `<article class="admin-data-row admin-content-row"><span class="admin-role-icon">${featureSvg("page")}</span><div class="admin-row-copy"><strong>${escapeHtml(item.title)}</strong><span>/${escapeHtml(item.slug)}</span><small>${Number(item.section_count || 0)} seção(ões) · ordem ${Number(item.sort_order || 0)}</small></div><span class="admin-status-chip" data-status="${escapeAttr(item.status)}">${contentStatus(item.status)}</span><div class="admin-row-actions"><button type="button" data-content-action="sections" data-id="${escapeAttr(item.id)}">Seções</button><button type="button" data-content-action="edit" data-id="${escapeAttr(item.id)}">Editar</button></div></article>`;
+  }
+  if (type === "custom_pages") {
+    const canEdit = hasPermission(currentSession, PORTALS_HOTELS_SETTINGS_PERMISSION) && item.status !== "archived";
+    const canCreateLink = item.status === "published" && hasPermission(currentSession, PORTALS_LINKS_CREATE_PERMISSION);
+    return `<article class="admin-data-row admin-content-row admin-custom-page-row"><span class="admin-role-icon">${featureSvg("code")}</span><div class="admin-row-copy"><strong>${escapeHtml(item.title)}</strong><a href="${escapeAttr(item.public_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.public_url)}</a><small>HTML sanitizado · atualizado em ${escapeHtml(formatDate(item.updated_at))}</small></div><span class="admin-status-chip" data-status="${escapeAttr(item.status)}">${contentStatus(item.status)}</span><div class="admin-row-actions">${canEdit ? `<button type="button" data-content-action="edit" data-id="${escapeAttr(item.id)}">Editar</button>` : ""}${canCreateLink ? `<button type="button" data-content-action="create-link" data-id="${escapeAttr(item.id)}">Criar link e QR</button>` : ""}${canEdit ? `<button class="danger" type="button" data-content-action="archive-custom" data-id="${escapeAttr(item.id)}">Arquivar</button>` : ""}</div></article>`;
   }
   if (type === "events") {
     return `<article class="admin-data-row admin-content-row"><span class="admin-role-icon">${featureSvg("event")}</span><div class="admin-row-copy"><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(formatDate(item.starts_at, item.timezone))}</span><small>${escapeHtml(item.summary || "Sem resumo")}</small></div><span class="admin-status-chip" data-status="${escapeAttr(item.status)}">${contentStatus(item.status)}</span><div class="admin-row-actions"><button type="button" data-content-action="edit" data-id="${escapeAttr(item.id)}">Editar</button></div></article>`;
@@ -1946,10 +2025,17 @@ function handleContentClick(event) {
   if (!action) return;
   if (action.dataset.contentAction === "sections") return openSectionsEditor(action.dataset.id);
   const item = (currentContent[contentType] || []).find((entry) => entry.id === action.dataset.id);
-  if (item) openContentEditor(item);
+  if (!item) return;
+  if (action.dataset.contentAction === "create-link") return createShortLinkFromCustomPage(item);
+  if (action.dataset.contentAction === "archive-custom") return archiveCustomPage(item);
+  openContentEditor(item);
 }
 
 function openContentEditor(item = null) {
+  if (contentType === "custom_pages") {
+    openCustomPageEditor(item);
+    return;
+  }
   const typeLabel = { pages: "página", events: "evento", information: "informação" }[contentType];
   const article = contentType === "events" ? "Novo" : "Nova";
   els.dialogTitle.textContent = `${item ? "Editar" : article} ${typeLabel}`;
@@ -1985,6 +2071,8 @@ async function saveContent(event, item) {
   if (contentType === "pages") {
     body.sort_order = Number(body.sort_order || 100);
     body.hotel_id = els.contentHotel.value;
+  } else if (contentType === "custom_pages") {
+    if (!item) body.hotel_id = els.contentHotel.value;
   } else if (contentType === "events") {
     body.hotel_id = els.contentHotel.value;
     body.starts_at = fromLocalDateTime(body.starts_at);
@@ -1995,7 +2083,13 @@ async function saveContent(event, item) {
     body.is_public = data.has("is_public");
   }
   const base = { pages: "pages", events: "events", information: "information" }[contentType];
-  const path = item ? `/api/v1/admin/portal/${base}/${encodeURIComponent(item.id)}` : `/api/v1/admin/portal/${base}`;
+  const path = contentType === "custom_pages"
+    ? item
+      ? `/api/v1/admin/custom-portal-pages/${encodeURIComponent(item.id)}`
+      : "/api/v1/admin/custom-portal-pages"
+    : item
+      ? `/api/v1/admin/portal/${base}/${encodeURIComponent(item.id)}`
+      : `/api/v1/admin/portal/${base}`;
   try {
     message.textContent = "Salvando...";
     await adminApi(path, { method: item ? "PATCH" : "POST", body });
@@ -2004,6 +2098,48 @@ async function saveContent(event, item) {
   } catch (error) {
     message.textContent = error.message || "Não foi possível salvar o conteúdo.";
   }
+}
+
+async function openCustomPageEditor(item = null) {
+  els.dialogTitle.textContent = item ? "Editar página HTML" : "Nova página HTML";
+  els.dialogBody.innerHTML = '<p class="admin-muted">Preparando editor seguro...</p>';
+  openPortalsDialog();
+  try {
+    let page = item;
+    if (item) {
+      const payload = await adminApi(`/api/v1/admin/custom-portal-pages/${encodeURIComponent(item.id)}`);
+      page = payload.data.page;
+    }
+    els.dialogBody.innerHTML = contentForm("custom-page", `
+      <div class="admin-form-grid">${dialogField("Título", "title", page?.title, "text", true)}${dialogField("Endereço", "slug", page?.slug, "text", true, "[a-z0-9-]+")}</div>
+      ${dialogSelect("Status", "status", page?.status === "archived" ? "draft" : page?.status || "draft", [["draft", "Rascunho"], ["published", "Publicada"]])}
+      <label class="admin-html-editor-field"><span>HTML personalizado</span><textarea name="html" rows="18" maxlength="250000" spellcheck="false" required>${escapeHtml(page?.html || "")}</textarea><small>Scripts, formulários, iframes, eventos e endereços inseguros são removidos automaticamente. Use estilos inline para personalizar o conteúdo.</small></label>
+      <aside class="admin-sanitization-note"><strong>Publicação protegida</strong><span>O conteúdo é exibido isolado da sessão administrativa e não recebe acesso às APIs internas.</span></aside>`);
+    bindDialogForm((event) => saveContent(event, item));
+  } catch (error) {
+    els.dialogBody.innerHTML = `<p class="admin-error">${escapeHtml(error.message || "Não foi possível abrir a página HTML.")}</p>`;
+  }
+}
+
+async function archiveCustomPage(item) {
+  if (!window.confirm("Arquivar esta página HTML? O endereço público deixará de responder.")) return;
+  try {
+    await adminApi(`/api/v1/admin/custom-portal-pages/${encodeURIComponent(item.id)}`, { method: "DELETE", body: {} });
+    await loadPortalContent();
+  } catch (error) {
+    els.contentMessage.textContent = error.message || "Não foi possível arquivar a página HTML.";
+  }
+}
+
+function createShortLinkFromCustomPage(item) {
+  navigateSoft("/admin/portais/links/");
+  renderPortals(currentSession);
+  els.shortLinksHotel.value = item.hotel_id;
+  openShortLinkEditor(null, {
+    hotel_id: item.hotel_id,
+    internal_name: item.title,
+    destination_url: item.public_url,
+  });
 }
 
 async function openSectionsEditor(pageId) {
@@ -2263,6 +2399,7 @@ function featureSvg(type) {
     info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>',
     navigation: '<circle cx="12" cy="12" r="9"/><path d="m15 9-2 6-6 2 2-6z"/>',
     history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>',
+    code: '<path d="m8 9-3 3 3 3M16 9l3 3-3 3M14 5l-4 14"/>',
   };
   return `<svg class="admin-svg-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[type] || paths.page}</svg>`;
 }

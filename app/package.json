@@ -25,5 +25,9 @@
     "ajv": "^8.17.1",
     "esbuild": "^0.28.1",
     "wrangler": "^4.0.0"
+  },
+  "dependencies": {
+    "qrcode-generator": "^2.0.4",
+    "xss": "^1.0.15"
   }
 }

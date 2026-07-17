@@ -4,6 +4,7 @@ import { createPublicId } from "../../core/identifiers.js";
 import { requestNow } from "../../core/time.js";
 import { optionalString, readJson, requireString } from "../../core/validation.js";
 import { assertAdminMutationAllowed, requireAdminHotelAccess, requirePermission } from "../../services/admin-auth.js";
+import { createQrCodeSvg } from "../../services/qr-code.js";
 import {
   EDITABLE_SHORT_LINK_STATUSES,
   assertDateWindow,
@@ -18,6 +19,7 @@ const READ_PERMISSION = "portals.links.read";
 const CREATE_PERMISSION = "portals.links.create";
 const UPDATE_PERMISSION = "portals.links.update";
 const ARCHIVE_PERMISSION = "portals.links.archive";
+const DELETE_PERMISSION = "portals.links.delete";
 const ANALYTICS_PERMISSION = "portals.links.analytics";
 const SORTS = {
   created: "created_at DESC, id DESC",
@@ -248,6 +250,47 @@ export async function archiveAdminShortLink({ request, env, session, linkId }) {
   return { link: formatShortLink(archived, { request, env }), archived: true };
 }
 
+export async function deleteAdminShortLink({ request, env, session, linkId }) {
+  requirePermission(session, DELETE_PERMISSION);
+  assertAdminMutationAllowed({ request });
+  const current = await loadShortLinkForSession({ env, session, linkId });
+  if (!current) throw notFoundError("Link nao encontrado.");
+  if (current.status !== "archived") {
+    throw conflict("Arquive o link antes de exclui-lo definitivamente.");
+  }
+
+  const now = requestNow({ request, env });
+  const results = await batch(env, [
+    deleteAuditStatement(env, {
+      hotelId: current.hotel_id,
+      actorUserId: session.user.id,
+      entityId: current.id,
+      slug: current.slug,
+      createdAt: now,
+    }),
+    statement(env, "DELETE FROM short_links WHERE id = ? AND hotel_id = ? AND status = 'archived'", [current.id, current.hotel_id]),
+  ]);
+  if (Number(results[1]?.meta?.changes || 0) !== 1) throw conflict("O link nao pode ser excluido no estado atual.");
+  return { id: current.id, slug: current.slug, deleted: true };
+}
+
+export async function getAdminShortLinkQrCode({ request, env, session, linkId, url }) {
+  requirePermission(session, READ_PERMISSION);
+  const link = await loadShortLinkForSession({ env, session, linkId });
+  if (!link) throw notFoundError("Link nao encontrado.");
+  const publicUrl = shortLinkPublicUrl({ env, request, slug: link.slug });
+  const headers = new Headers({
+    "content-type": "image/svg+xml; charset=utf-8",
+    "cache-control": "no-store",
+    "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+    "x-content-type-options": "nosniff",
+  });
+  if (url.searchParams.get("download") === "1") {
+    headers.set("content-disposition", `attachment; filename="qr-${link.slug}.svg"`);
+  }
+  return new Response(createQrCodeSvg(publicUrl), { status: 200, headers });
+}
+
 export async function getAdminShortLinkAnalytics({ request, env, session, linkId }) {
   requirePermission(session, ANALYTICS_PERMISSION);
   const link = await loadShortLinkForSession({ env, session, linkId });
@@ -357,5 +400,27 @@ function auditStatement(env, { hotelId, actorUserId, action, entityId, metadata,
        entity_id, metadata_json, created_at
      ) VALUES (?, ?, NULL, ?, ?, 'short_link', ?, ?, ?)`,
     [createPublicId("audit"), hotelId, actorUserId, action, entityId, JSON.stringify(metadata), createdAt],
+  );
+}
+
+function deleteAuditStatement(env, { hotelId, actorUserId, entityId, slug, createdAt }) {
+  return statement(
+    env,
+    `INSERT INTO admin_audit_log (
+       id, hotel_id, module_key, actor_user_id, action, entity_type,
+       entity_id, metadata_json, created_at
+     )
+     SELECT ?, sl.hotel_id, NULL, ?, 'short-link.delete', 'short_link',
+            sl.id, ?, ?
+       FROM short_links sl
+      WHERE sl.id = ? AND sl.hotel_id = ? AND sl.status = 'archived'`,
+    [
+      createPublicId("audit"),
+      actorUserId,
+      JSON.stringify({ slug, deleted: true }),
+      createdAt,
+      entityId,
+      hotelId,
+    ],
   );
 }

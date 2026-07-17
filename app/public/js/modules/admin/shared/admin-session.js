@@ -7,6 +7,7 @@ export const PORTALS_LINKS_READ_PERMISSION = "portals.links.read";
 export const PORTALS_LINKS_CREATE_PERMISSION = "portals.links.create";
 export const PORTALS_LINKS_UPDATE_PERMISSION = "portals.links.update";
 export const PORTALS_LINKS_ARCHIVE_PERMISSION = "portals.links.archive";
+export const PORTALS_LINKS_DELETE_PERMISSION = "portals.links.delete";
 export const PORTALS_LINKS_ANALYTICS_PERMISSION = "portals.links.analytics";
 export const PORTALS_HOTELS_READ_PERMISSION = "portals.hotels.read";
 export const PORTALS_HOTELS_CREATE_PERMISSION = "portals.hotels.create";

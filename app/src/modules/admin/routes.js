@@ -74,11 +74,20 @@ import {
 import {
   archiveAdminShortLink,
   createAdminShortLink,
+  deleteAdminShortLink,
   getAdminShortLink,
   getAdminShortLinkAnalytics,
+  getAdminShortLinkQrCode,
   listAdminShortLinks,
   updateAdminShortLink,
 } from "./short-links.js";
+import {
+  archiveAdminCustomPortalPage,
+  createAdminCustomPortalPage,
+  getAdminCustomPortalPage,
+  listAdminCustomPortalPages,
+  updateAdminCustomPortalPage,
+} from "./custom-portal-pages.js";
 import {
   changeOwnPassword,
   archiveAdminUser,
@@ -718,6 +727,41 @@ export function registerAdminRoutes(router) {
   router.get("/api/v1/admin/short-links/:id/analytics", async ({ request, env, params }) => {
     const session = await requireAuthentication({ request, env });
     return ok(await getAdminShortLinkAnalytics({ request, env, session, linkId: params.id }));
+  });
+
+  router.get("/api/v1/admin/short-links/:id/qrcode.svg", async ({ request, env, params, url }) => {
+    const session = await requireAuthentication({ request, env });
+    return getAdminShortLinkQrCode({ request, env, session, linkId: params.id, url });
+  });
+
+  router.delete("/api/v1/admin/short-links/:id/permanent", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await deleteAdminShortLink({ request, env, session, linkId: params.id }));
+  });
+
+  router.get("/api/v1/admin/custom-portal-pages", async ({ request, env, url }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await listAdminCustomPortalPages({ request, env, session, url }));
+  });
+
+  router.post("/api/v1/admin/custom-portal-pages", async ({ request, env }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await createAdminCustomPortalPage({ request, env, session }), { status: 201 });
+  });
+
+  router.get("/api/v1/admin/custom-portal-pages/:id", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await getAdminCustomPortalPage({ request, env, session, pageId: params.id }));
+  });
+
+  router.patch("/api/v1/admin/custom-portal-pages/:id", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await updateAdminCustomPortalPage({ request, env, session, pageId: params.id }));
+  });
+
+  router.delete("/api/v1/admin/custom-portal-pages/:id", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await archiveAdminCustomPortalPage({ request, env, session, pageId: params.id }));
   });
 
   router.all("/api/v1/admin/*", async ({ request, env }) => {
