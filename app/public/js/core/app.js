@@ -3,7 +3,7 @@ import { escapeHtml, renderError } from "./errors.js";
 import { loadModule } from "./module-loader.js";
 import { setActiveNavigation } from "./router.js";
 import { resolveModuleFromPath, resolveSlugFromPath } from "./tenant.js";
-import { applyBranding } from "./theme.js";
+import { applyBranding, sanitizePublicAssetUrl } from "./theme.js";
 
 const app = document.getElementById("app");
 
@@ -21,9 +21,11 @@ async function boot() {
   const enabledModules = new Set(bootstrap.modules.map((module) => module.module_key));
   const moduleKey = enabledModules.has(requestedModule) ? requestedModule : "guest-portal";
 
+  app.classList.toggle("guest-portal-root", moduleKey === "guest-portal");
+  document.title = `${bootstrap.short_name || bootstrap.name} | Portal do Hóspede`;
   app.innerHTML = renderShell(bootstrap, moduleKey);
   const nav = app.querySelector("[data-module-nav]");
-  setActiveNavigation(nav, moduleKey);
+  if (nav) setActiveNavigation(nav, moduleKey);
 
   const moduleContainer = app.querySelector("[data-module-view]");
   const module = await loadModule(moduleKey);
@@ -31,7 +33,11 @@ async function boot() {
 }
 
 function renderShell(bootstrap, moduleKey) {
-  const logoUrl = sanitizeAssetPath(bootstrap.branding?.logo_url);
+  if (moduleKey === "guest-portal") {
+    return `<section class="module-view guest-portal-view" data-module-view data-module-key="guest-portal"></section>`;
+  }
+
+  const logoUrl = sanitizePublicAssetUrl(bootstrap.branding?.horizontal_logo_url || bootstrap.branding?.logo_url);
   const logo = logoUrl
     ? `<img class="hotel-logo" src="${escapeHtml(logoUrl)}" alt="">`
     : `<div class="hotel-logo" aria-hidden="true"></div>`;
@@ -60,12 +66,6 @@ function renderShell(bootstrap, moduleKey) {
       </section>
     </section>
   `;
-}
-
-function sanitizeAssetPath(path) {
-  const value = String(path || "").trim();
-  if (value.startsWith("/assets/")) return value;
-  return null;
 }
 
 boot().catch((error) => {

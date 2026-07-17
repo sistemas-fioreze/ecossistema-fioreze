@@ -41,7 +41,7 @@ Rotas administrativas:
 
 Autorizacao visual usa `permission_key` retornada pela sessao e acesso por hotel retornado pelo backend. A barreira efetiva permanece nas APIs administrativas.
 
-Rotas publicas planejadas:
+Rotas publicas compartilhadas:
 
 - `/muller-fioreze`
 - `/muller-fioreze/room-service`
@@ -85,6 +85,9 @@ Implementados:
 - `GET /api/v1/health`
 - `GET /api/v1/public/hotels/:hotel_slug/bootstrap`
 - `GET /api/v1/public/hotels/:hotel_slug/modules`
+- `GET /api/v1/public/hotels/:hotel_slug/portal/home`
+- `GET /api/v1/public/hotels/:hotel_slug/portal/pages`
+- `GET /api/v1/public/hotels/:hotel_slug/portal/events`
 - `GET /api/v1/public/hotels/:hotel_slug/room-service/products`
 - `GET /api/v1/public/hotels/:hotel_slug/room-service/rooms`
 - `POST /api/v1/public/hotels/:hotel_slug/room-service/orders`

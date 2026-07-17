@@ -1,11 +1,13 @@
 import { registerFutureModuleRoutes } from "../modules/future/routes.js";
+import { registerGuestPortalRoutes } from "../modules/guest-portal/routes.js";
 import { registerRoomServiceRoutes } from "../modules/room-service/routes.js";
 
 export const MODULES = [
   {
     module_key: "guest-portal",
     name: "Portal do Hospede",
-    status: "foundation",
+    status: "functional-foundation",
+    registerRoutes: registerGuestPortalRoutes,
   },
   {
     module_key: "room-service",

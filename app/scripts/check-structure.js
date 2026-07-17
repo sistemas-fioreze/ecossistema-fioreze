@@ -4,6 +4,8 @@ import path from "node:path";
 const root = process.cwd();
 const required = [
   "public/index.html",
+  "public/css/modules/guest-portal/guest-portal.css",
+  "public/js/core/portal-home.js",
   "public/admin/index.html",
   "public/admin/room-service/index.html",
   "public/admin/portais/index.html",
@@ -26,6 +28,7 @@ const required = [
   "src/core/router.js",
   "src/core/tenant.js",
   "src/core/module-registry.js",
+  "src/modules/guest-portal/routes.js",
   "src/modules/room-service/routes.js",
   "src/modules/admin/media.js",
   "src/modules/admin/erp-users.js",

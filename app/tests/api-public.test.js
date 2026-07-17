@@ -88,6 +88,43 @@ test("lista de modulos respeita habilitacao por hotel", async () => {
   );
 });
 
+test("portal publico entrega somente conteudo publicado da unidade solicitada", async () => {
+  const { json } = createWorkerTestContext();
+  const { response, body } = await json("/api/v1/public/hotels/muller-fioreze/portal/home");
+
+  assert.equal(response.status, 200);
+  assert.equal(body.data.hotel_id, "muller-fioreze");
+  assert.equal(body.data.module_key, "guest-portal");
+  assert.deepEqual(body.data.pages.map((page) => page.id), ["page-muller-home", "page-muller-guide"]);
+  assert.deepEqual(body.data.events.map((event) => event.id), ["event-muller-welcome"]);
+  assert.deepEqual(body.data.information.map((item) => item.id), ["info-muller-wifi", "info-muller-breakfast"]);
+  assert.equal(JSON.stringify(body.data).includes("aurora"), false);
+  assert.equal(JSON.stringify(body.data).includes("info-muller-private"), false);
+});
+
+test("paginas e eventos do portal preservam isolamento por hotel", async () => {
+  const { json } = createWorkerTestContext();
+  const [{ body: pages }, { body: events }] = await Promise.all([
+    json("/api/v1/public/hotels/aurora-demo/portal/pages"),
+    json("/api/v1/public/hotels/aurora-demo/portal/events"),
+  ]);
+
+  assert.deepEqual(pages.data.pages.map((page) => page.id), ["page-aurora-home"]);
+  assert.deepEqual(events.data.events.map((event) => event.id), ["event-aurora-welcome"]);
+});
+
+test("portal publico e bloqueado quando o modulo nao e publico", async () => {
+  const context = createWorkerTestContext();
+  const module = context.env.__data.hotelModules.find(
+    (entry) => entry.hotel_id === "muller-fioreze" && entry.module_key === "guest-portal",
+  );
+  module.is_public = 0;
+
+  const { response, body } = await context.json("/api/v1/public/hotels/muller-fioreze/portal/home");
+  assert.equal(response.status, 404);
+  assert.equal(body.error.code, "not_found");
+});
+
 test("modulo desabilitado e bloqueado no Worker", async () => {
   const { json } = createWorkerTestContext();
   const { response, body } = await json("/api/v1/public/hotels/muller-fioreze/spa/services");

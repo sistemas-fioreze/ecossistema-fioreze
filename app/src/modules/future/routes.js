@@ -19,8 +19,6 @@ export function registerFutureModuleRoutes(router) {
   router.post("/api/v1/public/hotels/:hotel_slug/emporio/orders", plannedEndpoint("emporio", "orders"));
   router.get("/api/v1/public/hotels/:hotel_slug/spa/services", plannedEndpoint("spa", "services"));
   router.post("/api/v1/public/hotels/:hotel_slug/spa/requests", plannedEndpoint("spa", "requests"));
-  router.get("/api/v1/public/hotels/:hotel_slug/portal/pages", plannedEndpoint("guest-portal", "pages"));
-  router.get("/api/v1/public/hotels/:hotel_slug/portal/events", plannedEndpoint("guest-portal", "events"));
   router.get(
     "/api/v1/public/hotels/:hotel_slug/romantic-packages/packages",
     plannedEndpoint("romantic-packages", "packages"),
