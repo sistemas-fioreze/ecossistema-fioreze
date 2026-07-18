@@ -120,6 +120,12 @@ function renderPortal(container, state) {
 function renderDesktopCover(bootstrap) {
   const coverUrl = sanitizePublicAssetUrl(bootstrap.branding?.cover_image_url);
   if (!coverUrl) return "";
+  const isVideo = bootstrap.branding?.cover_media_type === "video";
+  if (isVideo && !isDesktopPortal()) return "";
+  if (isVideo) {
+    const autoplay = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "" : " autoplay";
+    return `<div class="desktop-unit-cover is-video" aria-hidden="true"><video src="${escapeHtml(coverUrl)}" muted loop playsinline preload="metadata"${autoplay}></video></div>`;
+  }
   return `<div class="desktop-unit-cover" aria-hidden="true"><img src="${escapeHtml(coverUrl)}" alt="" loading="lazy" decoding="async"></div>`;
 }
 
@@ -388,7 +394,8 @@ function renderQuickCard(module, bootstrap) {
 
 function renderFeaturedSection(state) {
   const event = getFeaturedEvent(state.content.events);
-  const coverUrl = sanitizePublicAssetUrl(event?.image_url || state.bootstrap.branding?.cover_image_url);
+  const brandingCover = state.bootstrap.branding?.cover_media_type === "video" ? null : state.bootstrap.branding?.cover_image_url;
+  const coverUrl = sanitizePublicAssetUrl(event?.image_url || brandingCover);
   const title = event?.title || `Viva o melhor do ${state.bootstrap.short_name || state.bootstrap.name}`;
   const summary = event?.summary || "Descubra experiências preparadas para tornar sua estadia ainda mais especial.";
   const date = event ? formatEventDay(event, state.bootstrap) : "";

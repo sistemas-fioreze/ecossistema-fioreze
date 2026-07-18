@@ -328,10 +328,18 @@ export async function updateAdminHotelBranding({ request, env, session, hotelId 
   }
   for (const field of BRANDING_MEDIA_FIELDS) {
     if (!Object.hasOwn(payload, field)) continue;
-    const publicUrl = await validateMediaSelection(env, hotelId, payload[field]);
+    const selection = await validateMediaSelection(env, hotelId, payload[field], {
+      allowVideo: field === "cover_image_url",
+    });
+    const publicUrl = selection?.public_url || null;
     if (["horizontal_logo_url", "favicon_url", "cover_image_url", "social_image_url"].includes(field)) {
       if ((customNext[field] || null) !== publicUrl) changedFields.push(field);
       customNext[field] = publicUrl;
+      if (field === "cover_image_url") {
+        const mediaType = selection ? mediaKind(selection.mime_type) : null;
+        if ((customNext.cover_media_type || null) !== mediaType) changedFields.push("cover_media_type");
+        customNext.cover_media_type = mediaType;
+      }
     } else {
       if ((next[field] || null) !== publicUrl) changedFields.push(field);
       next[field] = publicUrl;
@@ -799,12 +807,12 @@ async function loadNavigationItem(env, hotelId, itemId) {
   return row ? formatNavigationItem(row) : null;
 }
 
-async function validateMediaSelection(env, hotelId, value) {
+async function validateMediaSelection(env, hotelId, value, { allowVideo = false } = {}) {
   const assetRef = optionalString(value, "media_asset", { max: 260 });
   if (!assetRef) return null;
   const asset = await first(
     env,
-     `SELECT id, hotel_id, storage_provider, public_url, status
+     `SELECT id, hotel_id, storage_provider, public_url, mime_type, status
        FROM media_assets
       WHERE (id = ? OR public_url = ?)
         AND status = 'active'
@@ -814,7 +822,18 @@ async function validateMediaSelection(env, hotelId, value) {
     [assetRef, assetRef, hotelId],
   );
   if (!asset) throw badRequest("Midia selecionada invalida.");
-  return asset.public_url;
+  const kind = mediaKind(asset.mime_type);
+  if (kind !== "image" && !(allowVideo && kind === "video")) {
+    throw badRequest(allowVideo ? "Selecione uma imagem ou video valido." : "Selecione uma imagem valida.");
+  }
+  return asset;
+}
+
+function mediaKind(mimeType) {
+  const normalized = String(mimeType || "").toLowerCase();
+  if (normalized.startsWith("image/")) return "image";
+  if (normalized.startsWith("video/")) return "video";
+  return null;
 }
 
 function formatHotelSummary(row) {
@@ -847,6 +866,7 @@ function formatBranding(row) {
     icon_url: row?.icon_url || null,
     favicon_url: custom.favicon_url || null,
     cover_image_url: custom.cover_image_url || null,
+    cover_media_type: custom.cover_media_type || (custom.cover_image_url ? "image" : null),
     social_image_url: custom.social_image_url || null,
     primary_color: row?.primary_color || "#513b2d",
     secondary_color: row?.secondary_color || "#f4f1ef",

@@ -2386,7 +2386,8 @@ body[data-admin-shell="erp"] .admin-area-card > button {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--admin-primary) 13%, transparent);
 }
 
-.admin-content-media-option img {
+.admin-content-media-option img,
+.admin-content-media-option video {
   width: 100%;
   height: 86px;
   object-fit: cover;

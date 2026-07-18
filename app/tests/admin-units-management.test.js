@@ -233,6 +233,53 @@ test("branding valida cores e midia ativa do hotel", async () => {
   assert.equal(env.__data.adminAuditLog.at(-1).action, "hotel.branding.update");
 });
 
+test("branding aceita video somente como capa do portal", async () => {
+  const { json, env } = createWorkerTestContext();
+  grantPermissions(env);
+  const cookie = await createSessionCookie(env);
+  env.__data.mediaAssets.push(
+    {
+      id: "media-muller-cover-video",
+      hotel_id: "muller-fioreze",
+      module_key: "guest-portal",
+      storage_provider: "r2",
+      object_key: "hotels/muller-fioreze/guest-portal/2026/07/capa.mp4",
+      public_url: "/media/media-muller-cover-video",
+      mime_type: "video/mp4",
+      status: "active",
+    },
+    {
+      id: "media-muller-document",
+      hotel_id: "muller-fioreze",
+      module_key: "guest-portal",
+      storage_provider: "r2",
+      object_key: "hotels/muller-fioreze/guest-portal/2026/07/arquivo.pdf",
+      public_url: "/media/media-muller-document",
+      mime_type: "application/pdf",
+      status: "active",
+    },
+  );
+
+  const cover = await json(
+    "/api/v1/admin/hotels/muller-fioreze/branding",
+    withCookie(cookie, adminJson("PATCH", { cover_image_url: "media-muller-cover-video" })),
+  );
+  const videoAsLogo = await json(
+    "/api/v1/admin/hotels/muller-fioreze/branding",
+    withCookie(cookie, adminJson("PATCH", { logo_url: "media-muller-cover-video" })),
+  );
+  const documentAsCover = await json(
+    "/api/v1/admin/hotels/muller-fioreze/branding",
+    withCookie(cookie, adminJson("PATCH", { cover_image_url: "media-muller-document" })),
+  );
+
+  assert.equal(cover.response.status, 200);
+  assert.equal(cover.body.data.branding.cover_image_url, "/media/media-muller-cover-video");
+  assert.equal(cover.body.data.branding.cover_media_type, "video");
+  assert.equal(videoAsLogo.response.status, 400);
+  assert.equal(documentAsCover.response.status, 400);
+});
+
 test("branding faz round-trip por public_url e remove referencias sem excluir midia", async () => {
   const { json, env } = createWorkerTestContext();
   grantPermissions(env);
@@ -304,6 +351,7 @@ test("branding faz round-trip por public_url e remove referencias sem excluir mi
   assert.equal(removed.body.data.branding.horizontal_logo_url, null);
   assert.equal(removed.body.data.branding.favicon_url, null);
   assert.equal(removed.body.data.branding.cover_image_url, null);
+  assert.equal(removed.body.data.branding.cover_media_type, null);
   assert.equal(removed.body.data.branding.social_image_url, null);
   assert.equal(env.__data.mediaAssets.find((asset) => asset.id === "media-muller-logo").status, "active");
 });

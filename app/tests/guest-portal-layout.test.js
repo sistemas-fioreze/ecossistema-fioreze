@@ -99,11 +99,21 @@ test("desktop usa a capa sanitizada da unidade como fundo de tela inteira", () =
   assert.match(portalScript, /class="desktop-unit-cover"/);
   assert.match(portalCss, /\.desktop-unit-cover\s*\{\s*display:\s*none/);
   assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.desktop-unit-cover\s*\{[\s\S]*?position:\s*fixed;[\s\S]*?inset:\s*0;[\s\S]*?width:\s*100vw;[\s\S]*?height:\s*100dvh/);
-  assert.match(portalCss, /\.desktop-unit-cover img\s*\{[\s\S]*?object-fit:\s*cover/);
+  assert.match(portalCss, /\.desktop-unit-cover img,[\s\S]*?\.desktop-unit-cover video\s*\{[\s\S]*?object-fit:\s*cover/);
 });
 
-test("desktop alinha as guias, desfoca o header e aplica contraste somente com capa", () => {
-  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.site-header,[\s\S]*?background:\s*rgba\(255, 255, 255, 0\.72\);[\s\S]*?backdrop-filter:\s*blur\(28px\)/);
+test("desktop aceita video de capa sem carregar o arquivo no mobile", () => {
+  assert.match(portalScript, /branding\?\.cover_media_type === "video"/);
+  assert.match(portalScript, /isVideo && !isDesktopPortal\(\)/);
+  assert.match(portalScript, /<video src=.*muted loop playsinline preload="metadata"/);
+  assert.match(portalScript, /prefers-reduced-motion: reduce/);
+  assert.match(portalCss, /\.desktop-unit-cover img,[\s\S]*?\.desktop-unit-cover video\s*\{[\s\S]*?object-fit:\s*cover/);
+});
+
+test("desktop alinha as guias, remove a barra unificada e preserva controles legiveis", () => {
+  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.site-header,[\s\S]*?background:\s*transparent;[\s\S]*?backdrop-filter:\s*none/);
+  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.brand-logo-img\s*\{[\s\S]*?background:\s*rgba\(255, 255, 255, 0\.84\);[\s\S]*?backdrop-filter:\s*blur\(20px\)/);
+  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.header-weather,[\s\S]*?\.header-location-button\s*\{[\s\S]*?background:\s*rgba\(255, 255, 255, 0\.84\)/);
   assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.bottom-nav-shell\s*\{[\s\S]*?top:\s*24px;[\s\S]*?height:\s*58px;[\s\S]*?align-items:\s*center/);
   assert.match(portalCss, /\.bottom-nav\s*\{[\s\S]*?height:\s*58px;[\s\S]*?padding:\s*8px 4px/);
   assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\) \.desktop-unit-cover::after\s*\{[\s\S]*?rgba\(14, 11, 9, 0\.68\)/);
@@ -121,6 +131,15 @@ test("inicio desktop herda o fundo do topo e usa imagens configuradas nos servic
   assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.quick-card\.has-desktop-image \.quick-card-media\s*\{[\s\S]*?display:\s*block/);
   assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.guest-shell:has\(\.home-hero-copy\)::before\s*\{[\s\S]*?rgba\(14, 11, 9, 0\.48\)/);
   assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.home-info-section\s*\{\s*display:\s*none/);
+});
+
+test("central permite escolher imagem ou video da biblioteca para a identidade", () => {
+  assert.match(adminScript, /allowVideo = fieldName === "cover_image_url"/);
+  assert.match(adminScript, /renderIdentityMediaOption/);
+  assert.match(adminScript, /name="media_asset_id"/);
+  assert.match(adminScript, /String\(asset\.mime_type \|\| ""\)\.startsWith\("video\/"\)/);
+  assert.match(adminScript, /Capa do portal \(imagem ou video\)/);
+  assert.doesNotMatch(adminScript, /const selected = assets\[0\]/);
 });
 
 test("eventos abrem em dialogo no desktop e preservam o detalhe movel", () => {

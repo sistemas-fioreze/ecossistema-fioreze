@@ -685,7 +685,11 @@ function handleUnitEditorClick(event) {
   }
   const remove = event.target.closest("[data-remove-media]");
   if (remove) {
-    setInputValue(remove.dataset.removeMedia, "");
+    const fieldName = remove.dataset.removeMedia;
+    setInputValue(fieldName, "");
+    setInputValue(`${fieldName}__preview`, "");
+    setInputValue(`${fieldName}__mime`, "");
+    updateMediaPickerSelection(fieldName, null);
     dirty = true;
     updateDirtyState();
     updatePreview();
@@ -709,22 +713,58 @@ function handleUnitEditorClick(event) {
 
 async function openMediaSelector(fieldName) {
   if (!currentUnit.hotel_id) {
-    setMessage("Salve a unidade antes de selecionar imagens.");
+    setMessage("Salve a unidade antes de selecionar arquivos.");
     return;
   }
   const params = new URLSearchParams({ hotel_id: currentUnit.hotel_id, status: "active" });
   const payload = await adminApi(`/api/v1/admin/media?${params.toString()}`);
-  const assets = payload.data.assets || [];
+  const allowVideo = fieldName === "cover_image_url";
+  const assets = (payload.data.assets || []).filter((asset) => {
+    const mimeType = String(asset.mime_type || "");
+    return mimeType.startsWith("image/") || (allowVideo && mimeType.startsWith("video/"));
+  });
   if (!assets.length) {
-    setMessage("Nenhuma imagem ativa disponivel para esta unidade.");
+    setMessage(allowVideo ? "Nenhuma imagem ou video ativo disponivel para esta unidade." : "Nenhuma imagem ativa disponivel para esta unidade.");
     return;
   }
-  const selected = assets[0];
-  setInputValue(fieldName, selected.id);
-  setInputValue(`${fieldName}__preview`, selected.public_url);
-  dirty = true;
-  setMessage(`Imagem selecionada: ${selected.original_filename || selected.id}`);
-  updatePreview();
+  const currentRef = inputValue(fieldName);
+  els.dialogTitle.textContent = `Selecionar ${mediaLabel(fieldName).toLowerCase()}`;
+  els.dialogBody.innerHTML = contentForm("identity-media", `
+    <fieldset class="admin-content-media-picker admin-identity-media-picker">
+      <legend>Biblioteca de Midia</legend>
+      <p>${allowVideo ? "Escolha uma imagem ou video. Videos serao exibidos somente no portal desktop." : "Escolha uma imagem ativa desta unidade."}</p>
+      <div>
+        <label class="admin-content-media-option no-media">
+          <input type="radio" name="media_asset_id" value="" ${currentRef ? "" : "checked"}>
+          <span>${featureSvg("image")}<strong>Sem arquivo</strong></span>
+        </label>
+        ${assets.map((asset) => renderIdentityMediaOption(asset, currentRef)).join("")}
+      </div>
+    </fieldset>`);
+  openPortalsDialog();
+  bindDialogForm((event) => {
+    event.preventDefault();
+    const selectedId = new FormData(event.currentTarget).get("media_asset_id") || "";
+    const selected = assets.find((asset) => asset.id === selectedId) || null;
+    setInputValue(fieldName, selected?.id || "");
+    setInputValue(`${fieldName}__preview`, selected?.public_url || "");
+    setInputValue(`${fieldName}__mime`, selected?.mime_type || "");
+    updateMediaPickerSelection(fieldName, selected);
+    dirty = true;
+    updateDirtyState();
+    updatePreview();
+    setMessage(selected ? `Arquivo selecionado: ${selected.original_filename || selected.id}` : "Arquivo removido da identidade.");
+    closePortalsDialog();
+  });
+}
+
+function renderIdentityMediaOption(asset, currentRef) {
+  const isVideo = String(asset.mime_type || "").startsWith("video/");
+  const checked = asset.id === currentRef || asset.public_url === currentRef;
+  const preview = isVideo
+    ? `<video src="${escapeAttr(asset.public_url)}" muted playsinline preload="metadata"></video>`
+    : `<img src="${escapeAttr(asset.public_url)}" alt="" loading="lazy" decoding="async">`;
+  return `<label class="admin-content-media-option"><input type="radio" name="media_asset_id" value="${escapeAttr(asset.id)}" ${checked ? "checked" : ""}><span>${preview}<strong>${escapeHtml(asset.original_filename || (isVideo ? "Video" : "Imagem"))}</strong></span></label>`;
 }
 
 async function saveCurrentUnit() {
@@ -1901,17 +1941,42 @@ function colorField(label, name, value = null) {
 function mediaPicker(name, label = null) {
   const value = name.startsWith("seo.") ? setting(name) : branding(name);
   const previewUrl = value?.startsWith("/") ? value : "";
+  const mediaType = name === "cover_image_url" && branding("cover_media_type") === "video" ? "video" : "image";
   return `
-    <div class="admin-media-picker">
-      <span>${escapeHtml(label || mediaLabel(name))}</span>
-      <input name="${escapeAttr(name)}" value="${escapeAttr(value || "")}" placeholder="media_...">
+    <div class="admin-media-picker" data-media-field="${escapeAttr(name)}">
+      <span class="admin-media-picker-copy"><strong>${escapeHtml(label || mediaLabel(name))}</strong><small data-media-selection-label>${value ? "Arquivo selecionado" : "Nenhum arquivo selecionado"}</small></span>
+      <input name="${escapeAttr(name)}" value="${escapeAttr(value || "")}" hidden>
       <input name="${escapeAttr(`${name}__preview`)}" value="${escapeAttr(previewUrl)}" hidden>
-      <div>${previewUrl ? `<img src="${escapeAttr(previewUrl)}" alt="">` : "<em>Sem imagem</em>"}</div>
-      <button type="button" data-pick-media="${escapeAttr(name)}">Selecionar da Biblioteca</button>
+      <input name="${escapeAttr(`${name}__mime`)}" value="${escapeAttr(mediaType)}" hidden>
+      <div class="admin-media-picker-preview" data-media-preview>${renderIdentityMediaPreview(previewUrl, mediaType)}</div>
+      <button type="button" data-pick-media="${escapeAttr(name)}">Selecionar arquivo</button>
       <button type="button" data-remove-media="${escapeAttr(name)}">Remover</button>
       ${previewUrl ? `<a href="${escapeAttr(previewUrl)}" target="_blank" rel="noopener">Abrir URL</a>` : ""}
     </div>
   `;
+}
+
+function renderIdentityMediaPreview(url, mediaType) {
+  if (!url) return "<em>Sem arquivo</em>";
+  if (String(mediaType || "").startsWith("video")) {
+    return `<video src="${escapeAttr(url)}" muted playsinline preload="metadata"></video>`;
+  }
+  return `<img src="${escapeAttr(url)}" alt="" loading="lazy" decoding="async">`;
+}
+
+function updateMediaPickerSelection(fieldName, asset) {
+  const picker = [...els.unitEditorForm.querySelectorAll("[data-media-field]")]
+    .find((element) => element.dataset.mediaField === fieldName);
+  if (!picker) return;
+  const preview = picker.querySelector("[data-media-preview]");
+  const label = picker.querySelector("[data-media-selection-label]");
+  if (preview) preview.innerHTML = renderIdentityMediaPreview(asset?.public_url || "", asset?.mime_type || "");
+  if (label) label.textContent = asset?.original_filename || (asset ? "Arquivo selecionado" : "Nenhum arquivo selecionado");
+  const link = picker.querySelector("a");
+  if (link) link.remove();
+  if (asset?.public_url) {
+    picker.insertAdjacentHTML("beforeend", `<a href="${escapeAttr(asset.public_url)}" target="_blank" rel="noopener">Abrir URL</a>`);
+  }
 }
 
 function panel(name) {
@@ -2553,7 +2618,7 @@ function mediaLabel(name) {
     horizontal_logo_url: "Logo horizontal",
     icon_url: "Logo reduzida",
     favicon_url: "Favicon",
-    cover_image_url: "Imagem de capa",
+    cover_image_url: "Capa do portal (imagem ou video)",
     social_image_url: "Imagem social",
   }[name] || name;
 }
