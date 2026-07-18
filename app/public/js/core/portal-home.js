@@ -81,8 +81,9 @@ function renderLoadError(error) {
 }
 
 function renderPortal(container, state) {
+  const desktopCover = renderDesktopCover(state.bootstrap);
   if (state.selectedEventId) {
-    container.innerHTML = `${renderEventDetail(state)}${renderBottomNav("eventos", "eventos")}`;
+    container.innerHTML = `${desktopCover}${renderEventDetail(state)}${renderBottomNav("eventos", "eventos")}`;
     syncHeaderScroll(container);
     return;
   }
@@ -92,11 +93,18 @@ function renderPortal(container, state) {
     : renderSubpageView(state);
 
   container.innerHTML = `
+    ${desktopCover}
     ${page}
     ${renderBottomNav(state.activeTab, state.previousTab)}
     ${state.weatherOpen ? renderWeatherPanel(state) : ""}`;
   animateTabChange(container, state);
   syncHeaderScroll(container);
+}
+
+function renderDesktopCover(bootstrap) {
+  const coverUrl = sanitizePublicAssetUrl(bootstrap.branding?.cover_image_url);
+  if (!coverUrl) return "";
+  return `<div class="desktop-unit-cover" aria-hidden="true"><img src="${escapeHtml(coverUrl)}" alt="" loading="lazy" decoding="async"></div>`;
 }
 
 function bindPortal(container, state) {
