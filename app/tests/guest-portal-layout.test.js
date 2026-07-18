@@ -93,6 +93,15 @@ test("desktop centraliza header e mostra SVG em todas as guias", () => {
   assert.equal((portalScript.match(/\["(?:inicio|servicos|eventos|hotel|blog)",/g) || []).length, 5);
 });
 
+test("desktop usa a capa sanitizada da unidade como fundo de tela inteira", () => {
+  assert.match(portalScript, /branding\?\.cover_image_url/);
+  assert.match(portalScript, /sanitizePublicAssetUrl\(bootstrap\.branding\?\.cover_image_url\)/);
+  assert.match(portalScript, /class="desktop-unit-cover"/);
+  assert.match(portalCss, /\.desktop-unit-cover\s*\{\s*display:\s*none/);
+  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.desktop-unit-cover\s*\{[\s\S]*?position:\s*fixed;[\s\S]*?inset:\s*0;[\s\S]*?width:\s*100vw;[\s\S]*?height:\s*100dvh/);
+  assert.match(portalCss, /\.desktop-unit-cover img\s*\{[\s\S]*?object-fit:\s*cover/);
+});
+
 test("portal nao incorpora dependencias nem endpoints do sistema legado", () => {
   assert.doesNotMatch(portalScript, /script\.google\.com/i);
   assert.doesNotMatch(portalScript, /docs\.google\.com/i);

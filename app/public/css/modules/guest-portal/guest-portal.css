@@ -18,6 +18,10 @@
   min-height: 100dvh;
 }
 
+.desktop-unit-cover {
+  display: none;
+}
+
 .guest-loading {
   min-height: 100vh;
   min-height: 100dvh;
@@ -1429,7 +1433,40 @@
   .guest-portal-root {
     --desktop-shell: min(1180px, calc(100vw - 72px));
     --desktop-nav-shell: min(1120px, calc(100vw - 72px));
+    position: relative;
+    isolation: isolate;
     padding-bottom: 0;
+  }
+
+  .guest-portal-root:has(.desktop-unit-cover) {
+    background: transparent;
+  }
+
+  .desktop-unit-cover {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    display: block;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .desktop-unit-cover::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0.58) 48%, rgba(255, 255, 255, 0.72) 100%);
+  }
+
+  .desktop-unit-cover img {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
   }
 
   .site-header {
