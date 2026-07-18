@@ -60,6 +60,7 @@ const PUBLIC_SETTINGS = new Set([
   "hosting.welcome_text",
   "hosting.emergency_contact",
   "hosting.arrival_instructions",
+  "portal.blog_feed_url",
   "seo.title",
   "seo.description",
   "seo.social_image_asset_id",
@@ -511,9 +512,14 @@ export async function listAdminHotelModules({ env, session, hotelId }) {
     `SELECT m.module_key, m.name, m.description, m.status,
             COALESCE(hm.enabled, 0) AS enabled,
             COALESCE(hm.is_public, 1) AS is_public,
-            hm.public_name, hm.navigation_label, hm.sort_order, hm.settings_json
+            hm.public_name, hm.navigation_label, hm.sort_order, hm.settings_json,
+            ma.public_url AS background_image_url
        FROM modules m
        LEFT JOIN hotel_modules hm ON hm.module_key = m.module_key AND hm.hotel_id = ?
+       LEFT JOIN media_assets ma
+         ON ma.id = json_extract(hm.settings_json, '$.background_media_asset_id')
+        AND ma.hotel_id = hm.hotel_id
+        AND ma.status = 'active'
       ORDER BY COALESCE(hm.sort_order, 100), m.name`,
     [hotelId],
   );
@@ -553,25 +559,39 @@ export async function updateAdminHotelModules({ request, env, session, hotelId }
   const statements = [];
   const changed = [];
   for (const entry of payload.modules) {
-    rejectUnknown(entry, new Set(["module_key", "enabled", "is_public", "public_name", "navigation_label", "sort_order"]));
+    rejectUnknown(entry, new Set(["module_key", "enabled", "is_public", "public_name", "navigation_label", "sort_order", "background_media_asset_id"]));
     const moduleKey = validateModuleKey(entry.module_key);
     const moduleExists = await first(env, "SELECT module_key FROM modules WHERE module_key = ? LIMIT 1", [moduleKey]);
     if (!moduleExists) throw badRequest("Modulo inexistente.");
     const enabled = toBooleanInteger(entry.enabled);
     const isPublic = Object.hasOwn(entry, "is_public") ? toBooleanInteger(entry.is_public) : 1;
     const sortOrder = validateSortOrder(entry.sort_order ?? 100);
+    const currentModule = await first(
+      env,
+      "SELECT settings_json FROM hotel_modules WHERE hotel_id = ? AND module_key = ? LIMIT 1",
+      [hotelId, moduleKey],
+    );
+    const moduleSettings = parseJson(currentModule?.settings_json, {});
+    if (Object.hasOwn(entry, "background_media_asset_id")) {
+      const mediaAssetId = optionalString(entry.background_media_asset_id, "imagem da area", { max: 160 }) || null;
+      if (mediaAssetId) await requireActiveHotelImage(env, hotelId, mediaAssetId);
+      if (mediaAssetId) moduleSettings.background_media_asset_id = mediaAssetId;
+      else delete moduleSettings.background_media_asset_id;
+    }
+    const settingsJson = JSON.stringify(moduleSettings);
     statements.push(
       statement(
         env,
         `INSERT INTO hotel_modules (hotel_id, module_key, enabled, is_public, public_name, navigation_label,
                                    sort_order, settings_json, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, '{}', ?, ?)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(hotel_id, module_key) DO UPDATE SET
            enabled = excluded.enabled,
            is_public = excluded.is_public,
            public_name = excluded.public_name,
            navigation_label = excluded.navigation_label,
            sort_order = excluded.sort_order,
+           settings_json = excluded.settings_json,
            updated_at = excluded.updated_at`,
         [
           hotelId,
@@ -581,6 +601,7 @@ export async function updateAdminHotelModules({ request, env, session, hotelId }
           optionalString(entry.public_name, "public_name", { max: 80 }) || null,
           optionalString(entry.navigation_label, "navigation_label", { max: 80 }) || null,
           sortOrder,
+          settingsJson,
           now,
           now,
         ],
@@ -853,7 +874,21 @@ function formatHotelModule(row) {
     navigation_label: row.navigation_label || null,
     sort_order: Number(row.sort_order || 100),
     settings: parseJson(row.settings_json, {}),
+    background_image_url: row.background_image_url || null,
   };
+}
+
+async function requireActiveHotelImage(env, hotelId, mediaAssetId) {
+  const media = await first(
+    env,
+    `SELECT id
+       FROM media_assets
+      WHERE id = ? AND hotel_id = ? AND status = 'active' AND mime_type LIKE 'image/%'
+      LIMIT 1`,
+    [mediaAssetId, hotelId],
+  );
+  if (!media) throw badRequest("Imagem indisponivel para esta unidade.");
+  return media;
 }
 
 function formatNavigationItem(row) {
@@ -940,8 +975,14 @@ function validateSetting(key, value) {
   if (key === "contact.email" && value && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(value))) {
     throw badRequest("E-mail invalido.");
   }
-  if (["contact.website", "contact.maps_url", "seo.canonical_base"].includes(key) && value) {
+  if (["contact.website", "contact.maps_url", "seo.canonical_base", "portal.blog_feed_url"].includes(key) && value) {
     validateSafeUrl(value);
+    if (key === "portal.blog_feed_url") {
+      const parsed = new URL(String(value));
+      if (parsed.protocol !== "https:" || parsed.hostname !== "blog.hoteisfioreze.com.br" || parsed.pathname.replace(/\/+$/, "") !== "/wp-json/wp/v2/posts") {
+        throw badRequest("Feed do blog nao autorizado.");
+      }
+    }
   }
   if (["seo.browser_color"].includes(key)) validateHexColor(value, key);
   if (key === "seo.social_image_asset_id") return { value: requireString(value, key, { max: 160 }), type: "string" };

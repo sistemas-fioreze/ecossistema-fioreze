@@ -23,6 +23,18 @@ async function boot() {
 
   app.classList.toggle("guest-portal-root", moduleKey === "guest-portal");
   document.title = `${bootstrap.short_name || bootstrap.name} | Portal do Hóspede`;
+
+  if (moduleKey === "guest-portal") {
+    const module = await loadModule(moduleKey);
+    const moduleContainer = document.createElement("section");
+    moduleContainer.className = "module-view guest-portal-view";
+    moduleContainer.dataset.moduleView = "";
+    moduleContainer.dataset.moduleKey = moduleKey;
+    await module.render(moduleContainer, { bootstrap, moduleKey });
+    app.replaceChildren(moduleContainer);
+    return;
+  }
+
   app.innerHTML = renderShell(bootstrap, moduleKey);
   const nav = app.querySelector("[data-module-nav]");
   if (nav) setActiveNavigation(nav, moduleKey);
@@ -33,10 +45,6 @@ async function boot() {
 }
 
 function renderShell(bootstrap, moduleKey) {
-  if (moduleKey === "guest-portal") {
-    return `<section class="module-view guest-portal-view" data-module-view data-module-key="guest-portal"></section>`;
-  }
-
   const logoUrl = sanitizePublicAssetUrl(bootstrap.branding?.horizontal_logo_url || bootstrap.branding?.logo_url);
   const logo = logoUrl
     ? `<img class="hotel-logo" src="${escapeHtml(logoUrl)}" alt="">`

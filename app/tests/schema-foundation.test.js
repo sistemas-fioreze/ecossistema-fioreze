@@ -10,6 +10,7 @@ const adminUnitsMigration = fs.readFileSync("migrations/0009_admin_units_managem
 const shortLinksMigration = fs.readFileSync("migrations/0011_short_links_foundation.sql", "utf8");
 const adminPreferencesMediaFoldersMigration = fs.readFileSync("migrations/0017_admin_preferences_media_folders.sql", "utf8");
 const adminLoginSecurityMigration = fs.readFileSync("migrations/0019_admin_login_security.sql", "utf8");
+const guestPortalReferenceMigration = fs.readFileSync("migrations/0021_guest_portal_reference_features.sql", "utf8");
 const seed = fs.readFileSync("seeds/dev.sql", "utf8");
 const wranglerConfig = JSON.parse(fs.readFileSync("wrangler.jsonc", "utf8"));
 const normalizedMigration = normalize(migration);
@@ -19,6 +20,7 @@ const normalizedAdminUnitsMigration = normalize(adminUnitsMigration);
 const normalizedShortLinksMigration = normalize(shortLinksMigration);
 const normalizedAdminPreferencesMediaFoldersMigration = normalize(adminPreferencesMediaFoldersMigration);
 const normalizedAdminLoginSecurityMigration = normalize(adminLoginSecurityMigration);
+const normalizedGuestPortalReferenceMigration = normalize(guestPortalReferenceMigration);
 
 test("migration 0007 cria service_hours e media_assets", () => {
   assert.match(normalizedMigration, /create table if not exists service_hours/);
@@ -83,6 +85,12 @@ test("migration 0008 prepara biblioteca de imagens sem gravar binarios", () => {
   assert.match(normalizedMediaLibraryMigration, /portals\.media\.update/);
   assert.match(normalizedMediaLibraryMigration, /portals\.media\.archive/);
   assert.equal(/\bblob\b|\bbinary\b/i.test(mediaLibraryMigration), false);
+});
+
+test("migration 0021 associa eventos a midias da biblioteca", () => {
+  assert.match(normalizedGuestPortalReferenceMigration, /alter table events add column media_asset_id text references media_assets\(id\) on delete set null/);
+  assert.match(normalizedGuestPortalReferenceMigration, /create index if not exists idx_events_hotel_media/);
+  assert.equal(/insert into|update events|delete from/i.test(guestPortalReferenceMigration), false);
 });
 
 test("wrangler declara MEDIA_BUCKET privado de desenvolvimento", () => {

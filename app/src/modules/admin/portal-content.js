@@ -34,10 +34,16 @@ export async function listPortalContent({ env, session, url }) {
     ),
     all(
       env,
-      `SELECT id, hotel_id, title, summary, starts_at, ends_at, timezone, status, created_at, updated_at
-         FROM events
-        WHERE hotel_id = ?
-        ORDER BY starts_at DESC, title`,
+      `SELECT e.id, e.hotel_id, e.title, e.summary, e.starts_at, e.ends_at, e.timezone,
+              e.status, e.media_asset_id, e.created_at, e.updated_at,
+              ma.public_url AS image_url, ma.alt_text AS image_alt
+         FROM events e
+         LEFT JOIN media_assets ma
+           ON ma.id = e.media_asset_id
+          AND ma.hotel_id = e.hotel_id
+          AND ma.status = 'active'
+        WHERE e.hotel_id = ?
+        ORDER BY e.starts_at DESC, e.title`,
       [hotelId],
     ),
     all(
@@ -199,22 +205,24 @@ export async function createPortalEvent({ request, env, session }) {
   const hotelId = requireString(payload.hotel_id, "unidade", { max: 120 });
   requireAdminHotelAccess(session, hotelId);
   const data = eventPayload(payload);
+  data.mediaAssetId = await validateEventMedia(env, hotelId, payload.media_asset_id);
   const now = requestNow({ request, env });
   const eventId = createPublicId("event");
   await batch(env, [
     statement(
       env,
-      `INSERT INTO events (
-         id, hotel_id, title, summary, starts_at, ends_at, timezone, status, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [eventId, hotelId, data.title, data.summary, data.startsAt, data.endsAt, data.timezone, data.status, now, now],
+        `INSERT INTO events (
+         id, hotel_id, title, summary, starts_at, ends_at, timezone, status,
+         media_asset_id, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [eventId, hotelId, data.title, data.summary, data.startsAt, data.endsAt, data.timezone, data.status, data.mediaAssetId, now, now],
     ),
     auditStatement(env, session, {
       hotelId,
       action: "portal-event.create",
       entityType: "event",
       entityId: eventId,
-      metadata: { status: data.status },
+      metadata: { status: data.status, has_image: Boolean(data.mediaAssetId) },
       now,
     }),
   ]);
@@ -227,22 +235,25 @@ export async function updatePortalEvent({ request, env, session, eventId }) {
   const current = await loadEvent(env, eventId);
   if (!current) throw notFoundError("Evento nao encontrado.");
   requireAdminHotelAccess(session, current.hotel_id);
-  const data = eventPayload(await readJson(request));
+  const payload = await readJson(request);
+  const data = eventPayload(payload);
+  data.mediaAssetId = await validateEventMedia(env, current.hotel_id, payload.media_asset_id);
   const now = requestNow({ request, env });
   await batch(env, [
     statement(
       env,
-      `UPDATE events
-          SET title = ?, summary = ?, starts_at = ?, ends_at = ?, timezone = ?, status = ?, updated_at = ?
+        `UPDATE events
+          SET title = ?, summary = ?, starts_at = ?, ends_at = ?, timezone = ?, status = ?,
+              media_asset_id = ?, updated_at = ?
         WHERE id = ? AND hotel_id = ?`,
-      [data.title, data.summary, data.startsAt, data.endsAt, data.timezone, data.status, now, eventId, current.hotel_id],
+      [data.title, data.summary, data.startsAt, data.endsAt, data.timezone, data.status, data.mediaAssetId, now, eventId, current.hotel_id],
     ),
     auditStatement(env, session, {
       hotelId: current.hotel_id,
       action: "portal-event.update",
       entityType: "event",
       entityId: eventId,
-      metadata: { status: data.status },
+      metadata: { status: data.status, has_image: Boolean(data.mediaAssetId) },
       now,
     }),
   ]);
@@ -446,10 +457,33 @@ async function loadSection(env, sectionId) {
 async function loadEvent(env, eventId) {
   return first(
     env,
-    `SELECT id, hotel_id, title, summary, starts_at, ends_at, timezone, status, created_at, updated_at
-       FROM events WHERE id = ? LIMIT 1`,
+    `SELECT e.id, e.hotel_id, e.title, e.summary, e.starts_at, e.ends_at, e.timezone,
+            e.status, e.media_asset_id, e.created_at, e.updated_at,
+            ma.public_url AS image_url, ma.alt_text AS image_alt
+       FROM events e
+       LEFT JOIN media_assets ma
+         ON ma.id = e.media_asset_id
+        AND ma.hotel_id = e.hotel_id
+        AND ma.status = 'active'
+      WHERE e.id = ?
+      LIMIT 1`,
     [eventId],
   );
+}
+
+async function validateEventMedia(env, hotelId, value) {
+  const mediaAssetId = optionalString(value, "imagem do evento", { max: 160 }) || null;
+  if (!mediaAssetId) return null;
+  const media = await first(
+    env,
+    `SELECT id
+       FROM media_assets
+      WHERE id = ? AND hotel_id = ? AND status = 'active' AND mime_type LIKE 'image/%'
+      LIMIT 1`,
+    [mediaAssetId, hotelId],
+  );
+  if (!media) throw badRequest("Imagem do evento indisponivel para esta unidade.");
+  return mediaAssetId;
 }
 
 async function loadInformation(env, informationId) {

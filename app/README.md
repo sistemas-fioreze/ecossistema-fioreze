@@ -233,6 +233,12 @@ A migration `0017_admin_preferences_media_folders.sql` adiciona:
 
 A migration `0020_portal_custom_pages_qr_links.sql` adiciona paginas HTML sanitizadas por unidade e a permissao de exclusao definitiva de links arquivados. O HTML original nunca e persistido; a publicacao usa `iframe` sandbox, CSP restritiva e rota Worker-first em `/portal-content/*`. QR Codes sao gerados localmente como SVG a partir do `public_url` do link, sem servico externo.
 
+A migration `0021_guest_portal_reference_features.sql` associa eventos a imagens da Biblioteca de Midia. A relacao e opcional, isolada por unidade na API e nao altera eventos existentes.
+
+O Portal do Hospede usa um unico shell para todas as unidades. Identidade, localizacao, eventos, modulos e capas de servicos sao resolvidos pelo `hotel_id`; nenhuma imagem ou cor do Muller fica fixa no codigo compartilhado. O clima usa a latitude, longitude e o fuso cadastrados na unidade, por meio de um endpoint publico do Worker. O blog e consultado pelo Worker no feed oficial permitido e devolvido ao navegador em um formato reduzido e sanitizado. Falhas desses servicos externos nao impedem a abertura do portal.
+
+Na Central Administrativa, a area **Conteudos > Eventos** permite escolher uma imagem ativa da Biblioteca de Midia. Em **Areas**, cada modulo pode receber uma capa propria, usada nos botoes publicos de servico. O feed do blog e configurado nos dados gerais da unidade e permanece restrito ao endpoint oficial autorizado.
+
 A migration `0018_admin_messages_and_reference_numbers.sql` adiciona:
 
 - numeros sequenciais de referencia para usuarios e perfis administrativos;

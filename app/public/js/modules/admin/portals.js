@@ -178,6 +178,7 @@ const settingFields = [
   "hosting.welcome_text",
   "hosting.emergency_contact",
   "hosting.arrival_instructions",
+  "portal.blog_feed_url",
   "seo.title",
   "seo.description",
   "seo.social_image_asset_id",
@@ -208,6 +209,7 @@ let contentType = "pages";
 let currentContent = { pages: [], custom_pages: [], events: [], information: [] };
 let dedicatedModules = [];
 let dedicatedNavigation = [];
+let eventMediaAssets = [];
 
 const auth = createAdminAuthView({
   onAuthenticated(session) {
@@ -303,6 +305,7 @@ els.contentManager.addEventListener("click", handleContentClick);
 els.addContentButton.addEventListener("click", () => openContentEditor());
 els.areasHotel.addEventListener("change", loadDedicatedAreas);
 els.areasList.addEventListener("change", saveDedicatedArea);
+els.areasList.addEventListener("click", handleAreaImageAction);
 els.navigationHotel.addEventListener("change", loadDedicatedNavigation);
 els.addNavigationButton.addEventListener("click", () => openNavigationEditor());
 els.navigationList.addEventListener("click", handleDedicatedNavigationAction);
@@ -580,6 +583,7 @@ function renderTabPanels() {
     </div>
     ${textarea("Descrição curta", "general.short_description")}
     ${textarea("Descrição institucional", "general.institutional_description")}
+    ${field("Feed do blog", "portal.blog_feed_url", setting("portal.blog_feed_url"), "url", "https://blog.hoteisfioreze.com.br/wp-json/wp/v2/posts")}
     ${field("Inauguração", "general.opened_at", setting("general.opened_at"), "date")}
     <button type="button" class="admin-copy-button" data-copy-slug>Copiar slug e URL</button>
   `;
@@ -2006,7 +2010,10 @@ function renderContentRow(item, type) {
     return `<article class="admin-data-row admin-content-row admin-custom-page-row"><span class="admin-role-icon">${featureSvg("code")}</span><div class="admin-row-copy"><strong>${escapeHtml(item.title)}</strong><a href="${escapeAttr(item.public_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.public_url)}</a><small>HTML sanitizado · atualizado em ${escapeHtml(formatDate(item.updated_at))}</small></div><span class="admin-status-chip" data-status="${escapeAttr(item.status)}">${contentStatus(item.status)}</span><div class="admin-row-actions">${canEdit ? `<button type="button" data-content-action="edit" data-id="${escapeAttr(item.id)}">Editar</button>` : ""}${canCreateLink ? `<button type="button" data-content-action="create-link" data-id="${escapeAttr(item.id)}">Criar link e QR</button>` : ""}${canEdit ? `<button class="danger" type="button" data-content-action="archive-custom" data-id="${escapeAttr(item.id)}">Arquivar</button>` : ""}</div></article>`;
   }
   if (type === "events") {
-    return `<article class="admin-data-row admin-content-row"><span class="admin-role-icon">${featureSvg("event")}</span><div class="admin-row-copy"><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(formatDate(item.starts_at, item.timezone))}</span><small>${escapeHtml(item.summary || "Sem resumo")}</small></div><span class="admin-status-chip" data-status="${escapeAttr(item.status)}">${contentStatus(item.status)}</span><div class="admin-row-actions"><button type="button" data-content-action="edit" data-id="${escapeAttr(item.id)}">Editar</button></div></article>`;
+    const media = item.image_url
+      ? `<img class="admin-event-row-media" src="${escapeAttr(item.image_url)}" alt="">`
+      : `<span class="admin-role-icon">${featureSvg("event")}</span>`;
+    return `<article class="admin-data-row admin-content-row admin-event-row">${media}<div class="admin-row-copy"><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(formatDate(item.starts_at, item.timezone))}</span><small>${escapeHtml(item.summary || "Sem resumo")}</small></div><span class="admin-status-chip" data-status="${escapeAttr(item.status)}">${contentStatus(item.status)}</span><div class="admin-row-actions"><button type="button" data-content-action="edit" data-id="${escapeAttr(item.id)}">Editar</button></div></article>`;
   }
   return `<article class="admin-data-row admin-content-row"><span class="admin-role-icon">${featureSvg("info")}</span><div class="admin-row-copy"><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.info_key)}</span><small>Ordem ${Number(item.sort_order || 0)}</small></div><span class="admin-status-chip" data-status="${item.is_public ? "active" : "disabled"}">${item.is_public ? "Pública" : "Oculta"}</span><div class="admin-row-actions"><button type="button" data-content-action="edit" data-id="${escapeAttr(item.id)}">Editar</button></div></article>`;
 }
@@ -2031,7 +2038,7 @@ function handleContentClick(event) {
   openContentEditor(item);
 }
 
-function openContentEditor(item = null) {
+async function openContentEditor(item = null) {
   if (contentType === "custom_pages") {
     openCustomPageEditor(item);
     return;
@@ -2046,9 +2053,11 @@ function openContentEditor(item = null) {
       ${dialogTextarea("Resumo", "summary", item?.summary)}
       <div class="admin-form-grid">${dialogSelect("Status", "status", item?.status || "draft", [["draft", "Rascunho"], ["published", "Publicada"], ["archived", "Arquivada"]])}${dialogField("Ordem", "sort_order", item?.sort_order ?? 100, "number", true)}</div>`);
   } else if (contentType === "events") {
+    eventMediaAssets = await loadEventMediaAssets();
     els.dialogBody.innerHTML = contentForm("event", `
       ${dialogField("Título", "title", item?.title, "text", true)}
       ${dialogTextarea("Resumo", "summary", item?.summary)}
+      ${renderEventMediaPicker(item?.media_asset_id)}
       <div class="admin-form-grid">${dialogField("Início", "starts_at", toLocalDateTime(item?.starts_at), "datetime-local", true)}${dialogField("Término", "ends_at", toLocalDateTime(item?.ends_at), "datetime-local")}</div>
       <div class="admin-form-grid">${dialogField("Fuso horário", "timezone", item?.timezone || hotelTimezone(els.contentHotel.value), "text", true)}${dialogSelect("Status", "status", item?.status || "draft", [["draft", "Rascunho"], ["published", "Publicado"], ["cancelled", "Cancelado"], ["archived", "Arquivado"]])}</div>`);
   } else {
@@ -2098,6 +2107,24 @@ async function saveContent(event, item) {
   } catch (error) {
     message.textContent = error.message || "Não foi possível salvar o conteúdo.";
   }
+}
+
+async function loadEventMediaAssets() {
+  try {
+    const params = new URLSearchParams({ hotel_id: els.contentHotel.value, status: "active" });
+    const payload = await adminApi(`/api/v1/admin/media?${params.toString()}`);
+    return (payload.data.assets || []).filter((asset) => String(asset.mime_type || "").startsWith("image/"));
+  } catch {
+    return [];
+  }
+}
+
+function renderEventMediaPicker(selectedId) {
+  const choices = [
+    `<label class="admin-content-media-option no-media"><input type="radio" name="media_asset_id" value="" ${selectedId ? "" : "checked"}><span>${featureSvg("image")}<strong>Sem imagem</strong></span></label>`,
+    ...eventMediaAssets.map((asset) => `<label class="admin-content-media-option"><input type="radio" name="media_asset_id" value="${escapeAttr(asset.id)}" ${asset.id === selectedId ? "checked" : ""}><span><img src="${escapeAttr(asset.public_url)}" alt=""><strong>${escapeHtml(asset.original_filename || "Imagem")}</strong></span></label>`),
+  ];
+  return `<fieldset class="admin-content-media-picker"><legend>Imagem do evento</legend><p>Selecione uma imagem já enviada à Biblioteca de Mídia.</p><div>${choices.join("")}</div></fieldset>`;
 }
 
 async function openCustomPageEditor(item = null) {
@@ -2203,31 +2230,74 @@ async function loadDedicatedAreas() {
     dedicatedModules = payload.data.modules || [];
     const activeCount = dedicatedModules.filter((item) => item.enabled).length;
     els.areasMessage.textContent = `${activeCount} ${activeCount === 1 ? "área ativa" : "áreas ativas"}.`;
-    els.areasList.innerHTML = dedicatedModules.map((module) => `<label class="admin-area-card"><input type="checkbox" data-area-key="${escapeAttr(module.module_key)}" ${module.enabled ? "checked" : ""}><span class="admin-feature-icon">${featureIcon(module.module_key === "guest-portal" ? "conteudos" : "modulos")}</span><span><strong>${escapeHtml(module.public_name || module.name)}</strong><small>${escapeHtml(module.description || module.module_key)}</small></span><em>${module.enabled ? "Ativa" : "Inativa"}</em></label>`).join("");
+    els.areasList.innerHTML = dedicatedModules.map(renderAreaCard).join("");
   } catch (error) {
     els.areasMessage.textContent = error.message || "Não foi possível carregar as áreas.";
   }
 }
 
+function renderAreaCard(module) {
+  const image = module.background_image_url
+    ? `<img class="admin-area-cover" src="${escapeAttr(module.background_image_url)}" alt="">`
+    : `<span class="admin-area-cover is-empty">${featureIcon("media")}</span>`;
+  return `<article class="admin-area-card">${image}<label><input type="checkbox" data-area-key="${escapeAttr(module.module_key)}" ${module.enabled ? "checked" : ""}><span class="admin-feature-icon">${featureIcon(module.module_key === "guest-portal" ? "conteudos" : "modulos")}</span><span><strong>${escapeHtml(module.public_name || module.name)}</strong><small>${escapeHtml(module.description || module.module_key)}</small></span><em>${module.enabled ? "Ativa" : "Inativa"}</em></label><button type="button" data-area-image="${escapeAttr(module.module_key)}">${module.background_image_url ? "Trocar capa" : "Escolher capa"}</button></article>`;
+}
+
 async function saveDedicatedArea(event) {
   const input = event.target.closest("[data-area-key]");
   if (!input) return;
-  const selected = dedicatedModules.map((module) => ({
-    module_key: module.module_key,
-    enabled: module.module_key === input.dataset.areaKey ? input.checked : module.enabled,
-    is_public: module.is_public,
-    public_name: module.public_name,
-    navigation_label: module.navigation_label,
-    sort_order: module.sort_order,
-  }));
+  dedicatedModules = dedicatedModules.map((module) => module.module_key === input.dataset.areaKey ? { ...module, enabled: input.checked } : module);
   els.areasMessage.textContent = "Salvando área...";
   try {
-    await adminApi(`/api/v1/admin/hotels/${encodeURIComponent(els.areasHotel.value)}/modules`, { method: "PATCH", body: { modules: selected } });
+    await persistDedicatedModules();
     await loadDedicatedAreas();
   } catch (error) {
     input.checked = !input.checked;
     els.areasMessage.textContent = error.message || "Não foi possível salvar a área.";
   }
+}
+
+async function handleAreaImageAction(event) {
+  const button = event.target.closest("[data-area-image]");
+  if (!button) return;
+  const module = dedicatedModules.find((item) => item.module_key === button.dataset.areaImage);
+  if (!module) return;
+  const params = new URLSearchParams({ hotel_id: els.areasHotel.value, status: "active" });
+  const payload = await adminApi(`/api/v1/admin/media?${params.toString()}`);
+  const assets = (payload.data.assets || []).filter((asset) => String(asset.mime_type || "").startsWith("image/"));
+  els.dialogTitle.textContent = `Capa de ${module.public_name || module.name}`;
+  els.dialogBody.innerHTML = contentForm("area-media", `<fieldset class="admin-content-media-picker"><legend>Imagem do serviço</legend><p>A capa será usada no botão público deste serviço.</p><div><label class="admin-content-media-option no-media"><input type="radio" name="media_asset_id" value="" ${module.settings?.background_media_asset_id ? "" : "checked"}><span>${featureSvg("image")}<strong>Sem imagem</strong></span></label>${assets.map((asset) => `<label class="admin-content-media-option"><input type="radio" name="media_asset_id" value="${escapeAttr(asset.id)}" ${asset.id === module.settings?.background_media_asset_id ? "checked" : ""}><span><img src="${escapeAttr(asset.public_url)}" alt=""><strong>${escapeHtml(asset.original_filename || "Imagem")}</strong></span></label>`).join("")}</div></fieldset>`);
+  openPortalsDialog();
+  bindDialogForm(async (submitEvent) => {
+    submitEvent.preventDefault();
+    const form = submitEvent.currentTarget;
+    const selectedId = new FormData(form).get("media_asset_id") || "";
+    const selected = assets.find((asset) => asset.id === selectedId);
+    dedicatedModules = dedicatedModules.map((item) => item.module_key === module.module_key
+      ? { ...item, settings: { ...(item.settings || {}), background_media_asset_id: selectedId || null }, background_image_url: selected?.public_url || null }
+      : item);
+    try {
+      form.querySelector(".admin-dialog-message").textContent = "Salvando capa...";
+      await persistDedicatedModules();
+      closePortalsDialog();
+      await loadDedicatedAreas();
+    } catch (error) {
+      form.querySelector(".admin-dialog-message").textContent = error.message || "Não foi possível salvar a capa.";
+    }
+  });
+}
+
+function persistDedicatedModules() {
+  const modules = dedicatedModules.map((module) => ({
+    module_key: module.module_key,
+    enabled: module.enabled,
+    is_public: module.is_public,
+    public_name: module.public_name,
+    navigation_label: module.navigation_label,
+    sort_order: module.sort_order,
+    background_media_asset_id: module.settings?.background_media_asset_id || "",
+  }));
+  return adminApi(`/api/v1/admin/hotels/${encodeURIComponent(els.areasHotel.value)}/modules`, { method: "PATCH", body: { modules } });
 }
 
 function renderNavigationManager(session) {

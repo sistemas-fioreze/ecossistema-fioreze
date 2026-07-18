@@ -2267,3 +2267,161 @@ body[data-admin-shell="erp"] .admin-sanitization-note strong {
     padding: 20px 0 0;
   }
 }
+
+/* Portal event imagery and service covers */
+body[data-admin-shell="erp"] .admin-event-row-media,
+body[data-admin-shell="erp"] .admin-area-cover {
+  width: 64px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #e1e5e9;
+  border-radius: 8px;
+  color: var(--admin-primary);
+  background: var(--admin-soft);
+  object-fit: cover;
+}
+
+body[data-admin-shell="erp"] .admin-area-cover svg {
+  width: 24px;
+  height: 24px;
+}
+
+body[data-admin-shell="erp"] .admin-area-card {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  gap: 12px;
+  align-content: start;
+  cursor: default;
+}
+
+body[data-admin-shell="erp"] .admin-area-card > label {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+body[data-admin-shell="erp"] .admin-area-card > label > span:nth-of-type(2) {
+  min-width: 0;
+}
+
+body[data-admin-shell="erp"] .admin-area-card > label strong,
+body[data-admin-shell="erp"] .admin-area-card > label small {
+  overflow-wrap: anywhere;
+}
+
+body[data-admin-shell="erp"] .admin-area-card > label em {
+  grid-column: 3;
+  width: fit-content;
+  margin-top: -6px;
+}
+
+body[data-admin-shell="erp"] .admin-area-card > button {
+  grid-column: 1 / -1;
+  min-height: 38px;
+  border: 1px solid #e1e5e9;
+  border-radius: 8px;
+  padding: 0 12px;
+  color: var(--admin-primary);
+  background: #fff;
+  font: inherit;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.admin-content-media-picker {
+  min-width: 0;
+  border: 0;
+  padding: 0;
+}
+
+.admin-content-media-picker legend {
+  font-weight: 900;
+}
+
+.admin-content-media-picker > p {
+  margin: 5px 0 12px;
+  color: var(--admin-muted);
+  font-size: 0.82rem;
+}
+
+.admin-content-media-picker > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  max-height: 330px;
+  overflow: auto;
+  padding: 2px;
+}
+
+.admin-content-media-option {
+  min-width: 0;
+  cursor: pointer;
+}
+
+.admin-content-media-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.admin-content-media-option > span {
+  min-height: 118px;
+  display: grid;
+  grid-template-rows: 86px auto;
+  overflow: hidden;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  color: var(--admin-text);
+  background: var(--admin-soft);
+}
+
+.admin-content-media-option input:checked + span {
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--admin-primary) 13%, transparent);
+}
+
+.admin-content-media-option img {
+  width: 100%;
+  height: 86px;
+  object-fit: cover;
+}
+
+.admin-content-media-option strong {
+  overflow: hidden;
+  padding: 8px;
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-content-media-option.no-media > span {
+  place-items: center;
+  align-content: center;
+  grid-template-rows: auto auto;
+  gap: 8px;
+}
+
+.admin-content-media-option.no-media svg {
+  width: 28px;
+  height: 28px;
+}
+
+@media (max-width: 760px) {
+  body[data-admin-shell="erp"] .admin-area-card {
+    grid-template-columns: 54px minmax(0, 1fr);
+  }
+
+  body[data-admin-shell="erp"] .admin-area-card > button {
+    grid-column: 1 / -1;
+  }
+
+  .admin-content-media-picker > div {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
