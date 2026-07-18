@@ -2060,6 +2060,7 @@ async function openContentEditor(item = null) {
       ${dialogTextarea("Descrição completa", "content", item?.content)}
       <div class="admin-form-grid">${dialogField("Local do evento", "location", item?.location, "text")}${dialogField("Categoria", "category", item?.category, "text")}</div>
       ${dialogField("Etiquetas", "tags", (item?.tags || []).join(", "), "text", false)}
+      <div class="admin-form-grid">${dialogField("Texto do botão", "action_text", item?.action_text, "text")}${dialogField("URL do botão", "action_url", item?.action_url, "url")}</div>
       ${renderEventMediaPicker(item?.media_asset_id)}
       <div class="admin-form-grid">${dialogField("Início", "starts_at", toLocalDateTime(item?.starts_at), "datetime-local", true)}${dialogField("Término", "ends_at", toLocalDateTime(item?.ends_at), "datetime-local")}</div>
       <div class="admin-form-grid">${dialogField("Fuso horário", "timezone", item?.timezone || hotelTimezone(els.contentHotel.value), "text", true)}${dialogSelect("Status", "status", item?.status || "draft", [["draft", "Rascunho"], ["published", "Publicado"], ["cancelled", "Cancelado"], ["archived", "Arquivado"]])}</div>`);

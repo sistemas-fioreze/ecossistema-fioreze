@@ -108,7 +108,7 @@ async function listPublishedEvents(env, hotelId) {
   const events = await all(
     env,
     `SELECT e.id, e.title, e.summary, e.content, e.location, e.category, e.tags_json,
-            e.starts_at, e.ends_at, e.timezone,
+            e.action_text, e.action_url, e.starts_at, e.ends_at, e.timezone,
             e.media_asset_id, ma.public_url AS image_url, ma.alt_text AS image_alt
        FROM events e
        LEFT JOIN media_assets ma

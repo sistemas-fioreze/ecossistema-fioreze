@@ -39,13 +39,30 @@ test("portal integra clima, blog, eventos ilustrados e capas dos servicos", () =
   assert.match(portalScript, /renderStayCalendar/);
   assert.match(portalScript, /portal-detail-view/);
   assert.match(portalScript, /event-detail-aside/);
+  assert.match(portalScript, /weather-now-temp/);
+  assert.match(portalScript, /detail-action-button/);
+  assert.match(portalScript, /event\.action_url/);
+  assert.doesNotMatch(portalScript, /class="header-time"/);
   assert.match(portalCss, /\.event-title-controls/);
   assert.match(portalCss, /\.event-blog-card/);
   assert.match(portalCss, /\.month-calendar-card/);
   assert.match(portalCss, /\.event-detail-layout/);
+  assert.match(portalCss, /@keyframes portal-nav-slide/);
+  assert.match(portalCss, /\.bottom-nav\.is-changing \.nav-slider/);
+  assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.site-header\s*\{[\s\S]*?position:\s*fixed/);
   assert.match(adminScript, /media_asset_id/);
   assert.match(adminScript, /background_media_asset_id/);
   assert.match(adminScript, /portal\.blog_feed_url/);
+  assert.match(adminScript, /action_text/);
+  assert.match(adminScript, /action_url/);
+});
+
+test("portal anima a troca de abas a partir da posicao anterior", () => {
+  assert.match(portalScript, /previousTab/);
+  assert.match(portalScript, /--nav-from-index/);
+  assert.match(portalScript, /portal-tab-transition/);
+  assert.match(portalCss, /animation:\s*portal-nav-slide 0\.42s/);
+  assert.match(portalCss, /animation:\s*portal-tab-enter 0\.36s/);
 });
 
 test("shell mantem um unico carregamento visivel antes do portal", () => {

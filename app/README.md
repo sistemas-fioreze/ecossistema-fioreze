@@ -455,7 +455,7 @@ O shell `/admin/portais/` e a Central de Portais Fioreze. A interface segue a me
 
 O shell publico do Portal do Hospede e unico para todos os hoteis. Ele reproduz a composicao visual da referencia aprovada com identidade dinamica por unidade: carregamento com logo horizontal, cabecalho responsivo, navegacao inferior no mobile, servicos ilustrados, evento em destaque, lista e calendario de eventos, detalhe editorial, informacoes do hotel, clima e blog. Cores, tipografia, logos, modulos, imagens e conteudos continuam vindo do bootstrap e das APIs do hotel selecionado; nenhum HTML ou dado do Muller fica fixo no shell compartilhado.
 
-A migration `0022_guest_portal_event_details.sql` amplia `events` de forma aditiva com descricao completa, local, categoria e tags. Esses campos sustentam a visualizacao editorial de eventos e podem ser administrados pela Central de Portais. A migration nao cadastra nem altera eventos existentes.
+A migration `0022_guest_portal_event_details.sql` amplia `events` de forma aditiva com descricao completa, local, categoria e tags. A migration `0023_guest_portal_event_actions.sql` acrescenta um botao editorial opcional por evento, formado por texto e URL HTTPS validados em conjunto. Esses campos sustentam a visualizacao editorial de eventos e podem ser administrados pela Central de Portais. As migrations nao cadastram nem alteram eventos existentes.
 
 A Central tambem possui gestao completa de usuarios, senhas temporarias, sessoes, perfis e permissoes. Segredos temporarios sao exibidos uma unica vez e nunca sao gravados na auditoria.
 

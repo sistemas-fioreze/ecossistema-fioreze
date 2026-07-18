@@ -99,6 +99,8 @@ test("portal publico entrega somente conteudo publicado da unidade solicitada", 
   assert.deepEqual(body.data.events.map((event) => event.id), ["event-muller-welcome"]);
   assert.deepEqual(body.data.events[0].tags, ["Recepcao"]);
   assert.equal(body.data.events[0].location, "Sala Exemplo");
+  assert.equal(body.data.events[0].action_text, "Ver programacao");
+  assert.equal(body.data.events[0].action_url, "https://example.test/programacao");
   assert.equal("tags_json" in body.data.events[0], false);
   assert.deepEqual(body.data.information.map((item) => item.id), ["info-muller-wifi", "info-muller-breakfast"]);
   assert.equal(JSON.stringify(body.data).includes("aurora"), false);
