@@ -13,8 +13,7 @@ const adminScript = fs.readFileSync(new URL("../public/js/modules/admin/portals.
 
 test("portal usa o layout de referencia com identidade e conteudo dinamicos", () => {
   assert.match(portalScript, /branding\.horizontal_logo_url/);
-  assert.match(portalScript, /loading-brand/);
-  assert.match(portalScript, /Carregando portal/);
+  assert.doesNotMatch(portalScript, /loading-brand|Carregando portal|renderLoading/);
   assert.match(portalScript, /bootstrap\.modules\.filter/);
   assert.match(portalScript, /bootstrap\.settings/);
   assert.match(portalScript, /\["inicio", "Início", "home"\]/);
@@ -50,6 +49,8 @@ test("portal integra clima, blog, eventos ilustrados e capas dos servicos", () =
   assert.match(portalCss, /@keyframes portal-nav-slide/);
   assert.match(portalCss, /\.bottom-nav\.is-changing \.nav-slider/);
   assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.site-header\s*\{[\s\S]*?position:\s*fixed/);
+  assert.match(portalCss, /\.site-header\.is-scrolled\s*\{[\s\S]*?backdrop-filter:\s*blur\(22px\)/);
+  assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.site-header\s*\{[\s\S]*?border:\s*0;[\s\S]*?box-shadow:\s*none/);
   assert.match(adminScript, /media_asset_id/);
   assert.match(adminScript, /background_media_asset_id/);
   assert.match(adminScript, /portal\.blog_feed_url/);
@@ -65,12 +66,23 @@ test("portal anima a troca de abas a partir da posicao anterior", () => {
   assert.match(portalCss, /animation:\s*portal-tab-enter 0\.36s/);
 });
 
-test("shell mantem um unico carregamento visivel antes do portal", () => {
+test("shell abre o portal diretamente sem uma segunda tela de carregamento", () => {
   assert.match(appScript, /document\.createElement\("section"\)/);
   assert.ok(appScript.indexOf("app.replaceChildren(moduleContainer)") < appScript.indexOf("await module.render(moduleContainer"));
   assert.match(publicIndex, /<main id="app" class="app-shell" aria-live="polite"><\/main>/);
   assert.doesNotMatch(publicIndex, /loader-screen|Carregando experiência/);
   assert.doesNotMatch(appScript, /app\.innerHTML\s*=\s*moduleLoader[\s\S]*renderGuestPortalHome/);
+  assert.doesNotMatch(portalScript, /loading-screen|Carregando portal/);
+  assert.ok(portalScript.indexOf("renderPortal(container, state)") < portalScript.indexOf("await Promise.all"));
+});
+
+test("header movel ganha blur somente depois da rolagem", () => {
+  assert.match(portalScript, /syncHeaderScroll/);
+  assert.match(portalScript, /window\.scrollY > 8/);
+  assert.match(portalScript, /addEventListener\("scroll"/);
+  assert.match(portalScript, /removeEventListener\("scroll"/);
+  assert.match(portalCss, /background:\s*transparent/);
+  assert.match(portalCss, /\.site-header\.is-scrolled/);
 });
 
 test("portal nao incorpora dependencias nem endpoints do sistema legado", () => {

@@ -44,11 +44,14 @@ export async function render(container, context) {
     selectedDate: null,
     stayStart: "",
     stayEnd: "",
-    clockTimer: null,
     tabTransitionTimer: null,
+    scrollHandler: null,
   };
 
-  container.innerHTML = renderLoading(context.bootstrap);
+  state.scrollHandler = () => syncHeaderScroll(container);
+  renderPortal(container, state);
+  bindPortal(container, state);
+  window.addEventListener("scroll", state.scrollHandler, { passive: true });
   try {
     const slug = encodeURIComponent(context.bootstrap.slug);
     [state.content, state.weather] = await Promise.all([
@@ -56,30 +59,15 @@ export async function render(container, context) {
       apiGet(`/api/v1/public/hotels/${slug}/portal/weather`).catch(() => ({ available: false, current: null, forecast: [] })),
     ]);
     renderPortal(container, state);
-    bindPortal(container, state);
-    updateClock(container, state.bootstrap.timezone);
-    state.clockTimer = window.setInterval(() => updateClock(container, state.bootstrap.timezone), 60000);
   } catch (error) {
     container.innerHTML = renderLoadError(error);
     container.querySelector("[data-reload]")?.addEventListener("click", () => window.location.reload());
   }
 
   cleanupCurrentRender = () => {
-    if (state.clockTimer) window.clearInterval(state.clockTimer);
     if (state.tabTransitionTimer) window.clearTimeout(state.tabTransitionTimer);
+    if (state.scrollHandler) window.removeEventListener("scroll", state.scrollHandler);
   };
-}
-
-function renderLoading(bootstrap) {
-  const logoUrl = getLogoUrl(bootstrap.branding);
-  return `
-    <main class="guest-loading loading-screen" aria-live="polite">
-      <div class="loading-card">
-        ${logoUrl ? `<img class="loading-brand" src="${escapeHtml(logoUrl)}" alt="${escapeHtml(bootstrap.name)}">` : `<span class="loading-brand-fallback">${escapeHtml(bootstrap.short_name || bootstrap.name)}</span>`}
-        <span class="loading-modern-ring" aria-hidden="true"></span>
-        <p>Carregando portal</p>
-      </div>
-    </main>`;
 }
 
 function renderLoadError(error) {
@@ -95,6 +83,7 @@ function renderLoadError(error) {
 function renderPortal(container, state) {
   if (state.selectedEventId) {
     container.innerHTML = `${renderEventDetail(state)}${renderBottomNav("eventos", "eventos")}`;
+    syncHeaderScroll(container);
     return;
   }
 
@@ -107,6 +96,7 @@ function renderPortal(container, state) {
     ${renderBottomNav(state.activeTab, state.previousTab)}
     ${state.weatherOpen ? renderWeatherPanel(state) : ""}`;
   animateTabChange(container, state);
+  syncHeaderScroll(container);
 }
 
 function bindPortal(container, state) {
@@ -221,8 +211,12 @@ function bindPortal(container, state) {
 }
 
 function afterRender(container, state, scroll = true) {
-  updateClock(container, state.bootstrap.timezone);
   if (scroll) window.scrollTo({ top: 0, behavior: "smooth" });
+  syncHeaderScroll(container);
+}
+
+function syncHeaderScroll(container) {
+  container.querySelector(".site-header")?.classList.toggle("is-scrolled", window.scrollY > 8);
 }
 
 function animateTabChange(container, state) {
@@ -650,12 +644,6 @@ function getGreeting(timezone) {
   if (hour < 12) return "bom dia";
   if (hour < 18) return "boa tarde";
   return "boa noite";
-}
-
-function updateClock(container, timezone) {
-  const target = container.querySelector("[data-hotel-clock]");
-  if (!target) return;
-  target.textContent = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: timezone }).format(new Date());
 }
 
 function formatEventDay(event, bootstrap) {
