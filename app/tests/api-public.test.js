@@ -97,6 +97,9 @@ test("portal publico entrega somente conteudo publicado da unidade solicitada", 
   assert.equal(body.data.module_key, "guest-portal");
   assert.deepEqual(body.data.pages.map((page) => page.id), ["page-muller-home", "page-muller-guide"]);
   assert.deepEqual(body.data.events.map((event) => event.id), ["event-muller-welcome"]);
+  assert.deepEqual(body.data.events[0].tags, ["Recepcao"]);
+  assert.equal(body.data.events[0].location, "Sala Exemplo");
+  assert.equal("tags_json" in body.data.events[0], false);
   assert.deepEqual(body.data.information.map((item) => item.id), ["info-muller-wifi", "info-muller-breakfast"]);
   assert.equal(JSON.stringify(body.data).includes("aurora"), false);
   assert.equal(JSON.stringify(body.data).includes("info-muller-private"), false);

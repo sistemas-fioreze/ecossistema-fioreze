@@ -11,6 +11,7 @@ const shortLinksMigration = fs.readFileSync("migrations/0011_short_links_foundat
 const adminPreferencesMediaFoldersMigration = fs.readFileSync("migrations/0017_admin_preferences_media_folders.sql", "utf8");
 const adminLoginSecurityMigration = fs.readFileSync("migrations/0019_admin_login_security.sql", "utf8");
 const guestPortalReferenceMigration = fs.readFileSync("migrations/0021_guest_portal_reference_features.sql", "utf8");
+const guestPortalEventDetailsMigration = fs.readFileSync("migrations/0022_guest_portal_event_details.sql", "utf8");
 const seed = fs.readFileSync("seeds/dev.sql", "utf8");
 const wranglerConfig = JSON.parse(fs.readFileSync("wrangler.jsonc", "utf8"));
 const normalizedMigration = normalize(migration);
@@ -21,6 +22,7 @@ const normalizedShortLinksMigration = normalize(shortLinksMigration);
 const normalizedAdminPreferencesMediaFoldersMigration = normalize(adminPreferencesMediaFoldersMigration);
 const normalizedAdminLoginSecurityMigration = normalize(adminLoginSecurityMigration);
 const normalizedGuestPortalReferenceMigration = normalize(guestPortalReferenceMigration);
+const normalizedGuestPortalEventDetailsMigration = normalize(guestPortalEventDetailsMigration);
 
 test("migration 0007 cria service_hours e media_assets", () => {
   assert.match(normalizedMigration, /create table if not exists service_hours/);
@@ -91,6 +93,15 @@ test("migration 0021 associa eventos a midias da biblioteca", () => {
   assert.match(normalizedGuestPortalReferenceMigration, /alter table events add column media_asset_id text references media_assets\(id\) on delete set null/);
   assert.match(normalizedGuestPortalReferenceMigration, /create index if not exists idx_events_hotel_media/);
   assert.equal(/insert into|update events|delete from/i.test(guestPortalReferenceMigration), false);
+});
+
+test("migration 0022 prepara a visualizacao completa dos eventos sem alterar dados", () => {
+  assert.match(normalizedGuestPortalEventDetailsMigration, /alter table events add column content text/);
+  assert.match(normalizedGuestPortalEventDetailsMigration, /alter table events add column location text/);
+  assert.match(normalizedGuestPortalEventDetailsMigration, /alter table events add column category text/);
+  assert.match(normalizedGuestPortalEventDetailsMigration, /add column tags_json text not null default '\[\]' check \(json_valid\(tags_json\)\)/);
+  assert.match(normalizedGuestPortalEventDetailsMigration, /idx_events_hotel_category_status/);
+  assert.equal(/insert into|update events|delete from/i.test(guestPortalEventDetailsMigration), false);
 });
 
 test("wrangler declara MEDIA_BUCKET privado de desenvolvimento", () => {

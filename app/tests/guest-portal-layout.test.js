@@ -13,6 +13,8 @@ const adminScript = fs.readFileSync(new URL("../public/js/modules/admin/portals.
 
 test("portal usa o layout de referencia com identidade e conteudo dinamicos", () => {
   assert.match(portalScript, /branding\.horizontal_logo_url/);
+  assert.match(portalScript, /loading-brand/);
+  assert.match(portalScript, /Carregando portal/);
   assert.match(portalScript, /bootstrap\.modules\.filter/);
   assert.match(portalScript, /bootstrap\.settings/);
   assert.match(portalScript, /\["inicio", "Início", "home"\]/);
@@ -32,7 +34,15 @@ test("portal integra clima, blog, eventos ilustrados e capas dos servicos", () =
   assert.match(portalScript, /data-event-open/);
   assert.match(portalScript, /renderEventDetail/);
   assert.match(portalScript, /module\.background_image_url/);
-  assert.match(portalScript, /quick-card-media/);
+  assert.match(portalScript, /home-landscape-media/);
+  assert.match(portalScript, /renderMonthCalendar/);
+  assert.match(portalScript, /renderStayCalendar/);
+  assert.match(portalScript, /portal-detail-view/);
+  assert.match(portalScript, /event-detail-aside/);
+  assert.match(portalCss, /\.event-title-controls/);
+  assert.match(portalCss, /\.event-blog-card/);
+  assert.match(portalCss, /\.month-calendar-card/);
+  assert.match(portalCss, /\.event-detail-layout/);
   assert.match(adminScript, /media_asset_id/);
   assert.match(adminScript, /background_media_asset_id/);
   assert.match(adminScript, /portal\.blog_feed_url/);
@@ -40,7 +50,9 @@ test("portal integra clima, blog, eventos ilustrados e capas dos servicos", () =
 
 test("shell mantem um unico carregamento visivel antes do portal", () => {
   assert.match(appScript, /document\.createElement\("section"\)/);
-  assert.match(appScript, /app\.replaceChildren\(moduleContainer\)/);
+  assert.ok(appScript.indexOf("app.replaceChildren(moduleContainer)") < appScript.indexOf("await module.render(moduleContainer"));
+  assert.match(publicIndex, /<main id="app" class="app-shell" aria-live="polite"><\/main>/);
+  assert.doesNotMatch(publicIndex, /loader-screen|Carregando experiência/);
   assert.doesNotMatch(appScript, /app\.innerHTML\s*=\s*moduleLoader[\s\S]*renderGuestPortalHome/);
 });
 
