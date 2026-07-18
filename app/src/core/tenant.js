@@ -33,6 +33,7 @@ export async function getHotelBranding(env, hotelId) {
     icon_url: row.icon_url,
     horizontal_logo_url: custom.horizontal_logo_url || row.logo_url || null,
     cover_image_url: custom.cover_image_url || null,
+    cover_media_type: custom.cover_media_type || (custom.cover_image_url ? "image" : null),
     primary_color: row.primary_color,
     secondary_color: row.secondary_color,
     accent_color: row.accent_color,

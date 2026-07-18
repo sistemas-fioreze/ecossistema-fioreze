@@ -235,9 +235,9 @@ A migration `0020_portal_custom_pages_qr_links.sql` adiciona paginas HTML saniti
 
 A migration `0021_guest_portal_reference_features.sql` associa eventos a imagens da Biblioteca de Midia. A relacao e opcional, isolada por unidade na API e nao altera eventos existentes.
 
-O Portal do Hospede usa um unico shell para todas as unidades. Identidade, localizacao, eventos, modulos e capas de servicos sao resolvidos pelo `hotel_id`; nenhuma imagem ou cor do Muller fica fixa no codigo compartilhado. O clima usa a latitude, longitude e o fuso cadastrados na unidade, por meio de um endpoint publico do Worker. O blog e consultado pelo Worker no feed oficial permitido e devolvido ao navegador em um formato reduzido e sanitizado. Falhas desses servicos externos nao impedem a abertura do portal.
+O Portal do Hospede usa um unico shell para todas as unidades. Identidade, localizacao, eventos, modulos e capas de servicos sao resolvidos pelo `hotel_id`; nenhuma imagem ou cor do Muller fica fixa no codigo compartilhado. A capa da unidade aceita imagem ou video da Biblioteca de Midia; videos sao carregados e reproduzidos somente no layout desktop, com movimento desativado quando o navegador solicita reducao de animacoes. O clima usa a latitude, longitude e o fuso cadastrados na unidade, por meio de um endpoint publico do Worker. O blog e consultado pelo Worker no feed oficial permitido e devolvido ao navegador em um formato reduzido e sanitizado. Falhas desses servicos externos nao impedem a abertura do portal.
 
-Na Central Administrativa, a area **Conteudos > Eventos** permite escolher uma imagem ativa da Biblioteca de Midia. Em **Areas**, cada modulo pode receber uma capa propria, usada nos botoes publicos de servico. O feed do blog e configurado nos dados gerais da unidade e permanece restrito ao endpoint oficial autorizado.
+Na Central Administrativa, a identidade da unidade usa um seletor visual da Biblioteca de Midia. Logos e imagens sociais aceitam imagens; a capa do portal aceita imagem ou video. A area **Conteudos > Eventos** permite escolher uma imagem ativa e, em **Areas**, cada modulo pode receber uma capa propria usada nos botoes publicos de servico. O feed do blog e configurado nos dados gerais da unidade e permanece restrito ao endpoint oficial autorizado.
 
 A migration `0018_admin_messages_and_reference_numbers.sql` adiciona:
 
@@ -443,7 +443,7 @@ O shell `/admin/portais/` e a Central de Portais Fioreze. A interface segue a me
 - listagem filtrada pelos hoteis autorizados ao usuario;
 - criacao de unidade com `hotel_id` derivado do slug, sem aceitar `hotel_id` enviado pelo cliente;
 - edicao de dados gerais, status e arquivamento logico;
-- identidade visual com selecao de midias ja cadastradas na Biblioteca de Imagens;
+- identidade visual com seletor de arquivos da Biblioteca de Midia e capa desktop em imagem ou video;
 - configuracoes publicas de contato, hospedagem e SEO em `hotel_settings`;
 - ativacao de modulos por hotel em `hotel_modules`;
 - navegacao publica por hotel em `navigation_items`;
