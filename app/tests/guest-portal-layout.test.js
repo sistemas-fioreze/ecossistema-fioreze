@@ -102,6 +102,17 @@ test("desktop usa a capa sanitizada da unidade como fundo de tela inteira", () =
   assert.match(portalCss, /\.desktop-unit-cover img\s*\{[\s\S]*?object-fit:\s*cover/);
 });
 
+test("desktop alinha as guias, desfoca o header e aplica contraste somente com capa", () => {
+  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.site-header,[\s\S]*?background:\s*rgba\(255, 255, 255, 0\.72\);[\s\S]*?backdrop-filter:\s*blur\(28px\)/);
+  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.bottom-nav-shell\s*\{[\s\S]*?top:\s*24px;[\s\S]*?height:\s*58px;[\s\S]*?align-items:\s*center/);
+  assert.match(portalCss, /\.bottom-nav\s*\{[\s\S]*?height:\s*58px;[\s\S]*?padding:\s*8px 4px/);
+  assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\) \.desktop-unit-cover::after\s*\{[\s\S]*?rgba\(14, 11, 9, 0\.68\)/);
+  assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\) \.home-hero-copy \.guest-title/);
+  assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\) \.home-services-section > \.guest-section-title/);
+  assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\) \.home-info-section \.guest-section-heading button/);
+  assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\) \.app-top-card > p\s*\{[\s\S]*?color:\s*#fff/);
+});
+
 test("portal nao incorpora dependencias nem endpoints do sistema legado", () => {
   assert.doesNotMatch(portalScript, /script\.google\.com/i);
   assert.doesNotMatch(portalScript, /docs\.google\.com/i);
