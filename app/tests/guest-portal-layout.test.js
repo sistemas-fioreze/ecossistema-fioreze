@@ -8,6 +8,8 @@ const portalCss = fs.readFileSync(
   "utf8",
 );
 const publicIndex = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
+const appScript = fs.readFileSync(new URL("../public/js/core/app.js", import.meta.url), "utf8");
+const adminScript = fs.readFileSync(new URL("../public/js/modules/admin/portals.js", import.meta.url), "utf8");
 
 test("portal usa o layout de referencia com identidade e conteudo dinamicos", () => {
   assert.match(portalScript, /branding\.horizontal_logo_url/);
@@ -17,8 +19,29 @@ test("portal usa o layout de referencia com identidade e conteudo dinamicos", ()
   assert.match(portalScript, /Informações do hotel/);
   assert.match(portalCss, /\.featured-home-card/);
   assert.match(portalCss, /\.bottom-nav-shell/);
+  assert.match(portalCss, /backdrop-filter:\s*blur\(24px\)\s+saturate\(1\.18\)/);
+  assert.match(portalCss, /\.bottom-nav \.nav-slider/);
   assert.match(portalCss, /@media \(min-width: 960px\)/);
   assert.match(publicIndex, /guest-portal\/guest-portal\.css/);
+});
+
+test("portal integra clima, blog, eventos ilustrados e capas dos servicos", () => {
+  assert.match(portalScript, /\/portal\/weather/);
+  assert.match(portalScript, /\/portal\/blog/);
+  assert.match(portalScript, /event\.image_url/);
+  assert.match(portalScript, /data-event-open/);
+  assert.match(portalScript, /renderEventDetail/);
+  assert.match(portalScript, /module\.background_image_url/);
+  assert.match(portalScript, /quick-card-media/);
+  assert.match(adminScript, /media_asset_id/);
+  assert.match(adminScript, /background_media_asset_id/);
+  assert.match(adminScript, /portal\.blog_feed_url/);
+});
+
+test("shell mantem um unico carregamento visivel antes do portal", () => {
+  assert.match(appScript, /document\.createElement\("section"\)/);
+  assert.match(appScript, /app\.replaceChildren\(moduleContainer\)/);
+  assert.doesNotMatch(appScript, /app\.innerHTML\s*=\s*moduleLoader[\s\S]*renderGuestPortalHome/);
 });
 
 test("portal nao incorpora dependencias nem endpoints do sistema legado", () => {

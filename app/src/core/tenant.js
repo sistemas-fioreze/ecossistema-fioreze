@@ -113,9 +113,14 @@ export async function getEnabledModules(env, hotelId, { publicOnly = true } = {}
   return all(
     env,
     `SELECT hm.hotel_id, hm.module_key, hm.enabled, hm.public_name, hm.navigation_label,
-            hm.sort_order, m.name, m.description
+            hm.sort_order, hm.settings_json, m.name, m.description,
+            ma.public_url AS background_image_url
        FROM hotel_modules hm
        JOIN modules m ON m.module_key = hm.module_key
+       LEFT JOIN media_assets ma
+         ON ma.id = json_extract(hm.settings_json, '$.background_media_asset_id')
+        AND ma.hotel_id = hm.hotel_id
+        AND ma.status = 'active'
       WHERE hm.hotel_id = ?
         AND hm.enabled = 1
         AND (? = 0 OR hm.is_public = 1)
@@ -177,6 +182,7 @@ export async function resolveTenantBySlug(env, slug) {
       name: module.public_name || module.name,
       navigation_label: module.navigation_label || module.public_name || module.name,
       enabled: Boolean(module.enabled),
+      background_image_url: module.background_image_url || null,
     })),
     navigation,
     features,
