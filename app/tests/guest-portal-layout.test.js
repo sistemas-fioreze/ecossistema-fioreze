@@ -85,6 +85,14 @@ test("header movel ganha blur somente depois da rolagem", () => {
   assert.match(portalCss, /\.site-header\.is-scrolled/);
 });
 
+test("desktop centraliza header e mostra SVG em todas as guias", () => {
+  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.portal-app-top \.site-header\s*\{[\s\S]*?margin-right:\s*auto;[\s\S]*?margin-left:\s*auto/);
+  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.bottom-nav-shell\s*\{[\s\S]*?width:\s*min\(560px, calc\(100vw - 500px\)\)/);
+  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.bottom-nav button svg\s*\{[\s\S]*?display:\s*block/);
+  assert.match(portalCss, /@media \(min-width: 960px\) and \(max-width: 1120px\)/);
+  assert.equal((portalScript.match(/\["(?:inicio|servicos|eventos|hotel|blog)",/g) || []).length, 5);
+});
+
 test("portal nao incorpora dependencias nem endpoints do sistema legado", () => {
   assert.doesNotMatch(portalScript, /script\.google\.com/i);
   assert.doesNotMatch(portalScript, /docs\.google\.com/i);
