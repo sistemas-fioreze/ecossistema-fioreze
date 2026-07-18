@@ -2057,6 +2057,9 @@ async function openContentEditor(item = null) {
     els.dialogBody.innerHTML = contentForm("event", `
       ${dialogField("Título", "title", item?.title, "text", true)}
       ${dialogTextarea("Resumo", "summary", item?.summary)}
+      ${dialogTextarea("Descrição completa", "content", item?.content)}
+      <div class="admin-form-grid">${dialogField("Local do evento", "location", item?.location, "text")}${dialogField("Categoria", "category", item?.category, "text")}</div>
+      ${dialogField("Etiquetas", "tags", (item?.tags || []).join(", "), "text", false)}
       ${renderEventMediaPicker(item?.media_asset_id)}
       <div class="admin-form-grid">${dialogField("Início", "starts_at", toLocalDateTime(item?.starts_at), "datetime-local", true)}${dialogField("Término", "ends_at", toLocalDateTime(item?.ends_at), "datetime-local")}</div>
       <div class="admin-form-grid">${dialogField("Fuso horário", "timezone", item?.timezone || hotelTimezone(els.contentHotel.value), "text", true)}${dialogSelect("Status", "status", item?.status || "draft", [["draft", "Rascunho"], ["published", "Publicado"], ["cancelled", "Cancelado"], ["archived", "Arquivado"]])}</div>`);
@@ -2086,6 +2089,7 @@ async function saveContent(event, item) {
     body.hotel_id = els.contentHotel.value;
     body.starts_at = fromLocalDateTime(body.starts_at);
     body.ends_at = fromLocalDateTime(body.ends_at);
+    body.tags = String(body.tags || "").split(",").map((tag) => tag.trim()).filter(Boolean);
   } else {
     body.hotel_id = els.contentHotel.value;
     body.sort_order = Number(body.sort_order || 100);

@@ -43,6 +43,8 @@ O schema inicial e versionado por migrations em `app/migrations/`.
 - `events`;
 - `hotel_information`.
 
+`events` mantem titulo e resumo para listagens e tambem oferece `content`, `location`, `category` e `tags_json` para a pagina editorial completa. `tags_json` deve ser um array JSON, e o indice `hotel_id + category + status + starts_at` atende filtros publicos sem atravessar unidades. A extensao e criada por `0022_guest_portal_event_details.sql` sem importar conteudo real.
+
 ## Catalogos Compartilhados
 
 - `catalogs`;

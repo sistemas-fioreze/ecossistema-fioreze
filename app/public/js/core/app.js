@@ -30,8 +30,8 @@ async function boot() {
     moduleContainer.className = "module-view guest-portal-view";
     moduleContainer.dataset.moduleView = "";
     moduleContainer.dataset.moduleKey = moduleKey;
-    await module.render(moduleContainer, { bootstrap, moduleKey });
     app.replaceChildren(moduleContainer);
+    await module.render(moduleContainer, { bootstrap, moduleKey });
     return;
   }
 

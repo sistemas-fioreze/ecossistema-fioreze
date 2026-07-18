@@ -96,13 +96,19 @@ test("arquivamento de pagina preserva registro e marca archived_at", async () =>
 test("eventos e informacoes usam datas normalizadas e hotel autorizado", async () => {
   const env = createEnv();
   const event = await createPortalEvent({
-    request: request({ hotel_id: "muller-fioreze", title: "Encontro cultural", summary: "Programacao especial", starts_at: "2026-07-20T18:00:00-03:00", ends_at: "2026-07-20T20:00:00-03:00", timezone: "America/Sao_Paulo", status: "published", media_asset_id: "media-event-muller" }),
+    request: request({ hotel_id: "muller-fioreze", title: "Encontro cultural", summary: "Programacao especial", content: "Descricao ficticia completa.", location: "Sala Exemplo", category: "Cultura", tags: ["Arte", "Cultura", "arte"], starts_at: "2026-07-20T18:00:00-03:00", ends_at: "2026-07-20T20:00:00-03:00", timezone: "America/Sao_Paulo", status: "published", media_asset_id: "media-event-muller" }),
     env,
     session: session(),
   });
   assert.equal(event.event.starts_at, "2026-07-20T21:00:00.000Z");
   assert.equal(event.event.media_asset_id, "media-event-muller");
   assert.equal(event.event.image_url, "/media/media-event-muller");
+  assert.equal(event.event.content, "Descricao ficticia completa.");
+  assert.equal(event.event.location, "Sala Exemplo");
+  assert.equal(event.event.category, "Cultura");
+  assert.deepEqual(event.event.tags, ["Arte", "Cultura"]);
+  assert.equal("tags_json" in event.event, true);
+  assert.equal(event.event.tags_json, undefined);
   const information = await createHotelInformation({
     request: request({ hotel_id: "muller-fioreze", info_key: "estacionamento", title: "Estacionamento", body: "Consulte a recepcao.", is_public: true, sort_order: 30 }),
     env,
@@ -239,7 +245,7 @@ class ContentStatement {
     } else if (this.sql.startsWith("INSERT INTO portal_sections")) {
       data.sections.push({ id: p[0], page_id: p[1], hotel_id: p[2], section_key: p[3], title: p[4], body: p[5], settings_json: p[6], sort_order: p[7], created_at: p[8], updated_at: p[9] });
     } else if (this.sql.startsWith("INSERT INTO events")) {
-      data.events.push({ id: p[0], hotel_id: p[1], title: p[2], summary: p[3], starts_at: p[4], ends_at: p[5], timezone: p[6], status: p[7], media_asset_id: p[8], created_at: p[9], updated_at: p[10] });
+      data.events.push({ id: p[0], hotel_id: p[1], title: p[2], summary: p[3], content: p[4], location: p[5], category: p[6], tags_json: p[7], starts_at: p[8], ends_at: p[9], timezone: p[10], status: p[11], media_asset_id: p[12], created_at: p[13], updated_at: p[14] });
     } else if (this.sql.startsWith("INSERT INTO hotel_information")) {
       data.information.push({ id: p[0], hotel_id: p[1], info_key: p[2], title: p[3], body: p[4], is_public: p[5], sort_order: p[6], created_at: p[7], updated_at: p[8] });
     } else if (this.sql.startsWith("INSERT INTO admin_audit_log")) {

@@ -3,9 +3,9 @@ import { escapeHtml } from "./errors.js";
 import { sanitizePublicAssetUrl } from "./theme.js";
 
 const MODULE_DESCRIPTIONS = {
-  "room-service": "Sabores preparados para aproveitar na sua acomodação.",
-  emporio: "Produtos selecionados e lembranças da sua estadia.",
-  spa: "Momentos de cuidado, equilíbrio e bem-estar.",
+  "room-service": "Refeições e bebidas no conforto da sua acomodação.",
+  emporio: "Chocolates, souvenirs e produtos selecionados.",
+  spa: "Massagens, tratamentos e momentos de bem-estar.",
   "romantic-packages": "Experiências especiais para celebrar a dois.",
 };
 
@@ -17,10 +17,12 @@ const NAV_ITEMS = [
   ["blog", "Blog", "blog"],
 ];
 
+const EVENT_PAGE_SIZE = 8;
 let cleanupCurrentRender = () => {};
 
 export async function render(container, context) {
   cleanupCurrentRender();
+  const now = new Date();
   const state = {
     bootstrap: context.bootstrap,
     content: { pages: [], events: [], information: [] },
@@ -32,6 +34,15 @@ export async function render(container, context) {
     blogLoaded: false,
     blogAvailable: true,
     activeTab: "inicio",
+    eventMode: "list",
+    eventFilter: "todos",
+    eventPage: 1,
+    calendarTab: "stay",
+    calendarYear: now.getFullYear(),
+    calendarMonth: now.getMonth() + 1,
+    selectedDate: null,
+    stayStart: "",
+    stayEnd: "",
     clockTimer: null,
   };
 
@@ -59,11 +70,13 @@ export async function render(container, context) {
 function renderLoading(bootstrap) {
   const logoUrl = getLogoUrl(bootstrap.branding);
   return `
-    <section class="guest-loading" aria-live="polite">
-      ${logoUrl ? `<img src="${escapeHtml(logoUrl)}" alt="">` : icon("hotel")}
-      <span class="guest-loading-spinner" aria-hidden="true"></span>
-      <p>Preparando sua experiência</p>
-    </section>`;
+    <main class="guest-loading loading-screen" aria-live="polite">
+      <div class="loading-card">
+        ${logoUrl ? `<img class="loading-brand" src="${escapeHtml(logoUrl)}" alt="${escapeHtml(bootstrap.name)}">` : `<span class="loading-brand-fallback">${escapeHtml(bootstrap.short_name || bootstrap.name)}</span>`}
+        <span class="loading-modern-ring" aria-hidden="true"></span>
+        <p>Carregando portal</p>
+      </div>
+    </main>`;
 }
 
 function renderLoadError(error) {
@@ -77,13 +90,19 @@ function renderLoadError(error) {
 }
 
 function renderPortal(container, state) {
+  if (state.selectedEventId) {
+    container.innerHTML = `${renderEventDetail(state)}${renderBottomNav("eventos")}`;
+    return;
+  }
+
+  const page = state.activeTab === "inicio"
+    ? `${renderHeader(state.bootstrap, state.weather)}<main class="guest-shell" data-guest-content>${renderHomeView(state)}</main>`
+    : renderSubpageView(state);
+
   container.innerHTML = `
-    ${renderHeader(state.bootstrap, state.weather)}
-    <main class="guest-shell" data-guest-content>${renderActiveView(state)}</main>
+    ${page}
     ${renderBottomNav(state.activeTab)}
-    ${state.weatherOpen ? renderWeatherPanel(state) : ""}
-    ${state.selectedEventId ? renderEventDetail(state) : ""}
-  `;
+    ${state.weatherOpen ? renderWeatherPanel(state) : ""}`;
 }
 
 function bindPortal(container, state) {
@@ -91,22 +110,26 @@ function bindPortal(container, state) {
     const tabButton = event.target.closest("[data-portal-tab]");
     if (tabButton) {
       state.activeTab = tabButton.dataset.portalTab;
+      state.selectedEventId = null;
+      state.eventPage = 1;
       renderPortal(container, state);
-      updateClock(container, state.bootstrap.timezone);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      afterRender(container, state);
       if (state.activeTab === "blog") loadBlog(container, state);
       return;
     }
 
     if (event.target.closest("[data-weather-open]")) {
+      if (!state.weather?.available) return;
       state.weatherOpen = true;
       renderPortal(container, state);
+      document.body.classList.add("weather-scroll-locked");
       return;
     }
     if (event.target.closest("[data-weather-close]")) {
       state.weatherOpen = false;
+      document.body.classList.remove("weather-scroll-locked");
       renderPortal(container, state);
-      updateClock(container, state.bootstrap.timezone);
+      afterRender(container, state, false);
       return;
     }
 
@@ -114,17 +137,88 @@ function bindPortal(container, state) {
     if (eventButton) {
       state.selectedEventId = eventButton.dataset.eventOpen;
       renderPortal(container, state);
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
     if (event.target.closest("[data-event-close]")) {
       state.selectedEventId = null;
+      state.activeTab = "eventos";
       renderPortal(container, state);
-      updateClock(container, state.bootstrap.timezone);
+      afterRender(container, state);
+      return;
+    }
+
+    const eventMode = event.target.closest("[data-event-mode]");
+    if (eventMode) {
+      state.eventMode = eventMode.dataset.eventMode;
+      renderPortal(container, state);
+      afterRender(container, state, false);
+      return;
+    }
+
+    const eventFilter = event.target.closest("[data-event-filter]");
+    if (eventFilter) {
+      state.eventFilter = eventFilter.dataset.eventFilter;
+      state.eventPage = 1;
+      renderPortal(container, state);
+      afterRender(container, state, false);
+      return;
+    }
+
+    const eventPage = event.target.closest("[data-event-page]");
+    if (eventPage && !eventPage.disabled) {
+      state.eventPage = Number(eventPage.dataset.eventPage);
+      renderPortal(container, state);
+      scrollEventsIntoView(container);
+      return;
+    }
+
+    const calendarTab = event.target.closest("[data-calendar-tab]");
+    if (calendarTab) {
+      state.calendarTab = calendarTab.dataset.calendarTab;
+      renderPortal(container, state);
+      afterRender(container, state, false);
+      return;
+    }
+
+    const calendarMonth = event.target.closest("[data-calendar-month]");
+    if (calendarMonth) {
+      changeCalendarMonth(state, Number(calendarMonth.dataset.calendarMonth));
+      renderPortal(container, state);
+      afterRender(container, state, false);
+      return;
+    }
+
+    const calendarDay = event.target.closest("[data-calendar-day]");
+    if (calendarDay) {
+      state.selectedDate = calendarDay.dataset.calendarDay;
+      renderPortal(container, state);
+      afterRender(container, state, false);
+      return;
+    }
+
+    if (event.target.closest("[data-stay-apply]")) {
+      state.stayStart = container.querySelector("[data-stay-start]")?.value || "";
+      state.stayEnd = container.querySelector("[data-stay-end]")?.value || "";
+      renderPortal(container, state);
+      afterRender(container, state, false);
+      return;
+    }
+    if (event.target.closest("[data-stay-clear]")) {
+      state.stayStart = "";
+      state.stayEnd = "";
+      renderPortal(container, state);
+      afterRender(container, state, false);
       return;
     }
 
     if (event.target.closest("[data-reload]")) window.location.reload();
   });
+}
+
+function afterRender(container, state, scroll = true) {
+  updateClock(container, state.bootstrap.timezone);
+  if (scroll) window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 async function loadBlog(container, state) {
@@ -153,23 +247,13 @@ function renderHeader(bootstrap, weather) {
     : `<strong class="brand-name-text">${escapeHtml(bootstrap.short_name || bootstrap.name)}</strong>`;
   const mapsUrl = sanitizeExternalUrl(bootstrap.settings?.["contact.maps_url"] || bootstrap.settings?.["hotel.maps_url"]);
   const locationControl = mapsUrl
-    ? `<a class="header-location-button" href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener" aria-label="Abrir localização do hotel">${icon("pin")}</a>`
+    ? `<a class="header-location-button" href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener noreferrer" aria-label="Abrir localização do hotel">${icon("pin")}</a>`
     : `<button type="button" class="header-location-button" data-portal-tab="hotel" aria-label="Ver informações do hotel">${icon("pin")}</button>`;
-
   const weatherControl = weather?.available && weather.current
-    ? `<button type="button" class="header-weather" data-weather-open aria-label="Abrir previsão do tempo">${icon(weatherIcon(weather.current.weather_code))}<strong>${Number(weather.current.temperature)}°</strong><span>${escapeHtml(weather.current.description)}</span>${icon("chevron")}</button>`
+    ? `<button type="button" class="header-weather" data-weather-open aria-label="Abrir previsão do tempo"><span>${icon(weatherIcon(weather.current.weather_code))}</span><strong>${Number(weather.current.temperature)}°C</strong>${icon("chevron-down")}</button>`
     : `<div class="header-time" aria-label="Horário local do hotel">${icon("clock")}<span data-hotel-clock>--:--</span></div>`;
 
-  return `
-    <header class="site-header">
-      <div class="guest-brand">
-        ${brand}
-        <div class="header-actions">
-          ${weatherControl}
-          ${locationControl}
-        </div>
-      </div>
-    </header>`;
+  return `<header class="site-header"><div class="guest-brand">${brand}<div class="header-actions">${weatherControl}${locationControl}</div></div></header>`;
 }
 
 function renderWeatherPanel(state) {
@@ -177,44 +261,47 @@ function renderWeatherPanel(state) {
   if (!current) return "";
   return `
     <div class="weather-modal-backdrop" role="dialog" aria-modal="true" aria-label="Previsão do tempo">
+      <button type="button" class="fixed-header-back" data-weather-close aria-label="Voltar">${icon("chevron-back")}<span>Voltar</span></button>
+      <div class="weather-fixed-title">${icon("cloud")}<span>Clima em ${escapeHtml(state.bootstrap.short_name || state.bootstrap.name)}</span></div>
       <section class="weather-modal-sheet">
-        <header class="weather-screen-head">
-          <div><p>Clima na unidade</p><h2>Previsão do tempo</h2></div>
-          <button type="button" data-weather-close aria-label="Fechar previsão">${icon("close")}</button>
-        </header>
+        <header class="weather-screen-head"><p>PREVISÃO LOCAL</p><h2>Clima durante a sua estadia</h2></header>
         <article class="weather-hero-card">
-          <div><strong class="weather-temp">${Number(current.temperature)}°</strong><span>${escapeHtml(current.description)}</span><small>Sensação de ${current.apparent_temperature ?? current.temperature}°</small></div>
+          <div><strong class="weather-temp">${Number(current.temperature)}°</strong><span class="weather-desc">${escapeHtml(current.description)}</span><small>Sensação de ${current.apparent_temperature ?? current.temperature}°</small></div>
           <span class="weather-hero-icon">${icon(weatherIcon(current.weather_code))}</span>
         </article>
         <div class="weather-forecast-grid">
           ${state.weather.forecast.map((day, index) => `<article class="weather-forecast-card"><strong>${escapeHtml(forecastDayLabel(day.date, index))}</strong>${icon(weatherIcon(day.weather_code))}<span>${escapeHtml(day.description)}</span><b>${day.temperature_max ?? "--"}° <small>${day.temperature_min ?? "--"}°</small></b><em>${icon("droplet")}${Number(day.precipitation_probability || 0)}%</em></article>`).join("")}
         </div>
-        <aside class="weather-tip-card">${icon("info")}<div><strong>Planeje o seu dia</strong><p>A previsão é atualizada pelo serviço Open-Meteo usando a localização cadastrada para esta unidade.</p></div></aside>
+        <aside class="weather-tip-card">${icon("info")}<div><strong>Planeje o seu dia</strong><p>Consulte a previsão antes de escolher os seus passeios.</p></div></aside>
       </section>
-      <div class="weather-back-shell"><button type="button" class="weather-back-action" data-weather-close>${icon("chevron-back")}<span>Voltar ao portal</span></button></div>
     </div>`;
 }
 
-function renderActiveView(state) {
+function renderSubpageView(state) {
   if (state.activeTab === "servicos") return renderServicesView(state);
   if (state.activeTab === "eventos") return renderEventsView(state);
   if (state.activeTab === "hotel") return renderHotelView(state);
-  if (state.activeTab === "blog") return renderPagesView(state);
-  return renderHomeView(state);
+  return renderBlogView(state);
+}
+
+function renderAppTop(state, title, subtitle, iconName, controls = "") {
+  return `
+    <section class="portal-app-top${controls ? " has-event-controls" : ""}">
+      ${renderHeader(state.bootstrap, state.weather)}
+      <div class="app-top-card">
+        <h1 class="app-top-title">${icon(iconName)}<span>${escapeHtml(title)}</span></h1>
+        <p>${escapeHtml(subtitle)}</p>
+        ${controls}
+      </div>
+    </section>`;
 }
 
 function renderHomeView(state) {
   const { bootstrap } = state;
-  const greeting = getGreeting(bootstrap.timezone);
-  const subtitle =
-    bootstrap.settings?.["portal.welcome_text"] ||
-    bootstrap.settings?.["hosting.welcome_text"] ||
-    bootstrap.settings?.["general.short_description"] ||
-    "Serviços, experiências e informações para acompanhar a sua estadia.";
-
+  const subtitle = bootstrap.settings?.["portal.welcome_text"] || bootstrap.settings?.["hosting.welcome_text"] || bootstrap.settings?.["general.short_description"] || "Aqui você encontra tudo o que precisa para aproveitar sua estadia com conforto e praticidade.";
   return `
     <section class="home-hero-copy">
-      <p class="guest-kicker">Olá, ${greeting}!</p>
+      <p class="guest-kicker">Olá, ${getGreeting(bootstrap.timezone)}!</p>
       <h1 class="guest-title">Bem-vindo ao ${escapeHtml(bootstrap.short_name || bootstrap.name)}</h1>
       <p class="guest-subtitle">${escapeHtml(subtitle)}</p>
     </section>
@@ -227,24 +314,17 @@ function renderServicesSection(state) {
   const services = getServiceModules(state.bootstrap);
   return `
     <section class="home-services-section guest-section">
-      <div class="guest-section-heading">
-        <h2 class="guest-section-title">Serviços</h2>
-        <button type="button" data-portal-tab="servicos">Ver todos</button>
-      </div>
-      ${services.length
-        ? `<div class="quick-grid amenities-grid">${services.slice(0, 3).map((service) => renderQuickCard(service, state.bootstrap)).join("")}</div>`
-        : renderEmptyState("Nenhum serviço disponível no momento.")}
+      <h2 class="guest-section-title">Serviços</h2>
+      ${services.length ? `<div class="quick-grid amenities-grid">${services.slice(0, 3).map((service) => renderQuickCard(service, state.bootstrap)).join("")}</div>` : renderEmptyState("Nenhum serviço disponível no momento.")}
     </section>`;
 }
 
 function renderQuickCard(module, bootstrap) {
-  const href = getModulePath(bootstrap, module.module_key);
-  const imageUrl = sanitizePublicAssetUrl(module.background_image_url);
   return `
-    <a class="quick-card${imageUrl ? " has-image" : ""}" href="${escapeHtml(href)}">
-      ${imageUrl ? `<img class="quick-card-media" src="${escapeHtml(imageUrl)}" alt="" loading="lazy">` : ""}
+    <a class="quick-card" href="${escapeHtml(getModulePath(bootstrap, module.module_key))}">
       ${icon(moduleIcon(module.module_key))}
-      <span class="quick-card-copy"><strong>${escapeHtml(module.navigation_label || module.name)}</strong><small>${escapeHtml(getModuleDescription(module, bootstrap))}</small></span>
+      <strong>${escapeHtml(module.navigation_label || module.name)}</strong>
+      <span>${escapeHtml(getModuleDescription(module, bootstrap))}</span>
     </a>`;
 }
 
@@ -252,20 +332,20 @@ function renderFeaturedSection(state) {
   const event = getFeaturedEvent(state.content.events);
   const coverUrl = sanitizePublicAssetUrl(event?.image_url || state.bootstrap.branding?.cover_image_url);
   const title = event?.title || `Viva o melhor do ${state.bootstrap.short_name || state.bootstrap.name}`;
-  const summary = event?.summary || "Descubra experiências e informações preparadas para tornar sua estadia ainda mais especial.";
-  const date = event ? formatEventDate(event, state.bootstrap) : null;
-
+  const summary = event?.summary || "Descubra experiências preparadas para tornar sua estadia ainda mais especial.";
+  const date = event ? formatEventDay(event, state.bootstrap) : "";
+  const time = event ? formatEventTime(event, state.bootstrap) : "";
   return `
     <section class="home-feature-section guest-section">
-      <article class="featured-home-card${coverUrl ? " has-image" : ""}">
+      <button type="button" class="featured-home-card${coverUrl ? " has-image" : ""}"${event ? ` data-event-open="${escapeHtml(event.id)}"` : ` data-portal-tab="eventos"`}>
         ${coverUrl ? `<img class="featured-home-image" src="${escapeHtml(coverUrl)}" alt="" loading="lazy">` : ""}
         <div class="featured-home-inner">
-          <span class="guest-pill">${event ? "Evento em destaque" : "Sua estadia"}</span>
+          <span class="guest-pill">${event ? "Evento em destaque" : "Experiência em destaque"}</span>
           <h2>${escapeHtml(title)}</h2>
           <p>${escapeHtml(summary)}</p>
-          ${date ? `<div class="feature-meta"><span>${icon("calendar")}${escapeHtml(date)}</span></div>` : ""}
+          ${(date || time) ? `<div class="feature-meta">${date ? `<span>${icon("calendar")}${escapeHtml(date)}</span>` : ""}${time ? `<span>${icon("clock")}${escapeHtml(time)}</span>` : ""}</div>` : ""}
         </div>
-      </article>
+      </button>
     </section>`;
 }
 
@@ -273,141 +353,205 @@ function renderInformationSection(state) {
   const items = state.content.information.slice(0, 3);
   return `
     <section class="home-info-section guest-section">
-      <div class="guest-section-heading">
-        <h2 class="guest-section-title">Informações do hotel</h2>
-        <button type="button" data-portal-tab="hotel">Ver todas</button>
-      </div>
-      ${items.length
-        ? `<div class="info-list">${items.map(renderInfoRow).join("")}</div>`
-        : renderEmptyState("As informações da unidade estarão disponíveis aqui.")}
+      <div class="guest-section-heading"><h2 class="guest-section-title">Informações do hotel</h2><button type="button" data-portal-tab="hotel">Ver todas</button></div>
+      ${items.length ? `<div class="info-list">${items.map(renderInfoRow).join("")}</div>` : renderEmptyState("As informações da unidade estarão disponíveis aqui.")}
     </section>`;
 }
 
 function renderServicesView(state) {
   const services = getServiceModules(state.bootstrap);
-  return renderSubpage(
-    "Serviços",
-    "Tudo o que está disponível durante a sua estadia.",
-    services.length
-      ? `<div class="guest-landscape-list">${services.map((module) => renderServiceLandscape(module, state.bootstrap)).join("")}</div>`
-      : renderEmptyState("Nenhum serviço disponível no momento."),
-    "services",
-  );
+  return `${renderAppTop(state, "Serviços", "Room Service, Empório, Spa e experiências em uma área dedicada.", "services")}
+    <main class="embed-shell portal-content-shell">
+      ${services.length ? `<div class="home-landscape-list">${services.map((module) => renderServiceLandscape(module, state.bootstrap)).join("")}</div>` : renderEmptyState("Nenhum serviço disponível no momento.")}
+    </main>`;
 }
 
 function renderServiceLandscape(module, bootstrap) {
   const imageUrl = sanitizePublicAssetUrl(module.background_image_url);
   return `
-    <a class="guest-landscape-card${imageUrl ? " has-image" : ""}" href="${escapeHtml(getModulePath(bootstrap, module.module_key))}">
-      ${imageUrl ? `<img class="guest-landscape-media" src="${escapeHtml(imageUrl)}" alt="" loading="lazy">` : ""}
-      <span class="guest-landscape-icon">${icon(moduleIcon(module.module_key))}</span>
-      <span class="guest-landscape-copy">
-        <strong>${escapeHtml(module.navigation_label || module.name)}</strong>
-        <small>${escapeHtml(getModuleDescription(module, bootstrap))}</small>
-      </span>
+    <a class="home-landscape-card${imageUrl ? "" : " no-image"}" href="${escapeHtml(getModulePath(bootstrap, module.module_key))}">
+      ${imageUrl ? `<img class="home-landscape-media" src="${escapeHtml(imageUrl)}" alt="" loading="lazy">` : ""}
+      <span class="home-landscape-overlay"></span>
+      <span class="home-landscape-copy"><h3>${escapeHtml(module.navigation_label || module.name)}</h3><p>${escapeHtml(getModuleDescription(module, bootstrap))}</p></span>
       ${icon("chevron")}
     </a>`;
 }
 
 function renderEventsView(state) {
-  const events = state.content.events;
-  const content = events.length
-    ? `<div class="guest-content-grid">${events.map((event) => renderEventCard(event, state.bootstrap)).join("")}</div>`
-    : renderEmptyState("Não há eventos publicados para este período.");
-  return renderSubpage("Eventos", "Experiências e novidades durante a sua estadia.", content, "calendar");
+  const controls = renderEventControls(state);
+  const body = state.eventMode === "calendar" ? renderCalendarView(state) : renderEventList(state);
+  return `${renderAppTop(state, "Eventos", "Experiências, avisos e novidades durante a sua estadia.", "calendar", controls)}${body}`;
+}
+
+function renderEventControls(state) {
+  return `
+    <div class="event-title-controls">
+      <div class="event-mode-row">
+        <button type="button" class="event-mode-toggle${state.eventMode === "list" ? " active" : ""}" data-event-mode="list">${icon("list")}<span>Lista</span></button>
+        <button type="button" class="event-mode-toggle${state.eventMode === "calendar" ? " active" : ""}" data-event-mode="calendar">${icon("calendar")}<span>Calendário</span></button>
+      </div>
+      <div class="event-filter-row">
+        ${eventFilterOptions(state.content.events).map((filter) => `<button type="button" class="event-filter-pill${state.eventFilter === filter.key ? " active" : ""}" data-event-filter="${escapeHtml(filter.key)}">${escapeHtml(filter.label)}</button>`).join("")}
+      </div>
+    </div>`;
+}
+
+function renderEventList(state) {
+  const events = filteredEvents(state);
+  const totalPages = Math.max(1, Math.ceil(events.length / EVENT_PAGE_SIZE));
+  state.eventPage = Math.min(state.eventPage, totalPages);
+  const pageItems = events.slice((state.eventPage - 1) * EVENT_PAGE_SIZE, state.eventPage * EVENT_PAGE_SIZE);
+  return `
+    <main class="embed-shell event-blog-grid" data-events-anchor>
+      ${pageItems.length ? `<div class="event-card-grid">${pageItems.map((event) => renderEventCard(event, state.bootstrap)).join("")}</div>` : renderEmptyState("Nenhum evento encontrado para este filtro.")}
+      ${renderPagination(state.eventPage, totalPages)}
+    </main>`;
 }
 
 function renderEventCard(event, bootstrap) {
   const imageUrl = sanitizePublicAssetUrl(event.image_url);
+  const category = event.category || "Evento";
   return `
-    <button type="button" class="guest-event-card" data-event-open="${escapeHtml(event.id)}">
-      <div class="guest-event-media">${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(event.image_alt || "")}" loading="lazy">` : icon("calendar")}</div>
-      <div class="guest-event-copy">
-        <small class="guest-content-pill">Evento · ${escapeHtml(formatEventDate(event, bootstrap))}</small>
-        <h2>${escapeHtml(event.title)}</h2>
-        ${event.summary ? `<p>${escapeHtml(event.summary)}</p>` : ""}
-        <div class="guest-card-foot"><span>${escapeHtml(event.timezone || bootstrap.timezone)}</span><b>Ver detalhes</b></div>
-      </div>
+    <button type="button" class="event-blog-card" data-event-open="${escapeHtml(event.id)}">
+      <span class="event-card-media">${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(event.image_alt || "")}" loading="lazy">` : icon("calendar")}</span>
+      <span class="event-card-copy">
+        <small class="event-card-pill">EVENTO · ${escapeHtml(formatEventDay(event, bootstrap))}</small>
+        <strong>${escapeHtml(event.title)}</strong>
+        ${event.summary ? `<span class="event-card-summary">${escapeHtml(event.summary)}</span>` : ""}
+        <span class="event-card-foot"><b>${escapeHtml(category)}${formatEventTime(event, bootstrap) ? ` · ${escapeHtml(formatEventTime(event, bootstrap))}` : ""}</b><em>Abrir</em></span>
+      </span>
     </button>`;
+}
+
+function renderPagination(page, totalPages) {
+  if (totalPages <= 1) return "";
+  return `<nav class="event-pagination" aria-label="Páginas de eventos">
+    <button type="button" data-event-page="${page - 1}"${page <= 1 ? " disabled" : ""}>Anterior</button>
+    ${Array.from({ length: totalPages }, (_, index) => index + 1).map((item) => `<button type="button" class="${item === page ? "active" : ""}" data-event-page="${item}">${item}</button>`).join("")}
+    <button type="button" data-event-page="${page + 1}"${page >= totalPages ? " disabled" : ""}>Próximo</button>
+  </nav>`;
+}
+
+function renderCalendarView(state) {
+  return `
+    <main class="embed-shell calendar-shell">
+      <div class="calendar-tabs">
+        <button type="button" class="${state.calendarTab === "stay" ? "active" : ""}" data-calendar-tab="stay">${icon("calendar")}<span>Por período</span></button>
+        <button type="button" class="${state.calendarTab === "month" ? "active" : ""}" data-calendar-tab="month">${icon("calendar")}<span>Mês a mês</span></button>
+      </div>
+      ${state.calendarTab === "stay" ? renderStayCalendar(state) : renderMonthCalendar(state)}
+    </main>`;
+}
+
+function renderStayCalendar(state) {
+  const active = state.stayStart && state.stayEnd;
+  const events = active ? filteredEvents(state).filter((event) => {
+    const key = eventDateKey(event, state.bootstrap);
+    return key && key >= state.stayStart && key <= state.stayEnd;
+  }) : [];
+  return `
+    <section class="stay-filter-card">
+      <p>${icon("calendar")}<strong>Veja os eventos conforme sua estadia</strong></p>
+      <div class="stay-filter-grid">
+        <label><span>Check-in</span><input type="date" data-stay-start value="${escapeHtml(state.stayStart)}"></label>
+        <label><span>Check-out</span><input type="date" data-stay-end value="${escapeHtml(state.stayEnd)}"></label>
+      </div>
+      <div class="stay-filter-actions"><button type="button" class="primary" data-stay-apply>Filtrar período</button>${active ? `<button type="button" data-stay-clear>Limpar datas</button>` : ""}</div>
+    </section>
+    <section class="calendar-results">
+      ${active ? (events.length ? `<div class="event-card-grid">${events.map((event) => renderEventCard(event, state.bootstrap)).join("")}</div>` : renderEmptyState("Nenhum evento encontrado neste período.")) : renderEmptyState("Informe as datas de check-in e check-out para visualizar os eventos da sua estadia.")}
+    </section>`;
+}
+
+function renderMonthCalendar(state) {
+  const first = new Date(state.calendarYear, state.calendarMonth - 1, 1);
+  const totalDays = new Date(state.calendarYear, state.calendarMonth, 0).getDate();
+  const eventDates = new Set(filteredEvents(state).map((event) => eventDateKey(event, state.bootstrap)).filter(Boolean));
+  const days = [];
+  for (let index = 0; index < first.getDay(); index += 1) days.push('<span class="calendar-blank"></span>');
+  for (let day = 1; day <= totalDays; day += 1) {
+    const key = `${state.calendarYear}-${String(state.calendarMonth).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    days.push(`<button type="button" class="calendar-day${state.selectedDate === key ? " selected" : ""}${eventDates.has(key) ? " has-events" : ""}" data-calendar-day="${key}">${day}</button>`);
+  }
+  const selectedEvents = state.selectedDate ? filteredEvents(state).filter((event) => eventDateKey(event, state.bootstrap) === state.selectedDate) : [];
+  return `
+    <section class="month-calendar-card">
+      <header><button type="button" data-calendar-month="-1" aria-label="Mês anterior">${icon("chevron-back")}</button><h2>${escapeHtml(monthName(state.calendarMonth))} ${state.calendarYear}</h2><button type="button" data-calendar-month="1" aria-label="Próximo mês">${icon("chevron")}</button></header>
+      <div class="calendar-weekdays">${["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"].map((day) => `<span>${day}</span>`).join("")}</div>
+      <div class="calendar-days">${days.join("")}</div>
+      <footer><span><i></i>Eventos no dia</span><span><i></i>Dia selecionado</span></footer>
+    </section>
+    <section class="calendar-results">${state.selectedDate ? (selectedEvents.length ? `<div class="event-card-grid">${selectedEvents.map((event) => renderEventCard(event, state.bootstrap)).join("")}</div>` : renderEmptyState(`Nenhum evento em ${formatDateKey(state.selectedDate)}.`)) : renderEmptyState("Selecione um dia no calendário para ver os eventos.")}</section>`;
 }
 
 function renderEventDetail(state) {
   const event = state.content.events.find((item) => item.id === state.selectedEventId);
   if (!event) return "";
   const imageUrl = sanitizePublicAssetUrl(event.image_url);
+  const category = event.category || "Evento";
+  const location = event.location || state.bootstrap.short_name || state.bootstrap.name;
+  const tags = Array.isArray(event.tags) ? event.tags : [];
+  const body = event.content || "";
   return `
-    <div class="event-detail-backdrop" role="dialog" aria-modal="true" aria-label="Detalhes do evento">
-      <article class="event-detail-sheet">
-        <button type="button" class="event-detail-close" data-event-close aria-label="Fechar detalhes">${icon("close")}</button>
-        <div class="event-detail-media">${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(event.image_alt || "")}">` : icon("calendar")}</div>
-        <div class="event-detail-copy">
-          <small class="guest-content-pill">${icon("calendar")} ${escapeHtml(formatEventDate(event, state.bootstrap))}</small>
-          <h2>${escapeHtml(event.title)}</h2>
-          ${event.summary ? `<p>${escapeHtml(event.summary)}</p>` : ""}
-          <span>${icon("pin")}${escapeHtml(state.bootstrap.short_name || state.bootstrap.name)}</span>
+    <div class="portal-detail-view">
+      <button type="button" class="fixed-header-back" data-event-close aria-label="Voltar">${icon("chevron-back")}<span>Voltar</span></button>
+      <main class="event-detail-page">
+        <div class="event-detail-layout">
+          <section class="event-detail-main">
+            <div class="detail-hero-media">
+              ${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(event.image_alt || "")}">` : `<span>${icon("calendar")}</span>`}
+              <i></i><h1>${escapeHtml(event.title)}</h1>
+            </div>
+            <p class="event-detail-date">${escapeHtml(formatEventDay(event, state.bootstrap).toUpperCase())}${formatEventTime(event, state.bootstrap) ? ` · ${escapeHtml(formatEventTime(event, state.bootstrap).toUpperCase())}` : ""}</p>
+            ${event.summary ? `<p class="event-detail-summary">${escapeHtml(event.summary)}</p>` : ""}
+            ${body ? `<div class="event-detail-body">${String(body).split(/\n+/).filter(Boolean).map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("")}</div>` : ""}
+            ${tags.length ? `<div class="event-detail-tags">${tags.map((tag) => `<span>#${escapeHtml(tag)}</span>`).join("")}</div>` : ""}
+          </section>
+          <aside class="event-detail-aside">
+            <h2>DETALHES</h2>
+            <dl>
+              <div><dt>LOCAL DO EVENTO</dt><dd>${escapeHtml(location)}</dd></div>
+              <div><dt>TIPO / CATEGORIA</dt><dd>Evento · ${escapeHtml(category)}</dd></div>
+              <div><dt>DATA E HORA DO EVENTO</dt><dd>${escapeHtml([formatEventDay(event, state.bootstrap), formatEventTime(event, state.bootstrap)].filter(Boolean).join(" · "))}</dd></div>
+            </dl>
+          </aside>
         </div>
-      </article>
+      </main>
     </div>`;
 }
 
 function renderHotelView(state) {
-  const information = state.content.information;
-  const content = information.length
-    ? `<div class="info-list info-list-full">${information.map(renderInfoRow).join("")}</div>`
-    : renderEmptyState("As informações da unidade estarão disponíveis aqui.");
-  return renderSubpage("Hotel", "Horários, serviços e informações úteis para a sua estadia.", content, "hotel");
+  return `${renderAppTop(state, "Hotel", "Horários, serviços, localização e informações úteis para a sua estadia.", "hotel")}
+    <main class="embed-shell portal-content-shell hotel-info-shell">
+      ${state.content.information.length ? `<div class="hotel-info-grid">${state.content.information.map(renderHotelInfoCard).join("")}</div>` : renderEmptyState("As informações da unidade estarão disponíveis aqui.")}
+    </main>`;
 }
 
-function renderPagesView(state) {
-  if (state.blogLoading) return renderSubpage("Blog", "Conteúdos e novidades dos Hotéis Fioreze.", renderInlineLoading("Carregando blog..."), "blog");
-  if (!state.blogAvailable) return renderSubpage("Blog", "Conteúdos e novidades dos Hotéis Fioreze.", renderEmptyState("Blog indisponível no momento."), "blog");
-  if (!state.blogPosts.length) return renderSubpage("Blog", "Conteúdos e novidades dos Hotéis Fioreze.", renderInlineLoading("Preparando o blog..."), "blog");
+function renderHotelInfoCard(item) {
+  return `<article class="hotel-info-card">${icon(infoIcon(item.info_key))}<div><small>INFORMAÇÃO DO HOTEL</small><h2>${escapeHtml(item.title)}</h2><p>${escapeHtml(item.body)}</p></div></article>`;
+}
+
+function renderBlogView(state) {
+  const top = renderAppTop(state, "Blog", "Novidades, dicas e conteúdos dos Hotéis Fioreze.", "blog");
+  if (state.blogLoading) return `${top}<main class="embed-shell portal-content-shell">${renderInlineLoading("Carregando blog...")}</main>`;
+  if (!state.blogAvailable) return `${top}<main class="embed-shell portal-content-shell">${renderEmptyState("Blog indisponível no momento.")}</main>`;
+  if (!state.blogPosts.length) return `${top}<main class="embed-shell portal-content-shell">${renderInlineLoading("Preparando o blog...")}</main>`;
   const [featured, ...posts] = state.blogPosts;
-  return renderSubpage(
-    "Blog",
-    "Conteúdos e novidades dos Hotéis Fioreze.",
-    `<div class="guest-blog-shell">${renderBlogCard(featured, true)}<div class="guest-blog-grid">${posts.map((post) => renderBlogCard(post)).join("")}</div></div>`,
-    "blog",
-  );
+  return `${top}<main class="embed-shell blog-shell">${renderBlogCard(featured, true)}<div class="guest-blog-grid">${posts.map((post) => renderBlogCard(post)).join("")}</div></main>`;
 }
 
 function renderBlogCard(post, featured = false) {
   const link = sanitizeExternalUrl(post.link);
   const image = sanitizeExternalUrl(post.image_url);
   if (!link) return "";
-  return `
-    <a class="guest-blog-card${featured ? " is-featured" : ""}" href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer">
-      <div class="guest-blog-media">${image ? `<img src="${escapeHtml(image)}" alt="" loading="lazy">` : icon("blog")}</div>
-      <div class="guest-blog-copy">
-        <small class="guest-content-pill">${featured ? `${icon("blog")} Blog Fioreze` : escapeHtml(formatBlogDate(post.published_at))}</small>
-        <h2>${escapeHtml(post.title)}</h2>
-        ${post.excerpt ? `<p>${escapeHtml(post.excerpt)}</p>` : ""}
-        <div class="guest-card-foot"><span>${featured ? escapeHtml(formatBlogDate(post.published_at)) : ""}</span><b>Ler artigo</b></div>
-      </div>
-    </a>`;
-}
-
-function renderSubpage(title, subtitle, content, iconName) {
-  return `
-    <section class="guest-subpage-head">
-      <span>${icon(iconName)}</span>
-      <p>Portal do Hóspede</p>
-      <h1>${escapeHtml(title)}</h1>
-      <div>${escapeHtml(subtitle)}</div>
-    </section>
-    <section class="guest-subpage-content">${content}</section>`;
+  return `<a class="guest-blog-card${featured ? " is-featured" : ""}" href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer">
+    <div class="guest-blog-media">${image ? `<img src="${escapeHtml(image)}" alt="" loading="lazy">` : icon("blog")}</div>
+    <div class="guest-blog-copy"><small class="guest-content-pill">${featured ? `${icon("blog")} Blog Fioreze` : escapeHtml(formatBlogDate(post.published_at))}</small><h2>${escapeHtml(post.title)}</h2>${post.excerpt ? `<p>${escapeHtml(post.excerpt)}</p>` : ""}<div class="guest-card-foot"><span>${featured ? escapeHtml(formatBlogDate(post.published_at)) : ""}</span><b>Ler artigo</b></div></div>
+  </a>`;
 }
 
 function renderInfoRow(item) {
-  return `
-    <article class="info-row">
-      ${icon(infoIcon(item.info_key))}
-      <div>
-        <strong>${escapeHtml(item.title)}</strong>
-        <span>${escapeHtml(item.body)}</span>
-      </div>
-      ${icon("chevron")}
-    </article>`;
+  return `<article class="info-row">${icon(infoIcon(item.info_key))}<div><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.body)}</span></div>${icon("chevron")}</article>`;
 }
 
 function renderEmptyState(message) {
@@ -415,22 +559,12 @@ function renderEmptyState(message) {
 }
 
 function renderInlineLoading(message) {
-  return `<div class="guest-inline-loading" role="status"><span class="guest-loading-spinner" aria-hidden="true"></span><strong>${escapeHtml(message)}</strong></div>`;
+  return `<div class="guest-inline-loading" role="status"><span class="loading-modern-ring" aria-hidden="true"></span><strong>${escapeHtml(message)}</strong></div>`;
 }
 
 function renderBottomNav(activeTab) {
   const activeIndex = Math.max(0, NAV_ITEMS.findIndex(([key]) => key === activeTab));
-  return `
-    <div class="bottom-nav-shell">
-      <nav class="bottom-nav" aria-label="Navegação do Portal do Hóspede" style="--nav-index:${activeIndex}">
-        <span class="nav-slider" aria-hidden="true"></span>
-        ${NAV_ITEMS.map(([key, label, iconName]) => `
-          <button type="button" class="${key === activeTab ? "active" : ""}" data-portal-tab="${key}"${key === activeTab ? ' aria-current="page"' : ""}>
-            ${icon(iconName)}
-            <span>${label}</span>
-          </button>`).join("")}
-      </nav>
-    </div>`;
+  return `<div class="bottom-nav-shell"><nav class="bottom-nav" aria-label="Navegação do Portal do Hóspede" style="--nav-index:${activeIndex}"><span class="nav-slider" aria-hidden="true"></span>${NAV_ITEMS.map(([key, label, iconName]) => `<button type="button" class="${key === activeTab ? "active" : ""}" data-portal-tab="${key}"${key === activeTab ? ' aria-current="page"' : ""}>${icon(iconName)}<span>${label}</span></button>`).join("")}</nav></div>`;
 }
 
 function getServiceModules(bootstrap) {
@@ -443,11 +577,7 @@ function getModulePath(bootstrap, moduleKey) {
 }
 
 function getModuleDescription(module, bootstrap) {
-  return (
-    bootstrap.settings?.[`portal.module.${module.module_key}.description`] ||
-    MODULE_DESCRIPTIONS[module.module_key] ||
-    `Conheça ${module.navigation_label || module.name}.`
-  );
+  return bootstrap.settings?.[`portal.module.${module.module_key}.description`] || MODULE_DESCRIPTIONS[module.module_key] || `Conheça ${module.navigation_label || module.name}.`;
 }
 
 function getLogoUrl(branding = {}) {
@@ -460,6 +590,31 @@ function getFeaturedEvent(events = []) {
   return events.find((event) => Date.parse(event.ends_at || event.starts_at) >= now) || events.at(-1);
 }
 
+function filteredEvents(state) {
+  const filter = normalizeFilter(state.eventFilter);
+  if (filter === "todos" || filter === "evento") return state.content.events;
+  return state.content.events.filter((event) => {
+    const values = [event.category, ...(Array.isArray(event.tags) ? event.tags : [])].map(normalizeFilter);
+    return values.includes(filter);
+  });
+}
+
+function eventFilterOptions(events) {
+  const values = new Map([["todos", "Todos"], ["evento", "Evento"]]);
+  for (const event of events) {
+    for (const value of [event.category, ...(Array.isArray(event.tags) ? event.tags : [])]) {
+      const label = String(value || "").trim();
+      const key = normalizeFilter(label);
+      if (label && key && !values.has(key)) values.set(key, label);
+    }
+  }
+  return [...values].map(([key, label]) => ({ key, label }));
+}
+
+function normalizeFilter(value) {
+  return String(value || "").trim().toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
 function getGreeting(timezone) {
   const hour = Number(new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", hour12: false, timeZone: timezone }).format(new Date()));
   if (hour < 12) return "bom dia";
@@ -470,25 +625,52 @@ function getGreeting(timezone) {
 function updateClock(container, timezone) {
   const target = container.querySelector("[data-hotel-clock]");
   if (!target) return;
-  target.textContent = new Intl.DateTimeFormat("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: timezone,
-  }).format(new Date());
+  target.textContent = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: timezone }).format(new Date());
 }
 
-function formatEventDate(event, bootstrap) {
+function formatEventDay(event, bootstrap) {
   const start = new Date(event.starts_at);
   if (Number.isNaN(start.getTime())) return "Data a confirmar";
-  const formatter = new Intl.DateTimeFormat(bootstrap.locale || "pt-BR", {
-    day: "2-digit",
-    month: "long",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: event.timezone || bootstrap.timezone,
-  });
-  return formatter.format(start);
+  return new Intl.DateTimeFormat(bootstrap.locale || "pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: event.timezone || bootstrap.timezone }).format(start);
+}
+
+function formatEventTime(event, bootstrap) {
+  const start = new Date(event.starts_at);
+  if (Number.isNaN(start.getTime())) return "";
+  const timezone = event.timezone || bootstrap.timezone;
+  const from = new Intl.DateTimeFormat(bootstrap.locale || "pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: timezone }).format(start);
+  const end = new Date(event.ends_at || "");
+  if (Number.isNaN(end.getTime())) return `Às ${from}`;
+  const to = new Intl.DateTimeFormat(bootstrap.locale || "pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: timezone }).format(end);
+  return `Das ${from} às ${to}`;
+}
+
+function eventDateKey(event, bootstrap) {
+  const date = new Date(event.starts_at);
+  if (Number.isNaN(date.getTime())) return null;
+  const parts = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: event.timezone || bootstrap.timezone }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function changeCalendarMonth(state, direction) {
+  const date = new Date(state.calendarYear, state.calendarMonth - 1 + direction, 1);
+  state.calendarYear = date.getFullYear();
+  state.calendarMonth = date.getMonth() + 1;
+  state.selectedDate = null;
+}
+
+function monthName(month) {
+  return new Intl.DateTimeFormat("pt-BR", { month: "long" }).format(new Date(2020, month - 1, 1)).replace(/^./, (letter) => letter.toUpperCase());
+}
+
+function formatDateKey(value) {
+  const date = new Date(`${value}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("pt-BR").format(date);
+}
+
+function scrollEventsIntoView(container) {
+  container.querySelector("[data-events-anchor]")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function formatBlogDate(value) {
@@ -538,9 +720,10 @@ function infoIcon(key = "") {
   const normalized = String(key).toLowerCase();
   if (normalized.includes("wifi")) return "wifi";
   if (normalized.includes("breakfast") || normalized.includes("cafe")) return "coffee";
-  if (normalized.includes("check")) return "clock";
-  if (normalized.includes("location") || normalized.includes("endereco")) return "pin";
+  if (normalized.includes("check") || normalized.includes("hour")) return "clock";
+  if (normalized.includes("location") || normalized.includes("endereco") || normalized.includes("map")) return "map";
   if (normalized.includes("phone") || normalized.includes("contact")) return "phone";
+  if (normalized.includes("rule") || normalized.includes("regra")) return "file";
   return "info";
 }
 
@@ -553,12 +736,16 @@ function icon(name) {
     blog: '<path d="M5 4h10a4 4 0 0 1 4 4v12H8a3 3 0 0 1-3-3V4Z"/><path d="M8 8h7M8 12h8M8 16h5"/>',
     clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
     pin: '<path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/>',
+    map: '<path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"/><path d="M9 3v15M15 6v15"/>',
+    file: '<path d="M7 3h7l5 5v13H7V3Z"/><path d="M14 3v6h5M9 13h6M9 17h6"/>',
+    list: '<path d="M4 6h16M4 12h16M4 18h16"/>',
     "room-service": '<path d="M5 14h14M7 14a5 5 0 0 1 10 0M12 7V5M4 18h16"/><path d="M10 5h4"/>',
     bag: '<path d="M5 8h14l-1 12H6L5 8Z"/><path d="M9 9V7a3 3 0 0 1 6 0v2"/>',
     spa: '<path d="M12 21c-4-2-6-5-6-9 3 0 5 1 6 3 1-2 3-3 6-3 0 4-2 7-6 9Z"/><path d="M12 15c-2-2-3-5 0-9 3 4 2 7 0 9Z"/>',
     heart: '<path d="M20.8 5.8a5.5 5.5 0 0 0-7.8 0L12 6.9l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 22l8.8-8.4a5.5 5.5 0 0 0 0-7.8Z"/>',
     sparkle: '<path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z"/><path d="M19 3v4M21 5h-4"/>',
     chevron: '<path d="m9 5 7 7-7 7"/>',
+    "chevron-down": '<path d="m6 9 6 6 6-6"/>',
     wifi: '<path d="M4 9a12 12 0 0 1 16 0M7 12a8 8 0 0 1 10 0M10 15a3 3 0 0 1 4 0"/><circle cx="12" cy="19" r="1"/>',
     coffee: '<path d="M5 8h11v7a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V8Z"/><path d="M16 10h2a2 2 0 0 1 0 4h-2M8 4v2M12 4v2"/>',
     phone: '<path d="M7 3h3l1 5-2 1a15 15 0 0 0 6 6l1-2 5 1v3c0 2-2 4-4 4A16 16 0 0 1 3 7c0-2 2-4 4-4Z"/>',
@@ -568,7 +755,6 @@ function icon(name) {
     rain: '<path d="M7 15h10a4 4 0 0 0 .8-7.9A6 6 0 0 0 6.4 6.2 4.5 4.5 0 0 0 7 15Z"/><path d="m8 19-1 2M13 19l-1 2M18 19l-1 2"/>',
     storm: '<path d="M7 14h10a4 4 0 0 0 .8-7.9A6 6 0 0 0 6.4 5.2 4.5 4.5 0 0 0 7 14Z"/><path d="m13 15-3 4h3l-2 3"/>',
     droplet: '<path d="M12 3s5 5.5 5 10a5 5 0 0 1-10 0c0-4.5 5-10 5-10Z"/>',
-    close: '<path d="m6 6 12 12M18 6 6 18"/>',
     "chevron-back": '<path d="m15 5-7 7 7 7"/>',
   };
   return `<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${paths[name] || paths.info}</svg>`;

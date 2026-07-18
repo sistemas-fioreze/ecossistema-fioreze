@@ -68,6 +68,7 @@ const required = [
   "migrations/0016_catalog_item_tags.sql",
   "migrations/0020_portal_custom_pages_qr_links.sql",
   "migrations/0021_guest_portal_reference_features.sql",
+  "migrations/0022_guest_portal_event_details.sql",
   "seeds/dev.sql",
   "wrangler.jsonc",
   "pages/wrangler.jsonc",

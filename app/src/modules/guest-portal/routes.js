@@ -104,10 +104,11 @@ function listPublishedPages(env, hotelId) {
   );
 }
 
-function listPublishedEvents(env, hotelId) {
-  return all(
+async function listPublishedEvents(env, hotelId) {
+  const events = await all(
     env,
-    `SELECT e.id, e.title, e.summary, e.starts_at, e.ends_at, e.timezone,
+    `SELECT e.id, e.title, e.summary, e.content, e.location, e.category, e.tags_json,
+            e.starts_at, e.ends_at, e.timezone,
             e.media_asset_id, ma.public_url AS image_url, ma.alt_text AS image_alt
        FROM events e
        LEFT JOIN media_assets ma
@@ -120,6 +121,24 @@ function listPublishedEvents(env, hotelId) {
       LIMIT 24`,
     [hotelId],
   );
+  return events.map(formatPublicEvent);
+}
+
+function formatPublicEvent(event) {
+  return {
+    ...event,
+    tags: parseTags(event.tags_json),
+    tags_json: undefined,
+  };
+}
+
+function parseTags(value) {
+  try {
+    const parsed = JSON.parse(value || "[]");
+    return Array.isArray(parsed) ? parsed.filter((tag) => typeof tag === "string").slice(0, 20) : [];
+  } catch {
+    return [];
+  }
 }
 
 function listPublicInformation(env, hotelId) {
