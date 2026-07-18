@@ -46,12 +46,17 @@ export async function render(container, context) {
     stayEnd: "",
     tabTransitionTimer: null,
     scrollHandler: null,
+    eventDialogKeyHandler: null,
   };
 
   state.scrollHandler = () => syncHeaderScroll(container);
+  state.eventDialogKeyHandler = (event) => {
+    if (event.key === "Escape" && state.selectedEventId && isDesktopPortal()) closeEventDetail(container, state);
+  };
   renderPortal(container, state);
   bindPortal(container, state);
   window.addEventListener("scroll", state.scrollHandler, { passive: true });
+  window.addEventListener("keydown", state.eventDialogKeyHandler);
   try {
     const slug = encodeURIComponent(context.bootstrap.slug);
     [state.content, state.weather] = await Promise.all([
@@ -67,6 +72,8 @@ export async function render(container, context) {
   cleanupCurrentRender = () => {
     if (state.tabTransitionTimer) window.clearTimeout(state.tabTransitionTimer);
     if (state.scrollHandler) window.removeEventListener("scroll", state.scrollHandler);
+    if (state.eventDialogKeyHandler) window.removeEventListener("keydown", state.eventDialogKeyHandler);
+    document.body.classList.remove("event-dialog-open");
   };
 }
 
@@ -83,10 +90,19 @@ function renderLoadError(error) {
 function renderPortal(container, state) {
   const desktopCover = renderDesktopCover(state.bootstrap);
   if (state.selectedEventId) {
-    container.innerHTML = `${desktopCover}${renderEventDetail(state)}${renderBottomNav("eventos", "eventos")}`;
+    if (isDesktopPortal()) {
+      container.innerHTML = `${desktopCover}<div class="desktop-event-context" aria-hidden="true" inert>${renderEventsView(state)}</div><div class="desktop-event-dialog-backdrop" data-event-dialog role="dialog" aria-modal="true" aria-label="Detalhes do evento">${renderEventDetail(state)}</div>${renderBottomNav("eventos", "eventos")}`;
+      document.body.classList.add("event-dialog-open");
+      container.querySelector(".desktop-event-dialog-backdrop .fixed-header-back")?.focus({ preventScroll: true });
+    } else {
+      document.body.classList.remove("event-dialog-open");
+      container.innerHTML = `${desktopCover}${renderEventDetail(state)}${renderBottomNav("eventos", "eventos")}`;
+    }
     syncHeaderScroll(container);
     return;
   }
+
+  document.body.classList.remove("event-dialog-open");
 
   const page = state.activeTab === "inicio"
     ? `${renderHeader(state.bootstrap, state.weather)}<main class="guest-shell" data-guest-content>${renderHomeView(state)}</main>`
@@ -139,14 +155,11 @@ function bindPortal(container, state) {
     if (eventButton) {
       state.selectedEventId = eventButton.dataset.eventOpen;
       renderPortal(container, state);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      if (!isDesktopPortal()) window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
-    if (event.target.closest("[data-event-close]")) {
-      state.selectedEventId = null;
-      state.activeTab = "eventos";
-      renderPortal(container, state);
-      afterRender(container, state);
+    if (event.target.closest("[data-event-close]") || event.target.matches("[data-event-dialog]")) {
+      closeEventDetail(container, state);
       return;
     }
 
@@ -216,6 +229,22 @@ function bindPortal(container, state) {
 
     if (event.target.closest("[data-reload]")) window.location.reload();
   });
+}
+
+function closeEventDetail(container, state) {
+  const eventId = state.selectedEventId;
+  state.selectedEventId = null;
+  state.activeTab = "eventos";
+  renderPortal(container, state);
+  afterRender(container, state, false);
+  window.requestAnimationFrame(() => {
+    const trigger = [...container.querySelectorAll("[data-event-open]")].find((element) => element.dataset.eventOpen === eventId);
+    trigger?.focus({ preventScroll: true });
+  });
+}
+
+function isDesktopPortal() {
+  return window.matchMedia("(min-width: 960px)").matches;
 }
 
 function afterRender(container, state, scroll = true) {
@@ -347,8 +376,10 @@ function renderServicesSection(state) {
 }
 
 function renderQuickCard(module, bootstrap) {
+  const imageUrl = sanitizePublicAssetUrl(module.background_image_url);
   return `
-    <a class="quick-card" href="${escapeHtml(getModulePath(bootstrap, module.module_key))}">
+    <a class="quick-card${imageUrl ? " has-desktop-image" : ""}" href="${escapeHtml(getModulePath(bootstrap, module.module_key))}">
+      ${imageUrl ? `<img class="quick-card-media" src="${escapeHtml(imageUrl)}" alt="" loading="lazy">` : ""}
       ${icon(moduleIcon(module.module_key))}
       <strong>${escapeHtml(module.navigation_label || module.name)}</strong>
       <span>${escapeHtml(getModuleDescription(module, bootstrap))}</span>
