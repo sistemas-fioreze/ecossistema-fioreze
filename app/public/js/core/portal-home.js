@@ -303,8 +303,8 @@ function renderHeader(bootstrap, weather) {
     : `<strong class="brand-name-text">${escapeHtml(bootstrap.short_name || bootstrap.name)}</strong>`;
   const mapsUrl = sanitizeExternalUrl(bootstrap.settings?.["contact.maps_url"] || bootstrap.settings?.["hotel.maps_url"]);
   const locationControl = mapsUrl
-    ? `<a class="header-location-button" href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener noreferrer" aria-label="Abrir localização do hotel">${icon("pin")}</a>`
-    : `<button type="button" class="header-location-button" data-portal-tab="hotel" aria-label="Ver informações do hotel">${icon("pin")}</button>`;
+    ? `<a class="header-location-button" href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener noreferrer" aria-label="Como chegar ao hotel">${icon("pin")}<span class="header-location-label">Como Chegar</span></a>`
+    : `<button type="button" class="header-location-button" data-portal-tab="hotel" aria-label="Ver como chegar ao hotel">${icon("pin")}<span class="header-location-label">Como Chegar</span></button>`;
   const currentWeather = weather?.current || null;
   const weatherControl = `<button type="button" class="header-weather" data-weather-open aria-label="Abrir previsão do tempo"><span class="weather-now-icon" aria-hidden="true">${icon(currentWeather ? weatherIcon(currentWeather.weather_code) : "cloud")}</span><span class="weather-now-temp">${currentWeather ? Number(currentWeather.temperature) : "--"}°C</span><span class="weather-now-chevron" aria-hidden="true">${icon("chevron-down")}</span></button>`;
 
@@ -364,7 +364,7 @@ function renderHomeView(state) {
   return `
     <section class="home-hero-copy">
       <p class="guest-kicker">Olá, ${getGreeting(bootstrap.timezone)}!</p>
-      <h1 class="guest-title">Bem-vindo ao ${escapeHtml(bootstrap.short_name || bootstrap.name)}</h1>
+      <h1 class="guest-title"><span class="guest-title-welcome">Bem-vindo ao</span> <span class="guest-title-unit">${escapeHtml(bootstrap.short_name || bootstrap.name)}</span></h1>
       <p class="guest-subtitle">${escapeHtml(subtitle)}</p>
     </section>
     ${renderServicesSection(state)}

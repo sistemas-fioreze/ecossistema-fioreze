@@ -87,7 +87,7 @@ test("header movel ganha blur somente depois da rolagem", () => {
 
 test("desktop centraliza header e mostra SVG em todas as guias", () => {
   assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.portal-app-top \.site-header\s*\{[\s\S]*?margin-right:\s*auto;[\s\S]*?margin-left:\s*auto/);
-  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.bottom-nav-shell\s*\{[\s\S]*?width:\s*min\(560px, calc\(100vw - 500px\)\)/);
+  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.bottom-nav-shell\s*\{[\s\S]*?width:\s*min\(610px, calc\(100vw - 520px\)\)/);
   assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.bottom-nav button svg\s*\{[\s\S]*?display:\s*block/);
   assert.match(portalCss, /@media \(min-width: 960px\) and \(max-width: 1120px\)/);
   assert.equal((portalScript.match(/\["(?:inicio|servicos|eventos|hotel|blog)",/g) || []).length, 5);
@@ -110,17 +110,25 @@ test("desktop aceita video de capa sem carregar o arquivo no mobile", () => {
   assert.match(portalCss, /\.desktop-unit-cover img,[\s\S]*?\.desktop-unit-cover video\s*\{[\s\S]*?object-fit:\s*cover/);
 });
 
-test("desktop alinha as guias, remove a barra unificada e preserva controles legiveis", () => {
+test("desktop alinha as guias e deixa logo, clima e localizacao sem fundo", () => {
   assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.site-header,[\s\S]*?background:\s*transparent;[\s\S]*?backdrop-filter:\s*none/);
-  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.brand-logo-img\s*\{[\s\S]*?background:\s*rgba\(255, 255, 255, 0\.84\);[\s\S]*?backdrop-filter:\s*blur\(20px\)/);
-  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.header-weather,[\s\S]*?\.header-location-button\s*\{[\s\S]*?background:\s*rgba\(255, 255, 255, 0\.84\)/);
-  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.bottom-nav-shell\s*\{[\s\S]*?top:\s*24px;[\s\S]*?height:\s*58px;[\s\S]*?align-items:\s*center/);
-  assert.match(portalCss, /\.bottom-nav\s*\{[\s\S]*?height:\s*58px;[\s\S]*?padding:\s*8px 4px/);
+  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.brand-logo-img\s*\{[\s\S]*?background:\s*transparent;[\s\S]*?box-shadow:\s*none/);
+  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.header-weather,[\s\S]*?\.header-location-button\s*\{[\s\S]*?background:\s*transparent;[\s\S]*?box-shadow:\s*none/);
+  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.bottom-nav-shell\s*\{[\s\S]*?top:\s*24px;[\s\S]*?height:\s*64px;[\s\S]*?align-items:\s*center/);
+  assert.match(portalCss, /\.bottom-nav\s*\{[\s\S]*?height:\s*64px;[\s\S]*?padding:\s*9px 4px/);
+  assert.match(portalScript, /class="header-location-label">Como Chegar<\/span>/);
   assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\) \.desktop-unit-cover::after\s*\{[\s\S]*?rgba\(14, 11, 9, 0\.68\)/);
   assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\) \.home-hero-copy \.guest-title/);
   assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\) \.home-services-section > \.guest-section-title/);
   assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\) \.home-info-section \.guest-section-heading button/);
   assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\) \.app-top-card > p\s*\{[\s\S]*?color:\s*#fff/);
+});
+
+test("hero desktop separa a saudacao do nome da unidade", () => {
+  assert.match(portalScript, /class="guest-title-welcome">Bem-vindo ao<\/span>/);
+  assert.match(portalScript, /class="guest-title-unit">/);
+  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.guest-title-welcome\s*\{[\s\S]*?font-size:\s*clamp\(2\.15rem, 3\.15vw, 3\.2rem\)/);
+  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.guest-title-unit\s*\{[\s\S]*?font-size:\s*clamp\(3\.65rem, 6vw, 5\.8rem\)/);
 });
 
 test("inicio desktop herda o fundo do topo e usa imagens configuradas nos servicos", () => {
