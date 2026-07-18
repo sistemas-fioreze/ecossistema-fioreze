@@ -113,6 +113,27 @@ test("desktop alinha as guias, desfoca o header e aplica contraste somente com c
   assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\) \.app-top-card > p\s*\{[\s\S]*?color:\s*#fff/);
 });
 
+test("inicio desktop herda o fundo do topo e usa imagens configuradas nos servicos", () => {
+  assert.match(portalScript, /sanitizePublicAssetUrl\(module\.background_image_url\)/);
+  assert.match(portalScript, /class="quick-card\$\{imageUrl \? " has-desktop-image" : ""\}"/);
+  assert.match(portalScript, /class="quick-card-media"/);
+  assert.match(portalCss, /\.quick-card-media\s*\{[\s\S]*?display:\s*none/);
+  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.quick-card\.has-desktop-image \.quick-card-media\s*\{[\s\S]*?display:\s*block/);
+  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.guest-shell:has\(\.home-hero-copy\)::before\s*\{[\s\S]*?rgba\(14, 11, 9, 0\.48\)/);
+  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.home-info-section\s*\{\s*display:\s*none/);
+});
+
+test("eventos abrem em dialogo no desktop e preservam o detalhe movel", () => {
+  assert.match(portalScript, /isDesktopPortal\(\)/);
+  assert.match(portalScript, /class="desktop-event-context" aria-hidden="true" inert/);
+  assert.match(portalScript, /class="desktop-event-dialog-backdrop" data-event-dialog role="dialog" aria-modal="true"/);
+  assert.match(portalScript, /event\.key === "Escape"/);
+  assert.match(portalScript, /event\.target\.matches\("\[data-event-dialog\]"\)/);
+  assert.match(portalScript, /class="portal-detail-view"/);
+  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.desktop-event-dialog-backdrop\s*\{[\s\S]*?position:\s*fixed;[\s\S]*?backdrop-filter:\s*blur\(5px\)/);
+  assert.match(portalCss, /\.desktop-event-dialog-backdrop \.portal-detail-view\s*\{[\s\S]*?max-height:\s*calc\(100dvh - 128px\)/);
+});
+
 test("portal nao incorpora dependencias nem endpoints do sistema legado", () => {
   assert.doesNotMatch(portalScript, /script\.google\.com/i);
   assert.doesNotMatch(portalScript, /docs\.google\.com/i);
