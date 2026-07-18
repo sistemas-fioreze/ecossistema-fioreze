@@ -34,6 +34,7 @@ export async function render(container, context) {
     blogLoaded: false,
     blogAvailable: true,
     activeTab: "inicio",
+    previousTab: "inicio",
     eventMode: "list",
     eventFilter: "todos",
     eventPage: 1,
@@ -44,6 +45,7 @@ export async function render(container, context) {
     stayStart: "",
     stayEnd: "",
     clockTimer: null,
+    tabTransitionTimer: null,
   };
 
   container.innerHTML = renderLoading(context.bootstrap);
@@ -64,6 +66,7 @@ export async function render(container, context) {
 
   cleanupCurrentRender = () => {
     if (state.clockTimer) window.clearInterval(state.clockTimer);
+    if (state.tabTransitionTimer) window.clearTimeout(state.tabTransitionTimer);
   };
 }
 
@@ -91,7 +94,7 @@ function renderLoadError(error) {
 
 function renderPortal(container, state) {
   if (state.selectedEventId) {
-    container.innerHTML = `${renderEventDetail(state)}${renderBottomNav("eventos")}`;
+    container.innerHTML = `${renderEventDetail(state)}${renderBottomNav("eventos", "eventos")}`;
     return;
   }
 
@@ -101,14 +104,16 @@ function renderPortal(container, state) {
 
   container.innerHTML = `
     ${page}
-    ${renderBottomNav(state.activeTab)}
+    ${renderBottomNav(state.activeTab, state.previousTab)}
     ${state.weatherOpen ? renderWeatherPanel(state) : ""}`;
+  animateTabChange(container, state);
 }
 
 function bindPortal(container, state) {
   container.addEventListener("click", (event) => {
     const tabButton = event.target.closest("[data-portal-tab]");
     if (tabButton) {
+      state.previousTab = state.activeTab;
       state.activeTab = tabButton.dataset.portalTab;
       state.selectedEventId = null;
       state.eventPage = 1;
@@ -119,7 +124,6 @@ function bindPortal(container, state) {
     }
 
     if (event.target.closest("[data-weather-open]")) {
-      if (!state.weather?.available) return;
       state.weatherOpen = true;
       renderPortal(container, state);
       document.body.classList.add("weather-scroll-locked");
@@ -221,6 +225,21 @@ function afterRender(container, state, scroll = true) {
   if (scroll) window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+function animateTabChange(container, state) {
+  const changed = state.previousTab !== state.activeTab;
+  if (changed) {
+    container.classList.remove("portal-tab-transition");
+    void container.offsetWidth;
+    container.classList.add("portal-tab-transition");
+    if (state.tabTransitionTimer) window.clearTimeout(state.tabTransitionTimer);
+    state.tabTransitionTimer = window.setTimeout(() => {
+      container.classList.remove("portal-tab-transition");
+      state.tabTransitionTimer = null;
+    }, 480);
+  }
+  state.previousTab = state.activeTab;
+}
+
 async function loadBlog(container, state) {
   if (state.blogLoaded || state.blogLoading) return;
   state.blogLoading = true;
@@ -249,16 +268,22 @@ function renderHeader(bootstrap, weather) {
   const locationControl = mapsUrl
     ? `<a class="header-location-button" href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener noreferrer" aria-label="Abrir localização do hotel">${icon("pin")}</a>`
     : `<button type="button" class="header-location-button" data-portal-tab="hotel" aria-label="Ver informações do hotel">${icon("pin")}</button>`;
-  const weatherControl = weather?.available && weather.current
-    ? `<button type="button" class="header-weather" data-weather-open aria-label="Abrir previsão do tempo"><span>${icon(weatherIcon(weather.current.weather_code))}</span><strong>${Number(weather.current.temperature)}°C</strong>${icon("chevron-down")}</button>`
-    : `<div class="header-time" aria-label="Horário local do hotel">${icon("clock")}<span data-hotel-clock>--:--</span></div>`;
+  const currentWeather = weather?.current || null;
+  const weatherControl = `<button type="button" class="header-weather" data-weather-open aria-label="Abrir previsão do tempo"><span class="weather-now-icon" aria-hidden="true">${icon(currentWeather ? weatherIcon(currentWeather.weather_code) : "cloud")}</span><span class="weather-now-temp">${currentWeather ? Number(currentWeather.temperature) : "--"}°C</span><span class="weather-now-chevron" aria-hidden="true">${icon("chevron-down")}</span></button>`;
 
   return `<header class="site-header"><div class="guest-brand">${brand}<div class="header-actions">${weatherControl}${locationControl}</div></div></header>`;
 }
 
 function renderWeatherPanel(state) {
   const current = state.weather.current;
-  if (!current) return "";
+  if (!current) {
+    return `
+      <div class="weather-modal-backdrop" role="dialog" aria-modal="true" aria-label="Previsão do tempo">
+        <button type="button" class="fixed-header-back" data-weather-close aria-label="Voltar">${icon("chevron-back")}<span>Voltar</span></button>
+        <div class="weather-fixed-title">${icon("cloud")}<span>Clima em ${escapeHtml(state.bootstrap.short_name || state.bootstrap.name)}</span></div>
+        <section class="weather-modal-sheet weather-unavailable">${renderEmptyState("A previsão do tempo está temporariamente indisponível.")}</section>
+      </div>`;
+  }
   return `
     <div class="weather-modal-backdrop" role="dialog" aria-modal="true" aria-label="Previsão do tempo">
       <button type="button" class="fixed-header-back" data-weather-close aria-label="Voltar">${icon("chevron-back")}<span>Voltar</span></button>
@@ -492,6 +517,8 @@ function renderEventDetail(state) {
   const location = event.location || state.bootstrap.short_name || state.bootstrap.name;
   const tags = Array.isArray(event.tags) ? event.tags : [];
   const body = event.content || "";
+  const actionUrl = sanitizeExternalUrl(event.action_url);
+  const actionText = actionUrl ? String(event.action_text || "").trim() : "";
   return `
     <div class="portal-detail-view">
       <button type="button" class="fixed-header-back" data-event-close aria-label="Voltar">${icon("chevron-back")}<span>Voltar</span></button>
@@ -505,6 +532,7 @@ function renderEventDetail(state) {
             <p class="event-detail-date">${escapeHtml(formatEventDay(event, state.bootstrap).toUpperCase())}${formatEventTime(event, state.bootstrap) ? ` · ${escapeHtml(formatEventTime(event, state.bootstrap).toUpperCase())}` : ""}</p>
             ${event.summary ? `<p class="event-detail-summary">${escapeHtml(event.summary)}</p>` : ""}
             ${body ? `<div class="event-detail-body">${String(body).split(/\n+/).filter(Boolean).map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("")}</div>` : ""}
+            ${actionText ? `<a class="detail-action-button" href="${escapeHtml(actionUrl)}" target="_blank" rel="noopener noreferrer"><span>${escapeHtml(actionText)}</span>${icon("external-link")}</a>` : ""}
             ${tags.length ? `<div class="event-detail-tags">${tags.map((tag) => `<span>#${escapeHtml(tag)}</span>`).join("")}</div>` : ""}
           </section>
           <aside class="event-detail-aside">
@@ -562,9 +590,11 @@ function renderInlineLoading(message) {
   return `<div class="guest-inline-loading" role="status"><span class="loading-modern-ring" aria-hidden="true"></span><strong>${escapeHtml(message)}</strong></div>`;
 }
 
-function renderBottomNav(activeTab) {
+function renderBottomNav(activeTab, previousTab = activeTab) {
   const activeIndex = Math.max(0, NAV_ITEMS.findIndex(([key]) => key === activeTab));
-  return `<div class="bottom-nav-shell"><nav class="bottom-nav" aria-label="Navegação do Portal do Hóspede" style="--nav-index:${activeIndex}"><span class="nav-slider" aria-hidden="true"></span>${NAV_ITEMS.map(([key, label, iconName]) => `<button type="button" class="${key === activeTab ? "active" : ""}" data-portal-tab="${key}"${key === activeTab ? ' aria-current="page"' : ""}>${icon(iconName)}<span>${label}</span></button>`).join("")}</nav></div>`;
+  const previousIndex = Math.max(0, NAV_ITEMS.findIndex(([key]) => key === previousTab));
+  const changing = activeIndex !== previousIndex;
+  return `<div class="bottom-nav-shell"><nav class="bottom-nav${changing ? " is-changing" : ""}" aria-label="Navegação do Portal do Hóspede" style="--nav-index:${activeIndex};--nav-from-index:${previousIndex}"><span class="nav-slider" aria-hidden="true"></span>${NAV_ITEMS.map(([key, label, iconName]) => `<button type="button" class="${key === activeTab ? "active" : ""}" data-portal-tab="${key}"${key === activeTab ? ' aria-current="page"' : ""}>${icon(iconName)}<span>${label}</span></button>`).join("")}</nav></div>`;
 }
 
 function getServiceModules(bootstrap) {
@@ -756,6 +786,7 @@ function icon(name) {
     storm: '<path d="M7 14h10a4 4 0 0 0 .8-7.9A6 6 0 0 0 6.4 5.2 4.5 4.5 0 0 0 7 14Z"/><path d="m13 15-3 4h3l-2 3"/>',
     droplet: '<path d="M12 3s5 5.5 5 10a5 5 0 0 1-10 0c0-4.5 5-10 5-10Z"/>',
     "chevron-back": '<path d="m15 5-7 7 7 7"/>',
+    "external-link": '<path d="M14 4h6v6M20 4l-9 9"/><path d="M18 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h6"/>',
   };
   return `<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${paths[name] || paths.info}</svg>`;
 }

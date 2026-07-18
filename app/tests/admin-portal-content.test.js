@@ -96,7 +96,7 @@ test("arquivamento de pagina preserva registro e marca archived_at", async () =>
 test("eventos e informacoes usam datas normalizadas e hotel autorizado", async () => {
   const env = createEnv();
   const event = await createPortalEvent({
-    request: request({ hotel_id: "muller-fioreze", title: "Encontro cultural", summary: "Programacao especial", content: "Descricao ficticia completa.", location: "Sala Exemplo", category: "Cultura", tags: ["Arte", "Cultura", "arte"], starts_at: "2026-07-20T18:00:00-03:00", ends_at: "2026-07-20T20:00:00-03:00", timezone: "America/Sao_Paulo", status: "published", media_asset_id: "media-event-muller" }),
+    request: request({ hotel_id: "muller-fioreze", title: "Encontro cultural", summary: "Programacao especial", content: "Descricao ficticia completa.", location: "Sala Exemplo", category: "Cultura", tags: ["Arte", "Cultura", "arte"], action_text: "Ver programacao", action_url: "https://example.test/programacao", starts_at: "2026-07-20T18:00:00-03:00", ends_at: "2026-07-20T20:00:00-03:00", timezone: "America/Sao_Paulo", status: "published", media_asset_id: "media-event-muller" }),
     env,
     session: session(),
   });
@@ -107,6 +107,8 @@ test("eventos e informacoes usam datas normalizadas e hotel autorizado", async (
   assert.equal(event.event.location, "Sala Exemplo");
   assert.equal(event.event.category, "Cultura");
   assert.deepEqual(event.event.tags, ["Arte", "Cultura"]);
+  assert.equal(event.event.action_text, "Ver programacao");
+  assert.equal(event.event.action_url, "https://example.test/programacao");
   assert.equal("tags_json" in event.event, true);
   assert.equal(event.event.tags_json, undefined);
   const information = await createHotelInformation({
@@ -116,6 +118,18 @@ test("eventos e informacoes usam datas normalizadas e hotel autorizado", async (
   });
   assert.equal(information.information.is_public, true);
   assert.equal(env.__data.audit.length, 2);
+});
+
+test("evento exige CTA completo e URL HTTPS", async () => {
+  const base = { hotel_id: "muller-fioreze", title: "Evento ficticio", starts_at: "2026-07-20T18:00:00-03:00", timezone: "America/Sao_Paulo", status: "published" };
+  await assert.rejects(
+    () => createPortalEvent({ request: request({ ...base, action_text: "Saiba mais" }), env: createEnv(), session: session() }),
+    (error) => error?.code === "bad_request",
+  );
+  await assert.rejects(
+    () => createPortalEvent({ request: request({ ...base, action_text: "Saiba mais", action_url: "http://example.test/evento" }), env: createEnv(), session: session() }),
+    (error) => error?.code === "bad_request",
+  );
 });
 
 test("evento rejeita imagem de outra unidade", async () => {
@@ -245,7 +259,7 @@ class ContentStatement {
     } else if (this.sql.startsWith("INSERT INTO portal_sections")) {
       data.sections.push({ id: p[0], page_id: p[1], hotel_id: p[2], section_key: p[3], title: p[4], body: p[5], settings_json: p[6], sort_order: p[7], created_at: p[8], updated_at: p[9] });
     } else if (this.sql.startsWith("INSERT INTO events")) {
-      data.events.push({ id: p[0], hotel_id: p[1], title: p[2], summary: p[3], content: p[4], location: p[5], category: p[6], tags_json: p[7], starts_at: p[8], ends_at: p[9], timezone: p[10], status: p[11], media_asset_id: p[12], created_at: p[13], updated_at: p[14] });
+      data.events.push({ id: p[0], hotel_id: p[1], title: p[2], summary: p[3], content: p[4], location: p[5], category: p[6], tags_json: p[7], action_text: p[8], action_url: p[9], starts_at: p[10], ends_at: p[11], timezone: p[12], status: p[13], media_asset_id: p[14], created_at: p[15], updated_at: p[16] });
     } else if (this.sql.startsWith("INSERT INTO hotel_information")) {
       data.information.push({ id: p[0], hotel_id: p[1], info_key: p[2], title: p[3], body: p[4], is_public: p[5], sort_order: p[6], created_at: p[7], updated_at: p[8] });
     } else if (this.sql.startsWith("INSERT INTO admin_audit_log")) {

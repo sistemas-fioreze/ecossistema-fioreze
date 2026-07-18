@@ -2767,3 +2767,164 @@
     animation-duration: 1.8s;
   }
 }
+
+/* Navegacao, clima e acoes editoriais alinhados ao portal de referencia. */
+.header-weather .weather-now-icon,
+.header-weather .weather-now-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: var(--guest-primary-strong);
+}
+
+.header-weather .weather-now-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.header-weather .weather-now-temp {
+  display: inline-block;
+  overflow: visible;
+  color: var(--guest-primary-strong);
+  font-size: 0.82rem;
+  font-weight: 900;
+  line-height: 1;
+  text-overflow: clip;
+}
+
+.header-weather .weather-now-chevron svg {
+  width: 12px;
+  height: 12px;
+}
+
+.weather-unavailable {
+  min-height: min(360px, 56dvh);
+  display: grid;
+  place-items: center;
+}
+
+.detail-action-button {
+  width: fit-content;
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 22px 8px 0;
+  padding: 12px 20px;
+  border: 1px solid color-mix(in srgb, var(--guest-primary) 72%, #fff);
+  border-radius: 999px;
+  color: #fff;
+  background: var(--guest-primary);
+  box-shadow: 0 12px 26px color-mix(in srgb, var(--guest-primary) 25%, transparent);
+  font-size: 0.86rem;
+  font-weight: 900;
+  text-decoration: none;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.detail-action-button:hover {
+  filter: brightness(0.94);
+  transform: translateY(-1px);
+}
+
+.detail-action-button svg {
+  width: 17px;
+  height: 17px;
+}
+
+.bottom-nav.is-changing .nav-slider {
+  animation: portal-nav-slide 0.42s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+
+.bottom-nav.is-changing button.active svg,
+.bottom-nav.is-changing button.active span {
+  animation: portal-nav-item-enter 0.34s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+
+.guest-portal-root.portal-tab-transition > .guest-shell,
+.guest-portal-root.portal-tab-transition > .portal-app-top .app-top-card,
+.guest-portal-root.portal-tab-transition > .portal-content-shell,
+.guest-portal-root.portal-tab-transition > .event-blog-grid,
+.guest-portal-root.portal-tab-transition > .calendar-shell,
+.guest-portal-root.portal-tab-transition > .blog-shell {
+  animation: portal-tab-enter 0.36s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+
+@keyframes portal-nav-slide {
+  from { transform: translateX(calc(var(--nav-from-index, 0) * 100%)); }
+  to { transform: translateX(calc(var(--nav-index, 0) * 100%)); }
+}
+
+@keyframes portal-nav-item-enter {
+  from { opacity: 0.48; transform: translateY(3px) scale(0.92); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes portal-tab-enter {
+  from { opacity: 0.42; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 959px) {
+  .site-header {
+    width: 100%;
+    max-width: 760px;
+    min-height: calc(64px + env(safe-area-inset-top));
+    position: fixed;
+    top: 0;
+    left: 50%;
+    z-index: 72;
+    margin: 0;
+    padding-top: calc(10px + env(safe-area-inset-top));
+    border-bottom: 1px solid rgba(226, 220, 209, 0.72);
+    background: rgba(255, 255, 255, 0.86);
+    box-shadow: 0 10px 28px rgba(40, 31, 20, 0.07);
+    backdrop-filter: blur(22px) saturate(1.16);
+    -webkit-backdrop-filter: blur(22px) saturate(1.16);
+    transform: translateX(-50%);
+  }
+
+  .portal-app-top {
+    padding-top: calc(64px + env(safe-area-inset-top));
+  }
+
+  .portal-app-top .site-header {
+    background: rgba(255, 255, 255, 0.86);
+  }
+
+  .guest-shell {
+    padding-top: calc(82px + env(safe-area-inset-top));
+  }
+}
+
+@media (max-width: 430px) {
+  .guest-shell {
+    padding-top: calc(78px + env(safe-area-inset-top));
+  }
+
+  .header-weather .weather-now-icon,
+  .header-weather .weather-now-temp,
+  .header-weather .weather-now-chevron {
+    display: inline-flex;
+  }
+
+  .detail-action-button {
+    width: calc(100% - 16px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bottom-nav.is-changing .nav-slider,
+  .bottom-nav.is-changing button.active svg,
+  .bottom-nav.is-changing button.active span,
+  .guest-portal-root.portal-tab-transition > .guest-shell,
+  .guest-portal-root.portal-tab-transition > .portal-app-top .app-top-card,
+  .guest-portal-root.portal-tab-transition > .portal-content-shell,
+  .guest-portal-root.portal-tab-transition > .event-blog-grid,
+  .guest-portal-root.portal-tab-transition > .calendar-shell,
+  .guest-portal-root.portal-tab-transition > .blog-shell {
+    animation: none;
+  }
+}

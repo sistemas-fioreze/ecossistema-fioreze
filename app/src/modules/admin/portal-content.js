@@ -35,7 +35,7 @@ export async function listPortalContent({ env, session, url }) {
     all(
       env,
       `SELECT e.id, e.hotel_id, e.title, e.summary, e.content, e.location, e.category,
-              e.tags_json, e.starts_at, e.ends_at, e.timezone,
+              e.tags_json, e.action_text, e.action_url, e.starts_at, e.ends_at, e.timezone,
               e.status, e.media_asset_id, e.created_at, e.updated_at,
               ma.public_url AS image_url, ma.alt_text AS image_alt
          FROM events e
@@ -214,16 +214,17 @@ export async function createPortalEvent({ request, env, session }) {
       env,
         `INSERT INTO events (
          id, hotel_id, title, summary, content, location, category, tags_json,
-         starts_at, ends_at, timezone, status, media_asset_id, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [eventId, hotelId, data.title, data.summary, data.content, data.location, data.category, data.tagsJson, data.startsAt, data.endsAt, data.timezone, data.status, data.mediaAssetId, now, now],
+         action_text, action_url, starts_at, ends_at, timezone, status,
+         media_asset_id, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [eventId, hotelId, data.title, data.summary, data.content, data.location, data.category, data.tagsJson, data.actionText, data.actionUrl, data.startsAt, data.endsAt, data.timezone, data.status, data.mediaAssetId, now, now],
     ),
     auditStatement(env, session, {
       hotelId,
       action: "portal-event.create",
       entityType: "event",
       entityId: eventId,
-      metadata: { status: data.status, has_image: Boolean(data.mediaAssetId), tag_count: data.tags.length },
+      metadata: { status: data.status, has_image: Boolean(data.mediaAssetId), has_action: Boolean(data.actionUrl), tag_count: data.tags.length },
       now,
     }),
   ]);
@@ -245,16 +246,17 @@ export async function updatePortalEvent({ request, env, session, eventId }) {
       env,
         `UPDATE events
           SET title = ?, summary = ?, content = ?, location = ?, category = ?, tags_json = ?,
-              starts_at = ?, ends_at = ?, timezone = ?, status = ?, media_asset_id = ?, updated_at = ?
+              action_text = ?, action_url = ?, starts_at = ?, ends_at = ?, timezone = ?,
+              status = ?, media_asset_id = ?, updated_at = ?
         WHERE id = ? AND hotel_id = ?`,
-      [data.title, data.summary, data.content, data.location, data.category, data.tagsJson, data.startsAt, data.endsAt, data.timezone, data.status, data.mediaAssetId, now, eventId, current.hotel_id],
+      [data.title, data.summary, data.content, data.location, data.category, data.tagsJson, data.actionText, data.actionUrl, data.startsAt, data.endsAt, data.timezone, data.status, data.mediaAssetId, now, eventId, current.hotel_id],
     ),
     auditStatement(env, session, {
       hotelId: current.hotel_id,
       action: "portal-event.update",
       entityType: "event",
       entityId: eventId,
-      metadata: { status: data.status, has_image: Boolean(data.mediaAssetId), tag_count: data.tags.length },
+      metadata: { status: data.status, has_image: Boolean(data.mediaAssetId), has_action: Boolean(data.actionUrl), tag_count: data.tags.length },
       now,
     }),
   ]);
@@ -396,6 +398,11 @@ function eventPayload(payload) {
   const status = optionalString(payload.status, "status", { max: 20 }) || "draft";
   if (!EVENT_STATUSES.has(status)) throw badRequest("Status do evento invalido.");
   const tags = eventTags(payload.tags);
+  const actionText = optionalString(payload.action_text, "texto do botao", { max: 80 }) || null;
+  const actionUrl = eventActionUrl(payload.action_url);
+  if (Boolean(actionText) !== Boolean(actionUrl)) {
+    throw badRequest("Informe o texto e a URL do botao do evento.");
+  }
   return {
     title: requireString(payload.title, "titulo", { max: 180 }),
     summary: optionalString(payload.summary, "resumo", { max: 2000 }) || null,
@@ -404,11 +411,25 @@ function eventPayload(payload) {
     category: optionalString(payload.category, "categoria", { max: 120 }) || null,
     tags,
     tagsJson: JSON.stringify(tags),
+    actionText,
+    actionUrl,
     startsAt,
     endsAt,
     timezone: requireString(payload.timezone || "America/Sao_Paulo", "fuso horario", { max: 80 }),
     status,
   };
+}
+
+function eventActionUrl(value) {
+  const candidate = optionalString(value, "URL do botao", { max: 2000 });
+  if (!candidate) return null;
+  try {
+    const url = new URL(candidate);
+    if (url.protocol !== "https:") throw new Error("protocol");
+    return url.toString();
+  } catch {
+    throw badRequest("A URL do botao deve usar HTTPS.");
+  }
 }
 
 function eventTags(value) {
@@ -478,7 +499,7 @@ async function loadEvent(env, eventId) {
   return first(
     env,
     `SELECT e.id, e.hotel_id, e.title, e.summary, e.content, e.location, e.category,
-            e.tags_json, e.starts_at, e.ends_at, e.timezone,
+            e.tags_json, e.action_text, e.action_url, e.starts_at, e.ends_at, e.timezone,
             e.status, e.media_asset_id, e.created_at, e.updated_at,
             ma.public_url AS image_url, ma.alt_text AS image_alt
        FROM events e
