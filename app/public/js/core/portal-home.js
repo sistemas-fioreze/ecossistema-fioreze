@@ -136,12 +136,18 @@ function bindPortal(container, state) {
   container.addEventListener("click", (event) => {
     const tabButton = event.target.closest("[data-portal-tab]");
     if (tabButton) {
+      const focusMaps = tabButton.hasAttribute("data-portal-map-open");
       state.previousTab = state.activeTab;
       state.activeTab = tabButton.dataset.portalTab;
       state.selectedEventId = null;
       state.eventPage = 1;
       renderPortal(container, state);
-      afterRender(container, state);
+      afterRender(container, state, !focusMaps);
+      if (focusMaps) {
+        window.requestAnimationFrame(() => {
+          container.querySelector("[data-maps-section]")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      }
       if (state.activeTab === "blog") loadBlog(container, state);
       return;
     }
@@ -304,8 +310,11 @@ function renderHeader(bootstrap, weather) {
   const brand = logoUrl
     ? `<img class="brand-logo-img" src="${escapeHtml(logoUrl)}" alt="${escapeHtml(bootstrap.name)}">`
     : `<strong class="brand-name-text">${escapeHtml(bootstrap.short_name || bootstrap.name)}</strong>`;
+  const mapsEmbedUrls = getMapsEmbedUrls(bootstrap);
   const mapsUrl = sanitizeExternalUrl(bootstrap.settings?.["contact.maps_url"] || bootstrap.settings?.["hotel.maps_url"]);
-  const locationControl = mapsUrl
+  const locationControl = mapsEmbedUrls.length
+    ? `<button type="button" class="header-location-button" data-portal-tab="hotel" data-portal-map-open aria-label="Ver como chegar ao hotel">${icon("pin")}<span class="header-location-label">Como Chegar</span></button>`
+    : mapsUrl
     ? `<a class="header-location-button" href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener noreferrer" aria-label="Como chegar ao hotel">${icon("pin")}<span class="header-location-label">Como Chegar</span></a>`
     : `<button type="button" class="header-location-button" data-portal-tab="hotel" aria-label="Ver como chegar ao hotel">${icon("pin")}<span class="header-location-label">Como Chegar</span></button>`;
   const currentWeather = weather?.current || null;
@@ -592,10 +601,24 @@ function renderEventDetail(state) {
 }
 
 function renderHotelView(state) {
+  const maps = renderMapsSection(state);
   return `${renderAppTop(state, "Hotel", "Horários, serviços, localização e informações úteis para a sua estadia.", "hotel")}
     <main class="embed-shell portal-content-shell hotel-info-shell">
+      ${maps}
       ${state.content.information.length ? `<div class="hotel-info-grid">${state.content.information.map(renderHotelInfoCard).join("")}</div>` : renderEmptyState("As informações da unidade estarão disponíveis aqui.")}
     </main>`;
+}
+
+function renderMapsSection(state) {
+  const urls = getMapsEmbedUrls(state.bootstrap);
+  if (!urls.length) return "";
+  return `
+    <section class="hotel-maps-section" data-maps-section>
+      <div class="hotel-maps-heading">${icon("pin")}<div><small>LOCALIZAÇÃO</small><h2>Como chegar</h2><p>Consulte os acessos e pontos de referência da unidade.</p></div></div>
+      <div class="hotel-maps-grid">
+        ${urls.map((url, index) => `<article class="hotel-map-card"><iframe src="${escapeHtml(url)}" title="Mapa ${index + 1} de ${escapeHtml(state.bootstrap.short_name || state.bootstrap.name)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" sandbox="allow-scripts allow-same-origin allow-popups" allowfullscreen></iframe><span>Rota ${index + 1}</span></article>`).join("")}
+      </div>
+    </section>`;
 }
 
 function renderHotelInfoCard(item) {
@@ -763,6 +786,24 @@ function sanitizeExternalUrl(value) {
   try {
     const url = new URL(String(value || ""));
     return url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function getMapsEmbedUrls(bootstrap) {
+  const configured = bootstrap.settings?.["contact.maps_embed_urls"];
+  if (!Array.isArray(configured)) return [];
+  return configured.map(sanitizeGoogleMapsEmbedUrl).filter(Boolean).slice(0, 6);
+}
+
+function sanitizeGoogleMapsEmbedUrl(value) {
+  try {
+    const url = new URL(String(value || ""));
+    const allowedHosts = new Set(["www.google.com", "maps.google.com", "www.google.com.br", "maps.google.com.br"]);
+    if (url.protocol !== "https:" || !allowedHosts.has(url.hostname) || url.username || url.password) return null;
+    if (!url.pathname.startsWith("/maps/embed") || url.searchParams.has("key")) return null;
+    return url.toString();
   } catch {
     return null;
   }

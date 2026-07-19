@@ -49,6 +49,7 @@ const PUBLIC_SETTINGS = new Set([
   "contact.email",
   "contact.website",
   "contact.maps_url",
+  "contact.maps_embed_urls",
   "hosting.check_in",
   "hosting.check_out",
   "hosting.breakfast_hours",
@@ -982,6 +983,7 @@ function validateHexColor(value, field) {
 }
 
 function validateSetting(key, value) {
+  if (key === "contact.maps_embed_urls") return validateMapsEmbedUrls(value);
   if (value == null || value === "") return { value: "", type: "string" };
   if (["contact.latitude", "contact.longitude"].includes(key)) {
     const number = Number(value);
@@ -1010,6 +1012,33 @@ function validateSetting(key, value) {
   if (/[<>]/.test(text)) throw badRequest(`${key} nao aceita HTML.`);
   if (text.length > TEXT_SETTING_MAX) throw badRequest(`${key} excede o tamanho permitido.`);
   return { value: text, type: "string" };
+}
+
+function validateMapsEmbedUrls(value) {
+  if (!Array.isArray(value)) throw badRequest("Mapas incorporados devem ser enviados como lista.");
+  if (value.length > 6) throw badRequest("A unidade aceita no maximo 6 mapas incorporados.");
+  const allowedHosts = new Set(["www.google.com", "maps.google.com", "www.google.com.br", "maps.google.com.br"]);
+  const normalized = value.map((entry) => {
+    let url;
+    try {
+      url = new URL(requireString(entry, "contact.maps_embed_urls", { max: 6000 }));
+    } catch {
+      throw badRequest("URL de incorporacao do Google Maps invalida.");
+    }
+    if (
+      url.protocol !== "https:" ||
+      !allowedHosts.has(url.hostname) ||
+      !url.pathname.startsWith("/maps/embed") ||
+      url.username ||
+      url.password ||
+      url.searchParams.has("key")
+    ) {
+      throw badRequest("Use somente URLs publicas de incorporacao do Google Maps, sem chave de API.");
+    }
+    return url.toString();
+  });
+  if (new Set(normalized).size !== normalized.length) throw badRequest("Nao repita o mesmo mapa.");
+  return { value: JSON.stringify(normalized), type: "json" };
 }
 
 function validateSafeUrl(value) {
