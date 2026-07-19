@@ -2559,6 +2559,81 @@
   gap: 14px;
 }
 
+.hotel-info-shell {
+  display: grid;
+  gap: 22px;
+}
+
+.hotel-maps-section {
+  display: grid;
+  gap: 16px;
+  scroll-margin-top: calc(88px + env(safe-area-inset-top));
+}
+
+.hotel-maps-heading {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.hotel-maps-heading > svg {
+  width: 34px;
+  height: 34px;
+  color: var(--guest-primary);
+}
+
+.hotel-maps-heading small {
+  color: var(--guest-primary);
+  font-size: 0.62rem;
+  font-weight: 900;
+}
+
+.hotel-maps-heading h2,
+.hotel-maps-heading p {
+  margin: 0;
+}
+
+.hotel-maps-heading h2 {
+  margin-top: 4px;
+  font-size: 1.25rem;
+}
+
+.hotel-maps-heading p {
+  margin-top: 5px;
+  color: var(--guest-muted);
+  font-size: 0.82rem;
+}
+
+.hotel-maps-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.hotel-map-card {
+  overflow: hidden;
+  border: 1px solid var(--guest-line);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 14px 34px rgba(46, 38, 28, 0.065);
+}
+
+.hotel-map-card iframe {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  display: block;
+  border: 0;
+  background: color-mix(in srgb, var(--guest-primary) 7%, #fff);
+}
+
+.hotel-map-card span {
+  display: block;
+  padding: 11px 14px;
+  color: var(--guest-ink);
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+
 .hotel-info-card {
   display: grid;
   grid-template-columns: 48px minmax(0, 1fr);
@@ -2632,6 +2707,7 @@
 @media (min-width: 640px) {
   .event-card-grid,
   .guest-blog-grid,
+  .hotel-maps-grid,
   .hotel-info-grid,
   .stay-filter-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3015,6 +3091,55 @@
 
   .guest-shell {
     padding-top: calc(76px + env(safe-area-inset-top));
+  }
+
+  .home-info-section {
+    display: none;
+  }
+
+  .quick-card {
+    min-height: 132px;
+    height: auto;
+    max-height: none;
+    justify-content: flex-start;
+    padding: 14px 8px;
+    border-color: rgba(255, 255, 255, 0.48);
+    background: rgba(255, 255, 255, 0.72);
+    box-shadow: 0 14px 34px rgba(18, 12, 8, 0.15);
+    backdrop-filter: blur(18px) saturate(1.14);
+    -webkit-backdrop-filter: blur(18px) saturate(1.14);
+  }
+
+  .quick-card > strong {
+    font-size: 0.72rem;
+    line-height: 1.12;
+  }
+
+  .quick-card > span {
+    display: block;
+    overflow: visible;
+    font-size: 0.62rem;
+    line-height: 1.22;
+    -webkit-line-clamp: unset;
+  }
+
+  .weather-modal-backdrop {
+    place-items: stretch;
+    padding: calc(72px + env(safe-area-inset-top)) 0 calc(92px + env(safe-area-inset-bottom));
+    background: rgba(250, 249, 247, 0.97);
+    backdrop-filter: blur(24px) saturate(1.08);
+    -webkit-backdrop-filter: blur(24px) saturate(1.08);
+  }
+
+  .weather-modal-sheet {
+    width: 100%;
+    min-height: 0;
+    max-height: calc(100dvh - 164px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    border: 0;
+    border-radius: 0;
+    padding: 22px 20px 32px;
+    background: transparent;
+    box-shadow: none;
   }
 }
 

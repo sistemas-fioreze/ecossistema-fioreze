@@ -741,6 +741,111 @@
   object-fit: cover;
 }
 
+.admin-map-embeds {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--admin-line, var(--color-border));
+  border-radius: 8px;
+  background: var(--admin-soft, var(--color-secondary));
+}
+
+.admin-map-embeds-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.admin-map-embeds-heading strong,
+.admin-map-embeds-heading p {
+  margin: 0;
+}
+
+.admin-map-embeds-heading p,
+.admin-map-embeds > small {
+  margin-top: 4px;
+  color: var(--admin-muted, var(--color-muted));
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.admin-map-embeds-heading button,
+.admin-map-embed-row button {
+  min-height: 38px;
+  border: 1px solid var(--admin-line, var(--color-border));
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--admin-accent, var(--color-primary));
+  background: #fff;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.admin-map-embed-list,
+.admin-map-preview-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-map-embed-row {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-map-embed-row > span {
+  color: var(--admin-text, var(--color-text));
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.admin-map-embed-row input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--admin-line, var(--color-border));
+  border-radius: 8px;
+  padding: 9px 11px;
+  background: #fff;
+  color: var(--admin-text, var(--color-text));
+  font: inherit;
+}
+
+.admin-map-preview-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-map-preview-grid iframe {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--admin-line, var(--color-border));
+  border-radius: 8px;
+  background: #fff;
+}
+
+@media (max-width: 720px) {
+  .admin-map-embeds-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-map-embed-row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .admin-map-embed-row > span {
+    grid-column: 1 / -1;
+  }
+
+  .admin-map-preview-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .admin-module-toggle,
 .admin-navigation-item,
 .admin-navigation-composer {

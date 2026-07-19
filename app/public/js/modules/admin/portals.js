@@ -167,6 +167,7 @@ const settingFields = [
   "contact.email",
   "contact.website",
   "contact.maps_url",
+  "contact.maps_embed_urls",
   "hosting.check_in",
   "hosting.check_out",
   "hosting.breakfast_hours",
@@ -625,6 +626,7 @@ function renderTabPanels() {
       ${field("Site", "contact.website", setting("contact.website"), "url")}
       ${field("Google Maps ou Place", "contact.maps_url", setting("contact.maps_url"))}
     </div>
+    ${mapsEmbedField()}
   `;
   panel("hosting").innerHTML = isNewUnitBlockedTab("hosting")
     ? blockedMessage
@@ -693,6 +695,32 @@ function handleUnitEditorClick(event) {
     dirty = true;
     updateDirtyState();
     updatePreview();
+    return;
+  }
+  const addMap = event.target.closest("[data-add-map-embed]");
+  if (addMap) {
+    const list = els.unitEditorForm.querySelector("[data-map-embed-list]");
+    const index = list?.querySelectorAll("[data-map-embed-row]").length || 0;
+    if (index >= 6) {
+      setMessage("Cada unidade pode ter ate 6 mapas incorporados.");
+      return;
+    }
+    list?.insertAdjacentHTML("beforeend", renderMapEmbedRow("", index));
+    dirty = true;
+    updateDirtyState();
+    list?.querySelector("[data-map-embed-row]:last-child input")?.focus();
+    return;
+  }
+  const removeMap = event.target.closest("[data-remove-map-embed]");
+  if (removeMap) {
+    const list = els.unitEditorForm.querySelector("[data-map-embed-list]");
+    const rows = [...(list?.querySelectorAll("[data-map-embed-row]") || [])];
+    const row = removeMap.closest("[data-map-embed-row]");
+    if (rows.length > 1) row?.remove();
+    else if (row) row.querySelector("input").value = "";
+    renumberMapEmbedRows(list);
+    dirty = true;
+    updateDirtyState();
     return;
   }
   const copy = event.target.closest("[data-copy-slug]");
@@ -845,8 +873,16 @@ async function saveSettings() {
   if (!hasPermission(currentSession, PORTALS_HOTELS_SETTINGS_PERMISSION)) return;
   const body = {};
   for (const fieldName of settingFields) {
+    if (fieldName === "contact.maps_embed_urls") continue;
     const input = els.unitEditorForm.elements[fieldName];
     if (input && input.value.trim() !== "") body[fieldName] = input.value.trim();
+  }
+  const mapsEmbedUrls = [...els.unitEditorForm.querySelectorAll('[name="contact.maps_embed_url"]')]
+    .map((input) => extractMapEmbedUrl(input.value))
+    .filter(Boolean);
+  const currentMaps = Array.isArray(setting("contact.maps_embed_urls")) ? setting("contact.maps_embed_urls") : [];
+  if (JSON.stringify(mapsEmbedUrls) !== JSON.stringify(currentMaps)) {
+    body["contact.maps_embed_urls"] = mapsEmbedUrls;
   }
   if (Object.keys(body).length) {
     await adminApi(`/api/v1/admin/hotels/${encodeURIComponent(currentUnit.hotel_id)}/settings`, {
@@ -1915,6 +1951,58 @@ function textarea(label, name) {
       <textarea name="${escapeAttr(name)}" rows="4">${escapeHtml(setting(name))}</textarea>
     </label>
   `;
+}
+
+function mapsEmbedField() {
+  const configured = setting("contact.maps_embed_urls");
+  const urls = Array.isArray(configured) ? configured : [];
+  const rows = urls.length ? urls : [""];
+  const previews = urls.map(sanitizeMapEmbedUrl).filter(Boolean);
+  return `
+    <section class="admin-map-embeds admin-field-wide">
+      <div class="admin-map-embeds-heading">
+        <div><strong>Mapas incorporados</strong><p>Adicione um ou mais mapas para a seção Como chegar do Portal do Hóspede.</p></div>
+        <button type="button" data-add-map-embed>Adicionar mapa</button>
+      </div>
+      <div class="admin-map-embed-list" data-map-embed-list>${rows.map(renderMapEmbedRow).join("")}</div>
+      <small>Cole o endereço de incorporação do Google Maps (o valor src do iframe). Códigos HTML e chaves de API não são armazenados.</small>
+      ${previews.length ? `<div class="admin-map-preview-grid">${previews.map((url, index) => `<iframe src="${escapeAttr(url)}" title="Prévia do mapa ${index + 1}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" sandbox="allow-scripts allow-same-origin allow-popups"></iframe>`).join("")}</div>` : ""}
+    </section>`;
+}
+
+function renderMapEmbedRow(url, index) {
+  return `
+    <label class="admin-map-embed-row" data-map-embed-row>
+      <span>Mapa ${Number(index) + 1}</span>
+      <input name="contact.maps_embed_url" type="url" value="${escapeAttr(url || "")}" placeholder="https://www.google.com/maps/embed?...">
+      <button type="button" data-remove-map-embed aria-label="Remover este mapa">Remover</button>
+    </label>`;
+}
+
+function renumberMapEmbedRows(list) {
+  [...(list?.querySelectorAll("[data-map-embed-row]") || [])].forEach((row, index) => {
+    const label = row.querySelector("span");
+    if (label) label.textContent = `Mapa ${index + 1}`;
+  });
+}
+
+function extractMapEmbedUrl(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  const iframeSource = text.match(/\bsrc\s*=\s*(["'])(.*?)\1/i)?.[2];
+  return iframeSource || text;
+}
+
+function sanitizeMapEmbedUrl(value) {
+  try {
+    const url = new URL(extractMapEmbedUrl(value));
+    const allowedHosts = new Set(["www.google.com", "maps.google.com", "www.google.com.br", "maps.google.com.br"]);
+    if (url.protocol !== "https:" || !allowedHosts.has(url.hostname) || !url.pathname.startsWith("/maps/embed")) return "";
+    if (url.username || url.password || url.searchParams.has("key")) return "";
+    return url.toString();
+  } catch {
+    return "";
+  }
 }
 
 function selectField(label, name, value, options) {

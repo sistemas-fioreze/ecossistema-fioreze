@@ -121,6 +121,35 @@ test("inicio mobile usa contraste branco e header com respiro seguro", () => {
   assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\.is-mobile-home\) \.site-header\.is-scrolled\s*\{[\s\S]*?rgba\(18, 13, 10, 0\.46\)/);
 });
 
+test("inicio mobile oculta informes e preserva descricoes dos servicos em vidro", () => {
+  assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.home-info-section\s*\{\s*display:\s*none/);
+  assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.quick-card\s*\{[\s\S]*?height:\s*auto;[\s\S]*?backdrop-filter:\s*blur\(18px\)/);
+  assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.quick-card > span\s*\{[\s\S]*?overflow:\s*visible;[\s\S]*?-webkit-line-clamp:\s*unset/);
+});
+
+test("clima movel reserva o cabecalho e cobre o conteudo de fundo", () => {
+  assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.weather-modal-backdrop\s*\{[\s\S]*?padding:\s*calc\(72px \+ env\(safe-area-inset-top\)\)[\s\S]*?rgba\(250, 249, 247, 0\.97\)/);
+  assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.weather-modal-sheet\s*\{[\s\S]*?max-height:\s*calc\(100dvh - 164px/);
+});
+
+test("portal renderiza varios mapas seguros na secao Como chegar", () => {
+  assert.match(portalScript, /contact\.maps_embed_urls/);
+  assert.match(portalScript, /function sanitizeGoogleMapsEmbedUrl/);
+  assert.match(portalScript, /data-maps-section/);
+  assert.match(portalScript, /sandbox="allow-scripts allow-same-origin allow-popups"/);
+  assert.match(portalScript, /data-portal-map-open/);
+  assert.match(portalCss, /\.hotel-maps-grid/);
+  assert.match(portalCss, /\.hotel-map-card iframe\s*\{[\s\S]*?aspect-ratio:\s*16 \/ 10/);
+});
+
+test("central administra uma lista de mapas sem armazenar iframe livre", () => {
+  assert.match(adminScript, /function mapsEmbedField/);
+  assert.match(adminScript, /data-add-map-embed/);
+  assert.match(adminScript, /data-remove-map-embed/);
+  assert.match(adminScript, /body\["contact\.maps_embed_urls"\] = mapsEmbedUrls/);
+  assert.match(adminScript, /Códigos HTML e chaves de API não são armazenados/);
+});
+
 test("desktop alinha as guias e deixa logo, clima e localizacao sem fundo", () => {
   assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.site-header,[\s\S]*?background:\s*transparent;[\s\S]*?backdrop-filter:\s*none/);
   assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.brand-logo-img\s*\{[\s\S]*?background:\s*transparent;[\s\S]*?box-shadow:\s*none/);

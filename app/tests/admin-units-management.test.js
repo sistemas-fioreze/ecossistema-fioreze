@@ -384,6 +384,34 @@ test("settings valida texto seguro, horarios, email e URLs", async () => {
   assert.equal(env.__data.adminAuditLog.at(-1).action, "hotel.settings.update");
 });
 
+test("settings aceita varios embeds seguros do Google Maps e rejeita conteudo inseguro", async () => {
+  const { json, env } = createWorkerTestContext();
+  grantPermissions(env);
+  const cookie = await createSessionCookie(env);
+  const maps = [
+    "https://www.google.com/maps/embed?pb=ROTA_DEMO_1",
+    "https://www.google.com.br/maps/embed?pb=ROTA_DEMO_2",
+  ];
+
+  const valid = await json(
+    "/api/v1/admin/hotels/muller-fioreze/settings",
+    withCookie(cookie, adminJson("PATCH", { "contact.maps_embed_urls": maps })),
+  );
+  const wrongHost = await json(
+    "/api/v1/admin/hotels/muller-fioreze/settings",
+    withCookie(cookie, adminJson("PATCH", { "contact.maps_embed_urls": ["https://example.invalid/maps/embed?pb=DEMO"] })),
+  );
+  const apiKey = await json(
+    "/api/v1/admin/hotels/muller-fioreze/settings",
+    withCookie(cookie, adminJson("PATCH", { "contact.maps_embed_urls": ["https://www.google.com/maps/embed?key=CHAVE_DEMO"] })),
+  );
+
+  assert.equal(valid.response.status, 200);
+  assert.deepEqual(valid.body.data.settings["contact.maps_embed_urls"], maps);
+  assert.equal(wrongHost.response.status, 400);
+  assert.equal(apiKey.response.status, 400);
+});
+
 test("modulos sao atualizados de forma idempotente sem excluir registros", async () => {
   const { json, env } = createWorkerTestContext();
   grantPermissions(env);
