@@ -96,18 +96,29 @@ test("desktop centraliza header e mostra SVG em todas as guias", () => {
 test("desktop usa a capa sanitizada da unidade como fundo de tela inteira", () => {
   assert.match(portalScript, /branding\?\.cover_image_url/);
   assert.match(portalScript, /sanitizePublicAssetUrl\(bootstrap\.branding\?\.cover_image_url\)/);
-  assert.match(portalScript, /class="desktop-unit-cover"/);
+  assert.match(portalScript, /const classes = `desktop-unit-cover/);
   assert.match(portalCss, /\.desktop-unit-cover\s*\{\s*display:\s*none/);
   assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.desktop-unit-cover\s*\{[\s\S]*?position:\s*fixed;[\s\S]*?inset:\s*0;[\s\S]*?width:\s*100vw;[\s\S]*?height:\s*100dvh/);
   assert.match(portalCss, /\.desktop-unit-cover img,[\s\S]*?\.desktop-unit-cover video\s*\{[\s\S]*?object-fit:\s*cover/);
 });
 
-test("desktop aceita video de capa sem carregar o arquivo no mobile", () => {
+test("capa aceita video no desktop e somente na guia inicio do mobile", () => {
   assert.match(portalScript, /branding\?\.cover_media_type === "video"/);
-  assert.match(portalScript, /isVideo && !isDesktopPortal\(\)/);
+  assert.match(portalScript, /const isMobileHome = !isDesktop && activeTab === "inicio"/);
+  assert.match(portalScript, /if \(!isDesktop && !isMobileHome\) return ""/);
+  assert.match(portalScript, /isMobileHome \? " is-mobile-home"/);
   assert.match(portalScript, /<video src=.*muted loop playsinline preload="metadata"/);
   assert.match(portalScript, /prefers-reduced-motion: reduce/);
   assert.match(portalCss, /\.desktop-unit-cover img,[\s\S]*?\.desktop-unit-cover video\s*\{[\s\S]*?object-fit:\s*cover/);
+  assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.desktop-unit-cover\.is-mobile-home\s*\{[\s\S]*?display:\s*block;[\s\S]*?height:\s*100dvh/);
+  assert.match(portalCss, /\.desktop-unit-cover\.is-mobile-home img,[\s\S]*?\.desktop-unit-cover\.is-mobile-home video\s*\{[\s\S]*?object-fit:\s*cover/);
+});
+
+test("inicio mobile usa contraste branco e header com respiro seguro", () => {
+  assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.site-header\s*\{[\s\S]*?padding-top:\s*calc\(10px \+ env\(safe-area-inset-top\)\)/);
+  assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.guest-portal-root:has\(\.desktop-unit-cover\.is-mobile-home\) \.home-hero-copy \.guest-title/);
+  assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\.is-mobile-home\) \.home-info-section \.guest-section-heading button\s*\{[\s\S]*?color:\s*#fff/);
+  assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\.is-mobile-home\) \.site-header\.is-scrolled\s*\{[\s\S]*?rgba\(18, 13, 10, 0\.46\)/);
 });
 
 test("desktop alinha as guias e deixa logo, clima e localizacao sem fundo", () => {

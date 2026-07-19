@@ -88,15 +88,15 @@ function renderLoadError(error) {
 }
 
 function renderPortal(container, state) {
-  const desktopCover = renderDesktopCover(state.bootstrap);
+  const portalCover = renderPortalCover(state.bootstrap, state.activeTab);
   if (state.selectedEventId) {
     if (isDesktopPortal()) {
-      container.innerHTML = `${desktopCover}<div class="desktop-event-context" aria-hidden="true" inert>${renderEventsView(state)}</div><div class="desktop-event-dialog-backdrop" data-event-dialog role="dialog" aria-modal="true" aria-label="Detalhes do evento">${renderEventDetail(state)}</div>${renderBottomNav("eventos", "eventos")}`;
+      container.innerHTML = `${portalCover}<div class="desktop-event-context" aria-hidden="true" inert>${renderEventsView(state)}</div><div class="desktop-event-dialog-backdrop" data-event-dialog role="dialog" aria-modal="true" aria-label="Detalhes do evento">${renderEventDetail(state)}</div>${renderBottomNav("eventos", "eventos")}`;
       document.body.classList.add("event-dialog-open");
       container.querySelector(".desktop-event-dialog-backdrop .fixed-header-back")?.focus({ preventScroll: true });
     } else {
       document.body.classList.remove("event-dialog-open");
-      container.innerHTML = `${desktopCover}${renderEventDetail(state)}${renderBottomNav("eventos", "eventos")}`;
+      container.innerHTML = `${portalCover}${renderEventDetail(state)}${renderBottomNav("eventos", "eventos")}`;
     }
     syncHeaderScroll(container);
     return;
@@ -109,7 +109,7 @@ function renderPortal(container, state) {
     : renderSubpageView(state);
 
   container.innerHTML = `
-    ${desktopCover}
+    ${portalCover}
     ${page}
     ${renderBottomNav(state.activeTab, state.previousTab)}
     ${state.weatherOpen ? renderWeatherPanel(state) : ""}`;
@@ -117,16 +117,19 @@ function renderPortal(container, state) {
   syncHeaderScroll(container);
 }
 
-function renderDesktopCover(bootstrap) {
+function renderPortalCover(bootstrap, activeTab) {
   const coverUrl = sanitizePublicAssetUrl(bootstrap.branding?.cover_image_url);
   if (!coverUrl) return "";
+  const isDesktop = isDesktopPortal();
+  const isMobileHome = !isDesktop && activeTab === "inicio";
+  if (!isDesktop && !isMobileHome) return "";
   const isVideo = bootstrap.branding?.cover_media_type === "video";
-  if (isVideo && !isDesktopPortal()) return "";
+  const classes = `desktop-unit-cover${isVideo ? " is-video" : ""}${isMobileHome ? " is-mobile-home" : ""}`;
   if (isVideo) {
     const autoplay = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "" : " autoplay";
-    return `<div class="desktop-unit-cover is-video" aria-hidden="true"><video src="${escapeHtml(coverUrl)}" muted loop playsinline preload="metadata"${autoplay}></video></div>`;
+    return `<div class="${classes}" aria-hidden="true"><video src="${escapeHtml(coverUrl)}" muted loop playsinline preload="metadata"${autoplay}></video></div>`;
   }
-  return `<div class="desktop-unit-cover" aria-hidden="true"><img src="${escapeHtml(coverUrl)}" alt="" loading="lazy" decoding="async"></div>`;
+  return `<div class="${classes}" aria-hidden="true"><img src="${escapeHtml(coverUrl)}" alt="" loading="eager" fetchpriority="high" decoding="async"></div>`;
 }
 
 function bindPortal(container, state) {
@@ -317,14 +320,14 @@ function renderWeatherPanel(state) {
     return `
       <div class="weather-modal-backdrop" role="dialog" aria-modal="true" aria-label="Previsão do tempo">
         <button type="button" class="fixed-header-back" data-weather-close aria-label="Voltar">${icon("chevron-back")}<span>Voltar</span></button>
-        <div class="weather-fixed-title">${icon("cloud")}<span>Clima em ${escapeHtml(state.bootstrap.short_name || state.bootstrap.name)}</span></div>
+        <div class="weather-fixed-title">${icon("cloud")}<span>Clima em ${escapeHtml(state.weather.location?.name || "Gramado")}</span></div>
         <section class="weather-modal-sheet weather-unavailable">${renderEmptyState("A previsão do tempo está temporariamente indisponível.")}</section>
       </div>`;
   }
   return `
     <div class="weather-modal-backdrop" role="dialog" aria-modal="true" aria-label="Previsão do tempo">
       <button type="button" class="fixed-header-back" data-weather-close aria-label="Voltar">${icon("chevron-back")}<span>Voltar</span></button>
-      <div class="weather-fixed-title">${icon("cloud")}<span>Clima em ${escapeHtml(state.bootstrap.short_name || state.bootstrap.name)}</span></div>
+      <div class="weather-fixed-title">${icon("cloud")}<span>Clima em ${escapeHtml(state.weather.location?.name || "Gramado")}</span></div>
       <section class="weather-modal-sheet">
         <header class="weather-screen-head"><p>PREVISÃO LOCAL</p><h2>Clima durante a sua estadia</h2></header>
         <article class="weather-hero-card">
