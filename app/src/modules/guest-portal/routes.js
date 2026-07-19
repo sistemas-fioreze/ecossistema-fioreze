@@ -3,7 +3,7 @@ import { notFoundError } from "../../core/errors.js";
 import { ok } from "../../core/responses.js";
 import { resolveTenantBySlug } from "../../core/tenant.js";
 import { requireEnabledModule } from "../../middleware/require-module.js";
-import { loadPublicBlog, loadPublicWeather } from "../../services/public-portal-feeds.js";
+import { DEFAULT_WEATHER_LOCATION, loadPublicBlog, loadPublicWeather } from "../../services/public-portal-feeds.js";
 
 const MODULE_KEY = "guest-portal";
 
@@ -73,13 +73,13 @@ async function getPortalWeather({ env, params }) {
   const tenant = await requirePublicPortal(env, params.hotel_slug);
   try {
     const weather = await loadPublicWeather({
-      latitude: tenant.settings["contact.latitude"],
-      longitude: tenant.settings["contact.longitude"],
-      timezone: tenant.timezone,
+      latitude: DEFAULT_WEATHER_LOCATION.latitude,
+      longitude: DEFAULT_WEATHER_LOCATION.longitude,
+      timezone: DEFAULT_WEATHER_LOCATION.timezone,
     });
-    return ok({ hotel_id: tenant.hotel_id, ...weather }, { cacheControl: "public, max-age=300" });
+    return ok({ hotel_id: tenant.hotel_id, location: { name: DEFAULT_WEATHER_LOCATION.name }, ...weather }, { cacheControl: "public, max-age=300" });
   } catch {
-    return ok({ hotel_id: tenant.hotel_id, available: false, current: null, forecast: [] }, { cacheControl: "public, max-age=60" });
+    return ok({ hotel_id: tenant.hotel_id, location: { name: DEFAULT_WEATHER_LOCATION.name }, available: false, current: null, forecast: [] }, { cacheControl: "public, max-age=60" });
   }
 }
 

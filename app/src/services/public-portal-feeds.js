@@ -2,6 +2,13 @@ const DEFAULT_BLOG_FEED = "https://blog.hoteisfioreze.com.br/wp-json/wp/v2/posts
 const BLOG_HOST = "blog.hoteisfioreze.com.br";
 const EXTERNAL_TIMEOUT_MS = 8000;
 
+export const DEFAULT_WEATHER_LOCATION = Object.freeze({
+  name: "Gramado",
+  latitude: -29.3788,
+  longitude: -50.8738,
+  timezone: "America/Sao_Paulo",
+});
+
 export async function loadPublicBlog({ feedUrl, fetchImpl = fetch }) {
   const url = buildBlogUrl(feedUrl);
   const response = await fetchWithTimeout(fetchImpl, url);

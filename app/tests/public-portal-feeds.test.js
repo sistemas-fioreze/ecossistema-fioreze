@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import test from "node:test";
 
-import { buildBlogUrl, loadPublicBlog, loadPublicWeather } from "../src/services/public-portal-feeds.js";
+import { DEFAULT_WEATHER_LOCATION, buildBlogUrl, loadPublicBlog, loadPublicWeather } from "../src/services/public-portal-feeds.js";
+
+const guestPortalRoutes = fs.readFileSync(new URL("../src/modules/guest-portal/routes.js", import.meta.url), "utf8");
 
 test("blog oficial e reduzido a conteudo publico sanitizado", async () => {
   let requestedUrl = "";
@@ -49,7 +52,7 @@ test("timeout do feed e limpo mesmo quando o cliente falha de forma sincrona", a
   );
 });
 
-test("clima usa coordenadas e fuso da unidade", async () => {
+test("servico de clima usa as coordenadas e o fuso recebidos", async () => {
   let requestedUrl = "";
   const weather = await loadPublicWeather({
     latitude: "-29.37",
@@ -72,6 +75,19 @@ test("clima usa coordenadas e fuso da unidade", async () => {
   assert.equal(weather.current.temperature, 18);
   assert.equal(weather.current.description, "Parcialmente nublado");
   assert.equal(weather.forecast.length, 3);
+});
+
+test("portal usa Gramado como localizacao climatica padrao para todas as unidades", () => {
+  assert.deepEqual(DEFAULT_WEATHER_LOCATION, {
+    name: "Gramado",
+    latitude: -29.3788,
+    longitude: -50.8738,
+    timezone: "America/Sao_Paulo",
+  });
+  assert.match(guestPortalRoutes, /latitude: DEFAULT_WEATHER_LOCATION\.latitude/);
+  assert.match(guestPortalRoutes, /longitude: DEFAULT_WEATHER_LOCATION\.longitude/);
+  assert.match(guestPortalRoutes, /timezone: DEFAULT_WEATHER_LOCATION\.timezone/);
+  assert.doesNotMatch(guestPortalRoutes, /tenant\.settings\["contact\.(?:latitude|longitude)"\]/);
 });
 
 test("clima sem coordenadas nao realiza chamada externa", async () => {
