@@ -199,6 +199,7 @@ let editingMediaFolder = null;
 let movingMediaAsset = null;
 let currentShortLinks = [];
 let currentShortLink = null;
+let currentShortLinkPublicBase = "";
 let currentUnits = [];
 let currentUnit = null;
 let currentModules = [];
@@ -222,6 +223,7 @@ const auth = createAdminAuthView({
     currentAssets = [];
     currentFolders = [];
     currentShortLinks = [];
+    currentShortLinkPublicBase = "";
     currentUnits = [];
     currentUnit = null;
   },
@@ -1029,11 +1031,13 @@ async function loadShortLinks() {
   try {
     const payload = await adminApi(`/api/v1/admin/short-links?${params.toString()}`);
     currentShortLinks = payload.data.links || [];
+    currentShortLinkPublicBase = String(payload.data.public_url_base || "").replace(/\/$/, "");
     els.shortLinksMessage.textContent = `${currentShortLinks.length} link(s) encontrado(s).`;
     renderShortLinksSummary();
     renderShortLinksList();
   } catch (error) {
     currentShortLinks = [];
+    currentShortLinkPublicBase = "";
     els.shortLinksSummary.innerHTML = "";
     els.shortLinksList.innerHTML = "";
     els.shortLinksMessage.textContent = error.message || "Não foi possível carregar os links.";
@@ -1283,7 +1287,8 @@ function updateShortLinkPreview() {
 function shortLinkPreviewUrl(slug) {
   if (currentShortLink?.public_url && slug === currentShortLink.slug) return currentShortLink.public_url;
   const safeSlug = slug || "seu-link";
-  return `${window.location.origin}/go/${safeSlug}`;
+  const base = currentShortLinkPublicBase || `${window.location.origin}/go`;
+  return `${base}/${safeSlug}`;
 }
 
 function renderMediaLibrary(session) {

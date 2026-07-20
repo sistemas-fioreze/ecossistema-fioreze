@@ -131,8 +131,10 @@ export function shortLinkPublicUrl({ env, request, slug }) {
   return `${new URL(request.url).origin}/go/${slug}`;
 }
 
-export function shortLinkPublicUrlPreviewBase(env) {
-  return resolveShortLinkPublicOrigin(env);
+export function shortLinkPublicUrlPreviewBase(env, request) {
+  const configured = resolveShortLinkPublicOrigin(env);
+  if (configured) return configured;
+  return request ? `${new URL(request.url).origin}/go` : null;
 }
 
 export function isShortLinkCustomDomainRequest(request, env) {

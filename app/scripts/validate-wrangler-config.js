@@ -21,7 +21,7 @@ const workerFirstRoutes = new Set(config.assets?.run_worker_first || []);
 const shortLinkRoute = (config.routes || []).find((route) => route.pattern === "go.hoteisfioreze.com.br");
 
 if (config.workers_dev !== true) {
-  console.error("workers_dev deve permanecer true enquanto o Custom Domain dos links estiver adiado.");
+  console.error("workers_dev deve permanecer true como fallback tecnico dos links.");
   process.exit(1);
 }
 
@@ -58,12 +58,12 @@ for (const route of ["/api/*", "/admin/*", "/erp/*", "/media/*", "/embed/*", "/g
 }
 
 if (shortLinkRoute) {
-  console.error("Custom Domain go.hoteisfioreze.com.br esta adiado e nao deve estar na configuracao padrao.");
+  console.error("O dominio curto e entregue pelo Pages e nao deve ser vinculado ao Worker.");
   process.exit(1);
 }
 
-if (Object.hasOwn(config.vars || {}, "SHORT_LINK_PUBLIC_ORIGIN")) {
-  console.error("SHORT_LINK_PUBLIC_ORIGIN esta adiado e nao deve estar nas vars padrao.");
+if (config.vars?.SHORT_LINK_PUBLIC_ORIGIN !== "https://go.hoteisfioreze.com.br") {
+  console.error("SHORT_LINK_PUBLIC_ORIGIN deve apontar para o dominio curto oficial.");
   process.exit(1);
 }
 

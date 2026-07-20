@@ -11,6 +11,7 @@ import {
   normalizeOptionalDate,
   normalizeShortLinkSlug,
   shortLinkPublicUrl,
+  shortLinkPublicUrlPreviewBase,
   summarizeDestinationUrl,
   validateDestinationUrl,
 } from "../short-links/shared.js";
@@ -64,6 +65,7 @@ export async function listAdminShortLinks({ request, env, session, url }) {
 
   return {
     links: rows.map((row) => formatShortLink(row, { request, env })),
+    public_url_base: shortLinkPublicUrlPreviewBase(env, request),
     pagination: { limit, offset, count: rows.length },
   };
 }
