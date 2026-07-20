@@ -12,6 +12,7 @@ import {
 } from "../src/modules/short-links/shared.js";
 
 const SHORT_LINK_ORIGIN = "https://go.hoteisfioreze.com.br";
+const adminPortalsScript = fs.readFileSync("public/js/modules/admin/portals.js", "utf8");
 
 const LINK_PERMISSIONS = [
   "portals.links.read",
@@ -34,12 +35,14 @@ test("migration 0011 cria links curtos, analytics agregada e permissoes sem asso
   assert.equal(/admin_role_permissions/i.test(migration), false);
 });
 
-test("wrangler preserva Workers.dev e adia Custom Domain dos links", () => {
-  const config = JSON.parse(fs.readFileSync("wrangler.jsonc", "utf8"));
-  assert.equal(config.workers_dev, true);
-  assert.ok(config.assets.run_worker_first.includes("/go/*"));
-  assert.equal(Object.hasOwn(config.vars || {}, "SHORT_LINK_PUBLIC_ORIGIN"), false);
-  assert.equal((config.routes || []).some((route) => route.pattern === "go.hoteisfioreze.com.br"), false);
+test("Worker e Pages geram o dominio curto oficial sem remover o fallback Workers.dev", () => {
+  const worker = JSON.parse(fs.readFileSync("wrangler.jsonc", "utf8"));
+  const pages = JSON.parse(fs.readFileSync("pages/wrangler.jsonc", "utf8"));
+  assert.equal(worker.workers_dev, true);
+  assert.ok(worker.assets.run_worker_first.includes("/go/*"));
+  assert.equal(worker.vars.SHORT_LINK_PUBLIC_ORIGIN, SHORT_LINK_ORIGIN);
+  assert.equal(pages.vars.SHORT_LINK_PUBLIC_ORIGIN, SHORT_LINK_ORIGIN);
+  assert.equal((worker.routes || []).some((route) => route.pattern === "go.hoteisfioreze.com.br"), false);
 });
 
 test("normalizacao de slug aplica regras globais e palavras reservadas", () => {
@@ -259,7 +262,31 @@ test("admin lista links somente do hotel autorizado", async () => {
 
   assert.equal(response.response.status, 200);
   assert.deepEqual(response.body.data.links.map((link) => link.hotel_id), ["muller-fioreze", "muller-fioreze"]);
+  assert.equal(response.body.data.public_url_base, `${ADMIN_ORIGIN}/go`);
   assert.equal(forbidden.response.status, 401);
+});
+
+test("admin gera links e preview com a origem oficial configurada", async () => {
+  const { json, env } = createWorkerTestContext({ SHORT_LINK_PUBLIC_ORIGIN: SHORT_LINK_ORIGIN });
+  grantPermissions(env);
+  const cookie = await createSessionCookie(env);
+
+  const list = await json("/api/v1/admin/short-links?hotel_id=muller-fioreze", withCookie(cookie));
+  const created = await json(
+    "/api/v1/admin/short-links",
+    withCookie(cookie, adminJson("POST", {
+      hotel_id: "muller-fioreze",
+      internal_name: "Campanha oficial demo",
+      slug: "campanha-oficial-demo",
+      destination_url: "https://example.invalid/campanha",
+      status: "active",
+    })),
+  );
+
+  assert.equal(list.body.data.public_url_base, SHORT_LINK_ORIGIN);
+  assert.equal(created.body.data.link.public_url, `${SHORT_LINK_ORIGIN}/campanha-oficial-demo`);
+  assert.match(adminPortalsScript, /payload\.data\.public_url_base/);
+  assert.match(adminPortalsScript, /const base = currentShortLinkPublicBase/);
 });
 
 test("admin cria link, rejeita duplicidade e nao grava destino completo no audit", async () => {

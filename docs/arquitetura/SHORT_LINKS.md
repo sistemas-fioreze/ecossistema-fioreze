@@ -4,15 +4,15 @@ O modulo oficial de links personalizados pertence a Central de Portais e cria UR
 
 ## Estado Atual
 
-A operacao atual em desenvolvimento usa o endereco tecnico do Worker:
-
-`https://fioreze-portais-dev.marketing1-840.workers.dev/go/<slug>`
-
-O dominio oficial planejado e:
+O endereco publico padrao dos links e:
 
 `https://go.hoteisfioreze.com.br/<slug>`
 
-A ativacao do dominio oficial esta adiada porque a zona `hoteisfioreze.com.br` nao esta disponivel na conta Cloudflare atual. O DNS provavelmente e gerenciado externamente pela KingHost ou por outra controladoria. O codigo ja preserva suporte opcional a `SHORT_LINK_PUBLIC_ORIGIN` e ao hostname exclusivo, mas a configuracao padrao nao ativa esse dominio.
+O hostname `go.hoteisfioreze.com.br` e administrado no DNS externo e aponta por CNAME para o projeto `fioreze-portais-pages-dev`. O Pages recebe esse hostname e executa o mesmo Worker em modo avancado. Nao foi necessario transferir a zona, trocar nameservers ou alterar o dominio raiz.
+
+O endereco tecnico continua disponivel como contingencia:
+
+`https://fioreze-portais-dev.marketing1-840.workers.dev/go/<slug>`
 
 ## Uso
 
@@ -22,7 +22,7 @@ A ativacao do dominio oficial esta adiada porque a zona `hoteisfioreze.com.br` n
 - Links podem ficar `active`, `paused` ou `archived`.
 - `starts_at` e `expires_at` permitem publicar campanhas temporarias.
 - Links pausados, arquivados, futuros ou expirados respondem como 404 generico.
-- A tela administrativa exibe e copia o `public_url` retornado pela API. Enquanto `SHORT_LINK_PUBLIC_ORIGIN` estiver ausente, esse valor usa o formato tecnico `/go/<slug>` no `workers.dev`.
+- A tela administrativa exibe, antecipa e copia o `public_url` retornado pela API usando o dominio oficial.
 
 ## Destinos Permitidos
 
@@ -43,7 +43,7 @@ Sao bloqueados:
 - URLs com credenciais embutidas;
 - caracteres de controle ou quebras de linha;
 - loops diretos para a propria origem em `/go/<slug>`;
-- loops diretos para o dominio oficial futuro em `/<slug>` ou `/go/<slug>` quando `SHORT_LINK_PUBLIC_ORIGIN` estiver configurada;
+- loops diretos para o dominio oficial em `/<slug>` ou `/go/<slug>`;
 - URLs maiores que 4096 caracteres.
 
 O sistema nao faz `fetch`, `HEAD` ou validacao DNS do destino. Isso evita SSRF e impede que a administracao acesse recursos internos ao validar um link.
@@ -52,7 +52,7 @@ O sistema nao faz `fetch`, `HEAD` ou validacao DNS do destino. Isso evita SSRF e
 
 `GET /go/:slug` no Workers.dev retorna `302` para o destino cadastrado quando o link esta ativo e dentro da janela de validade.
 
-Quando o dominio oficial for ativado futuramente, `GET https://go.hoteisfioreze.com.br/:slug` devera usar a mesma regra sem exigir `/go/`.
+`GET https://go.hoteisfioreze.com.br/:slug` usa a mesma regra sem exigir `/go/`.
 
 Headers publicos:
 
@@ -68,7 +68,7 @@ A query enviada pelo visitante ao link curto nao e anexada ao destino salvo. O r
 
 ## Isolamento do Hostname
 
-Quando `SHORT_LINK_PUBLIC_ORIGIN` estiver configurada para `https://go.hoteisfioreze.com.br`, esse hostname funciona exclusivamente como redirecionador.
+Com `SHORT_LINK_PUBLIC_ORIGIN=https://go.hoteisfioreze.com.br`, esse hostname funciona exclusivamente como redirecionador.
 
 Permitido:
 
@@ -115,27 +115,20 @@ A Central gera o QR Code diretamente a partir do `public_url` calculado pelo bac
 
 Links ativos, pausados e arquivados mantem o QR disponivel para consulta administrativa. A disponibilidade publica continua sendo determinada pelo status do link.
 
-## Dominio Oficial e Custom Domain Futuro
+## Dominio Oficial
 
-O dominio oficial planejado e:
+O dominio oficial ativo e:
 
 `https://go.hoteisfioreze.com.br`
 
-Ele nao esta ativo na configuracao padrao atual. A configuracao atual deve manter:
+As configuracoes do Worker e do Pages mantem:
 
 - `workers_dev=true`;
 - sem `routes[].pattern=go.hoteisfioreze.com.br`;
-- sem `SHORT_LINK_PUBLIC_ORIGIN`;
-- `assets.run_worker_first` contendo `/go/*`.
-
-Para ativar o dominio no futuro, primeiro e necessario confirmar acesso administrativo a zona DNS `hoteisfioreze.com.br` ou coordenar a controladoria externa. Somente depois disso, uma nova mudanca deve configurar:
-
 - `SHORT_LINK_PUBLIC_ORIGIN=https://go.hoteisfioreze.com.br`;
-- `routes[].pattern=go.hoteisfioreze.com.br`;
-- `routes[].custom_domain=true`;
 - `assets.run_worker_first` contendo `/go/*`.
 
-DNS e certificado TLS devem ser gerenciados pela Cloudflare a partir do Custom Domain quando a zona estiver acessivel. Esta etapa nao instrui troca de nameservers, mudanca no dominio raiz, alteracao de `www` ou edicao manual de registros fora do hostname `go`.
+Nao existe uma rota Custom Domain no `fioreze-portais-dev`: o hostname oficial entra pelo projeto Pages, enquanto o Worker continua publicado em `workers.dev`. O DNS externo deve manter somente o CNAME do hostname `go` para `fioreze-portais-pages-dev.pages.dev`. Nenhuma configuracao do dominio raiz ou de `www` faz parte deste fluxo.
 
 ## Permissoes
 
@@ -164,10 +157,9 @@ A auditoria registra entidade, ID, hotel, slug, campos alterados e usuario. O de
 ## Troubleshooting
 
 - Se `/go/:slug` retornar HTML do SPA no Workers.dev, confirme `assets.run_worker_first` contendo `/go/*`.
-- Se `go.hoteisfioreze.com.br/<slug>` nao resolver, confirme primeiro se a zona `hoteisfioreze.com.br` esta acessivel na conta Cloudflare correta ou se depende de controladoria externa.
-- Se `go.hoteisfioreze.com.br/<slug>` retornar HTML depois da ativacao futura, confirme que o Custom Domain esta apontado para `fioreze-portais-dev` e que o roteamento exclusivo por hostname esta ativo.
-- Se o certificado estiver pendente, aguarde o status oficial do Custom Domain antes de considerar rollback.
-- Se houver conflito de DNS, nao sobrescrever registros existentes sem auditoria; remova apenas um Custom Domain recem-criado se o rollback exigir.
+- Se `go.hoteisfioreze.com.br/<slug>` nao resolver, confirme o CNAME externo para `fioreze-portais-pages-dev.pages.dev` e o Custom Domain no projeto Pages.
+- Se `go.hoteisfioreze.com.br/<slug>` retornar HTML, confirme `SHORT_LINK_PUBLIC_ORIGIN` no Pages e se a versao publicada contem o roteamento exclusivo por hostname.
+- Se o certificado estiver pendente, aguarde o status do dominio no Pages antes de considerar rollback.
 - Se um link ativo retornar 404, verifique `status`, `starts_at`, `expires_at` e `archived_at`.
 - Se um link pausado ou expirado retornar 404, esse e o comportamento esperado.
 - Se uma mutacao administrativa retornar 403, confira header `x-fioreze-admin-action` e origem.
@@ -176,4 +168,4 @@ A auditoria registra entidade, ID, hotel, slug, campos alterados e usuario. O de
 
 ## Rollback
 
-Se o dominio curto quebrar o Workers.dev em uma ativacao futura, restaure a versao anterior do Worker e remova somente o Custom Domain recem-criado. Nao alterar D1, R2, pedidos, imagens, usuarios, sessoes nem registros DNS de outros hostnames.
+Se o dominio curto falhar, o endereco tecnico `workers.dev/go/<slug>` continua sendo a contingencia. Restaure a versao anterior do Pages ou remova temporariamente `SHORT_LINK_PUBLIC_ORIGIN`; nao alterar D1, R2, pedidos, imagens, usuarios, sessoes nem registros DNS de outros hostnames.
