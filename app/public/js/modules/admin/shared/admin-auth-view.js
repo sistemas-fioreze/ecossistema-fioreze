@@ -1,10 +1,8 @@
 import { adminApi } from "./admin-api.js";
 import {
-  canAccessAreas,
   canAccessContent,
   canAccessLinks,
   canAccessMediaLibrary,
-  canAccessNavigation,
   canAccessPortals,
   canAccessUnits,
 } from "./admin-session.js";
@@ -578,9 +576,7 @@ function renderGlobalNav(session, section) {
     ["portals", "Unidades", "/admin/portais/unidades/", "units", canAccessUnits(session)],
     ["portals", "Mídia", "/admin/portais/media/", "image", canAccessMediaLibrary(session)],
     ["portals", "Links", "/admin/portais/links/", "link", canAccessLinks(session)],
-    ["portals", "Conteúdos", "/admin/portais/conteudos/", "content", canAccessContent(session)],
-    ["portals", "Áreas", "/admin/portais/areas/", "grid", canAccessAreas(session)],
-    ["portals", "Navegação", "/admin/portais/navegacao/", "navigation", canAccessNavigation(session)],
+    ["portals", "Criador", "/admin/portais/conteudos/", "content", canAccessContent(session)],
     ["messages", "Mensagens", "/admin/mensagens/", "mail", true],
     ["settings", "Configurações", "/admin/configuracoes/", "settings", true],
   ];

@@ -175,9 +175,11 @@ test("configuracao e Central preservam Worker-first e nova experiencia", () => {
   const script = fs.readFileSync("public/js/modules/admin/portals.js", "utf8");
   assert.ok(config.assets.run_worker_first.includes("/portal-content/*"));
   assert.match(html, /Links e QR Codes/);
-  assert.match(html, /data-content-type="custom_pages"/);
+  assert.match(html, /Criador de portais/);
+  assert.doesNotMatch(html, /data-content-type="custom_pages"/);
   assert.match(script, /qrcode\.svg/);
-  assert.match(html, /Páginas HTML/);
+  assert.doesNotMatch(html, /Páginas HTML/);
+  assert.doesNotMatch(html, /data-unit-panel="modules"/);
 });
 
 function adminJson(method, body) {

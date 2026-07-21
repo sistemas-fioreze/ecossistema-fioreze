@@ -2,21 +2,25 @@
 
 ## Objetivo
 
-O Construtor Visual permite criar portais e páginas profissionais na Central de Portais sem duplicar aplicações por hotel. Ele atende `guest-portal`, `emporio`, `spa`, `romantic-packages` e módulos públicos futuros. `admin` e `room-service` permanecem fora desse editor porque possuem produtos e fluxos próprios.
+O Construtor Visual permite criar portais e páginas profissionais na Central Administrativa sem duplicar aplicações por hotel. Ele é a superfície oficial para novos sites públicos, lojas digitais, campanhas, eventos e experiências futuras. `admin` e `room-service` permanecem fora desse editor porque possuem produtos e fluxos próprios.
+
+Os antigos tipos de conteúdo continuam preservados no banco para compatibilidade e histórico, mas não aparecem como produtos separados na navegação da Central. Novos projetos são criados no editor visual e recebem seu próprio endereço público. A configuração operacional do Room Service pertence exclusivamente ao ERP do hotel.
 
 ## Experiência administrativa
 
-O construtor fica em **Central de Portais > Conteúdos > Construtor** e oferece:
+O construtor fica em **Central Administrativa > Criador de portais** e oferece:
 
 - canvas em tela cheia;
-- visualização separada para desktop e mobile;
+- alternância e pré-visualização separada para desktop e mobile;
 - biblioteca de blocos com inclusão por clique ou arrastar e soltar;
-- camadas reordenáveis;
+- camadas reordenáveis por arrastar e soltar, botões de ordem ou painel de camadas;
+- movimento livre de blocos nos eixos horizontal e vertical, com valores independentes por dispositivo;
 - propriedades globais e substituições por dispositivo;
 - tipografia, espaçamento, colunas, cores, largura e visibilidade ajustáveis separadamente para desktop e mobile;
-- imagens e vídeos da Biblioteca de Mídia da própria unidade;
-- capa, títulos, textos, botões, imagens, vídeos, galeria, grade, citação, contato, divisor e espaçador;
-- desfazer, refazer, duplicar e excluir blocos;
+- imagens e vídeos da Biblioteca de Mídia da própria unidade, inclusive como fundo da página;
+- capa, títulos, textos, botões, imagens, vídeos, galeria, grade, citação, contato, incorporações, divisor e espaçador;
+- incorporações HTTPS para Google Maps, páginas hospedadas e serviços compatíveis com `iframe`;
+- desfazer, refazer, copiar, colar, duplicar, mover e excluir blocos;
 - pré-visualização do rascunho;
 - salvamento com controle de revisão;
 - publicação explícita;
@@ -49,6 +53,11 @@ O banco não armazena HTML livre. O campo JSON usa `schema_version=1` e contém:
   "schema_version": 1,
   "settings": {
     "background_color": "#ffffff",
+    "background_media_asset_id": null,
+    "background_overlay": 0,
+    "background_position": "center",
+    "background_fit": "cover",
+    "background_fixed": false,
     "text_color": "#202124",
     "primary_color": "#513b2d",
     "font_family": "Inter, system-ui, sans-serif"
@@ -57,15 +66,17 @@ O banco não armazena HTML livre. O campo JSON usa `schema_version=1` e contém:
 }
 ```
 
-Cada bloco possui `id`, `type`, `content`, `styles.base`, `styles.desktop`, `styles.mobile` e `visibility`. O Worker normaliza o documento antes de salvá-lo e novamente antes de servi-lo.
+Cada bloco possui `id`, `type`, `content`, `styles.base`, `styles.desktop`, `styles.mobile` e `visibility`. Os estilos por dispositivo incluem os deslocamentos `offset_x` e `offset_y`, usados pelo movimento livre sem misturar o layout desktop com o mobile. O Worker normaliza o documento antes de salvá-lo e novamente antes de servi-lo.
 
 ## Segurança
 
 - textos são tratados como texto e escapados na renderização;
 - URLs aceitam apenas caminhos internos, HTTPS, `mailto:` e `tel:`;
 - mídias são referências a `media_assets` ativas da mesma unidade;
-- não são aceitos scripts, eventos HTML, CSS arbitrário, iframes ou formulários;
-- a página pública usa CSP sem JavaScript;
+- não são aceitos scripts, eventos HTML, CSS arbitrário ou HTML livre no documento;
+- incorporações aceitam apenas URLs HTTPS sem credenciais e rejeitam endereços locais ou privados;
+- iframes são renderizados em sandbox e limitados pela CSP a origens HTTPS;
+- a página pública principal usa CSP sem JavaScript próprio;
 - APIs administrativas exigem sessão, permissão e acesso ao hotel;
 - mutações exigem origem válida e o header administrativo;
 - o editor usa `expected_revision` para impedir sobrescrita silenciosa;
@@ -74,7 +85,7 @@ Cada bloco possui `id`, `type`, `content`, `styles.base`, `styles.desktop`, `sty
 
 ## Templates
 
-Existem três pontos de partida internos: portal completo, página de serviço e página em branco. Um usuário autorizado pode salvar o documento atual como modelo da unidade e aplicá-lo em outro portal do mesmo módulo. Um modelo guarda apenas o documento visual e referências de mídia; não copia usuários, configurações privadas ou dados operacionais.
+Existem pontos de partida internos para hospitalidade, loja digital, campanha, eventos, página de serviço e página em branco. Os modelos usam cartões, botões e seções com cantos arredondados e permanecem integralmente editáveis. Um usuário autorizado pode salvar o documento atual como modelo da unidade e aplicá-lo em outro portal. Um modelo guarda apenas o documento visual e referências de mídia; não copia usuários, configurações privadas ou dados operacionais.
 
 ## Links personalizados
 
@@ -100,3 +111,10 @@ Nenhuma edição de rascunho muda uma página já publicada até a ação de pub
 - domínio próprio por portal;
 - formulários conectados a contratos específicos de cada módulo;
 - importação controlada de templates externos para o documento estruturado.
+
+## Limites operacionais
+
+- mover livremente aplica deslocamentos visuais ao bloco selecionado; a ordem semântica do documento continua definida pelas camadas;
+- uma incorporação pode ser recusada pelo site de origem quando ele proíbe `iframe` por cabeçalhos próprios;
+- arquivos usados como fundo permanecem vinculados à Biblioteca de Mídia da unidade e precisam estar ativos;
+- conteúdos antigos não são excluídos automaticamente durante a adoção do novo criador.

@@ -145,12 +145,10 @@ const els = {
 };
 
 const portalCards = [
-  ["unidades", "Unidades", "Cadastre hotéis, identidade visual, módulos e navegação.", "/admin/portais/unidades/"],
+  ["unidades", "Unidades", "Cadastre hotéis, identidade visual e informações institucionais.", "/admin/portais/unidades/"],
   ["media", "Biblioteca de mídia", "Gerencie imagens, vídeos e pastas dos portais e módulos.", "/admin/portais/media/"],
   ["links", "Links e QR Codes", "Crie endereços curtos, QR Codes e acompanhe acessos.", "/admin/portais/links/"],
-  ["conteudos", "Conteúdos", "Páginas, eventos e informações dos hotéis.", "/admin/portais/conteudos/"],
-  ["modulos", "Áreas", "Ativação e ajustes das experiências.", "/admin/portais/areas/"],
-  ["navegacao", "Navegação", "Menus e caminhos dos portais.", "/admin/portais/navegacao/"],
+  ["conteudos", "Criador de portais", "Monte páginas desktop e mobile com blocos, templates e mídia.", "/admin/portais/conteudos/"],
 ];
 const mediaFields = ["logo_url", "horizontal_logo_url", "icon_url", "favicon_url", "cover_image_url", "social_image_url"];
 const settingFields = [
@@ -214,7 +212,7 @@ let currentEmbed = null;
 let activeUnitTab = "general";
 let dirty = false;
 let contentType = "visual_portals";
-let currentContent = { visual_portals: [], pages: [], custom_pages: [], events: [], information: [] };
+let currentContent = { visual_portals: [] };
 let dedicatedModules = [];
 let dedicatedNavigation = [];
 let eventMediaAssets = [];
@@ -346,8 +344,7 @@ function refreshCurrentPortalRoute() {
   if (isMediaRoute()) return loadMediaLibrary();
   if (isLinksRoute()) return loadShortLinks();
   if (isContentRoute()) return loadPortalContent();
-  if (isAreasRoute()) return loadDedicatedAreas();
-  if (isNavigationRoute()) return loadDedicatedNavigation();
+  if (isAreasRoute() || isNavigationRoute()) return renderContentManager(currentSession);
   if (isAuditRoute()) return loadAudit();
   if (isUnitsRoute()) return currentUnit?.hotel_id ? openExistingUnit(currentUnit.hotel_id) : loadUnits();
   return renderHome(currentSession);
@@ -376,11 +373,13 @@ function renderPortals(session) {
     return;
   }
   if (isAreasRoute()) {
-    renderAreasManager(session);
+    navigateSoft("/admin/portais/conteudos/");
+    renderContentManager(session);
     return;
   }
   if (isNavigationRoute()) {
-    renderNavigationManager(session);
+    navigateSoft("/admin/portais/conteudos/");
+    renderContentManager(session);
     return;
   }
   if (isAuditRoute()) {
@@ -402,9 +401,7 @@ function renderNav(session) {
     ["Unidades", "/admin/portais/unidades/", canAccessUnits(session)],
     ["Biblioteca", "/admin/portais/media/", canAccessMediaLibrary(session)],
     ["Links", "/admin/portais/links/", canAccessLinks(session)],
-    ["Conteúdos", "/admin/portais/conteudos/", canAccessContent(session)],
-    ["Áreas", "/admin/portais/areas/", canAccessAreas(session)],
-    ["Navegação", "/admin/portais/navegacao/", canAccessNavigation(session)],
+    ["Criador", "/admin/portais/conteudos/", canAccessContent(session)],
   ];
   els.portalsNav.innerHTML = items
     .map(([label, href, enabled]) =>
@@ -416,7 +413,7 @@ function renderNav(session) {
 }
 
 function renderHome(session) {
-  setHeading("Central de Portais Fioreze", "Gerencie unidades, experiências digitais, conteúdos e identidade visual.");
+  setHeading("Central de Portais Fioreze", "Gerencie unidades, mídia, links e experiências digitais em um só lugar.");
   showPortalSection(els.portalsHome);
   els.portalsModules.innerHTML = portalCards.map(([key, title, body, href]) => renderPortalCard(session, key, title, body, href)).join("");
 }
@@ -427,8 +424,6 @@ function renderPortalCard(session, key, title, body, href) {
     (key === "media" && canAccessMediaLibrary(session)) ||
     (key === "links" && canAccessLinks(session)) ||
     (key === "conteudos" && canAccessContent(session)) ||
-    (key === "modulos" && canAccessAreas(session)) ||
-    (key === "navegacao" && canAccessNavigation(session)) ||
     (key === "auditoria" && canAccessAudit(session));
   const tag = !enabled ? "article" : "a";
   const attr = tag === "a" ? `href="${escapeAttr(href)}"` : "";
@@ -543,21 +538,15 @@ async function openExistingUnit(hotelId) {
   els.unitEditorView.hidden = false;
   els.unitEditorTitle.textContent = "Carregando unidade...";
   try {
-    const [hotel, modules, navigation, embed] = await Promise.all([
+    const [hotel, embed] = await Promise.all([
       adminApi(`/api/v1/admin/hotels/${encodeURIComponent(hotelId)}`),
-      hasPermission(currentSession, PORTALS_HOTELS_MODULES_PERMISSION)
-        ? adminApi(`/api/v1/admin/hotels/${encodeURIComponent(hotelId)}/modules`)
-        : Promise.resolve({ data: { modules: [] } }),
-      hasPermission(currentSession, PORTALS_HOTELS_NAVIGATION_PERMISSION)
-        ? adminApi(`/api/v1/admin/hotels/${encodeURIComponent(hotelId)}/navigation`)
-        : Promise.resolve({ data: { navigation: [] } }),
       hasPermission(currentSession, PORTALS_EMBED_READ_PERMISSION)
         ? adminApi(`/api/v1/admin/hotels/${encodeURIComponent(hotelId)}/embed`)
         : Promise.resolve({ data: { embed: null, modules: [] } }),
     ]);
     currentUnit = hotel.data.hotel;
-    currentModules = modules.data.modules || [];
-    currentNavigation = navigation.data.navigation || [];
+    currentModules = [];
+    currentNavigation = [];
     currentEmbed = embed.data;
     dirty = false;
     renderUnitEditor();
@@ -827,7 +816,6 @@ async function saveCurrentUnit() {
       });
       await saveBranding();
       await saveSettings();
-      await saveModules();
       await saveEmbed();
     }
     dirty = false;
@@ -2229,7 +2217,7 @@ function updatePreview() {
 
 function renderContentManager(session) {
   const allowed = canAccessContent(session);
-  setHeading("Conteúdos", "Gerencie páginas, eventos e informações públicas por unidade.");
+  setHeading("Criador de portais", "Crie, personalize e publique experiências digitais para cada unidade.");
   showPortalSection(allowed ? els.contentManager : null);
   els.portalsDenied.hidden = allowed;
   if (!allowed) return;
@@ -2242,16 +2230,8 @@ async function loadPortalContent() {
   els.contentMessage.textContent = "Carregando conteúdos...";
   try {
     const hotelId = encodeURIComponent(els.contentHotel.value);
-    const [contentPayload, customPagesPayload, visualPortalsPayload] = await Promise.all([
-      adminApi(`/api/v1/admin/portal/content?hotel_id=${hotelId}`),
-      adminApi(`/api/v1/admin/custom-portal-pages?hotel_id=${hotelId}`),
-      adminApi(`/api/v1/admin/visual-portals?hotel_id=${hotelId}`),
-    ]);
-    currentContent = {
-      ...contentPayload.data,
-      custom_pages: customPagesPayload.data.pages || [],
-      visual_portals: visualPortalsPayload.data.portals || [],
-    };
+    const visualPortalsPayload = await adminApi(`/api/v1/admin/visual-portals?hotel_id=${hotelId}`);
+    currentContent = { visual_portals: visualPortalsPayload.data.portals || [] };
     renderContentList();
   } catch (error) {
     els.contentMessage.textContent = error.message || "Não foi possível carregar os conteúdos.";
@@ -2260,7 +2240,7 @@ async function loadPortalContent() {
 
 function renderContentList() {
   const rows = currentContent[contentType] || [];
-  const labels = { visual_portals: "portal(is) visual(is)", pages: "página(s)", custom_pages: "página(s) HTML", events: "evento(s)", information: "informação(ões)" };
+  const labels = { visual_portals: "portal(is)" };
   els.contentMessage.textContent = `${rows.length} ${labels[contentType]}.`;
   els.contentList.innerHTML = rows.map((item) => renderContentRow(item, contentType)).join("") || '<p class="admin-empty">Nenhum conteúdo cadastrado.</p>';
 }
@@ -2269,7 +2249,7 @@ function renderContentRow(item, type) {
   if (type === "visual_portals") {
     const canEdit = hasPermission(currentSession, PORTALS_HOTELS_SETTINGS_PERMISSION) && item.status !== "archived";
     const canCreateLink = item.status === "published" && hasPermission(currentSession, PORTALS_LINKS_CREATE_PERMISSION);
-    return `<article class="admin-data-row admin-content-row admin-visual-portal-row"><span class="admin-role-icon">${featureSvg("builder")}</span><div class="admin-row-copy"><strong>${escapeHtml(item.name)}</strong><a href="${escapeAttr(item.public_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.public_url)}</a><small>${escapeHtml(item.module_name || item.module_key)} · versão ${Number(item.draft_revision)}${item.has_unpublished_changes ? " · alterações pendentes" : ""}</small></div><span class="admin-status-chip" data-status="${escapeAttr(item.status)}">${contentStatus(item.status)}</span><div class="admin-row-actions">${canEdit ? `<button class="admin-builder-launch" type="button" data-content-action="builder" data-id="${escapeAttr(item.id)}">${featureSvg("builder")} Abrir construtor</button>` : ""}${canCreateLink ? `<button type="button" data-content-action="create-link" data-id="${escapeAttr(item.id)}">Link e QR</button>` : ""}${canEdit ? `<button type="button" data-content-action="duplicate-visual" data-id="${escapeAttr(item.id)}">Duplicar</button><button class="danger" type="button" data-content-action="archive-visual" data-id="${escapeAttr(item.id)}">Arquivar</button>` : ""}</div></article>`;
+    return `<article class="admin-data-row admin-content-row admin-visual-portal-row"><span class="admin-role-icon">${featureSvg("builder")}</span><div class="admin-row-copy"><strong>${escapeHtml(item.name)}</strong><a href="${escapeAttr(item.public_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.public_url)}</a><small>Portal personalizado · versão ${Number(item.draft_revision)}${item.has_unpublished_changes ? " · alterações pendentes" : ""}</small></div><span class="admin-status-chip" data-status="${escapeAttr(item.status)}">${contentStatus(item.status)}</span><div class="admin-row-actions">${canEdit ? `<button class="admin-builder-launch" type="button" data-content-action="builder" data-id="${escapeAttr(item.id)}">${featureSvg("builder")} Abrir construtor</button>` : ""}${canCreateLink ? `<button type="button" data-content-action="create-link" data-id="${escapeAttr(item.id)}">Link e QR</button>` : ""}${canEdit ? `<button type="button" data-content-action="duplicate-visual" data-id="${escapeAttr(item.id)}">Duplicar</button><button class="danger" type="button" data-content-action="archive-visual" data-id="${escapeAttr(item.id)}">Arquivar</button>` : ""}</div></article>`;
   }
   if (type === "pages") {
     return `<article class="admin-data-row admin-content-row"><span class="admin-role-icon">${featureSvg("page")}</span><div class="admin-row-copy"><strong>${escapeHtml(item.title)}</strong><span>/${escapeHtml(item.slug)}</span><small>${Number(item.section_count || 0)} seção(ões) · ordem ${Number(item.sort_order || 0)}</small></div><span class="admin-status-chip" data-status="${escapeAttr(item.status)}">${contentStatus(item.status)}</span><div class="admin-row-actions"><button type="button" data-content-action="sections" data-id="${escapeAttr(item.id)}">Seções</button><button type="button" data-content-action="edit" data-id="${escapeAttr(item.id)}">Editar</button></div></article>`;
@@ -2355,33 +2335,19 @@ async function openContentEditor(item = null) {
 
 async function openVisualPortalCreator() {
   els.dialogTitle.textContent = "Novo portal visual";
-  els.dialogBody.innerHTML = '<p class="admin-muted">Preparando modelos e áreas...</p>';
+  els.dialogBody.innerHTML = '<p class="admin-muted">Preparando modelos...</p>';
   openPortalsDialog();
   try {
     const hotelId = els.contentHotel.value;
-    const [modulesPayload, templatesPayload] = await Promise.all([
-      adminApi(`/api/v1/admin/hotels/${encodeURIComponent(hotelId)}/modules`),
-      adminApi(`/api/v1/admin/visual-portal-templates?hotel_id=${encodeURIComponent(hotelId)}`),
-    ]);
-    const modules = (modulesPayload.data.modules || []).filter((module) => !["admin", "room-service"].includes(module.module_key));
+    const templatesPayload = await adminApi(`/api/v1/admin/visual-portal-templates?hotel_id=${encodeURIComponent(hotelId)}&module_key=guest-portal`);
     const templates = templatesPayload.data.templates || [];
-    if (!modules.length) throw new Error("Ative uma área de portal na unidade antes de criar o conteúdo.");
-    const initialModuleKey = modules[0].module_key;
-    const templateOptions = (moduleKey) => templates
-      .filter((template) => template.builtin || template.module_key === moduleKey)
-      .map((template) => [template.id, template.name]);
+    const templateOptions = templates.map((template) => [template.id, template.name]);
     els.dialogBody.innerHTML = contentForm("visual-portal", `
       <aside class="admin-sanitization-note"><strong>Construtor visual</strong><span>Monte versões desktop e mobile com blocos, imagens, vídeos e modelos reutilizáveis.</span></aside>
       <div class="admin-form-grid">${dialogField("Nome interno", "name", "", "text", true)}${dialogField("Título público", "title", "", "text", true)}</div>
-      <div class="admin-form-grid">${dialogField("Endereço", "slug", "", "text", true, "[a-z0-9]+(?:-[a-z0-9]+)*")}${dialogSelect("Área", "module_key", initialModuleKey, modules.map((module) => [module.module_key, module.public_name || module.name]))}</div>
-      ${dialogSelect("Começar com", "template", "builtin-showcase", templateOptions(initialModuleKey))}
+      ${dialogField("Endereço", "slug", "", "text", true, "[a-z0-9]+(?:-[a-z0-9]+)*")}
+      ${dialogSelect("Começar com", "template", "builtin-showcase", templateOptions)}
       <div class="admin-template-choice-preview"><span>${featureSvg("builder")}</span><div><strong>Liberdade com estrutura</strong><small>O modelo é apenas o ponto de partida. Todos os blocos poderão ser reorganizados e personalizados.</small></div></div>`);
-    const form = els.dialogBody.querySelector("form");
-    const moduleSelect = form.elements.module_key;
-    const templateSelect = form.elements.template;
-    moduleSelect.addEventListener("change", () => {
-      templateSelect.innerHTML = optionsHtml(templateOptions(moduleSelect.value), "builtin-showcase");
-    });
     bindDialogForm(async (event) => {
       event.preventDefault();
       const form = event.currentTarget;
@@ -2389,7 +2355,7 @@ async function openVisualPortalCreator() {
       const template = templates.find((entry) => entry.id === values.template);
       const body = {
         hotel_id: hotelId,
-        module_key: values.module_key,
+        module_key: "guest-portal",
         slug: values.slug,
         name: values.name,
         title: values.title,

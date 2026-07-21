@@ -1,5 +1,11 @@
 import { adminApi } from "./shared/admin-api.js";
 import { escapeAttr, escapeHtml } from "./shared/format.js";
+import {
+  deleteVisualBlock,
+  duplicateVisualBlock,
+  moveVisualBlock,
+  reorderVisualBlock,
+} from "./portal-builder-state.js";
 
 const BLOCKS = [
   ["hero", "Capa", "Imagem, título e chamada", icon("sparkles")],
@@ -8,6 +14,7 @@ const BLOCKS = [
   ["button", "Botão", "Ação para outro endereço", icon("button")],
   ["image", "Imagem", "Imagem da Biblioteca de Mídia", icon("image")],
   ["video", "Vídeo", "Vídeo com capa e controles", icon("video")],
+  ["embed", "Incorporar", "Google Maps, vídeos e páginas HTTPS", icon("embed")],
   ["gallery", "Galeria", "Conjunto de imagens", icon("gallery")],
   ["feature-grid", "Grade", "Cards de serviços e destaques", icon("grid")],
   ["quote", "Citação", "Depoimento ou frase em destaque", icon("quote")],
@@ -37,6 +44,10 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     historyIndex: -1,
     saving: false,
     dragBlockId: "",
+    previewViewport: "desktop",
+    mediaTarget: "block",
+    clipboardBlock: null,
+    positionDrag: null,
     zoomManuallySet: false,
   };
   const els = mapElements(root);
@@ -47,6 +58,10 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
   root.addEventListener("dragstart", handleDragStart);
   root.addEventListener("dragover", handleDragOver);
   root.addEventListener("drop", handleDrop);
+  root.addEventListener("dragend", clearDragState);
+  root.addEventListener("pointerdown", handlePositionPointerDown);
+  window.addEventListener("pointermove", handlePositionPointerMove);
+  window.addEventListener("pointerup", handlePositionPointerUp);
   document.addEventListener("keydown", handleKeyboard);
   window.addEventListener("resize", handleResize);
 
@@ -109,6 +124,16 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     const media = mediaById(id);
     if (!media) return `<div class="vp-preview-inner vp-preview-media">${mediaPlaceholder(label)}</div>`;
     return `<figure class="vp-preview-inner vp-preview-media">${kind === "video" ? `<video src="${escapeAttr(media.public_url)}" muted controls preload="metadata"></video>` : `<img src="${escapeAttr(media.public_url)}" alt="${escapeAttr(label)}" style="object-fit:${escapeAttr(fit)}">`}</figure>`;
+  }
+
+  function pageBackgroundPreview(settings) {
+    const media = mediaById(settings.background_media_asset_id);
+    if (!media) return "";
+    const common = `style="object-fit:${escapeAttr(settings.background_fit || "cover")};object-position:${escapeAttr(settings.background_position || "center")}"`;
+    const asset = String(media.mime_type).startsWith("video/")
+      ? `<video src="${escapeAttr(media.public_url)}" muted loop autoplay playsinline ${common}></video>`
+      : `<img src="${escapeAttr(media.public_url)}" alt="" ${common}>`;
+    return `<div class="vp-page-background ${settings.background_fixed ? "is-fixed" : ""}" aria-hidden="true">${asset}<span></span></div>`;
   }
 
   function resolvedBlockStyle(block) {
@@ -176,7 +201,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     els.stage.dataset.viewport = state.viewport;
     els.stage.style.setProperty("--preview-width", `${frameWidth}px`);
     els.stage.style.setProperty("--preview-scale", state.zoom / 100);
-    els.canvas.innerHTML = `<div class="vp-preview-page" style="--vp-page-bg:${escapeAttr(settings.background_color)};--vp-page-text:${escapeAttr(settings.text_color)};--vp-page-primary:${escapeAttr(settings.primary_color)};--vp-page-surface:${escapeAttr(settings.surface_color)};--vp-page-font:${escapeAttr(settings.font_family)};--vp-page-gap:${Number(settings.block_gap)}px;--vp-page-padding:${Number(settings.page_padding)}px">${page.blocks.map((block, index) => renderEditableBlock(block, index)).join("") || `<button type="button" class="vp-empty-canvas" data-add-block="hero">${icon("plus")}<strong>Adicione o primeiro bloco</strong><span>Comece por uma capa ou arraste qualquer elemento da biblioteca.</span></button>`}</div>`;
+    els.canvas.innerHTML = `<div class="vp-preview-page ${settings.background_media_asset_id ? "has-page-media" : ""}" style="--vp-page-bg:${escapeAttr(settings.background_color)};--vp-page-text:${escapeAttr(settings.text_color)};--vp-page-primary:${escapeAttr(settings.primary_color)};--vp-page-surface:${escapeAttr(settings.surface_color)};--vp-page-font:${escapeAttr(settings.font_family)};--vp-page-gap:${Number(settings.block_gap)}px;--vp-page-padding:${Number(settings.page_padding)}px;--vp-page-overlay:${Number(settings.background_overlay || 0) / 100};--vp-page-media-position:${escapeAttr(settings.background_position || "center")};--vp-page-media-fit:${escapeAttr(settings.background_fit || "cover")}">${pageBackgroundPreview(settings)}<div class="vp-page-content">${page.blocks.map((block, index) => renderEditableBlock(block, index)).join("") || `<button type="button" class="vp-empty-canvas" data-add-block="hero">${icon("plus")}<strong>Adicione o primeiro bloco</strong><span>Comece por uma capa ou arraste qualquer elemento da biblioteca.</span></button>`}</div></div>`;
   }
 
   function renderEditableBlock(block, index) {
@@ -184,7 +209,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     const styles = resolvedBlockStyle(block);
     const style = editableStyle(styles);
     const hidden = (state.viewport === "desktop" && !block.visibility.desktop) || (state.viewport === "mobile" && !block.visibility.mobile);
-    return `<section class="vp-canvas-block ${selected ? "is-selected" : ""} ${hidden ? "is-hidden-device" : ""}" data-canvas-block="${escapeAttr(block.id)}" draggable="true" style="${escapeAttr(style)}"><div class="vp-block-toolbar"><button type="button" data-move-block="up" title="Mover para cima" ${index === 0 ? "disabled" : ""}>${icon("up")}</button><button type="button" data-move-block="down" title="Mover para baixo" ${index === state.document.blocks.length - 1 ? "disabled" : ""}>${icon("down")}</button><button type="button" data-duplicate-block title="Duplicar bloco">${icon("copy")}</button><button type="button" data-delete-block title="Excluir bloco">${icon("trash")}</button></div>${renderBlockPreview(block)}</section>`;
+    return `<section class="vp-canvas-block ${selected ? "is-selected" : ""} ${hidden ? "is-hidden-device" : ""}" data-canvas-block="${escapeAttr(block.id)}" draggable="true" style="${escapeAttr(style)}"><div class="vp-block-toolbar"><button type="button" data-position-block title="Arrastar livremente">${icon("move")}</button><button type="button" data-move-block="up" title="Mover para cima" ${index === 0 ? "disabled" : ""}>${icon("up")}</button><button type="button" data-move-block="down" title="Mover para baixo" ${index === state.document.blocks.length - 1 ? "disabled" : ""}>${icon("down")}</button><button type="button" data-duplicate-block title="Duplicar bloco">${icon("copy")}</button><button type="button" data-delete-block title="Excluir bloco">${icon("trash")}</button></div>${renderBlockPreview(block)}</section>`;
   }
 
   function renderBlockPreview(block) {
@@ -199,6 +224,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     if (block.type === "button") return `<div class="vp-preview-inner">${previewButton(content.text || "Novo botão", content.url || "/", content.style)}</div>`;
     if (block.type === "image") return mediaPreview(content.media_asset_id, "image", content.alt_text || "Selecione uma imagem", content.fit);
     if (block.type === "video") return mediaPreview(content.media_asset_id, "video", content.title || "Selecione um vídeo");
+    if (block.type === "embed") return `<div class="vp-preview-inner vp-preview-embed" style="--vp-embed-ratio:${escapeAttr(embedRatio(content.aspect_ratio))}">${content.url ? `<iframe src="${escapeAttr(content.url)}" title="${escapeAttr(content.title || "Conteúdo incorporado")}" tabindex="-1"></iframe><span>${icon("embed")} Conteúdo incorporado</span>` : mediaPlaceholder("Informe um endereço HTTPS para incorporar")}</div>`;
     if (block.type === "gallery") return `<div class="vp-preview-inner">${content.title ? `<h2>${escapeHtml(content.title)}</h2>` : ""}<div class="vp-preview-gallery">${content.media_asset_ids.map((id) => mediaById(id)).filter(Boolean).map((media) => `<img src="${escapeAttr(media.public_url)}" alt="">`).join("") || mediaPlaceholder("Galeria sem imagens")}</div></div>`;
     if (block.type === "feature-grid") return `<div class="vp-preview-inner vp-preview-grid">${content.items.map((item) => `<article>${mediaThumbnail(item.media_asset_id)}<div><h3>${escapeHtml(item.title || "Novo destaque")}</h3>${previewParagraphs(item.text)}${previewButton(item.button_text, item.button_url, "ghost")}</div></article>`).join("") || mediaPlaceholder("Adicione itens à grade")}</div>`;
     if (block.type === "quote") return `<figure class="vp-preview-inner vp-preview-quote"><blockquote>${escapeHtml(content.quote || "Uma frase memorável para destacar.")}</blockquote>${content.author ? `<figcaption>${escapeHtml(content.author)}</figcaption>` : ""}</figure>`;
@@ -220,7 +246,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
 
   function pageInspector() {
     const settings = state.document.settings;
-    return `<fieldset><legend>Identidade da página</legend>${colorField("Fundo", "background_color", settings.background_color, "doc")}${colorField("Texto", "text_color", settings.text_color, "doc")}${colorField("Cor principal", "primary_color", settings.primary_color, "doc")}${colorField("Superfície", "surface_color", settings.surface_color, "doc")}<label><span>Tipografia</span><input data-doc-field="font_family" value="${escapeAttr(settings.font_family)}"></label><label><span>Largura do conteúdo</span><select data-doc-field="content_width">${options([["narrow", "Estreita"], ["content", "Padrão"], ["wide", "Ampla"], ["full", "Tela inteira"]], settings.content_width)}</select></label></fieldset><fieldset><legend>Ritmo</legend>${rangeField("Margem lateral", "page_padding", settings.page_padding, 0, 80, "doc")}${rangeField("Espaço entre blocos", "block_gap", settings.block_gap, 0, 80, "doc")}</fieldset>`;
+    return `<fieldset><legend>Identidade da página</legend>${colorField("Fundo", "background_color", settings.background_color, "doc")}${colorField("Texto", "text_color", settings.text_color, "doc")}${colorField("Cor principal", "primary_color", settings.primary_color, "doc")}${colorField("Superfície", "surface_color", settings.surface_color, "doc")}<label><span>Tipografia</span><input data-doc-field="font_family" value="${escapeAttr(settings.font_family)}"></label><label><span>Largura do conteúdo</span><select data-doc-field="content_width">${options([["narrow", "Estreita"], ["content", "Padrão"], ["wide", "Ampla"], ["full", "Tela inteira"]], settings.content_width)}</select></label></fieldset><fieldset><legend>Fundo da página</legend>${pageMediaField(settings.background_media_asset_id)}${rangeField("Escurecimento", "background_overlay", settings.background_overlay, 0, 90, "doc")}<label><span>Posição</span><select data-doc-field="background_position">${options([["center", "Centro"], ["top", "Topo"], ["bottom", "Rodapé"], ["left", "Esquerda"], ["right", "Direita"]], settings.background_position)}</select></label><label><span>Ajuste</span><select data-doc-field="background_fit">${options([["cover", "Preencher"], ["contain", "Conter"]], settings.background_fit)}</select></label>${docToggleField("Fixar durante a rolagem", "background_fixed", settings.background_fixed)}${settings.background_media_asset_id ? `<button type="button" class="vp-secondary-action" data-clear-page-media>${icon("trash")} Remover mídia de fundo</button>` : ""}</fieldset><fieldset><legend>Ritmo</legend>${rangeField("Margem lateral", "page_padding", settings.page_padding, 0, 80, "doc")}${rangeField("Espaço entre blocos", "block_gap", settings.block_gap, 0, 80, "doc")}</fieldset>`;
   }
 
   function blockContentInspector(block) {
@@ -232,6 +258,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     if (block.type === "button") fields.push(textField("Texto", "text", content.text), textField("Endereço", "url", content.url), `<label><span>Estilo</span><select data-content-field="style">${options([["solid", "Preenchido"], ["outline", "Contorno"], ["ghost", "Somente texto"]], content.style)}</select></label>`);
     if (block.type === "image") fields.push(mediaField("Imagem", "media_asset_id", content.media_asset_id, "image"), textField("Texto alternativo", "alt_text", content.alt_text), textField("Legenda", "caption", content.caption), `<label><span>Ajuste</span><select data-content-field="fit">${options([["cover", "Preencher"], ["contain", "Conter"]], content.fit)}</select></label>`);
     if (block.type === "video") fields.push(mediaField("Vídeo", "media_asset_id", content.media_asset_id, "video"), mediaField("Imagem de capa", "poster_media_asset_id", content.poster_media_asset_id, "image"), textField("Título", "title", content.title), toggleField("Exibir controles", "controls", content.controls), toggleField("Reprodução automática", "autoplay", content.autoplay), toggleField("Sem som", "muted", content.muted), toggleField("Repetir", "loop", content.loop));
+    if (block.type === "embed") fields.push(textField("Título acessível", "title", content.title), textField("Endereço HTTPS", "url", content.url), `<label><span>Proporção</span><select data-content-field="aspect_ratio">${options([["16:9", "Paisagem 16:9"], ["4:3", "Clássica 4:3"], ["1:1", "Quadrada"], ["9:16", "Vertical 9:16"]], content.aspect_ratio)}</select></label>`, toggleField("Permitir tela cheia", "allow_fullscreen", content.allow_fullscreen));
     if (block.type === "gallery") fields.push(textField("Título", "title", content.title), `<div class="vp-gallery-inspector">${content.media_asset_ids.map((id) => { const media = mediaById(id); return `<button type="button" data-remove-gallery-media="${escapeAttr(id)}" title="Remover">${media ? `<img src="${escapeAttr(media.public_url)}" alt="">` : icon("image")}<span>${icon("close")}</span></button>`; }).join("")}<button type="button" class="vp-add-gallery" data-choose-media="media_asset_ids" data-media-kind="image">${icon("plus")}<span>Adicionar</span></button></div>`);
     if (block.type === "feature-grid") fields.push(featureItemsInspector(content.items));
     if (block.type === "quote") fields.push(textareaField("Citação", "quote", content.quote, 6), textField("Autoria", "author", content.author));
@@ -248,7 +275,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     const style = block.styles[state.styleTarget] || {};
     const hasHeading = ["hero", "heading", "feature-grid", "quote", "contact", "gallery", "video"].includes(block.type);
     const hasText = ["hero", "heading", "text", "feature-grid", "contact"].includes(block.type);
-    return `<fieldset><legend>Aparência</legend><div class="vp-style-target" role="tablist"><button type="button" data-style-target="base" aria-selected="${state.styleTarget === "base"}">Global</button><button type="button" data-style-target="desktop" aria-selected="${state.styleTarget === "desktop"}">Desktop</button><button type="button" data-style-target="mobile" aria-selected="${state.styleTarget === "mobile"}">Mobile</button></div><label><span>Alinhamento</span><select data-style-field="alignment"><option value="">Herdar</option>${options([["left", "Esquerda"], ["center", "Centro"], ["right", "Direita"]], style.alignment)}</select></label><label><span>Largura</span><select data-style-field="width"><option value="">Herdar</option>${options([["narrow", "Estreita"], ["content", "Padrão"], ["wide", "Ampla"], ["full", "Tela inteira"]], style.width)}</select></label>${hasHeading ? rangeField("Tamanho dos títulos", "heading_size", style.heading_size ?? "", 18, 160, "style", true) : ""}${hasText ? rangeField("Tamanho do texto", "text_size", style.text_size ?? "", 12, 40, "style", true) : ""}${colorField("Fundo", "background_color", style.background_color, "style", true)}${colorField("Texto", "text_color", style.text_color, "style", true)}${colorField("Destaque", "accent_color", style.accent_color, "style", true)}${rangeField("Espaço acima", "padding_top", style.padding_top ?? "", 0, 200, "style", true)}${rangeField("Espaço abaixo", "padding_bottom", style.padding_bottom ?? "", 0, 200, "style", true)}${rangeField("Margem lateral", "padding_inline", style.padding_inline ?? "", 0, 120, "style", true)}${rangeField("Altura mínima", "min_height", style.min_height ?? "", 0, 1200, "style", true)}${rangeField("Cantos", "border_radius", style.border_radius ?? "", 0, 48, "style", true)}${["gallery", "feature-grid"].includes(block.type) ? rangeField("Colunas", "columns", style.columns ?? "", 1, 4, "style", true) : ""}</fieldset>`;
+    return `<fieldset><legend>Aparência</legend><div class="vp-style-target" role="tablist"><button type="button" data-style-target="base" aria-selected="${state.styleTarget === "base"}">Global</button><button type="button" data-style-target="desktop" aria-selected="${state.styleTarget === "desktop"}">Desktop</button><button type="button" data-style-target="mobile" aria-selected="${state.styleTarget === "mobile"}">Mobile</button></div><label><span>Alinhamento</span><select data-style-field="alignment"><option value="">Herdar</option>${options([["left", "Esquerda"], ["center", "Centro"], ["right", "Direita"]], style.alignment)}</select></label><label><span>Largura</span><select data-style-field="width"><option value="">Herdar</option>${options([["narrow", "Estreita"], ["content", "Padrão"], ["wide", "Ampla"], ["full", "Tela inteira"]], style.width)}</select></label>${hasHeading ? rangeField("Tamanho dos títulos", "heading_size", style.heading_size ?? "", 18, 160, "style", true) : ""}${hasText ? rangeField("Tamanho do texto", "text_size", style.text_size ?? "", 12, 40, "style", true) : ""}${colorField("Fundo", "background_color", style.background_color, "style", true)}${colorField("Texto", "text_color", style.text_color, "style", true)}${colorField("Destaque", "accent_color", style.accent_color, "style", true)}${rangeField("Espaço acima", "padding_top", style.padding_top ?? "", 0, 200, "style", true)}${rangeField("Espaço abaixo", "padding_bottom", style.padding_bottom ?? "", 0, 200, "style", true)}${rangeField("Margem lateral", "padding_inline", style.padding_inline ?? "", 0, 120, "style", true)}${rangeField("Altura mínima", "min_height", style.min_height ?? "", 0, 1200, "style", true)}${rangeField("Cantos", "border_radius", style.border_radius ?? "", 0, 48, "style", true)}${["gallery", "feature-grid"].includes(block.type) ? rangeField("Colunas", "columns", style.columns ?? "", 1, 4, "style", true) : ""}</fieldset><fieldset><legend>Posição livre</legend><p class="vp-field-help">Ajuste a posição neste dispositivo sem alterar a ordem da página.</p>${positionRangeField("Horizontal", "offset_x", style.offset_x)}${positionRangeField("Vertical", "offset_y", style.offset_y)}<button type="button" class="vp-secondary-action" data-reset-position>${icon("target")} Centralizar bloco</button></fieldset>`;
   }
 
   function visibilityInspector(block) {
@@ -260,7 +287,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     if (closeButton) return close();
     const leftTab = event.target.closest("[data-builder-tab]");
     if (leftTab) { state.leftTab = leftTab.dataset.builderTab; renderLeftPanel(); return; }
-    const viewport = event.target.closest("[data-viewport]");
+    const viewport = event.target.closest("button[data-viewport]");
     if (viewport) {
       state.viewport = viewport.dataset.viewport;
       state.styleTarget = state.viewport;
@@ -279,19 +306,36 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     const canvasBlock = event.target.closest("[data-canvas-block]");
     const layer = event.target.closest("[data-layer-id]");
     if (layer) { state.selectedId = layer.dataset.layerId; renderAll(); return; }
-    if (canvasBlock && !event.target.closest("button,a,input,select,textarea")) { state.selectedId = canvasBlock.dataset.canvasBlock; renderCanvas(); renderInspector(); return; }
     const move = event.target.closest("[data-move-block]");
-    if (move) return moveSelected(move.dataset.moveBlock === "up" ? -1 : 1);
-    if (event.target.closest("[data-duplicate-block]")) return duplicateSelected();
-    if (event.target.closest("[data-delete-block]")) return deleteSelected();
+    if (move) return moveSelected(move.dataset.moveBlock === "up" ? -1 : 1, canvasBlock?.dataset.canvasBlock);
+    if (event.target.closest("[data-duplicate-block]")) return duplicateSelected(canvasBlock?.dataset.canvasBlock);
+    if (event.target.closest("[data-delete-block]")) return deleteSelected(canvasBlock?.dataset.canvasBlock);
+    if (canvasBlock && !event.target.closest("button,a,input,select,textarea")) { state.selectedId = canvasBlock.dataset.canvasBlock; renderCanvas(); renderInspector(); return; }
     const styleTarget = event.target.closest("[data-style-target]");
     if (styleTarget) { state.styleTarget = styleTarget.dataset.styleTarget; renderInspector(); return; }
     const chooseMedia = event.target.closest("[data-choose-media]");
-    if (chooseMedia) return openMediaPicker(chooseMedia.dataset.chooseMedia, chooseMedia.dataset.mediaKind || "image");
+    if (chooseMedia) return openMediaPicker(chooseMedia.dataset.chooseMedia, chooseMedia.dataset.mediaKind || "image", chooseMedia.dataset.mediaTarget || "block");
     const mediaChoice = event.target.closest("[data-media-choice]");
     if (mediaChoice) return selectMedia(mediaChoice.dataset.mediaChoice);
     if (event.target.closest("[data-media-picker-close]")) return closeMediaPicker();
     if (event.target.closest("[data-preview-close]")) { els.previewDialog.close(); return; }
+    const previewViewport = event.target.closest("[data-preview-viewport]");
+    if (previewViewport) return setPreviewViewport(previewViewport.dataset.previewViewport);
+    if (event.target.closest("[data-clear-page-media]")) {
+      state.document.settings.background_media_asset_id = "";
+      checkpoint();
+      renderAll();
+      return;
+    }
+    if (event.target.closest("[data-reset-position]")) {
+      const block = selectedBlock();
+      if (!block) return;
+      delete block.styles[state.styleTarget].offset_x;
+      delete block.styles[state.styleTarget].offset_y;
+      checkpoint();
+      renderAll();
+      return;
+    }
     const removeGallery = event.target.closest("[data-remove-gallery-media]");
     if (removeGallery) return removeGalleryMedia(removeGallery.dataset.removeGalleryMedia);
     if (event.target.closest("[data-add-feature]")) return addFeature();
@@ -321,6 +365,10 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
       return;
     }
     if (!state.document) return;
+    if (event.target.type === "range") {
+      const output = event.target.closest("label")?.querySelector("output");
+      if (output) output.textContent = event.target.dataset.styleField?.startsWith("offset_") ? `${event.target.value}px` : event.target.value;
+    }
     const block = selectedBlock();
     if (event.target.dataset.docField) setPath(state.document.settings, event.target.dataset.docField, inputValue(event.target));
     if (block && event.target.dataset.contentField) setPath(block.content, event.target.dataset.contentField, inputValue(event.target));
@@ -352,6 +400,8 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     if (!event.target.closest("[data-builder-canvas],.vp-layers")) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = event.dataTransfer.types.includes("application/x-fioreze-block-type") ? "copy" : "move";
+    root.querySelectorAll(".is-drop-target").forEach((element) => element.classList.remove("is-drop-target"));
+    event.target.closest("[data-canvas-block],[data-layer-id]")?.classList.add("is-drop-target");
   }
 
   function handleDrop(event) {
@@ -367,12 +417,69 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     if (blockId) reorderBlock(blockId, targetIndex);
   }
 
+  function clearDragState() {
+    state.dragBlockId = "";
+    root.querySelectorAll(".is-drop-target").forEach((element) => element.classList.remove("is-drop-target"));
+  }
+
+  function handlePositionPointerDown(event) {
+    const handle = event.target.closest("[data-position-block]");
+    const blockElement = handle?.closest("[data-canvas-block]");
+    if (!handle || !blockElement) return;
+    event.preventDefault();
+    event.stopPropagation();
+    state.selectedId = blockElement.dataset.canvasBlock;
+    const block = selectedBlock();
+    if (!block) return;
+    const styleTarget = state.viewport;
+    const style = block.styles[styleTarget] || (block.styles[styleTarget] = {});
+    state.positionDrag = {
+      pointerId: event.pointerId,
+      element: blockElement,
+      startX: event.clientX,
+      startY: event.clientY,
+      offsetX: Number(style.offset_x || 0),
+      offsetY: Number(style.offset_y || 0),
+      style,
+    };
+    blockElement.classList.add("is-positioning");
+    handle.setPointerCapture?.(event.pointerId);
+  }
+
+  function handlePositionPointerMove(event) {
+    const drag = state.positionDrag;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const scale = Math.max(.1, state.zoom / 100);
+    drag.style.offset_x = clamp(Math.round(drag.offsetX + (event.clientX - drag.startX) / scale), -320, 320);
+    drag.style.offset_y = clamp(Math.round(drag.offsetY + (event.clientY - drag.startY) / scale), -320, 320);
+    const style = resolvedBlockStyle(selectedBlock());
+    drag.element.style.transform = `translate(${Number(style.offset_x || 0)}px,${Number(style.offset_y || 0)}px)`;
+  }
+
+  function handlePositionPointerUp(event) {
+    const drag = state.positionDrag;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    drag.element.classList.remove("is-positioning");
+    state.positionDrag = null;
+    checkpoint();
+    renderAll();
+    announce("Posição do bloco atualizada.");
+  }
+
   function handleKeyboard(event) {
     if (root.hidden) return;
     const mod = event.ctrlKey || event.metaKey;
     if (mod && event.key.toLowerCase() === "s") { event.preventDefault(); save(); }
     if (mod && event.key.toLowerCase() === "z" && !event.shiftKey) { event.preventDefault(); undo(); }
     if (mod && (event.key.toLowerCase() === "y" || (event.key.toLowerCase() === "z" && event.shiftKey))) { event.preventDefault(); redo(); }
+    if (mod && event.key.toLowerCase() === "c" && state.selectedId && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || "")) {
+      state.clipboardBlock = clone(selectedBlock());
+      announce("Bloco copiado.");
+    }
+    if (mod && event.key.toLowerCase() === "v" && state.clipboardBlock && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || "")) {
+      event.preventDefault();
+      pasteBlock();
+    }
     if (event.key === "Escape" && els.mediaDialog.open) closeMediaPicker();
     if ((event.key === "Delete" || event.key === "Backspace") && state.selectedId && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || "")) {
       event.preventDefault();
@@ -406,46 +513,54 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     renderAll();
   }
 
-  function deleteSelected() {
-    const index = selectedIndex();
-    if (index < 0) return;
-    const [removed] = state.document.blocks.splice(index, 1);
-    state.selectedId = state.document.blocks[index]?.id || state.document.blocks[index - 1]?.id || null;
+  function deleteSelected(blockId = state.selectedId) {
+    const result = deleteVisualBlock(state.document, blockId);
+    if (!result.changed) return;
+    state.selectedId = result.selectedId;
     checkpoint();
     renderAll();
-    announce(`${BLOCK_LABELS[removed.type]} removido.`);
+    announce(`${BLOCK_LABELS[result.removed.type]} removido.`);
   }
 
-  function duplicateSelected() {
-    const index = selectedIndex();
-    if (index < 0) return;
-    const copy = clone(state.document.blocks[index]);
-    copy.id = uniqueBlockId(copy.type);
-    state.document.blocks.splice(index + 1, 0, copy);
-    state.selectedId = copy.id;
+  function duplicateSelected(blockId = state.selectedId) {
+    const source = state.document.blocks.find((block) => block.id === blockId);
+    if (!source) return;
+    const result = duplicateVisualBlock(state.document, blockId, uniqueBlockId(source.type));
+    if (!result.changed) return;
+    state.selectedId = result.selectedId;
     checkpoint();
     renderAll();
+    announce("Bloco duplicado.");
   }
 
-  function moveSelected(delta) {
-    const index = selectedIndex();
-    const next = index + delta;
-    if (index < 0 || next < 0 || next >= state.document.blocks.length) return;
-    const [block] = state.document.blocks.splice(index, 1);
-    state.document.blocks.splice(next, 0, block);
+  function moveSelected(delta, blockId = state.selectedId) {
+    const result = moveVisualBlock(state.document, blockId, delta);
+    if (!result.changed) return;
+    state.selectedId = result.selectedId;
     checkpoint();
     renderAll();
+    announce(delta < 0 ? "Bloco movido para cima." : "Bloco movido para baixo.");
   }
 
   function reorderBlock(blockId, targetIndex) {
-    const index = state.document.blocks.findIndex((block) => block.id === blockId);
-    if (index < 0) return;
-    const [block] = state.document.blocks.splice(index, 1);
-    const adjusted = index < targetIndex ? targetIndex - 1 : targetIndex;
-    state.document.blocks.splice(Math.max(0, adjusted), 0, block);
-    state.selectedId = blockId;
+    const result = reorderVisualBlock(state.document, blockId, targetIndex);
+    clearDragState();
+    if (!result.changed) return;
+    state.selectedId = result.selectedId;
     checkpoint();
     renderAll();
+  }
+
+  function pasteBlock() {
+    if (!state.clipboardBlock) return;
+    const block = clone(state.clipboardBlock);
+    block.id = uniqueBlockId(block.type);
+    const index = selectedIndex();
+    state.document.blocks.splice(index < 0 ? state.document.blocks.length : index + 1, 0, block);
+    state.selectedId = block.id;
+    checkpoint();
+    renderAll();
+    announce("Bloco colado.");
   }
 
   function addFeature() {
@@ -472,20 +587,32 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     renderAll();
   }
 
-  function openMediaPicker(field, kind) {
+  function openMediaPicker(field, kind, target = "block") {
     els.mediaDialog.dataset.field = field;
     els.mediaDialog.dataset.kind = kind;
+    state.mediaTarget = target;
     const selectedIds = new Set(field === "media_asset_ids" ? selectedBlock()?.content.media_asset_ids || [] : []);
-    const assets = state.media.filter((asset) => kind === "video" ? String(asset.mime_type).startsWith("video/") : String(asset.mime_type).startsWith("image/"));
-    els.mediaDialogTitle.textContent = kind === "video" ? "Escolher vídeo" : "Escolher imagem";
+    const assets = state.media.filter((asset) => {
+      const mime = String(asset.mime_type || "");
+      if (kind === "any") return mime.startsWith("image/") || mime.startsWith("video/");
+      return kind === "video" ? mime.startsWith("video/") : mime.startsWith("image/");
+    });
+    els.mediaDialogTitle.textContent = kind === "video" ? "Escolher vídeo" : kind === "any" ? "Escolher imagem ou vídeo" : "Escolher imagem";
     els.mediaGrid.innerHTML = assets.map((asset) => `<button type="button" data-media-choice="${escapeAttr(asset.id)}" class="${selectedIds.has(asset.id) ? "is-selected" : ""}">${String(asset.mime_type).startsWith("video/") ? `<video src="${escapeAttr(asset.public_url)}" muted preload="metadata"></video><span>${icon("video")}</span>` : `<img src="${escapeAttr(asset.public_url)}" alt="">`}<strong>${escapeHtml(asset.original_filename || asset.alt_text || "Mídia")}</strong></button>`).join("") || '<p class="vp-empty">Nenhum arquivo compatível na Biblioteca de Mídia.</p>';
     els.mediaDialog.showModal();
   }
 
   function selectMedia(mediaId) {
+    const field = els.mediaDialog.dataset.field;
+    if (state.mediaTarget === "page") {
+      setPath(state.document.settings, field, mediaId);
+      checkpoint();
+      closeMediaPicker();
+      renderAll();
+      return;
+    }
     const block = selectedBlock();
     if (!block) return;
-    const field = els.mediaDialog.dataset.field;
     if (field === "media_asset_ids") {
       if (!block.content.media_asset_ids.includes(mediaId)) block.content.media_asset_ids.push(mediaId);
     } else {
@@ -547,12 +674,21 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
   }
 
   function preview() {
-    if (state.portal.status === "published" && !isDirty()) {
-      window.open(state.portal.public_url, "_blank", "noopener,noreferrer");
-      return;
-    }
-    els.previewDialogFrame.srcdoc = previewDocumentHtml();
+    state.previewViewport = state.viewport;
+    updatePreviewDialog();
     els.previewDialog.showModal();
+  }
+
+  function setPreviewViewport(viewport) {
+    if (!new Set(["desktop", "mobile"]).has(viewport)) return;
+    state.previewViewport = viewport;
+    updatePreviewDialog();
+  }
+
+  function updatePreviewDialog() {
+    els.previewDialog.dataset.viewport = state.previewViewport;
+    els.previewDeviceButtons.forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.previewViewport === state.previewViewport)));
+    els.previewDialogFrame.srcdoc = previewDocumentHtml();
   }
 
   async function saveTemplate() {
@@ -679,7 +815,15 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
 
   function previewDocumentHtml() {
     const settings = state.document.settings;
-    return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;background:${settings.background_color};color:${settings.text_color};font-family:${settings.font_family}}${builderPreviewCss()}</style></head><body><main class="vp-preview-page" style="--vp-page-bg:${settings.background_color};--vp-page-text:${settings.text_color};--vp-page-primary:${settings.primary_color};--vp-page-surface:${settings.surface_color};--vp-page-font:${settings.font_family};--vp-page-gap:${settings.block_gap}px;--vp-page-padding:${settings.page_padding}px">${state.document.blocks.map((block, index) => renderEditableBlock(block, index).replace(/draggable="true"/g, "").replace(/<div class="vp-block-toolbar">[\s\S]*?<\/div>/, "")).join("")}</main></body></html>`;
+    const previousViewport = state.viewport;
+    let blocks = "";
+    try {
+      state.viewport = state.previewViewport;
+      blocks = state.document.blocks.map((block, index) => renderEditableBlock(block, index).replace(/draggable="true"/g, "").replace(/<div class="vp-block-toolbar">[\s\S]*?<\/div>/, "")).join("");
+    } finally {
+      state.viewport = previousViewport;
+    }
+    return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;background:${settings.background_color};color:${settings.text_color};font-family:${settings.font_family}}${builderPreviewCss()}</style></head><body><main class="vp-preview-page ${settings.background_media_asset_id ? "has-page-media" : ""}" style="--vp-page-bg:${settings.background_color};--vp-page-text:${settings.text_color};--vp-page-primary:${settings.primary_color};--vp-page-surface:${settings.surface_color};--vp-page-font:${settings.font_family};--vp-page-gap:${settings.block_gap}px;--vp-page-padding:${settings.page_padding}px;--vp-page-overlay:${Number(settings.background_overlay || 0) / 100};--vp-page-media-position:${settings.background_position || "center"};--vp-page-media-fit:${settings.background_fit || "cover"}">${pageBackgroundPreview(settings)}<div class="vp-page-content">${blocks}</div></main></body></html>`;
   }
 }
 
@@ -704,7 +848,7 @@ function createBuilderRoot() {
     <div class="vp-builder-busy" hidden><span class="admin-modern-spinner"></span><strong>Carregando...</strong></div>
     <p class="vp-builder-toast" role="status" aria-live="polite" hidden></p>
     <dialog class="vp-media-picker"><header><div><strong>Biblioteca de Mídia</strong><span>Selecione um arquivo da unidade</span></div><button type="button" data-media-picker-close>${icon("close")}</button></header><div class="vp-media-picker-grid"></div></dialog>
-    <dialog class="vp-live-preview"><header><strong>Pré-visualização</strong><button type="button" data-preview-close>${icon("close")}</button></header><iframe title="Pré-visualização do portal" sandbox="allow-same-origin"></iframe></dialog>`;
+    <dialog class="vp-live-preview" data-viewport="desktop"><header><strong>Pré-visualização</strong><div class="vp-preview-device-controls" aria-label="Dispositivo da pré-visualização"><button type="button" data-preview-viewport="desktop" aria-pressed="true">${icon("desktop")} Desktop</button><button type="button" data-preview-viewport="mobile" aria-pressed="false">${icon("mobile")} Mobile</button></div><button type="button" data-preview-close title="Fechar">${icon("close")}</button></header><div class="vp-preview-frame-wrap"><iframe title="Pré-visualização do portal" sandbox="allow-scripts allow-forms allow-popups allow-presentation"></iframe></div></dialog>`;
   document.body.append(root);
   return root;
 }
@@ -736,6 +880,7 @@ function mapElements(root) {
     mediaGrid: root.querySelector(".vp-media-picker-grid"),
     previewDialog: root.querySelector(".vp-live-preview"),
     previewDialogFrame: root.querySelector(".vp-live-preview iframe"),
+    previewDeviceButtons: [...root.querySelectorAll("[data-preview-viewport]")],
   };
 }
 
@@ -748,6 +893,7 @@ function createBlock(type) {
     button: { text: "Novo botão", url: "/", style: "solid" },
     image: { media_asset_id: "", alt_text: "", caption: "", fit: "cover" },
     video: { media_asset_id: "", poster_media_asset_id: "", title: "", autoplay: false, muted: true, loop: false, controls: true },
+    embed: { title: "Conteúdo incorporado", url: "", aspect_ratio: "16:9", allow_fullscreen: true },
     gallery: { title: "Galeria", media_asset_ids: [] },
     "feature-grid": { items: [{ title: "Novo destaque", text: "Descreva este conteúdo.", media_asset_id: "", button_text: "", button_url: "" }] },
     quote: { quote: "Uma frase memorável para destacar.", author: "" },
@@ -767,7 +913,7 @@ function createBlock(type) {
 }
 
 function builderPreviewCss() {
-  return `.vp-preview-page{display:grid;gap:var(--vp-page-gap);min-height:100vh;background:var(--vp-page-bg);color:var(--vp-page-text);font-family:var(--vp-page-font)}.vp-canvas-block{position:relative;padding:40px var(--vp-page-padding)}.vp-block-toolbar{display:none}.vp-preview-inner{width:min(100%,1120px);margin:auto}.vp-preview-hero{display:grid;place-items:center;min-height:420px;padding:64px;background-position:center;background-size:cover;text-align:center}.vp-preview-hero.has-media{color:#fff}.vp-preview-hero h1{font-size:clamp(2.6rem,6vw,6rem);line-height:1}.vp-preview-inner h2{font-size:clamp(2rem,4vw,4rem)}.vp-preview-button{display:inline-flex;padding:12px 18px;background:var(--vp-page-primary);color:#fff;text-decoration:none}.vp-preview-grid,.vp-preview-gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}.vp-preview-grid article{border:1px solid #ddd}.vp-preview-grid article>div{padding:18px}.vp-preview-grid img,.vp-preview-gallery img,.vp-preview-media img,.vp-preview-media video{width:100%;display:block;object-fit:cover}.vp-preview-grid img,.vp-preview-gallery img{aspect-ratio:4/3}.vp-preview-quote{font-size:2.4rem;text-align:center}@media(max-width:760px){.vp-preview-grid,.vp-preview-gallery{grid-template-columns:1fr}.vp-preview-hero{padding:32px 18px}.vp-canvas-block{padding-inline:18px}}`;
+  return `.vp-preview-page{position:relative;min-height:100vh;background:var(--vp-page-bg);color:var(--vp-page-text);font-family:var(--vp-page-font)}.vp-page-background{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none}.vp-page-background.is-fixed{position:fixed}.vp-page-background img,.vp-page-background video{width:100%;height:100%;object-fit:var(--vp-page-media-fit);object-position:var(--vp-page-media-position)}.vp-page-background span{position:absolute;inset:0;background:rgba(0,0,0,var(--vp-page-overlay))}.vp-page-content{position:relative;z-index:1;display:grid;gap:var(--vp-page-gap)}.vp-canvas-block{position:relative;padding:40px var(--vp-page-padding)}.vp-block-toolbar{display:none}.vp-preview-inner{width:min(100%,1120px);margin:auto}.vp-preview-hero{display:grid;place-items:center;min-height:420px;padding:64px;background-position:center;background-size:cover;text-align:center}.vp-preview-hero.has-media{color:#fff}.vp-preview-hero h1{font-size:clamp(2.6rem,6vw,6rem);line-height:1}.vp-preview-inner h2{font-size:clamp(2rem,4vw,4rem)}.vp-preview-button{display:inline-flex;padding:12px 18px;border-radius:999px;background:var(--vp-page-primary);color:#fff;text-decoration:none}.vp-preview-grid,.vp-preview-gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}.vp-preview-grid article{overflow:hidden;border:1px solid #ddd;border-radius:24px}.vp-preview-grid article>div{padding:18px}.vp-preview-grid img,.vp-preview-gallery img,.vp-preview-media img,.vp-preview-media video{width:100%;display:block;object-fit:cover}.vp-preview-grid img,.vp-preview-gallery img{aspect-ratio:4/3}.vp-preview-quote{font-size:2.4rem;text-align:center}.vp-preview-embed{position:relative;aspect-ratio:var(--vp-embed-ratio);overflow:hidden;border-radius:inherit;background:#e9ebef}.vp-preview-embed iframe{width:100%;height:100%;border:0}.vp-preview-embed>span{display:none}@media(max-width:760px){.vp-preview-grid,.vp-preview-gallery{grid-template-columns:1fr}.vp-preview-hero{padding:32px 18px}.vp-canvas-block{padding-inline:18px}}`;
 }
 
 function editableStyle(style) {
@@ -782,15 +928,18 @@ function editableStyle(style) {
     `padding:${Number(style.padding_top || 0)}px ${Number(style.padding_inline ?? 24)}px ${Number(style.padding_bottom || 0)}px`,
     `min-height:${Number(style.min_height || 0)}px`,
     `border-radius:${Number(style.border_radius || 0)}px`,
+    `transform:translate(${Number(style.offset_x || 0)}px,${Number(style.offset_y || 0)}px)`,
   ].join(";");
 }
 
 function mediaPlaceholder(label) { return `<div class="vp-media-placeholder">${icon("image")}<span>${escapeHtml(label)}</span></div>`; }
+function embedRatio(value) { return ({ "16:9": "16 / 9", "4:3": "4 / 3", "1:1": "1", "9:16": "9 / 16" })[value] || "16 / 9"; }
 function previewParagraphs(value) { return String(value || "").split(/\n{2,}/).filter(Boolean).map((paragraph) => `<p>${escapeHtml(paragraph).replaceAll("\n", "<br>")}</p>`).join(""); }
 function previewButton(text, url, style = "solid") { return text ? `<a class="vp-preview-button is-${escapeAttr(style || "solid")}" href="${escapeAttr(url || "#")}" tabindex="-1">${escapeHtml(text)}</a>` : ""; }
 function blockLabel(block, index) { return block.content?.title || block.content?.text?.slice(0, 32) || `${BLOCK_LABELS[block.type]} ${index + 1}`; }
 function iconForBlock(type) { return BLOCKS.find(([key]) => key === type)?.[3] || icon("grid"); }
 function uniqueBlockId(type) { return `${type}-${crypto.randomUUID().slice(0, 8)}`; }
+function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 function escapeCssUrl(value) { return String(value || "").replace(/["'()\\\n\r]/g, ""); }
 function formatVersionDate(value) { const date = new Date(value); return Number.isNaN(date.getTime()) ? "data indisponível" : new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(date); }
 function clone(value) { return JSON.parse(JSON.stringify(value)); }
@@ -803,12 +952,15 @@ function textField(label, field, value) { return `<label><span>${escapeHtml(labe
 function textareaField(label, field, value, rows = 5) { return `<label><span>${escapeHtml(label)}</span><textarea data-content-field="${escapeAttr(field)}" rows="${rows}">${escapeHtml(value || "")}</textarea></label>`; }
 function colorField(label, field, value, scope, optional = false) { const attr = scope === "doc" ? "data-doc-field" : "data-style-field"; return `<label class="vp-color-field"><span>${escapeHtml(label)}</span><input type="color" ${attr}="${escapeAttr(field)}" value="${escapeAttr(value || "#ffffff")}"><input ${attr}="${escapeAttr(field)}" value="${escapeAttr(value || "")}" placeholder="${optional ? "Herdar" : "#000000"}"></label>`; }
 function rangeField(label, field, value, min, max, scope, optional = false) { const attr = scope === "doc" ? "data-doc-field" : scope === "content" ? "data-content-field" : "data-style-field"; return `<label class="vp-range-field"><span>${escapeHtml(label)} <output>${value === "" ? (optional ? "Herdar" : min) : value}</output></span><input type="range" ${attr}="${escapeAttr(field)}" min="${min}" max="${max}" value="${value === "" ? min : value}"></label>`; }
+function positionRangeField(label, field, value) { const normalized = Number(value || 0); return `<label class="vp-range-field"><span>${escapeHtml(label)} <output>${normalized}px</output></span><input type="range" data-style-field="${escapeAttr(field)}" min="-320" max="320" value="${normalized}"></label>`; }
 function toggleField(label, field, checked, scope = "content") { const attr = scope === "visibility" ? "data-visibility-field" : "data-content-field"; return `<label class="vp-toggle"><input type="checkbox" ${attr}="${escapeAttr(field)}" ${checked ? "checked" : ""}><span></span><strong>${escapeHtml(label)}</strong></label>`; }
 function mediaField(label, field, value, kind) { return `<div class="vp-media-field"><span>${escapeHtml(label)}</span><button type="button" data-choose-media="${escapeAttr(field)}" data-media-kind="${kind}">${value ? `${icon(kind === "video" ? "video" : "image")}<strong>Trocar arquivo</strong>` : `${icon("plus")}<strong>Escolher da biblioteca</strong>`}</button></div>`; }
+function pageMediaField(value) { return `<div class="vp-media-field"><span>Imagem ou vídeo</span><button type="button" data-choose-media="background_media_asset_id" data-media-kind="any" data-media-target="page">${value ? `${icon("image")}<strong>Trocar fundo</strong>` : `${icon("plus")}<strong>Escolher da biblioteca</strong>`}</button></div>`; }
+function docToggleField(label, field, checked) { return `<label class="vp-toggle"><input type="checkbox" data-doc-field="${escapeAttr(field)}" ${checked ? "checked" : ""}><span></span><strong>${escapeHtml(label)}</strong></label>`; }
 
 function icon(name) {
   const paths = {
-    back: '<path d="m15 18-6-6 6-6"/>', undo: '<path d="M9 7 4 12l5 5"/><path d="M5 12h8a6 6 0 0 1 6 6"/>', redo: '<path d="m15 7 5 5-5 5"/><path d="M19 12h-8a6 6 0 0 0-6 6"/>', desktop: '<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>', mobile: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>', zoomout: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4M8 11h6"/>', eye: '<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/>', save: '<path d="M5 3h12l2 2v16H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/>', publish: '<path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 14v6h14v-6"/>', plusgrid: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M17.5 14v7M14 17.5h7"/>', layers: '<path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 16l9 5 9-5"/>', template: '<path d="M4 4h16v16H4zM4 10h16M10 10v10"/>', history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>', sliders: '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>', search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>', sparkles: '<path d="m12 3 1.4 4.1L17.5 8.5l-4.1 1.4L12 14l-1.4-4.1-4.1-1.4 4.1-1.4L12 3Z"/><path d="m19 14 .7 2.3L22 17l-2.3.7L19 20l-.7-2.3L16 17l2.3-.7L19 14Z"/>', heading: '<path d="M5 5v14M19 5v14M5 12h14"/>', text: '<path d="M4 6h16M4 10h16M4 14h12M4 18h9"/>', button: '<rect x="3" y="7" width="18" height="10" rx="3"/><path d="M9 12h6"/>', image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="2"/><path d="m3 17 5-5 4 4 3-3 6 6"/>', video: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3V9Z"/>', gallery: '<rect x="3" y="3" width="8" height="8"/><rect x="13" y="3" width="8" height="8"/><rect x="3" y="13" width="8" height="8"/><rect x="13" y="13" width="8" height="8"/>', grid: '<rect x="3" y="4" width="5" height="16"/><rect x="10" y="4" width="5" height="16"/><rect x="17" y="4" width="4" height="16"/>', quote: '<path d="M5 7h5v5H7v5H4v-7a3 3 0 0 1 3-3M15 7h5v5h-3v5h-3v-7a3 3 0 0 1 3-3"/>', contact: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>', divider: '<path d="M3 12h18"/>', spacer: '<path d="M8 3h8M8 21h8M12 3v18M9 6l3-3 3 3M9 18l3 3 3-3"/>', grip: '<circle cx="9" cy="7" r="1"/><circle cx="15" cy="7" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="17" r="1"/><circle cx="15" cy="17" r="1"/>', up: '<path d="m6 15 6-6 6 6"/>', down: '<path d="m6 9 6 6 6-6"/>', copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V4H4v12h4"/>', trash: '<path d="M4 7h16M9 7V4h6v3M7 7l1 14h8l1-14M10 11v6M14 11v6"/>', plus: '<path d="M12 5v14M5 12h14"/>', bookmark: '<path d="M6 3h12v18l-6-4-6 4V3Z"/>', close: '<path d="m6 6 12 12M18 6 6 18"/>',
+    back: '<path d="m15 18-6-6 6-6"/>', undo: '<path d="M9 7 4 12l5 5"/><path d="M5 12h8a6 6 0 0 1 6 6"/>', redo: '<path d="m15 7 5 5-5 5"/><path d="M19 12h-8a6 6 0 0 0-6 6"/>', desktop: '<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>', mobile: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>', zoomout: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4M8 11h6"/>', eye: '<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/>', save: '<path d="M5 3h12l2 2v16H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/>', publish: '<path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 14v6h14v-6"/>', plusgrid: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M17.5 14v7M14 17.5h7"/>', layers: '<path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 16l9 5 9-5"/>', template: '<path d="M4 4h16v16H4zM4 10h16M10 10v10"/>', history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>', sliders: '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>', search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>', sparkles: '<path d="m12 3 1.4 4.1L17.5 8.5l-4.1 1.4L12 14l-1.4-4.1-4.1-1.4 4.1-1.4L12 3Z"/><path d="m19 14 .7 2.3L22 17l-2.3.7L19 20l-.7-2.3L16 17l2.3-.7L19 14Z"/>', heading: '<path d="M5 5v14M19 5v14M5 12h14"/>', text: '<path d="M4 6h16M4 10h16M4 14h12M4 18h9"/>', button: '<rect x="3" y="7" width="18" height="10" rx="3"/><path d="M9 12h6"/>', image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="2"/><path d="m3 17 5-5 4 4 3-3 6 6"/>', video: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3V9Z"/>', embed: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m9 10-3 2 3 2M15 10l3 2-3 2"/>', move: '<path d="M12 2v20M2 12h20M8 6l4-4 4 4M8 18l4 4 4-4M6 8l-4 4 4 4M18 8l4 4-4 4"/>', target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>', gallery: '<rect x="3" y="3" width="8" height="8"/><rect x="13" y="3" width="8" height="8"/><rect x="3" y="13" width="8" height="8"/><rect x="13" y="13" width="8" height="8"/>', grid: '<rect x="3" y="4" width="5" height="16"/><rect x="10" y="4" width="5" height="16"/><rect x="17" y="4" width="4" height="16"/>', quote: '<path d="M5 7h5v5H7v5H4v-7a3 3 0 0 1 3-3M15 7h5v5h-3v5h-3v-7a3 3 0 0 1 3-3"/>', contact: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>', divider: '<path d="M3 12h18"/>', spacer: '<path d="M8 3h8M8 21h8M12 3v18M9 6l3-3 3 3M9 18l3 3 3-3"/>', grip: '<circle cx="9" cy="7" r="1"/><circle cx="15" cy="7" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="17" r="1"/><circle cx="15" cy="17" r="1"/>', up: '<path d="m6 15 6-6 6 6"/>', down: '<path d="m6 9 6 6 6-6"/>', copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V4H4v12h4"/>', trash: '<path d="M4 7h16M9 7V4h6v3M7 7l1 14h8l1-14M10 11v6M14 11v6"/>', plus: '<path d="M12 5v14M5 12h14"/>', bookmark: '<path d="M6 3h12v18l-6-4-6 4V3Z"/>', close: '<path d="m6 6 12 12M18 6 6 18"/>',
   };
   return `<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[name] || paths.grid}</svg>`;
 }
