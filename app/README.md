@@ -169,8 +169,6 @@ Implementados:
 - `GET /:hotel_slug/:portal_slug` (portal visual oficial)
 - `HEAD /:hotel_slug/:portal_slug` (portal visual oficial)
 - `GET /:hotel_slug/:portal_slug/:page_slug` (página interna do portal visual)
-- `GET /:hotel_slug/:portal_slug/manifest.webmanifest` (manifesto opcional do portal instalável)
-- `GET /:hotel_slug/:portal_slug/sw.js` (service worker restrito ao portal instalável)
 - `GET /:hotel_slug/:portal_slug/app-icon.svg` (ícone gerado do portal instalável)
 - `GET|HEAD /portal/:hotel_slug/:portal_slug` redireciona para a URL canônica
 

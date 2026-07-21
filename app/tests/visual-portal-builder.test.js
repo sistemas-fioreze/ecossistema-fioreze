@@ -115,13 +115,41 @@ test("modelos modernos incluem loja digital, campanha e agenda", () => {
 test("documentos legados sao promovidos para site multipagina sem perder blocos", () => {
   const document = normalizeVisualPortalDocument({
     schema_version: 1,
-    settings: { primary_color: "#513b2d" },
+    settings: { primary_color: "#513b2d", pwa: { install_enabled: true, app_name: "Aplicativo antigo" } },
     blocks: [{ id: "texto-legado", type: "text", content: { text: "Conteúdo preservado" }, styles: { base: {}, desktop: {}, mobile: {} } }],
   });
   assert.equal(document.schema_version, 2);
   assert.equal(document.pages.length, 1);
   assert.equal(document.pages[0].slug, "");
   assert.equal(document.pages[0].blocks[0].id, "texto-legado");
+  assert.equal("pwa" in document.settings, false);
+});
+
+test("novos blocos normalizam limites e renderizam conteudo funcional", () => {
+  const document = createBlankVisualPortalDocument();
+  homeBlocks(document).push(
+    { id: "duvidas", type: "faq", content: { title: "Dúvidas", items: [{ question: "Posso editar?", answer: "Sim, todo o conteúdo é editável." }] }, styles: { base: {}, desktop: {}, mobile: {} } },
+    { id: "numeros", type: "stats", content: { title: "Indicadores", items: [{ value: "24h", label: "Atendimento" }] }, styles: { base: { columns: 3 }, desktop: {}, mobile: { columns: 1 } } },
+    { id: "trajetoria", type: "timeline", content: { title: "Etapas", items: [{ period: "Agora", title: "Publicação", text: "Conteúdo disponível no portal." }] }, styles: { base: {}, desktop: {}, mobile: {} } },
+  );
+  const normalized = normalizeVisualPortalDocument(document);
+  const html = renderVisualPortalPage({ portal: { title: "Portal", portal_slug: "site", hotel_name: "Hotel", hotel_slug: "hotel", module_key: "guest-portal", locale: "pt-BR" }, document: normalized });
+  assert.match(html, /class="block-inner faq-block"/);
+  assert.match(html, /<details><summary>/);
+  assert.match(html, /class="stats-grid"/);
+  assert.match(html, /class="timeline-list"/);
+  assert.match(html, /Atendimento/);
+  assert.match(html, /Publicação/);
+});
+
+test("slug personalizado altera a rota e os links internos sem mudar o id da pagina", () => {
+  const document = visualPortalTemplateDocument("guest-portal-classic");
+  const services = document.pages.find((page) => page.id === "servicos");
+  services.slug = "experiencias-do-hotel";
+  const normalized = normalizeVisualPortalDocument(document);
+  const html = renderVisualPortalPage({ portal: { title: "Portal", portal_slug: "site", hotel_name: "Hotel", hotel_slug: "hotel", module_key: "guest-portal", locale: "pt-BR" }, document: normalized });
+  assert.match(html, /href="\/hotel\/site\/experiencias-do-hotel"/);
+  assert.doesNotMatch(html, /href="\/hotel\/site\/servicos"/);
 });
 
 test("modelo do Portal do Hospede oferece paginas, navegacao e links internos", () => {
@@ -211,8 +239,6 @@ test("fundo de pagina, posicao responsiva e incorporacao HTTPS sao normalizados"
     visibility: { desktop: true, mobile: true },
   });
   document.settings.favicon_media_asset_id = "media_12345678";
-  document.settings.pwa.install_enabled = true;
-  document.settings.pwa.app_name = "Portal de experiências";
   document.pages.push({
     id: "servicos",
     slug: "servicos",
@@ -325,7 +351,6 @@ test("CRUD visual salva versoes, valida isolamento e publica renderizacao segura
     visibility: { desktop: true, mobile: true },
   });
   document.settings.favicon_media_asset_id = "media_12345678";
-  document.settings.pwa.install_enabled = true;
   document.pages.push({
     id: "servicos",
     slug: "servicos",
@@ -378,19 +403,10 @@ test("CRUD visual salva versoes, valida isolamento e publica renderizacao segura
     () => serveVisualPortal({ env, params: { hotel_slug: "muller-fioreze", portal_slug: "experiencias", page_slug: "inexistente" } }),
     (error) => error.status === 404,
   );
-  const manifestResponse = await serveVisualPortal({ env, params: { hotel_slug: "muller-fioreze", portal_slug: "experiencias", resource: "manifest" } });
-  const manifest = await manifestResponse.json();
-  assert.equal(manifest.start_url, "/muller-fioreze/experiencias");
-  assert.equal(manifest.scope, "/muller-fioreze/experiencias");
-  assert.equal(manifest.display, "standalone");
-  assert.ok(manifest.icons.some((icon) => icon.src.endsWith("/app-icon.svg") && icon.type === "image/svg+xml"));
-  const iconResponse = await serveVisualPortal({ env, params: { hotel_slug: "muller-fioreze", portal_slug: "experiencias", resource: "app-icon" } });
-  assert.equal(iconResponse.headers.get("content-type"), "image/svg+xml; charset=utf-8");
-  assert.match(await iconResponse.text(), /<svg/);
-  const workerResponse = await serveVisualPortal({ env, params: { hotel_slug: "muller-fioreze", portal_slug: "experiencias", resource: "service-worker" } });
-  assert.equal(workerResponse.headers.get("content-type"), "text/javascript; charset=utf-8");
-  assert.equal(workerResponse.headers.get("service-worker-allowed"), "/muller-fioreze/experiencias");
-  assert.match(await workerResponse.text(), /self\.addEventListener\("fetch"/);
+  await assert.rejects(
+    () => serveVisualPortal({ env, params: { hotel_slug: "muller-fioreze", portal_slug: "experiencias", resource: "removed-installation-resource" } }),
+    (error) => error.status === 404,
+  );
 
   env.ASSETS = {
     fetch: async (request) => new Response(`asset:${new URL(request.url).pathname}`, {
@@ -406,6 +422,8 @@ test("CRUD visual salva versoes, valida isolamento e publica renderizacao segura
   const unknownLegacyTab = await worker.fetch(new Request("https://portal.hoteisfioreze.com.br/muller-fioreze/inicio"), env, ctx);
   const legacyHtml = await worker.fetch(new Request("https://portal.hoteisfioreze.com.br/portal-content/muller-fioreze/boas-vindas"), env, ctx);
   const roomService = await worker.fetch(new Request("https://portal.hoteisfioreze.com.br/muller-fioreze/room-service"), env, ctx);
+  const removedManifest = await worker.fetch(new Request(`${created.portal.public_url}/manifest.webmanifest`), env, ctx);
+  const removedServiceWorker = await worker.fetch(new Request(`${created.portal.public_url}/sw.js`), env, ctx);
 
   assert.equal(canonical.status, 200);
   assert.match(await canonical.text(), /Experiencias Fioreze/);
@@ -418,6 +436,9 @@ test("CRUD visual salva versoes, valida isolamento e publica renderizacao segura
   assert.equal(legacyHtml.status, 404);
   assert.equal(roomService.status, 200);
   assert.equal(await roomService.text(), "asset:/");
+  assert.equal(removedManifest.status, 404);
+  assert.equal(removedServiceWorker.status, 404);
+  assert.doesNotMatch(await removedManifest.text(), /<html/i);
 
   const otherSession = { ...SESSION, hotel_ids: ["aurora-demo"], hotels: [{ hotel_id: "aurora-demo" }] };
   await assert.rejects(
@@ -506,7 +527,7 @@ test("Central integra construtor visual e Worker-first preserva a rota publica",
   assert.match(builder, /data-preview-version/);
   assert.match(builder, /autosave_interval_seconds/);
   assert.match(builder, /data-header-field/);
-  assert.match(builder, /data-pwa-field/);
+  assert.doesNotMatch(builder, /data-pwa-field|Aplicativo instalável|install_enabled/);
   assert.match(builder, /data-link-page/);
   assert.match(builder, /Room Service da unidade/);
   assert.match(builder, /data-media-target="page"/);
@@ -516,9 +537,12 @@ test("Central integra construtor visual e Worker-first preserva a rota publica",
   assert.match(builder, /fitCanvas\(true\)/);
   assert.doesNotMatch(builder, /window\.(?:alert|confirm|prompt)\(/);
   const runtime = fs.readFileSync("public/js/modules/visual-portal-runtime.js", "utf8");
-  assert.match(runtime, /beforeinstallprompt/);
+  assert.doesNotMatch(runtime, /beforeinstallprompt|serviceWorker|data-install-app/);
   assert.match(runtime, /data-mobile-menu-toggle/);
   assert.doesNotMatch(runtime, /window\.(?:alert|confirm|prompt)\(/);
+  assert.match(builder, /\["faq", "Perguntas frequentes"/);
+  assert.match(builder, /\["stats", "Indicadores"/);
+  assert.match(builder, /\["timeline", "Linha do tempo"/);
   assert.match(css, /grid-template-columns:\s*286px minmax\(0, 1fr\) 318px/);
   assert.match(css, /\.vp-live-preview\[data-viewport="mobile"\]/);
   assert.doesNotMatch(portals, /\["modulos", "Áreas"/);

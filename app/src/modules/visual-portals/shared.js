@@ -51,9 +51,9 @@ export function matchVisualPortalPublicPath(pathname) {
   if (RESERVED_ROOT_SEGMENTS.has(hotelSlug) || TECHNICAL_PRODUCT_SLUGS.has(portalSlug)) return null;
   if (!isSafeIdentifier(hotelSlug) || !isSafeIdentifier(portalSlug)) return null;
   if (!pageSlug) return { hotel_slug: hotelSlug, portal_slug: portalSlug, page_slug: "" };
-  if (pageSlug === "manifest.webmanifest") return { hotel_slug: hotelSlug, portal_slug: portalSlug, resource: "manifest" };
-  if (pageSlug === "sw.js") return { hotel_slug: hotelSlug, portal_slug: portalSlug, resource: "service-worker" };
-  if (pageSlug === "app-icon.svg") return { hotel_slug: hotelSlug, portal_slug: portalSlug, resource: "app-icon" };
+  if (["manifest.webmanifest", "sw.js", "app-icon.svg"].includes(pageSlug)) {
+    return { hotel_slug: hotelSlug, portal_slug: portalSlug, resource: "removed-installation-resource" };
+  }
   if (!isSafeIdentifier(pageSlug)) return null;
   return { hotel_slug: hotelSlug, portal_slug: portalSlug, page_slug: pageSlug };
 }
