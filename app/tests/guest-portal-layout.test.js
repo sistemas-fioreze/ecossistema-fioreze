@@ -130,10 +130,18 @@ test("inicio mobile usa contraste branco e header com respiro seguro", () => {
   assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\.is-mobile-home\) \.site-header\.is-scrolled\s*\{[\s\S]*?rgba\(18, 13, 10, 0\.46\)/);
 });
 
-test("inicio mobile oculta informes e preserva descricoes dos servicos em vidro", () => {
+test("inicio mobile oculta informes e usa servicos escuros com fundo transparente", () => {
   assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.home-info-section\s*\{\s*display:\s*none/);
-  assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.quick-card\s*\{[\s\S]*?height:\s*auto;[\s\S]*?backdrop-filter:\s*blur\(18px\)/);
+  assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.quick-card,[\s\S]*?\.quick-card:hover\s*\{[\s\S]*?background:\s*transparent;[\s\S]*?backdrop-filter:\s*none/);
+  assert.match(portalCss, /\.quick-card > svg,[\s\S]*?\.quick-card > strong,[\s\S]*?\.quick-card > span\s*\{[\s\S]*?color:\s*var\(--guest-primary-strong\)/);
   assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.quick-card > span\s*\{[\s\S]*?overflow:\s*visible;[\s\S]*?-webkit-line-clamp:\s*unset/);
+});
+
+test("navegacao mobile alinha icone e texto sem fundo borrado", () => {
+  assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.portal-header-nav \.bottom-nav \.nav-slider\s*\{\s*display:\s*none/);
+  assert.match(portalCss, /\.portal-header-nav \.bottom-nav button\s*\{[\s\S]*?flex-direction:\s*row;[\s\S]*?gap:\s*4px/);
+  assert.match(portalCss, /\.portal-header-nav\s*\{[\s\S]*?background:\s*transparent;[\s\S]*?backdrop-filter:\s*none/);
+  assert.match(portalCss, /\.portal-header-nav \.bottom-nav button\.active::after/);
 });
 
 test("clima movel reserva o cabecalho e cobre o conteudo de fundo", () => {
