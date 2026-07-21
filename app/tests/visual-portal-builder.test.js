@@ -377,8 +377,7 @@ test("Central integra construtor visual e Worker-first preserva a rota publica",
   assert.doesNotMatch(portals, /\["modulos", "Áreas"/);
   assert.doesNotMatch(portals, /\["navegacao", "Navegação"/);
   assert.match(portals, /module_key: "guest-portal"/);
-  assert.ok(wrangler.assets.run_worker_first.includes("/portal/*"));
-  assert.ok(wrangler.assets.run_worker_first.includes("/*/*"));
+  assert.deepEqual(wrangler.assets.run_worker_first, ["/*"]);
   assert.equal(wrangler.vars.VISUAL_PORTAL_PUBLIC_ORIGIN, "https://portal.hoteisfioreze.com.br");
 });
 

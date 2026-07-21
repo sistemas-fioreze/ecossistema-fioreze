@@ -121,13 +121,8 @@ test("wrangler declara MEDIA_BUCKET privado de desenvolvimento", () => {
 
 test("Static Assets executa Worker antes de APIs, produtos e portais personalizados", () => {
   const workerFirst = new Set(wranglerConfig.assets.run_worker_first);
-  assert.equal(workerFirst.has("/api/*"), true);
-  assert.equal(workerFirst.has("/admin/*"), true);
-  assert.equal(workerFirst.has("/erp/*"), true);
-  assert.equal(workerFirst.has("/media/*"), true);
-  assert.equal(workerFirst.has("/embed/*"), true);
-  assert.equal(workerFirst.has("/go/*"), true);
-  assert.equal(workerFirst.has("/*/*"), true);
+  assert.equal(workerFirst.has("/*"), true);
+  assert.equal(workerFirst.size, 1);
 });
 
 test("migration 0009 adiciona permissoes de unidades sem associar roles", () => {

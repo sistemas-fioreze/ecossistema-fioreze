@@ -351,7 +351,7 @@ Mover uma midia entre pastas altera somente `media_assets.folder_id`: `public_ur
 
 O shell da Central usa uma copia versionada e sanitizada do asset oficial da marca em `/assets/shared/fioreze-central-logo.jpg`. A origem aprovada foi a midia de desenvolvimento `media_7449a1c9-2575-447d-a782-7b206b186985`; a copia local evita dependencia de sessao, registro D1 ou disponibilidade do R2 para renderizar a identidade administrativa. Cada usuario pode escolher uma das paletas no menu da sessao; a preferencia e validada no Worker e salva por `admin_users.id`.
 
-Como Static Assets usa `not_found_handling: single-page-application`, o `wrangler.jsonc` precisa manter `/media/*` em `assets.run_worker_first`, junto de `/api/*` e `/admin/*`. Sem isso, a borda da Cloudflare poderia entregar o fallback HTML antes da rota do Worker. Os testes locais chamam o export do Worker diretamente, entao nao reproduzem completamente a precedencia da borda; por isso tambem existe teste de configuracao para garantir `/media/*` em `run_worker_first`.
+Como Static Assets usa `not_found_handling: single-page-application`, o `wrangler.jsonc` mantém `/*` em `assets.run_worker_first`. Assim, APIs, mídia, administração, produtos e portais personalizados sempre passam pelo Worker antes do fallback HTML. Os testes locais chamam o export do Worker diretamente e não reproduzem completamente a precedência da borda; por isso também existe teste específico da configuração.
 
 Comandos futuros, nao executados nesta implementacao:
 
