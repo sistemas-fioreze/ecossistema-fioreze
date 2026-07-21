@@ -29,6 +29,7 @@ test("Pages paralelo preserva Worker atual e bindings de desenvolvimento", () =>
   const pagesR2 = pagesConfig.r2_buckets.find((binding) => binding.binding === "MEDIA_BUCKET");
   assert.equal(pagesR2.bucket_name, workerR2.bucket_name);
   assert.deepEqual(pagesConfig.vars, workerConfig.vars);
+  assert.equal(workerConfig.vars.VISUAL_PORTAL_PUBLIC_ORIGIN, "https://portal.hoteisfioreze.com.br");
 });
 
 test("build Pages gera _worker.js avancado e copia assets sem alteracao", async (context) => {

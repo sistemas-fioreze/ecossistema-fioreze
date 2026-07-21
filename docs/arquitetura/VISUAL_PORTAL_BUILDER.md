@@ -36,13 +36,15 @@ A migration `0025_visual_portal_builder.sql` cria:
 - `visual_portal_versions`: snapshots de rascunho, publicação e restauração;
 - `visual_portal_templates`: modelos reutilizáveis por hotel e módulo.
 
-O endereço público é único por hotel:
+O endereço público oficial é único por hotel:
 
 ```text
-/portal/:hotel_slug/:portal_slug
+https://portal.hoteisfioreze.com.br/:hotel_slug/:portal_slug
 ```
 
-O registro continua vinculado a `hotel_id` e `module_key`. A rota pública responde somente quando hotel, módulo e portal estão ativos e públicos.
+O registro continua vinculado a `hotel_id` e `module_key`. A rota pública responde somente quando hotel, módulo e portal estão ativos e públicos. `VISUAL_PORTAL_PUBLIC_ORIGIN` define a origem exibida pela Central; sem ela, ambientes locais usam a origem técnica da requisição.
+
+O formato anterior `/portal/:hotel_slug/:portal_slug` redireciona permanentemente para o endereço canônico. No domínio oficial, o shell legado do Portal do Hóspede e as antigas páginas em `/portal-content/*` não são expostos: `/:hotel_slug` retorna 404, e qualquer segundo segmento só responde quando corresponde a um portal personalizado publicado. `/:hotel_slug/room-service` permanece reservado ao Room Service e continua fora do construtor.
 
 ## Documento visual
 

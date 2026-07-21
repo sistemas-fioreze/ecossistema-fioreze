@@ -11,6 +11,13 @@ import { redirectShortLink } from "./modules/short-links/public.js";
 import { extractCustomDomainSlug, isShortLinkCustomDomainRequest } from "./modules/short-links/shared.js";
 import { serveCustomPortalPage } from "./modules/portal-pages/public.js";
 import { serveVisualPortal } from "./modules/visual-portals/public.js";
+import {
+  isLegacyGuestPortalPath,
+  isVisualPortalPublicHost,
+  matchLegacyVisualPortalPath,
+  matchVisualPortalPublicPath,
+  visualPortalPublicUrl,
+} from "./modules/visual-portals/shared.js";
 
 const router = new Router();
 
@@ -46,14 +53,27 @@ router.get("/go/:slug", async ({ request, env, ctx, params }) => redirectShortLi
 router.head("/go/:slug", async ({ request, env, params }) => redirectShortLink({ request, env, params, head: true }));
 router.get("/portal-content/:hotel_slug/:page_slug", async ({ env, params }) => serveCustomPortalPage({ env, params }));
 router.head("/portal-content/:hotel_slug/:page_slug", async ({ env, params }) => serveCustomPortalPage({ env, params, head: true }));
-router.get("/portal/:hotel_slug/:portal_slug", async ({ env, params }) => serveVisualPortal({ env, params }));
-router.head("/portal/:hotel_slug/:portal_slug", async ({ env, params }) => serveVisualPortal({ env, params, head: true }));
-
 async function handleRequest(request, env, ctx) {
   const url = new URL(request.url);
+  const officialPortalHost = isVisualPortalPublicHost(request, env);
 
   if (isShortLinkCustomDomainRequest(request, env)) {
     return handleShortLinkCustomDomainRequest({ request, env, ctx, url });
+  }
+
+  if (url.pathname.startsWith("/portal-content/") && officialPortalHost) {
+    return visualPortalNotFound();
+  }
+
+  const legacyVisualPortal = matchLegacyVisualPortalPath(url.pathname);
+  if (legacyVisualPortal) {
+    if (request.method !== "GET" && request.method !== "HEAD") return visualPortalMethodNotAllowed();
+    return Response.redirect(visualPortalPublicUrl({
+      env,
+      request,
+      hotelSlug: legacyVisualPortal.hotel_slug,
+      portalSlug: legacyVisualPortal.portal_slug,
+    }), 308);
   }
 
   if (
@@ -61,8 +81,7 @@ async function handleRequest(request, env, ctx) {
     url.pathname.startsWith("/media/") ||
     url.pathname.startsWith("/embed/") ||
     url.pathname.startsWith("/go/") ||
-    url.pathname.startsWith("/portal-content/") ||
-    url.pathname.startsWith("/portal/")
+    url.pathname.startsWith("/portal-content/")
   ) {
     return router.handle(request, env, ctx);
   }
@@ -82,9 +101,31 @@ async function handleRequest(request, env, ctx) {
     return serveAsset(request, env);
   }
 
+  const visualPortal = matchVisualPortalPublicPath(url.pathname);
+  if (visualPortal) {
+    if (request.method !== "GET" && request.method !== "HEAD") return visualPortalMethodNotAllowed();
+    return serveVisualPortal({ env, params: visualPortal, head: request.method === "HEAD" });
+  }
+
+  if (officialPortalHost && isLegacyGuestPortalPath(url.pathname)) {
+    return visualPortalNotFound();
+  }
+
   // Pages canonicaliza /index.html para /. Usar a rota canonica evita que o
   // redirect volte ao _worker.js e repita indefinidamente o fallback SPA.
   return serveAsset(request, env, "/");
+}
+
+function visualPortalNotFound() {
+  return fail(404, "not_found", "Portal nao encontrado.", undefined, {
+    headers: { "cache-control": "no-store", "x-robots-tag": "noindex, nofollow" },
+  });
+}
+
+function visualPortalMethodNotAllowed() {
+  return fail(405, "method_not_allowed", "Metodo nao permitido.", undefined, {
+    headers: { allow: "GET, HEAD", "cache-control": "no-store" },
+  });
 }
 
 function handleShortLinkCustomDomainRequest({ request, env, ctx, url }) {

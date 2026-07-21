@@ -119,7 +119,7 @@ test("wrangler declara MEDIA_BUCKET privado de desenvolvimento", () => {
   assert.equal(/prod/i.test(bucket.bucket_name), false);
 });
 
-test("Static Assets executa Worker antes de api, admin, erp, media, embed e go", () => {
+test("Static Assets executa Worker antes de APIs, produtos e portais personalizados", () => {
   const workerFirst = new Set(wranglerConfig.assets.run_worker_first);
   assert.equal(workerFirst.has("/api/*"), true);
   assert.equal(workerFirst.has("/admin/*"), true);
@@ -127,6 +127,7 @@ test("Static Assets executa Worker antes de api, admin, erp, media, embed e go",
   assert.equal(workerFirst.has("/media/*"), true);
   assert.equal(workerFirst.has("/embed/*"), true);
   assert.equal(workerFirst.has("/go/*"), true);
+  assert.equal(workerFirst.has("/*/*"), true);
 });
 
 test("migration 0009 adiciona permissoes de unidades sem associar roles", () => {

@@ -7,8 +7,10 @@ As paginas HTML personalizadas permitem publicar uma experiencia visual especifi
 1. Um usuario com acesso a unidade abre `Conteudos > Paginas HTML`.
 2. O HTML e sanitizado no Worker antes de qualquer escrita.
 3. Somente a versao sanitizada e armazenada em `custom_portal_pages`.
-4. Uma pagina `published` responde em `/portal-content/<hotel_slug>/<page_slug>`.
+4. Uma pagina `published` pode ser consultada tecnicamente em `/portal-content/<hotel_slug>/<page_slug>` fora do domínio oficial.
 5. A Central pode usar essa URL como destino de um link curto e gerar o QR correspondente.
+
+Esta estrutura permanece apenas para compatibilidade histórica. O domínio `portal.hoteisfioreze.com.br` não publica mais essas páginas nem o antigo shell do Portal do Hóspede. Novos conteúdos devem ser criados no Construtor Visual e usam `/<hotel_slug>/<portal_slug>`.
 
 Rascunhos e paginas arquivadas retornam 404. A consulta publica exige hotel ativo e modulo `guest-portal` publico e habilitado.
 
