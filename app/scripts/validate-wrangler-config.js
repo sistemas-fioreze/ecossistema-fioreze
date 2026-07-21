@@ -50,7 +50,7 @@ if (r2.remote === true || /prod/i.test(r2.bucket_name || "")) {
   process.exit(1);
 }
 
-for (const route of ["/api/*", "/admin/*", "/erp/*", "/media/*", "/embed/*", "/go/*", "/portal-content/*"]) {
+for (const route of ["/api/*", "/admin/*", "/erp/*", "/media/*", "/embed/*", "/go/*", "/portal-content/*", "/portal/*"]) {
   if (!workerFirstRoutes.has(route)) {
     console.error(`Static Assets deve executar o Worker primeiro para ${route}.`);
     process.exit(1);

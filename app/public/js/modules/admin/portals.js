@@ -29,6 +29,7 @@ import {
   hasPermission,
 } from "./shared/admin-session.js";
 import { debounce, escapeAttr, escapeHtml, formatDate } from "./shared/format.js";
+import { createVisualPortalBuilder } from "./portal-builder.js";
 
 const els = {
   portalsNav: document.getElementById("portalsNav"),
@@ -212,11 +213,16 @@ let currentNavigation = [];
 let currentEmbed = null;
 let activeUnitTab = "general";
 let dirty = false;
-let contentType = "pages";
-let currentContent = { pages: [], custom_pages: [], events: [], information: [] };
+let contentType = "visual_portals";
+let currentContent = { visual_portals: [], pages: [], custom_pages: [], events: [], information: [] };
 let dedicatedModules = [];
 let dedicatedNavigation = [];
 let eventMediaAssets = [];
+const visualPortalBuilder = createVisualPortalBuilder({
+  onSaved() {
+    loadPortalContent();
+  },
+});
 
 const auth = createAdminAuthView({
   onAuthenticated(session) {
@@ -2042,7 +2048,7 @@ function field(label, name, value = "", type = "text", help = "") {
   return `
     <label class="admin-field">
       <span>${escapeHtml(label)}</span>
-      <input name="${escapeAttr(name)}" type="${escapeAttr(type)}" value="${escapeAttr(value ?? "")}" ${name === "slug" ? "pattern=\"[a-z0-9-]+\"" : ""}>
+      <input name="${escapeAttr(name)}" type="${escapeAttr(type)}" value="${escapeAttr(value ?? "")}" ${name === "slug" ? "pattern=\"[a-z0-9]+(?:-[a-z0-9]+)*\"" : ""}>
       ${help ? `<small>${escapeHtml(help)}</small>` : ""}
     </label>
   `;
@@ -2236,13 +2242,15 @@ async function loadPortalContent() {
   els.contentMessage.textContent = "Carregando conteúdos...";
   try {
     const hotelId = encodeURIComponent(els.contentHotel.value);
-    const [contentPayload, customPagesPayload] = await Promise.all([
+    const [contentPayload, customPagesPayload, visualPortalsPayload] = await Promise.all([
       adminApi(`/api/v1/admin/portal/content?hotel_id=${hotelId}`),
       adminApi(`/api/v1/admin/custom-portal-pages?hotel_id=${hotelId}`),
+      adminApi(`/api/v1/admin/visual-portals?hotel_id=${hotelId}`),
     ]);
     currentContent = {
       ...contentPayload.data,
       custom_pages: customPagesPayload.data.pages || [],
+      visual_portals: visualPortalsPayload.data.portals || [],
     };
     renderContentList();
   } catch (error) {
@@ -2252,12 +2260,17 @@ async function loadPortalContent() {
 
 function renderContentList() {
   const rows = currentContent[contentType] || [];
-  const labels = { pages: "página(s)", custom_pages: "página(s) HTML", events: "evento(s)", information: "informação(ões)" };
+  const labels = { visual_portals: "portal(is) visual(is)", pages: "página(s)", custom_pages: "página(s) HTML", events: "evento(s)", information: "informação(ões)" };
   els.contentMessage.textContent = `${rows.length} ${labels[contentType]}.`;
   els.contentList.innerHTML = rows.map((item) => renderContentRow(item, contentType)).join("") || '<p class="admin-empty">Nenhum conteúdo cadastrado.</p>';
 }
 
 function renderContentRow(item, type) {
+  if (type === "visual_portals") {
+    const canEdit = hasPermission(currentSession, PORTALS_HOTELS_SETTINGS_PERMISSION) && item.status !== "archived";
+    const canCreateLink = item.status === "published" && hasPermission(currentSession, PORTALS_LINKS_CREATE_PERMISSION);
+    return `<article class="admin-data-row admin-content-row admin-visual-portal-row"><span class="admin-role-icon">${featureSvg("builder")}</span><div class="admin-row-copy"><strong>${escapeHtml(item.name)}</strong><a href="${escapeAttr(item.public_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.public_url)}</a><small>${escapeHtml(item.module_name || item.module_key)} · versão ${Number(item.draft_revision)}${item.has_unpublished_changes ? " · alterações pendentes" : ""}</small></div><span class="admin-status-chip" data-status="${escapeAttr(item.status)}">${contentStatus(item.status)}</span><div class="admin-row-actions">${canEdit ? `<button class="admin-builder-launch" type="button" data-content-action="builder" data-id="${escapeAttr(item.id)}">${featureSvg("builder")} Abrir construtor</button>` : ""}${canCreateLink ? `<button type="button" data-content-action="create-link" data-id="${escapeAttr(item.id)}">Link e QR</button>` : ""}${canEdit ? `<button type="button" data-content-action="duplicate-visual" data-id="${escapeAttr(item.id)}">Duplicar</button><button class="danger" type="button" data-content-action="archive-visual" data-id="${escapeAttr(item.id)}">Arquivar</button>` : ""}</div></article>`;
+  }
   if (type === "pages") {
     return `<article class="admin-data-row admin-content-row"><span class="admin-role-icon">${featureSvg("page")}</span><div class="admin-row-copy"><strong>${escapeHtml(item.title)}</strong><span>/${escapeHtml(item.slug)}</span><small>${Number(item.section_count || 0)} seção(ões) · ordem ${Number(item.sort_order || 0)}</small></div><span class="admin-status-chip" data-status="${escapeAttr(item.status)}">${contentStatus(item.status)}</span><div class="admin-row-actions"><button type="button" data-content-action="sections" data-id="${escapeAttr(item.id)}">Seções</button><button type="button" data-content-action="edit" data-id="${escapeAttr(item.id)}">Editar</button></div></article>`;
   }
@@ -2290,12 +2303,20 @@ function handleContentClick(event) {
   if (action.dataset.contentAction === "sections") return openSectionsEditor(action.dataset.id);
   const item = (currentContent[contentType] || []).find((entry) => entry.id === action.dataset.id);
   if (!item) return;
+  if (action.dataset.contentAction === "builder") return visualPortalBuilder.open(item.id);
   if (action.dataset.contentAction === "create-link") return createShortLinkFromCustomPage(item);
+  if (action.dataset.contentAction === "duplicate-visual") return duplicateVisualPortal(item);
+  if (action.dataset.contentAction === "archive-visual") return archiveVisualPortal(item);
   if (action.dataset.contentAction === "archive-custom") return archiveCustomPage(item);
   openContentEditor(item);
 }
 
 async function openContentEditor(item = null) {
+  if (contentType === "visual_portals") {
+    if (item) return visualPortalBuilder.open(item.id);
+    openVisualPortalCreator();
+    return;
+  }
   if (contentType === "custom_pages") {
     openCustomPageEditor(item);
     return;
@@ -2306,7 +2327,7 @@ async function openContentEditor(item = null) {
   if (contentType === "pages") {
     els.dialogBody.innerHTML = contentForm("page", `
       ${dialogField("Título", "title", item?.title, "text", true)}
-      ${dialogField("Endereço", "slug", item?.slug, "text", true, "[a-z0-9-]+")}
+      ${dialogField("Endereço", "slug", item?.slug, "text", true, "[a-z0-9]+(?:-[a-z0-9]+)*")}
       ${dialogTextarea("Resumo", "summary", item?.summary)}
       <div class="admin-form-grid">${dialogSelect("Status", "status", item?.status || "draft", [["draft", "Rascunho"], ["published", "Publicada"], ["archived", "Arquivada"]])}${dialogField("Ordem", "sort_order", item?.sort_order ?? 100, "number", true)}</div>`);
   } else if (contentType === "events") {
@@ -2324,12 +2345,102 @@ async function openContentEditor(item = null) {
   } else {
     els.dialogBody.innerHTML = contentForm("information", `
       ${dialogField("Título", "title", item?.title, "text", true)}
-      ${dialogField("Identificador", "info_key", item?.info_key, "text", true, "[a-z0-9-]+")}
+      ${dialogField("Identificador", "info_key", item?.info_key, "text", true, "[a-z0-9]+(?:-[a-z0-9]+)*")}
       ${dialogTextarea("Conteúdo", "body", item?.body, true)}
       <div class="admin-form-grid">${dialogField("Ordem", "sort_order", item?.sort_order ?? 100, "number", true)}<label class="admin-choice admin-choice-standalone"><input name="is_public" type="checkbox" ${item?.is_public !== false ? "checked" : ""}><span><strong>Visível no portal</strong></span></label></div>`);
   }
   openPortalsDialog();
   bindDialogForm((event) => saveContent(event, item));
+}
+
+async function openVisualPortalCreator() {
+  els.dialogTitle.textContent = "Novo portal visual";
+  els.dialogBody.innerHTML = '<p class="admin-muted">Preparando modelos e áreas...</p>';
+  openPortalsDialog();
+  try {
+    const hotelId = els.contentHotel.value;
+    const [modulesPayload, templatesPayload] = await Promise.all([
+      adminApi(`/api/v1/admin/hotels/${encodeURIComponent(hotelId)}/modules`),
+      adminApi(`/api/v1/admin/visual-portal-templates?hotel_id=${encodeURIComponent(hotelId)}`),
+    ]);
+    const modules = (modulesPayload.data.modules || []).filter((module) => !["admin", "room-service"].includes(module.module_key));
+    const templates = templatesPayload.data.templates || [];
+    if (!modules.length) throw new Error("Ative uma área de portal na unidade antes de criar o conteúdo.");
+    const initialModuleKey = modules[0].module_key;
+    const templateOptions = (moduleKey) => templates
+      .filter((template) => template.builtin || template.module_key === moduleKey)
+      .map((template) => [template.id, template.name]);
+    els.dialogBody.innerHTML = contentForm("visual-portal", `
+      <aside class="admin-sanitization-note"><strong>Construtor visual</strong><span>Monte versões desktop e mobile com blocos, imagens, vídeos e modelos reutilizáveis.</span></aside>
+      <div class="admin-form-grid">${dialogField("Nome interno", "name", "", "text", true)}${dialogField("Título público", "title", "", "text", true)}</div>
+      <div class="admin-form-grid">${dialogField("Endereço", "slug", "", "text", true, "[a-z0-9]+(?:-[a-z0-9]+)*")}${dialogSelect("Área", "module_key", initialModuleKey, modules.map((module) => [module.module_key, module.public_name || module.name]))}</div>
+      ${dialogSelect("Começar com", "template", "builtin-showcase", templateOptions(initialModuleKey))}
+      <div class="admin-template-choice-preview"><span>${featureSvg("builder")}</span><div><strong>Liberdade com estrutura</strong><small>O modelo é apenas o ponto de partida. Todos os blocos poderão ser reorganizados e personalizados.</small></div></div>`);
+    const form = els.dialogBody.querySelector("form");
+    const moduleSelect = form.elements.module_key;
+    const templateSelect = form.elements.template;
+    moduleSelect.addEventListener("change", () => {
+      templateSelect.innerHTML = optionsHtml(templateOptions(moduleSelect.value), "builtin-showcase");
+    });
+    bindDialogForm(async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const values = Object.fromEntries(new FormData(form).entries());
+      const template = templates.find((entry) => entry.id === values.template);
+      const body = {
+        hotel_id: hotelId,
+        module_key: values.module_key,
+        slug: values.slug,
+        name: values.name,
+        title: values.title,
+        ...(template?.builtin ? { template_key: template.template_key } : { template_id: values.template }),
+      };
+      try {
+        form.querySelector(".admin-dialog-message").textContent = "Criando portal...";
+        const created = await adminApi("/api/v1/admin/visual-portals", { method: "POST", body });
+        closePortalsDialog();
+        await loadPortalContent();
+        await visualPortalBuilder.open(created.data.portal.id);
+      } catch (error) {
+        form.querySelector(".admin-dialog-message").textContent = error.message || "Não foi possível criar o portal.";
+      }
+    });
+  } catch (error) {
+    els.dialogBody.innerHTML = `<p class="admin-error">${escapeHtml(error.message || "Não foi possível preparar o construtor.")}</p>`;
+  }
+}
+
+function duplicateVisualPortal(item) {
+  els.dialogTitle.textContent = "Duplicar portal";
+  els.dialogBody.innerHTML = contentForm("duplicate-visual-portal", `
+    <p class="admin-muted">Uma nova cópia será criada como rascunho, mantendo blocos e identidade visual.</p>
+    ${dialogField("Nome da cópia", "name", `${item.name} - cópia`, "text", true)}
+    ${dialogField("Novo endereço", "slug", `${item.slug}-copia`, "text", true, "[a-z0-9]+(?:-[a-z0-9]+)*")}`);
+  openPortalsDialog();
+  bindDialogForm(async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const body = Object.fromEntries(new FormData(form).entries());
+    try {
+      form.querySelector(".admin-dialog-message").textContent = "Duplicando...";
+      const payload = await adminApi(`/api/v1/admin/visual-portals/${encodeURIComponent(item.id)}/duplicate`, { method: "POST", body });
+      closePortalsDialog();
+      await loadPortalContent();
+      await visualPortalBuilder.open(payload.data.portal.id);
+    } catch (error) {
+      form.querySelector(".admin-dialog-message").textContent = error.message || "Não foi possível duplicar o portal.";
+    }
+  });
+}
+
+async function archiveVisualPortal(item) {
+  if (!window.confirm(`Arquivar o portal “${item.name}”? O endereço público deixará de responder.`)) return;
+  try {
+    await adminApi(`/api/v1/admin/visual-portals/${encodeURIComponent(item.id)}`, { method: "DELETE", body: {} });
+    await loadPortalContent();
+  } catch (error) {
+    els.contentMessage.textContent = error.message || "Não foi possível arquivar o portal.";
+  }
 }
 
 async function saveContent(event, item) {
@@ -2400,7 +2511,7 @@ async function openCustomPageEditor(item = null) {
       page = payload.data.page;
     }
     els.dialogBody.innerHTML = contentForm("custom-page", `
-      <div class="admin-form-grid">${dialogField("Título", "title", page?.title, "text", true)}${dialogField("Endereço", "slug", page?.slug, "text", true, "[a-z0-9-]+")}</div>
+      <div class="admin-form-grid">${dialogField("Título", "title", page?.title, "text", true)}${dialogField("Endereço", "slug", page?.slug, "text", true, "[a-z0-9]+(?:-[a-z0-9]+)*")}</div>
       ${dialogSelect("Status", "status", page?.status === "archived" ? "draft" : page?.status || "draft", [["draft", "Rascunho"], ["published", "Publicada"]])}
       <label class="admin-html-editor-field"><span>HTML personalizado</span><textarea name="html" rows="18" maxlength="250000" spellcheck="false" required>${escapeHtml(page?.html || "")}</textarea><small>Scripts, formulários, iframes, eventos e endereços inseguros são removidos automaticamente. Use estilos inline para personalizar o conteúdo.</small></label>
       <aside class="admin-sanitization-note"><strong>Publicação protegida</strong><span>O conteúdo é exibido isolado da sessão administrativa e não recebe acesso às APIs internas.</span></aside>`);
@@ -2452,7 +2563,7 @@ function openSectionForm(pageId, section = null) {
   els.dialogTitle.textContent = section ? "Editar seção" : "Nova seção";
   els.dialogBody.innerHTML = contentForm("section", `
     ${dialogField("Título", "title", section?.title)}
-    ${dialogField("Identificador", "section_key", section?.section_key, "text", true, "[a-z0-9-]+")}
+    ${dialogField("Identificador", "section_key", section?.section_key, "text", true, "[a-z0-9]+(?:-[a-z0-9]+)*")}
     ${dialogTextarea("Conteúdo", "body", section?.body)}
     ${dialogField("Ordem", "sort_order", section?.sort_order ?? 100, "number", true)}`);
   bindDialogForm((event) => saveSection(event, pageId, section));
@@ -2686,7 +2797,11 @@ function dialogTextarea(label, name, value = "", required = false) {
 }
 
 function dialogSelect(label, name, value, options) {
-  return `<label><span>${escapeHtml(label)}</span><select name="${escapeAttr(name)}">${options.map(([key, text]) => `<option value="${escapeAttr(key)}" ${key === value ? "selected" : ""}>${escapeHtml(text)}</option>`).join("")}</select></label>`;
+  return `<label><span>${escapeHtml(label)}</span><select name="${escapeAttr(name)}">${optionsHtml(options, value)}</select></label>`;
+}
+
+function optionsHtml(options, value) {
+  return options.map(([key, text]) => `<option value="${escapeAttr(key)}" ${key === value ? "selected" : ""}>${escapeHtml(text)}</option>`).join("");
 }
 
 function openPortalsDialog() {
@@ -2732,6 +2847,7 @@ function featureSvg(type) {
     navigation: '<circle cx="12" cy="12" r="9"/><path d="m15 9-2 6-6 2 2-6z"/>',
     history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>',
     code: '<path d="m8 9-3 3 3 3M16 9l3 3-3 3M14 5l-4 14"/>',
+    builder: '<path d="M4 4h16v16H4zM4 10h16M10 10v10"/><path d="M14 14h3M15.5 12.5v3"/>',
   };
   return `<svg class="admin-svg-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[type] || paths.page}</svg>`;
 }
