@@ -49,7 +49,7 @@ export async function listAdminShortLinks({ request, env, session, url }) {
   ];
   const params = [hotelId, session.user.id, session.user.id];
   if (status) {
-    if (!["active", "paused", "archived"].includes(status)) throw badRequest("status invalido.");
+    if (!["active", "paused", "archived"].includes(status)) throw badRequest("Status inválido.");
     filters.push("sl.status = ?");
     params.push(status);
   }
@@ -90,7 +90,7 @@ export async function createAdminShortLink({ request, env, session }) {
   const internalName = requireString(payload.internal_name, "internal_name", { max: 160 });
   const slug = normalizeShortLinkSlug(payload.slug);
   const status = payload.status == null || payload.status === "" ? "active" : requireString(payload.status, "status", { max: 40 });
-  if (!EDITABLE_SHORT_LINK_STATUSES.has(status)) throw badRequest("status invalido para criacao.");
+  if (!EDITABLE_SHORT_LINK_STATUSES.has(status)) throw badRequest("Status inválido para criação.");
   const startsAt = normalizeOptionalDate(payload.starts_at, "starts_at");
   const expiresAt = normalizeOptionalDate(payload.expires_at, "expires_at");
   assertDateWindow(startsAt, expiresAt);
@@ -98,7 +98,7 @@ export async function createAdminShortLink({ request, env, session }) {
   const notes = optionalString(payload.notes, "notes", { max: 1000 }) || null;
 
   const duplicate = await first(env, "SELECT id FROM short_links WHERE lower(slug) = lower(?) LIMIT 1", [slug]);
-  if (duplicate) throw conflict("slug ja cadastrado.");
+  if (duplicate) throw conflict("Slug já cadastrado.");
 
   const now = requestNow({ request, env });
   const id = createPublicId("link");
@@ -129,7 +129,7 @@ export async function createAdminShortLink({ request, env, session }) {
 export async function getAdminShortLink({ request, env, session, linkId }) {
   requirePermission(session, READ_PERMISSION);
   const link = await loadShortLinkForSession({ env, session, linkId });
-  if (!link) throw notFoundError("Link nao encontrado.");
+  if (!link) throw notFoundError("Link não encontrado.");
   return { link: formatShortLink(link, { request, env, session }) };
 }
 
@@ -137,14 +137,14 @@ export async function updateAdminShortLink({ request, env, session, linkId }) {
   requirePermission(session, UPDATE_PERMISSION);
   assertAdminMutationAllowed({ request });
   const current = await loadShortLinkForSession({ env, session, linkId, ownerOnly: true });
-  if (!current) throw notFoundError("Link nao encontrado.");
-  if (current.status === "archived") throw badRequest("Link arquivado nao pode ser alterado.");
+  if (!current) throw notFoundError("Link não encontrado.");
+  if (current.status === "archived") throw badRequest("Link arquivado não pode ser alterado.");
 
   const payload = await readJson(request);
   const forbidden = ["id", "hotel_id", "slug", "created_by_user_id", "created_at", "total_clicks", "last_clicked_at"];
   const allowed = new Set(["internal_name", "destination_url", "status", "starts_at", "expires_at", "notes"]);
   const forbiddenFields = forbidden.filter((field) => Object.hasOwn(payload, field));
-  if (forbiddenFields.length) throw badRequest("Campos imutaveis nao podem ser alterados.", { fields: forbiddenFields });
+  if (forbiddenFields.length) throw badRequest("Campos imutáveis não podem ser alterados.", { fields: forbiddenFields });
   rejectUnknownFields(payload, allowed);
 
   let internalName = current.internal_name;
@@ -170,7 +170,7 @@ export async function updateAdminShortLink({ request, env, session, linkId }) {
   }
   if (Object.hasOwn(payload, "status")) {
     status = requireString(payload.status, "status", { max: 40 });
-    if (!EDITABLE_SHORT_LINK_STATUSES.has(status)) throw badRequest("status invalido.");
+    if (!EDITABLE_SHORT_LINK_STATUSES.has(status)) throw badRequest("Status inválido.");
     if (status !== current.status) changedFields.push("status");
   }
   if (Object.hasOwn(payload, "starts_at")) {
@@ -228,7 +228,7 @@ export async function archiveAdminShortLink({ request, env, session, linkId }) {
   requirePermission(session, ARCHIVE_PERMISSION);
   assertAdminMutationAllowed({ request });
   const current = await loadShortLinkForSession({ env, session, linkId, ownerOnly: true });
-  if (!current) throw notFoundError("Link nao encontrado.");
+  if (!current) throw notFoundError("Link não encontrado.");
   if (current.status === "archived") return { link: formatShortLink(current, { request, env, session }), archived: false };
 
   const now = requestNow({ request, env });
@@ -264,9 +264,9 @@ export async function deleteAdminShortLink({ request, env, session, linkId }) {
   requirePermission(session, DELETE_PERMISSION);
   assertAdminMutationAllowed({ request });
   const current = await loadShortLinkForSession({ env, session, linkId, ownerOnly: true });
-  if (!current) throw notFoundError("Link nao encontrado.");
+  if (!current) throw notFoundError("Link não encontrado.");
   if (current.status !== "archived") {
-    throw conflict("Arquive o link antes de exclui-lo definitivamente.");
+    throw conflict("Arquive o link antes de excluí-lo definitivamente.");
   }
 
   const now = requestNow({ request, env });
@@ -280,14 +280,14 @@ export async function deleteAdminShortLink({ request, env, session, linkId }) {
     }),
     statement(env, "DELETE FROM short_links WHERE id = ? AND hotel_id = ? AND status = 'archived'", [current.id, current.hotel_id]),
   ]);
-  if (Number(results[1]?.meta?.changes || 0) !== 1) throw conflict("O link nao pode ser excluido no estado atual.");
+  if (Number(results[1]?.meta?.changes || 0) !== 1) throw conflict("O link não pode ser excluído no estado atual.");
   return { id: current.id, slug: current.slug, deleted: true };
 }
 
 export async function getAdminShortLinkQrCode({ request, env, session, linkId, url }) {
   requirePermission(session, READ_PERMISSION);
   const link = await loadShortLinkForSession({ env, session, linkId });
-  if (!link) throw notFoundError("Link nao encontrado.");
+  if (!link) throw notFoundError("Link não encontrado.");
   const publicUrl = shortLinkPublicUrl({ env, request, slug: link.slug });
   const headers = new Headers({
     "content-type": "image/svg+xml; charset=utf-8",
@@ -304,7 +304,7 @@ export async function getAdminShortLinkQrCode({ request, env, session, linkId, u
 export async function getAdminShortLinkAnalytics({ request, env, session, linkId }) {
   requirePermission(session, ANALYTICS_PERMISSION);
   const link = await loadShortLinkForSession({ env, session, linkId });
-  if (!link) throw notFoundError("Link nao encontrado.");
+  if (!link) throw notFoundError("Link não encontrado.");
   const rows = await all(
     env,
     `SELECT click_date, click_count, first_clicked_at, last_clicked_at
@@ -336,7 +336,7 @@ export async function getAdminShortLinkAnalytics({ request, env, session, linkId
 export async function listAdminShortLinkShares({ env, session, linkId }) {
   requirePermission(session, UPDATE_PERMISSION);
   const link = await loadShortLinkForSession({ env, session, linkId, ownerOnly: true });
-  if (!link) throw notFoundError("Link nao encontrado.");
+  if (!link) throw notFoundError("Link não encontrado.");
 
   const users = await all(
     env,
@@ -370,11 +370,11 @@ export async function shareAdminShortLink({ request, env, session, linkId }) {
   requirePermission(session, UPDATE_PERMISSION);
   assertAdminMutationAllowed({ request });
   const link = await loadShortLinkForSession({ env, session, linkId, ownerOnly: true });
-  if (!link) throw notFoundError("Link nao encontrado.");
+  if (!link) throw notFoundError("Link não encontrado.");
   const payload = await readJson(request);
   rejectUnknownFields(payload, new Set(["user_id"]));
   const userId = requireString(payload.user_id, "user_id", { max: 120 });
-  if (userId === session.user.id) throw badRequest("O proprietario ja possui acesso ao link.");
+  if (userId === session.user.id) throw badRequest("O proprietário já possui acesso ao link.");
 
   const target = await first(
     env,
@@ -388,7 +388,7 @@ export async function shareAdminShortLink({ request, env, session, linkId }) {
       LIMIT 1`,
     [link.hotel_id, userId],
   );
-  if (!target) throw forbidden("O usuario nao pertence a esta unidade.");
+  if (!target) throw forbidden("O usuário não pertence a esta unidade.");
 
   const existing = await first(
     env,
@@ -422,7 +422,7 @@ export async function revokeAdminShortLinkShare({ request, env, session, linkId,
   requirePermission(session, UPDATE_PERMISSION);
   assertAdminMutationAllowed({ request });
   const link = await loadShortLinkForSession({ env, session, linkId, ownerOnly: true });
-  if (!link) throw notFoundError("Link nao encontrado.");
+  if (!link) throw notFoundError("Link não encontrado.");
   const safeUserId = requireString(userId, "user_id", { max: 120 });
   const existing = await first(
     env,
@@ -474,7 +474,7 @@ function selectHotelForList(session, requestedHotelId) {
   const requested = optionalString(requestedHotelId, "hotel_id", { max: 80 });
   if (requested) return requested;
   const hotel = session.hotel_ids[0];
-  if (!hotel) throw notFoundError("Hotel nao encontrado.");
+  if (!hotel) throw notFoundError("Hotel não encontrado.");
   return hotel;
 }
 
@@ -510,13 +510,13 @@ function formatShortLink(row, { request, env, session }) {
 
 function rejectUnknownFields(payload, allowed) {
   const unknownFields = Object.keys(payload).filter((key) => !allowed.has(key));
-  if (unknownFields.length) throw badRequest("Campos de link nao permitidos.", { fields: unknownFields });
+  if (unknownFields.length) throw badRequest("Campos de link não permitidos.", { fields: unknownFields });
 }
 
 function parseInteger(value, { defaultValue, max }) {
   if (value == null || value === "") return defaultValue;
   const number = Number(value);
-  if (!Number.isInteger(number) || number < 0 || number > max) throw badRequest("Paginacao invalida.");
+  if (!Number.isInteger(number) || number < 0 || number > max) throw badRequest("Paginação inválida.");
   return number;
 }
 

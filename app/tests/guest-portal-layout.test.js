@@ -226,7 +226,7 @@ test("central permite escolher imagem ou video da biblioteca para a identidade",
   assert.match(adminScript, /renderIdentityMediaOption/);
   assert.match(adminScript, /name="media_asset_id"/);
   assert.match(adminScript, /String\(asset\.mime_type \|\| ""\)\.startsWith\("video\/"\)/);
-  assert.match(adminScript, /Capa do portal \(imagem ou video\)/);
+  assert.match(adminScript, /Capa do portal \(imagem ou vídeo\)/);
   assert.doesNotMatch(adminScript, /const selected = assets\[0\]/);
 });
 

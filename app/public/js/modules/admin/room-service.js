@@ -54,8 +54,8 @@ auth.boot();
 async function startDashboard() {
   state.hotels = state.session?.hotels || [];
   if (!canAccessRoomService(state.session)) {
-    els.dashboardError.textContent = "Permissao administrativa insuficiente para o Room Service.";
-    els.ordersList.innerHTML = '<div class="admin-empty">Acesso ao Room Service nao disponivel para este usuario.</div>';
+    els.dashboardError.textContent = "Permissão administrativa insuficiente para o Room Service.";
+    els.ordersList.innerHTML = '<div class="admin-empty">Acesso ao Room Service não disponível para este usuário.</div>';
     renderEmptyDetail();
     return;
   }
@@ -81,7 +81,7 @@ async function loadOrders() {
     if (state.selectedOrderId) await loadOrderDetail(state.selectedOrderId);
     else renderEmptyDetail();
   } catch (error) {
-    els.ordersList.innerHTML = '<div class="admin-empty">Nao foi possivel carregar pedidos.</div>';
+    els.ordersList.innerHTML = '<div class="admin-empty">Não foi possível carregar pedidos.</div>';
     els.dashboardError.textContent = error.message || "Erro ao carregar pedidos.";
   }
 }
@@ -95,7 +95,7 @@ async function loadOrderDetail(orderId) {
     state.selectedOrder = payload.data.order;
     renderOrderDetail();
   } catch (error) {
-    els.orderDetail.innerHTML = `<div class="admin-detail-empty">${escapeHtml(error.message || "Pedido nao encontrado.")}</div>`;
+    els.orderDetail.innerHTML = `<div class="admin-detail-empty">${escapeHtml(error.message || "Pedido não encontrado.")}</div>`;
   }
 }
 
@@ -116,7 +116,7 @@ async function updateStatus(orderId, status) {
     state.selectedOrder = payload.data.order;
     await loadOrders();
   } catch (error) {
-    els.dashboardError.textContent = error.message || "Nao foi possivel atualizar o status.";
+    els.dashboardError.textContent = error.message || "Não foi possível atualizar o status.";
   }
 }
 
@@ -178,10 +178,10 @@ function renderOrderDetail() {
       <div class="admin-detail-grid">
         ${infoBox("Hotel", order.hotel_name)}
         ${infoBox("Origem", order.origin)}
-        ${infoBox("Hospede", order.guest_name)}
+        ${infoBox("Hóspede", order.guest_name)}
         ${infoBox("Local", order.delivery?.location)}
-        ${infoBox("Acomodacao", order.delivery?.room_code || order.room_code)}
-        ${infoBox("Contato", order.delivery?.contact || "Nao informado")}
+        ${infoBox("Acomodação", order.delivery?.room_code || order.room_code)}
+        ${infoBox("Contato", order.delivery?.contact || "Não informado")}
       </div>
 
       <section>
@@ -276,7 +276,7 @@ function nextStatuses(status) {
 }
 
 function infoBox(label, value) {
-  return `<div class="admin-info-box"><span>${escapeHtml(label)}</span>${escapeHtml(value || "Nao informado")}</div>`;
+  return `<div class="admin-info-box"><span>${escapeHtml(label)}</span>${escapeHtml(value || "Não informado")}</div>`;
 }
 
 function statusLabel(status) {
