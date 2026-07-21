@@ -11,20 +11,26 @@ Os antigos tipos de conteúdo continuam preservados no banco para compatibilidad
 O construtor fica em **Central Administrativa > Criador de portais** e oferece:
 
 - canvas em tela cheia;
+- criação, duplicação, exclusão e edição de páginas dentro do mesmo site;
+- navegação interna por seletor de páginas, sem exigir que a equipe digite URLs;
+- destino especial para o Room Service da unidade, resolvido pelo `hotel_slug`;
 - alternância e pré-visualização separada para desktop e mobile;
 - biblioteca de blocos com inclusão por clique ou arrastar e soltar;
 - camadas reordenáveis por arrastar e soltar, botões de ordem ou painel de camadas;
 - movimento livre de blocos nos eixos horizontal e vertical, com valores independentes por dispositivo;
 - propriedades globais e substituições por dispositivo;
 - tipografia, espaçamento, colunas, cores, largura e visibilidade ajustáveis separadamente para desktop e mobile;
-- imagens e vídeos da Biblioteca de Mídia da própria unidade, inclusive como fundo da página;
+- imagens e vídeos da Biblioteca de Mídia da própria unidade, inclusive como fundo independente de cada página;
+- favicon e cabeçalho personalizável com logotipo, menu, cores, transparência, desfoque e ação principal;
 - capa, títulos, textos, botões, imagens, vídeos, galeria, grade, citação, contato, incorporações, divisor e espaçador;
 - incorporações HTTPS para Google Maps, páginas hospedadas e serviços compatíveis com `iframe`;
+- incorporações de HTML sanitizado em iframe isolado e sem execução de scripts;
 - desfazer, refazer, copiar, colar, duplicar, mover e excluir blocos;
 - pré-visualização do rascunho;
-- salvamento com controle de revisão;
+- salvamento manual e automático com intervalo configurável e controle de revisão;
 - publicação explícita;
-- histórico de versões com restauração para um novo rascunho;
+- histórico de versões com prévia visual desktop/mobile antes da restauração para um novo rascunho;
+- opção de aplicativo instalável com manifesto, service worker restrito ao portal e solicitação nativa quando o navegador estiver apto;
 - duplicação de portal;
 - modelos internos e modelos salvos pela equipe.
 
@@ -44,41 +50,68 @@ https://portal.hoteisfioreze.com.br/:hotel_slug/:portal_slug
 
 O registro continua vinculado a `hotel_id` e `module_key`. A rota pública responde somente quando hotel, módulo e portal estão ativos e públicos. `VISUAL_PORTAL_PUBLIC_ORIGIN` define a origem exibida pela Central; sem ela, ambientes locais usam a origem técnica da requisição.
 
+As páginas internas usam o mesmo endereço canônico, com o slug da página no terceiro segmento:
+
+```text
+https://portal.hoteisfioreze.com.br/:hotel_slug/:portal_slug/:page_slug
+```
+
 O formato anterior `/portal/:hotel_slug/:portal_slug` redireciona permanentemente para o endereço canônico. No domínio oficial, o shell legado do Portal do Hóspede e as antigas páginas em `/portal-content/*` não são expostos: `/:hotel_slug` retorna 404, e qualquer segundo segmento só responde quando corresponde a um portal personalizado publicado. `/:hotel_slug/room-service` permanece reservado ao Room Service e continua fora do construtor.
 
 ## Documento visual
 
-O banco não armazena HTML livre. O campo JSON usa `schema_version=1` e contém:
+O campo JSON usa `schema_version=2`. Documentos `schema_version=1` são promovidos automaticamente para um site de uma página durante a leitura, sem migration destrutiva e sem perder blocos. A estrutura atual contém configurações compartilhadas e páginas independentes:
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "settings": {
-    "background_color": "#ffffff",
-    "background_media_asset_id": null,
-    "background_overlay": 0,
-    "background_position": "center",
-    "background_fit": "cover",
-    "background_fixed": false,
-    "text_color": "#202124",
     "primary_color": "#513b2d",
-    "font_family": "Inter, system-ui, sans-serif"
+    "font_family": "Inter, system-ui, sans-serif",
+    "favicon_media_asset_id": "",
+    "header": {
+      "enabled": true,
+      "style": "floating",
+      "position": "sticky",
+      "logo_media_asset_id": "",
+      "show_navigation": true
+    },
+    "pwa": {
+      "install_enabled": false
+    },
+    "editor": {
+      "autosave_enabled": true,
+      "autosave_interval_seconds": 30
+    }
   },
-  "blocks": []
+  "pages": [
+    {
+      "id": "inicio",
+      "slug": "",
+      "name": "Início",
+      "show_in_navigation": true,
+      "settings": {
+        "background_color": "#ffffff",
+        "background_media_asset_id": "",
+        "background_fit": "cover"
+      },
+      "blocks": []
+    }
+  ]
 }
 ```
 
-Cada bloco possui `id`, `type`, `content`, `styles.base`, `styles.desktop`, `styles.mobile` e `visibility`. Os estilos por dispositivo incluem os deslocamentos `offset_x` e `offset_y`, usados pelo movimento livre sem misturar o layout desktop com o mobile. O Worker normaliza o documento antes de salvá-lo e novamente antes de servi-lo.
+Cada página possui identidade estável, slug único, visibilidade no menu, fundo e blocos próprios. Cada bloco possui `id`, `type`, `content`, `styles.base`, `styles.desktop`, `styles.mobile` e `visibility`. Os estilos por dispositivo incluem os deslocamentos `offset_x` e `offset_y`, usados pelo movimento livre sem misturar o layout desktop com o mobile. O Worker normaliza o documento antes de salvá-lo e novamente antes de servi-lo.
 
 ## Segurança
 
 - textos são tratados como texto e escapados na renderização;
-- URLs aceitam apenas caminhos internos, HTTPS, `mailto:` e `tel:`;
+- URLs aceitam apenas páginas do próprio site, o Room Service da unidade, caminhos internos, HTTPS, `mailto:` e `tel:`;
 - mídias são referências a `media_assets` ativas da mesma unidade;
-- não são aceitos scripts, eventos HTML, CSS arbitrário ou HTML livre no documento;
+- HTML incorporado passa pelo sanitizador compartilhado antes de ser salvo; scripts, eventos, estilos perigosos e URLs inseguras são removidos;
 - incorporações aceitam apenas URLs HTTPS sem credenciais e rejeitam endereços locais ou privados;
-- iframes são renderizados em sandbox e limitados pela CSP a origens HTTPS;
-- a página pública principal usa CSP sem JavaScript próprio;
+- incorporações HTML usam `srcdoc` em sandbox sem `allow-scripts`; incorporações HTTPS também não recebem `allow-same-origin`;
+- o portal usa CSP estrita; JavaScript local é liberado somente quando o modo instalável está ativo;
 - APIs administrativas exigem sessão, permissão e acesso ao hotel;
 - mutações exigem origem válida e o header administrativo;
 - o editor usa `expected_revision` para impedir sobrescrita silenciosa;
@@ -87,7 +120,7 @@ Cada bloco possui `id`, `type`, `content`, `styles.base`, `styles.desktop`, `sty
 
 ## Templates
 
-Existem pontos de partida internos para hospitalidade, loja digital, campanha, eventos, página de serviço e página em branco. Os modelos usam cartões, botões e seções com cantos arredondados e permanecem integralmente editáveis. Um usuário autorizado pode salvar o documento atual como modelo da unidade e aplicá-lo em outro portal. Um modelo guarda apenas o documento visual e referências de mídia; não copia usuários, configurações privadas ou dados operacionais.
+Existem pontos de partida internos para o Portal do Hóspede Fioreze, hospitalidade, loja digital, campanha, eventos, página de serviço e página em branco. O modelo do Portal do Hóspede entrega Início, Serviços, Eventos, Hotel, Blog e Como chegar, com navegação e destinos internos já conectados. Os modelos permanecem integralmente editáveis. Um usuário autorizado pode salvar o site completo como modelo da unidade e aplicá-lo em outro portal. Um modelo guarda apenas o documento visual e referências de mídia; não copia usuários, configurações privadas ou dados operacionais.
 
 ## Links personalizados
 
@@ -104,6 +137,8 @@ Cada portal publicado fornece `public_url`. A Central pode enviar esse endereço
 
 Nenhuma edição de rascunho muda uma página já publicada até a ação de publicação.
 
+O histórico oferece uma prévia visual do snapshot antes da restauração. Confirmações, exclusões e restaurações usam diálogos e mensagens do próprio editor; o fluxo não depende de `alert`, `confirm` ou `prompt` do navegador.
+
 ## Próximas evoluções
 
 - seções e colunas aninhadas;
@@ -112,7 +147,8 @@ Nenhuma edição de rascunho muda uma página já publicada até a ação de pub
 - colaboração em tempo real;
 - domínio próprio por portal;
 - formulários conectados a contratos específicos de cada módulo;
-- importação controlada de templates externos para o documento estruturado.
+- importação controlada de templates externos para o documento estruturado;
+- captura persistida de miniatura do snapshot para complementar a prévia renderizada atual.
 
 ## Limites operacionais
 
@@ -120,3 +156,4 @@ Nenhuma edição de rascunho muda uma página já publicada até a ação de pub
 - uma incorporação pode ser recusada pelo site de origem quando ele proíbe `iframe` por cabeçalhos próprios;
 - arquivos usados como fundo permanecem vinculados à Biblioteca de Mídia da unidade e precisam estar ativos;
 - conteúdos antigos não são excluídos automaticamente durante a adoção do novo criador.
+- `public/index.html`, `portal-home.js` e os estilos do shell compartilhado não podem ser apagados nesta etapa: ainda sustentam o Room Service e rotas públicas de compatibilidade. A economia definitiva depende da retirada controlada dessas rotas após todos os hotéis possuírem portais publicados no construtor.

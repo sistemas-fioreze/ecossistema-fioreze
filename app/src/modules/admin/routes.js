@@ -99,6 +99,7 @@ import {
   duplicateAdminVisualPortal,
   getAdminVisualPortal,
   getAdminVisualPortalTemplate,
+  getAdminVisualPortalVersion,
   listAdminVisualPortalTemplates,
   listAdminVisualPortalVersions,
   listAdminVisualPortals,
@@ -835,6 +836,11 @@ export function registerAdminRoutes(router) {
   router.get("/api/v1/admin/visual-portals/:id/versions", async ({ request, env, params }) => {
     const session = await requireAuthentication({ request, env });
     return ok(await listAdminVisualPortalVersions({ env, session, portalId: params.id }));
+  });
+
+  router.get("/api/v1/admin/visual-portals/:id/versions/:versionId", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await getAdminVisualPortalVersion({ env, session, portalId: params.id, versionId: params.versionId }));
   });
 
   router.post("/api/v1/admin/visual-portals/:id/versions/:versionId/restore", async ({ request, env, params }) => {

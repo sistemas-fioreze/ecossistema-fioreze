@@ -14,7 +14,7 @@ const BLOCKS = [
   ["button", "Botão", "Ação para outro endereço", icon("button")],
   ["image", "Imagem", "Imagem da Biblioteca de Mídia", icon("image")],
   ["video", "Vídeo", "Vídeo com capa e controles", icon("video")],
-  ["embed", "Incorporar", "Google Maps, vídeos e páginas HTTPS", icon("embed")],
+  ["embed", "Incorporar", "Endereço HTTPS ou HTML sanitizado", icon("embed")],
   ["gallery", "Galeria", "Conjunto de imagens", icon("gallery")],
   ["feature-grid", "Grade", "Cards de serviços e destaques", icon("grid")],
   ["quote", "Citação", "Depoimento ou frase em destaque", icon("quote")],
@@ -31,6 +31,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
   const state = {
     portal: null,
     document: null,
+    activePageId: null,
     original: "",
     selectedId: null,
     viewport: "desktop",
@@ -49,6 +50,9 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     clipboardBlock: null,
     positionDrag: null,
     zoomManuallySet: false,
+    autosaveTimer: null,
+    previewDocument: null,
+    previewVersionId: "",
   };
   const els = mapElements(root);
 
@@ -74,29 +78,37 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
         const payload = await adminApi(`/api/v1/admin/visual-portals/${encodeURIComponent(portalId)}`);
         state.portal = payload.data.portal;
         state.document = clone(state.portal.document);
+        state.activePageId = state.document.pages[0]?.id || null;
         state.original = stableJson(state.document);
-        state.selectedId = state.document.blocks[0]?.id || null;
+        state.selectedId = activePage()?.blocks[0]?.id || null;
         state.history = [clone(state.document)];
         state.historyIndex = 0;
         state.leftTab = "blocks";
         await Promise.all([loadMedia(), loadTemplates(), loadVersions()]);
         renderAll();
+        scheduleAutosave();
         requestAnimationFrame(() => fitCanvas(true));
       } catch (error) {
-        close();
-        window.alert(error.message || "Não foi possível abrir o construtor.");
+        forceClose();
+        announce(error.message || "Não foi possível abrir o construtor.", true);
       } finally {
         setBusy(false);
       }
     },
   };
 
-  function close() {
-    if (isDirty() && !window.confirm("Existem alterações não salvas. Sair do construtor?")) return;
+  async function close() {
+    if (isDirty() && !await requestConfirmation({ title: "Sair sem salvar?", message: "As alterações feitas desde o último salvamento serão perdidas.", confirmLabel: "Sair sem salvar", danger: true })) return;
+    forceClose();
+  }
+
+  function forceClose() {
+    window.clearTimeout(state.autosaveTimer);
     root.hidden = true;
     document.documentElement.classList.remove("visual-builder-open");
     state.portal = null;
     state.document = null;
+    state.activePageId = null;
   }
 
   async function loadMedia() {
@@ -163,7 +175,8 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
   function renderAll() {
     if (!state.portal || !state.document) return;
     els.title.textContent = state.portal.name;
-    els.path.textContent = `/${state.portal.hotel_slug}/${state.portal.slug}`;
+    const page = activePage();
+    els.path.textContent = `/${state.portal.hotel_slug}/${state.portal.slug}${page?.slug ? `/${page.slug}` : ""}`;
     els.status.textContent = state.portal.status === "published" ? "Publicado" : "Rascunho";
     els.status.dataset.status = state.portal.status;
     els.deviceButtons.forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.viewport === state.viewport)));
@@ -179,29 +192,37 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
 
   function renderLeftPanel() {
     els.leftTabs.forEach((button) => button.setAttribute("aria-selected", String(button.dataset.builderTab === state.leftTab)));
+    if (state.leftTab === "pages") {
+      const page = activePage();
+      els.leftContent.innerHTML = `<div class="vp-panel-heading"><div><strong>Páginas</strong><span>${state.document.pages.length} de 20 páginas</span></div><button type="button" data-add-page title="Adicionar página">${icon("plus")}</button></div><div class="vp-pages">${state.document.pages.map((item) => `<article class="${item.id === state.activePageId ? "is-selected" : ""}"><button type="button" data-select-page="${escapeAttr(item.id)}"><span>${icon(item.slug ? "page" : "home")}</span><div><strong>${escapeHtml(item.name)}</strong><small>${item.slug ? `/${escapeHtml(item.slug)}` : "Página inicial"}${item.show_in_navigation ? " · no menu" : ""}</small></div></button><div><button type="button" data-duplicate-page="${escapeAttr(item.id)}" title="Duplicar página">${icon("copy")}</button><button type="button" data-delete-page="${escapeAttr(item.id)}" title="Excluir página" ${item.slug ? "" : "disabled"}>${icon("trash")}</button></div></article>`).join("")}</div>${page ? '<button type="button" class="vp-secondary-action" data-page-settings>Configurar página atual</button>' : ""}`;
+      return;
+    }
     if (state.leftTab === "blocks") {
       els.leftContent.innerHTML = `<div class="vp-library-search"><span>${icon("search")}</span><input type="search" data-block-search placeholder="Buscar bloco" aria-label="Buscar bloco"></div><div class="vp-block-library">${BLOCKS.map(([type, label, description, svg]) => `<button type="button" draggable="true" data-add-block="${type}" title="Arraste ou clique para adicionar"><span>${svg}</span><strong>${label}</strong><small>${description}</small></button>`).join("")}</div>`;
       return;
     }
     if (state.leftTab === "layers") {
-      els.leftContent.innerHTML = `<div class="vp-panel-heading"><div><strong>Camadas</strong><span>${state.document.blocks.length} blocos</span></div></div><div class="vp-layers">${state.document.blocks.map((block, index) => `<button type="button" draggable="true" data-layer-id="${escapeAttr(block.id)}" class="${block.id === state.selectedId ? "is-selected" : ""}"><span class="vp-layer-drag">${icon("grip")}</span><span>${iconForBlock(block.type)}</span><strong>${escapeHtml(blockLabel(block, index))}</strong><small>${block.visibility.desktop ? "D" : ""}${block.visibility.mobile ? "M" : ""}</small></button>`).join("") || '<p class="vp-empty">A página ainda não tem blocos.</p>'}</div>`;
+      const blocks = pageBlocks();
+      els.leftContent.innerHTML = `<div class="vp-panel-heading"><div><strong>Camadas</strong><span>${blocks.length} blocos em ${escapeHtml(activePage()?.name || "Página")}</span></div></div><div class="vp-layers">${blocks.map((block, index) => `<button type="button" draggable="true" data-layer-id="${escapeAttr(block.id)}" class="${block.id === state.selectedId ? "is-selected" : ""}"><span class="vp-layer-drag">${icon("grip")}</span><span>${iconForBlock(block.type)}</span><strong>${escapeHtml(blockLabel(block, index))}</strong><small>${block.visibility.desktop ? "D" : ""}${block.visibility.mobile ? "M" : ""}</small></button>`).join("") || '<p class="vp-empty">A página ainda não tem blocos.</p>'}</div>`;
       return;
     }
     if (state.leftTab === "templates") {
       els.leftContent.innerHTML = `<div class="vp-panel-heading"><div><strong>Modelos</strong><span>Reutilize páginas prontas</span></div><button type="button" data-save-template title="Salvar página atual como modelo">${icon("plus")}</button></div><div class="vp-templates">${state.templates.map((template) => `<article><span>${icon(template.builtin ? "template" : "bookmark")}</span><div><strong>${escapeHtml(template.name)}</strong><small>${escapeHtml(template.description || "Modelo salvo pela sua equipe")}</small></div><button type="button" data-apply-template="${escapeAttr(template.id)}">Aplicar</button>${template.builtin ? "" : `<button type="button" class="icon-only danger" data-archive-template="${escapeAttr(template.id)}" title="Arquivar modelo">${icon("trash")}</button>`}</article>`).join("") || '<p class="vp-empty">Nenhum modelo disponível.</p>'}</div>`;
       return;
     }
-    els.leftContent.innerHTML = `<div class="vp-panel-heading"><div><strong>Histórico</strong><span>Restaure uma versão como rascunho</span></div></div><div class="vp-versions">${state.versions.map((version) => `<article><span data-version-type="${escapeAttr(version.version_type)}">${icon(version.version_type === "published" ? "publish" : version.version_type === "restored" ? "undo" : "save")}</span><div><strong>Versão ${Number(version.revision)}</strong><small>${version.version_type === "published" ? "Publicada" : version.version_type === "restored" ? "Restaurada" : "Rascunho"} · ${escapeHtml(formatVersionDate(version.created_at))}</small><em>${escapeHtml(version.created_by_name || "Equipe")}</em></div><button type="button" data-restore-version="${escapeAttr(version.id)}">Restaurar</button></article>`).join("") || '<p class="vp-empty">Nenhuma versão salva.</p>'}</div>`;
+    els.leftContent.innerHTML = `<div class="vp-panel-heading"><div><strong>Histórico</strong><span>Confira a prévia antes de restaurar</span></div></div><div class="vp-versions">${state.versions.map((version) => `<article><span data-version-type="${escapeAttr(version.version_type)}">${icon(version.version_type === "published" ? "publish" : version.version_type === "restored" ? "undo" : "save")}</span><div><strong>Versão ${Number(version.revision)}</strong><small>${version.version_type === "published" ? "Publicada" : version.version_type === "restored" ? "Restaurada" : "Rascunho"} · ${escapeHtml(formatVersionDate(version.created_at))}</small><em>${escapeHtml(version.created_by_name || "Equipe")}</em></div><button type="button" data-preview-version="${escapeAttr(version.id)}">Ver prévia</button></article>`).join("") || '<p class="vp-empty">Nenhuma versão salva.</p>'}</div>`;
   }
 
   function renderCanvas() {
-    const page = state.document;
+    const page = activePage();
+    if (!page) return;
     const settings = page.settings;
     const frameWidth = state.viewport === "mobile" ? 390 : 1440;
     els.stage.dataset.viewport = state.viewport;
     els.stage.style.setProperty("--preview-width", `${frameWidth}px`);
     els.stage.style.setProperty("--preview-scale", state.zoom / 100);
-    els.canvas.innerHTML = `<div class="vp-preview-page ${settings.background_media_asset_id ? "has-page-media" : ""}" style="--vp-page-bg:${escapeAttr(settings.background_color)};--vp-page-text:${escapeAttr(settings.text_color)};--vp-page-primary:${escapeAttr(settings.primary_color)};--vp-page-surface:${escapeAttr(settings.surface_color)};--vp-page-font:${escapeAttr(settings.font_family)};--vp-page-gap:${Number(settings.block_gap)}px;--vp-page-padding:${Number(settings.page_padding)}px;--vp-page-overlay:${Number(settings.background_overlay || 0) / 100};--vp-page-media-position:${escapeAttr(settings.background_position || "center")};--vp-page-media-fit:${escapeAttr(settings.background_fit || "cover")}">${pageBackgroundPreview(settings)}<div class="vp-page-content">${page.blocks.map((block, index) => renderEditableBlock(block, index)).join("") || `<button type="button" class="vp-empty-canvas" data-add-block="hero">${icon("plus")}<strong>Adicione o primeiro bloco</strong><span>Comece por uma capa ou arraste qualquer elemento da biblioteca.</span></button>`}</div></div>`;
+    const site = state.document.settings;
+    els.canvas.innerHTML = `<div class="vp-preview-page ${settings.background_media_asset_id ? "has-page-media" : ""}" style="--vp-page-bg:${escapeAttr(settings.background_color)};--vp-page-text:${escapeAttr(settings.text_color)};--vp-page-primary:${escapeAttr(site.primary_color)};--vp-page-surface:${escapeAttr(settings.surface_color)};--vp-page-font:${escapeAttr(site.font_family)};--vp-page-gap:${Number(settings.block_gap)}px;--vp-page-padding:${Number(settings.page_padding)}px;--vp-page-overlay:${Number(settings.background_overlay || 0) / 100};--vp-page-media-position:${escapeAttr(settings.background_position || "center")};--vp-page-media-fit:${escapeAttr(settings.background_fit || "cover")}">${pageBackgroundPreview(settings)}${renderEditorHeader()}<div class="vp-page-content">${page.blocks.map((block, index) => renderEditableBlock(block, index)).join("") || `<button type="button" class="vp-empty-canvas" data-add-block="hero">${icon("plus")}<strong>Adicione o primeiro bloco</strong><span>Comece por uma capa ou arraste qualquer elemento da biblioteca.</span></button>`}</div></div>`;
   }
 
   function renderEditableBlock(block, index) {
@@ -209,7 +230,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     const styles = resolvedBlockStyle(block);
     const style = editableStyle(styles);
     const hidden = (state.viewport === "desktop" && !block.visibility.desktop) || (state.viewport === "mobile" && !block.visibility.mobile);
-    return `<section class="vp-canvas-block ${selected ? "is-selected" : ""} ${hidden ? "is-hidden-device" : ""}" data-canvas-block="${escapeAttr(block.id)}" draggable="true" style="${escapeAttr(style)}"><div class="vp-block-toolbar"><button type="button" data-position-block title="Arrastar livremente">${icon("move")}</button><button type="button" data-move-block="up" title="Mover para cima" ${index === 0 ? "disabled" : ""}>${icon("up")}</button><button type="button" data-move-block="down" title="Mover para baixo" ${index === state.document.blocks.length - 1 ? "disabled" : ""}>${icon("down")}</button><button type="button" data-duplicate-block title="Duplicar bloco">${icon("copy")}</button><button type="button" data-delete-block title="Excluir bloco">${icon("trash")}</button></div>${renderBlockPreview(block)}</section>`;
+    return `<section class="vp-canvas-block ${selected ? "is-selected" : ""} ${hidden ? "is-hidden-device" : ""}" data-canvas-block="${escapeAttr(block.id)}" draggable="true" style="${escapeAttr(style)}"><div class="vp-block-toolbar"><button type="button" data-position-block title="Arrastar livremente">${icon("move")}</button><button type="button" data-move-block="up" title="Mover para cima" ${index === 0 ? "disabled" : ""}>${icon("up")}</button><button type="button" data-move-block="down" title="Mover para baixo" ${index === pageBlocks().length - 1 ? "disabled" : ""}>${icon("down")}</button><button type="button" data-duplicate-block title="Duplicar bloco">${icon("copy")}</button><button type="button" data-delete-block title="Excluir bloco">${icon("trash")}</button></div>${renderBlockPreview(block)}</section>`;
   }
 
   function renderBlockPreview(block) {
@@ -224,13 +245,26 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     if (block.type === "button") return `<div class="vp-preview-inner">${previewButton(content.text || "Novo botão", content.url || "/", content.style)}</div>`;
     if (block.type === "image") return mediaPreview(content.media_asset_id, "image", content.alt_text || "Selecione uma imagem", content.fit);
     if (block.type === "video") return mediaPreview(content.media_asset_id, "video", content.title || "Selecione um vídeo");
-    if (block.type === "embed") return `<div class="vp-preview-inner vp-preview-embed" style="--vp-embed-ratio:${escapeAttr(embedRatio(content.aspect_ratio))}">${content.url ? `<iframe src="${escapeAttr(content.url)}" title="${escapeAttr(content.title || "Conteúdo incorporado")}" tabindex="-1"></iframe><span>${icon("embed")} Conteúdo incorporado</span>` : mediaPlaceholder("Informe um endereço HTTPS para incorporar")}</div>`;
+    if (block.type === "embed") {
+      const source = content.mode === "html"
+        ? (content.html ? `srcdoc="${escapeAttr(content.html)}" sandbox="allow-forms allow-popups allow-presentation"` : "")
+        : (content.url ? `src="${escapeAttr(content.url)}"` : "");
+      return `<div class="vp-preview-inner vp-preview-embed" style="--vp-embed-ratio:${escapeAttr(embedRatio(content.aspect_ratio))}">${source ? `<iframe ${source} title="${escapeAttr(content.title || "Conteúdo incorporado")}" tabindex="-1"></iframe><span>${icon("embed")} Conteúdo incorporado</span>` : mediaPlaceholder(content.mode === "html" ? "Cole o HTML que deseja incorporar" : "Informe um endereço HTTPS para incorporar")}</div>`;
+    }
     if (block.type === "gallery") return `<div class="vp-preview-inner">${content.title ? `<h2>${escapeHtml(content.title)}</h2>` : ""}<div class="vp-preview-gallery">${content.media_asset_ids.map((id) => mediaById(id)).filter(Boolean).map((media) => `<img src="${escapeAttr(media.public_url)}" alt="">`).join("") || mediaPlaceholder("Galeria sem imagens")}</div></div>`;
     if (block.type === "feature-grid") return `<div class="vp-preview-inner vp-preview-grid">${content.items.map((item) => `<article>${mediaThumbnail(item.media_asset_id)}<div><h3>${escapeHtml(item.title || "Novo destaque")}</h3>${previewParagraphs(item.text)}${previewButton(item.button_text, item.button_url, "ghost")}</div></article>`).join("") || mediaPlaceholder("Adicione itens à grade")}</div>`;
     if (block.type === "quote") return `<figure class="vp-preview-inner vp-preview-quote"><blockquote>${escapeHtml(content.quote || "Uma frase memorável para destacar.")}</blockquote>${content.author ? `<figcaption>${escapeHtml(content.author)}</figcaption>` : ""}</figure>`;
     if (block.type === "contact") return `<div class="vp-preview-inner vp-preview-contact"><h2>${escapeHtml(content.title || "Fale conosco")}</h2>${previewParagraphs(content.text)}<div>${[content.address, content.phone, content.email].filter(Boolean).map((value) => `<span>${escapeHtml(value)}</span>`).join("")}</div>${previewButton(content.button_text, content.button_url)}</div>`;
     if (block.type === "divider") return `<div class="vp-preview-inner vp-preview-divider"><span></span>${content.label ? `<em>${escapeHtml(content.label)}</em>` : ""}<span></span></div>`;
     return `<div class="vp-preview-spacer"><span>${Number(resolvedBlockStyle(block).min_height || 48)} px</span></div>`;
+  }
+
+  function renderEditorHeader() {
+    const header = state.document.settings.header;
+    if (!header.enabled) return "";
+    const logo = mediaById(header.logo_media_asset_id);
+    const nav = header.show_navigation ? state.document.pages.filter((page) => page.show_in_navigation).map((page) => `<span class="${page.id === state.activePageId ? "is-current" : ""}">${escapeHtml(page.name)}</span>`).join("") : "";
+    return `<div class="${editorHeaderClasses(header)}" style="--vp-header-bg:${escapeAttr(header.background_color)};--vp-header-text:${escapeAttr(header.text_color)};--vp-header-accent:${escapeAttr(header.accent_color)}">${header.show_logo ? `<div class="vp-editor-brand">${logo ? `<img src="${escapeAttr(logo.public_url)}" alt="">` : `<strong>${escapeHtml(state.portal.hotel_name)}</strong>`}</div>` : ""}<nav>${nav}</nav>${header.cta_text ? `<span class="vp-editor-header-cta">${escapeHtml(header.cta_text)}</span>` : ""}</div>`;
   }
 
   function renderInspector() {
@@ -245,30 +279,64 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
   }
 
   function pageInspector() {
-    const settings = state.document.settings;
-    return `<fieldset><legend>Identidade da página</legend>${colorField("Fundo", "background_color", settings.background_color, "doc")}${colorField("Texto", "text_color", settings.text_color, "doc")}${colorField("Cor principal", "primary_color", settings.primary_color, "doc")}${colorField("Superfície", "surface_color", settings.surface_color, "doc")}<label><span>Tipografia</span><input data-doc-field="font_family" value="${escapeAttr(settings.font_family)}"></label><label><span>Largura do conteúdo</span><select data-doc-field="content_width">${options([["narrow", "Estreita"], ["content", "Padrão"], ["wide", "Ampla"], ["full", "Tela inteira"]], settings.content_width)}</select></label></fieldset><fieldset><legend>Fundo da página</legend>${pageMediaField(settings.background_media_asset_id)}${rangeField("Escurecimento", "background_overlay", settings.background_overlay, 0, 90, "doc")}<label><span>Posição</span><select data-doc-field="background_position">${options([["center", "Centro"], ["top", "Topo"], ["bottom", "Rodapé"], ["left", "Esquerda"], ["right", "Direita"]], settings.background_position)}</select></label><label><span>Ajuste</span><select data-doc-field="background_fit">${options([["cover", "Preencher"], ["contain", "Conter"]], settings.background_fit)}</select></label>${docToggleField("Fixar durante a rolagem", "background_fixed", settings.background_fixed)}${settings.background_media_asset_id ? `<button type="button" class="vp-secondary-action" data-clear-page-media>${icon("trash")} Remover mídia de fundo</button>` : ""}</fieldset><fieldset><legend>Ritmo</legend>${rangeField("Margem lateral", "page_padding", settings.page_padding, 0, 80, "doc")}${rangeField("Espaço entre blocos", "block_gap", settings.block_gap, 0, 80, "doc")}</fieldset>`;
+    const site = state.document.settings;
+    const page = activePage();
+    const settings = page.settings;
+    return `<fieldset><legend>Página atual</legend><label><span>Nome</span><input data-page-field="name" value="${escapeAttr(page.name)}"></label><label><span>Endereço</span><div class="vp-slug-field"><span>/</span><input data-page-field="slug" value="${escapeAttr(page.slug)}" ${page.slug ? "" : "disabled"}></div><small class="vp-field-help">A página inicial não usa complemento no endereço.</small></label>${pageToggleField("Exibir no menu", "show_in_navigation", page.show_in_navigation)}</fieldset><fieldset><legend>Identidade do site</legend>${colorField("Cor principal", "primary_color", site.primary_color, "doc")}${colorField("Texto padrão", "text_color", site.text_color, "doc")}${colorField("Superfície padrão", "surface_color", site.surface_color, "doc")}<label><span>Tipografia</span><input data-doc-field="font_family" value="${escapeAttr(site.font_family)}"></label>${siteMediaField("Ícone da guia", "favicon_media_asset_id", site.favicon_media_asset_id, "image", "document")}</fieldset><fieldset><legend>Cabeçalho</legend>${headerToggleField("Exibir cabeçalho", "enabled", site.header.enabled)}${headerToggleField("Exibir logotipo", "show_logo", site.header.show_logo)}${headerToggleField("Exibir páginas no menu", "show_navigation", site.header.show_navigation)}${headerToggleField("Fundo transparente", "transparent", site.header.transparent)}${headerToggleField("Desfoque de fundo", "blur", site.header.blur)}${siteMediaField("Logotipo do cabeçalho", "logo_media_asset_id", site.header.logo_media_asset_id, "image", "header")}<label><span>Estilo</span><select data-header-field="style">${options([["standard", "Padrão"], ["floating", "Flutuante"], ["centered", "Centralizado"], ["minimal", "Minimalista"]], site.header.style)}</select></label><label><span>Posição</span><select data-header-field="position">${options([["sticky", "Fixo ao rolar"], ["static", "No fluxo da página"]], site.header.position)}</select></label>${headerColorField("Fundo", "background_color", site.header.background_color)}${headerColorField("Texto", "text_color", site.header.text_color)}${headerColorField("Destaque", "accent_color", site.header.accent_color)}${textFieldForScope("Ação do cabeçalho", "cta_text", site.header.cta_text, "header")}${linkField("Destino da ação", "cta_url", site.header.cta_url, "header")}</fieldset><fieldset><legend>Fundo desta página</legend>${pageMediaField(settings.background_media_asset_id)}${pageColorField("Fundo", "background_color", settings.background_color)}${pageColorField("Texto", "text_color", settings.text_color)}${pageColorField("Superfície", "surface_color", settings.surface_color)}${pageRangeField("Escurecimento", "background_overlay", settings.background_overlay, 0, 90)}<label><span>Posição</span><select data-page-setting-field="background_position">${options([["center", "Centro"], ["top", "Topo"], ["bottom", "Rodapé"], ["left", "Esquerda"], ["right", "Direita"]], settings.background_position)}</select></label><label><span>Ajuste</span><select data-page-setting-field="background_fit">${options([["cover", "Preencher"], ["contain", "Conter"]], settings.background_fit)}</select></label>${pageSettingToggleField("Fixar durante a rolagem", "background_fixed", settings.background_fixed)}${settings.background_media_asset_id ? `<button type="button" class="vp-secondary-action" data-clear-page-media>${icon("trash")} Remover mídia de fundo</button>` : ""}</fieldset><fieldset><legend>Layout da página</legend><label><span>Largura do conteúdo</span><select data-page-setting-field="content_width">${options([["narrow", "Estreita"], ["content", "Padrão"], ["wide", "Ampla"], ["full", "Tela inteira"]], settings.content_width)}</select></label>${pageRangeField("Margem lateral", "page_padding", settings.page_padding, 0, 80)}${pageRangeField("Espaço entre blocos", "block_gap", settings.block_gap, 0, 80)}</fieldset><fieldset><legend>Aplicativo instalável</legend>${pwaToggleField("Permitir instalação como app", "install_enabled", site.pwa.install_enabled)}${textFieldForScope("Nome do aplicativo", "app_name", site.pwa.app_name, "pwa")}${textFieldForScope("Nome curto", "short_name", site.pwa.short_name, "pwa")}<label><span>Exibição</span><select data-pwa-field="display">${options([["standalone", "Aplicativo"], ["minimal-ui", "Navegação mínima"], ["browser", "Navegador"]], site.pwa.display)}</select></label><small class="vp-field-help">O navegador oferecerá a instalação quando os critérios do dispositivo forem atendidos.</small></fieldset><fieldset><legend>Salvamento automático</legend>${editorToggleField("Salvar automaticamente", "autosave_enabled", site.editor.autosave_enabled)}${editorRangeField("Intervalo em segundos", "autosave_interval_seconds", site.editor.autosave_interval_seconds, 15, 120)}</fieldset>`;
   }
 
   function blockContentInspector(block) {
     const content = block.content;
     const fields = [];
-    if (block.type === "hero") fields.push(textField("Chamada", "eyebrow", content.eyebrow), textField("Título", "title", content.title), textareaField("Texto", "text", content.text), textField("Texto do botão", "button_text", content.button_text), textField("Endereço do botão", "button_url", content.button_url), mediaField("Imagem de fundo", "media_asset_id", content.media_asset_id, "image"), rangeField("Escurecimento", "overlay", content.overlay, 0, 90, "content"));
+    if (block.type === "hero") fields.push(textField("Chamada", "eyebrow", content.eyebrow), textField("Título", "title", content.title), textareaField("Texto", "text", content.text), textField("Texto do botão", "button_text", content.button_text), linkField("Destino do botão", "button_url", content.button_url), mediaField("Imagem de fundo", "media_asset_id", content.media_asset_id, "image"), rangeField("Escurecimento", "overlay", content.overlay, 0, 90, "content"));
     if (block.type === "heading") fields.push(textField("Título", "title", content.title), textareaField("Texto", "text", content.text));
     if (block.type === "text") fields.push(textareaField("Conteúdo", "text", content.text, 10));
-    if (block.type === "button") fields.push(textField("Texto", "text", content.text), textField("Endereço", "url", content.url), `<label><span>Estilo</span><select data-content-field="style">${options([["solid", "Preenchido"], ["outline", "Contorno"], ["ghost", "Somente texto"]], content.style)}</select></label>`);
+    if (block.type === "button") fields.push(textField("Texto", "text", content.text), linkField("Destino", "url", content.url), `<label><span>Estilo</span><select data-content-field="style">${options([["solid", "Preenchido"], ["outline", "Contorno"], ["ghost", "Somente texto"]], content.style)}</select></label>`);
     if (block.type === "image") fields.push(mediaField("Imagem", "media_asset_id", content.media_asset_id, "image"), textField("Texto alternativo", "alt_text", content.alt_text), textField("Legenda", "caption", content.caption), `<label><span>Ajuste</span><select data-content-field="fit">${options([["cover", "Preencher"], ["contain", "Conter"]], content.fit)}</select></label>`);
     if (block.type === "video") fields.push(mediaField("Vídeo", "media_asset_id", content.media_asset_id, "video"), mediaField("Imagem de capa", "poster_media_asset_id", content.poster_media_asset_id, "image"), textField("Título", "title", content.title), toggleField("Exibir controles", "controls", content.controls), toggleField("Reprodução automática", "autoplay", content.autoplay), toggleField("Sem som", "muted", content.muted), toggleField("Repetir", "loop", content.loop));
-    if (block.type === "embed") fields.push(textField("Título acessível", "title", content.title), textField("Endereço HTTPS", "url", content.url), `<label><span>Proporção</span><select data-content-field="aspect_ratio">${options([["16:9", "Paisagem 16:9"], ["4:3", "Clássica 4:3"], ["1:1", "Quadrada"], ["9:16", "Vertical 9:16"]], content.aspect_ratio)}</select></label>`, toggleField("Permitir tela cheia", "allow_fullscreen", content.allow_fullscreen));
+    if (block.type === "embed") fields.push(textField("Título acessível", "title", content.title), `<label><span>Tipo de incorporação</span><select data-content-field="mode">${options([["url", "Endereço HTTPS"], ["html", "Código HTML"]], content.mode)}</select></label>`, content.mode === "html" ? textareaField("HTML sanitizado", "html", content.html, 12) : textField("Endereço HTTPS", "url", content.url), `<label><span>Proporção</span><select data-content-field="aspect_ratio">${options([["16:9", "Paisagem 16:9"], ["4:3", "Clássica 4:3"], ["1:1", "Quadrada"], ["9:16", "Vertical 9:16"]], content.aspect_ratio)}</select></label>`, toggleField("Permitir tela cheia", "allow_fullscreen", content.allow_fullscreen));
     if (block.type === "gallery") fields.push(textField("Título", "title", content.title), `<div class="vp-gallery-inspector">${content.media_asset_ids.map((id) => { const media = mediaById(id); return `<button type="button" data-remove-gallery-media="${escapeAttr(id)}" title="Remover">${media ? `<img src="${escapeAttr(media.public_url)}" alt="">` : icon("image")}<span>${icon("close")}</span></button>`; }).join("")}<button type="button" class="vp-add-gallery" data-choose-media="media_asset_ids" data-media-kind="image">${icon("plus")}<span>Adicionar</span></button></div>`);
     if (block.type === "feature-grid") fields.push(featureItemsInspector(content.items));
     if (block.type === "quote") fields.push(textareaField("Citação", "quote", content.quote, 6), textField("Autoria", "author", content.author));
-    if (block.type === "contact") fields.push(textField("Título", "title", content.title), textareaField("Texto", "text", content.text), textField("Endereço", "address", content.address), textField("Telefone", "phone", content.phone), textField("E-mail", "email", content.email), textField("Texto do botão", "button_text", content.button_text), textField("Endereço do botão", "button_url", content.button_url));
+    if (block.type === "contact") fields.push(textField("Título", "title", content.title), textareaField("Texto", "text", content.text), textField("Endereço", "address", content.address), textField("Telefone", "phone", content.phone), textField("E-mail", "email", content.email), textField("Texto do botão", "button_text", content.button_text), linkField("Destino do botão", "button_url", content.button_url));
     if (block.type === "divider") fields.push(textField("Legenda opcional", "label", content.label));
     return fields.length ? `<fieldset><legend>Conteúdo</legend>${fields.join("")}</fieldset>` : "";
   }
 
+  function linkField(label, field, value, scope = "content") {
+    const kind = linkKind(value);
+    const scopeAttr = scope === "header" ? "data-header-link" : "data-link-kind";
+    const pageTarget = String(value || "").startsWith("page:") ? String(value).slice(5) : state.document.pages[0]?.id || "inicio";
+    const pageAttr = scope === "header" ? "data-header-link-page" : "data-link-page";
+    const valueAttr = scope === "header" ? "data-header-link-value" : "data-link-value";
+    const targetControl = kind === "page"
+      ? `<select ${pageAttr}="${escapeAttr(field)}">${state.document.pages.map((page) => `<option value="${escapeAttr(page.id)}" ${page.id === pageTarget ? "selected" : ""}>${escapeHtml(page.name)}</option>`).join("")}</select>`
+      : kind === "room-service"
+        ? '<small class="vp-field-help">O endereço será montado automaticamente para a unidade deste site.</small>'
+        : `<input ${valueAttr}="${escapeAttr(field)}" value="${escapeAttr(value || linkDefault(kind))}" placeholder="${escapeAttr(linkPlaceholder(kind))}">`;
+    return `<div class="vp-link-field"><span>${escapeHtml(label)}</span><select ${scopeAttr}="${escapeAttr(field)}">${options([["page", "Página deste site"], ["room-service", "Room Service da unidade"], ["external", "Endereço externo"], ["anchor", "Seção da página"], ["email", "E-mail"], ["phone", "Telefone"]], kind)}</select>${targetControl}</div>`;
+  }
+
+  function linkKind(value) {
+    const normalized = String(value || "");
+    if (normalized.startsWith("page:")) return "page";
+    if (normalized === "module:room-service") return "room-service";
+    if (normalized.startsWith("#")) return "anchor";
+    if (normalized.startsWith("mailto:")) return "email";
+    if (normalized.startsWith("tel:")) return "phone";
+    return "external";
+  }
+
+  function linkDefault(kind) {
+    return ({ external: "https://", anchor: "#conteudo", email: "mailto:", phone: "tel:" })[kind] || "";
+  }
+
+  function linkPlaceholder(kind) {
+    return ({ external: "https://exemplo.com", anchor: "#secao", email: "mailto:contato@exemplo.com", phone: "tel:+5500000000000" })[kind] || "";
+  }
+
   function featureItemsInspector(items) {
-    return `<div class="vp-feature-items">${items.map((item, index) => `<details ${index === 0 ? "open" : ""}><summary><span>${index + 1}</span><strong>${escapeHtml(item.title || "Novo destaque")}</strong><button type="button" data-remove-feature="${index}" title="Remover">${icon("trash")}</button></summary><div>${textField("Título", `items.${index}.title`, item.title)}${textareaField("Texto", `items.${index}.text`, item.text, 4)}${mediaField("Imagem", `items.${index}.media_asset_id`, item.media_asset_id, "image")}${textField("Texto do botão", `items.${index}.button_text`, item.button_text)}${textField("Endereço", `items.${index}.button_url`, item.button_url)}</div></details>`).join("")}<button type="button" class="vp-secondary-action" data-add-feature>${icon("plus")} Adicionar destaque</button></div>`;
+    return `<div class="vp-feature-items">${items.map((item, index) => `<details ${index === 0 ? "open" : ""}><summary><span>${index + 1}</span><strong>${escapeHtml(item.title || "Novo destaque")}</strong><button type="button" data-remove-feature="${index}" title="Remover">${icon("trash")}</button></summary><div>${textField("Título", `items.${index}.title`, item.title)}${textareaField("Texto", `items.${index}.text`, item.text, 4)}${mediaField("Imagem", `items.${index}.media_asset_id`, item.media_asset_id, "image")}${textField("Texto do botão", `items.${index}.button_text`, item.button_text)}${linkField("Destino", `items.${index}.button_url`, item.button_url)}</div></details>`).join("")}<button type="button" class="vp-secondary-action" data-add-feature>${icon("plus")} Adicionar destaque</button></div>`;
   }
 
   function styleInspector(block) {
@@ -283,6 +351,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
   }
 
   function handleClick(event) {
+    if (event.target.closest("[data-action-dialog-close]")) { els.actionDialog.close(); return; }
     const closeButton = event.target.closest("[data-builder-close]");
     if (closeButton) return close();
     const leftTab = event.target.closest("[data-builder-tab]");
@@ -321,8 +390,16 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     if (event.target.closest("[data-preview-close]")) { els.previewDialog.close(); return; }
     const previewViewport = event.target.closest("[data-preview-viewport]");
     if (previewViewport) return setPreviewViewport(previewViewport.dataset.previewViewport);
+    if (event.target.closest("[data-preview-version-restore]")) return restoreVersionDocument(state.previewVersionId);
+    const selectPage = event.target.closest("[data-select-page]");
+    if (selectPage) return switchPage(selectPage.dataset.selectPage);
+    if (event.target.closest("[data-add-page]")) return addPage();
+    const duplicatePageButton = event.target.closest("[data-duplicate-page]");
+    if (duplicatePageButton) return duplicatePage(duplicatePageButton.dataset.duplicatePage);
+    const deletePageButton = event.target.closest("[data-delete-page]");
+    if (deletePageButton) return deletePage(deletePageButton.dataset.deletePage);
     if (event.target.closest("[data-clear-page-media]")) {
-      state.document.settings.background_media_asset_id = "";
+      activePage().settings.background_media_asset_id = "";
       checkpoint();
       renderAll();
       return;
@@ -348,6 +425,8 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     if (archiveTemplate) return archiveTemplateDocument(archiveTemplate.dataset.archiveTemplate);
     const restoreVersion = event.target.closest("[data-restore-version]");
     if (restoreVersion) return restoreVersionDocument(restoreVersion.dataset.restoreVersion);
+    const previewVersion = event.target.closest("[data-preview-version]");
+    if (previewVersion) return previewSavedVersion(previewVersion.dataset.previewVersion);
     if (event.target.closest("[data-page-settings]")) { state.selectedId = null; renderCanvas(); renderInspector(); }
   }
 
@@ -365,19 +444,61 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
       return;
     }
     if (!state.document) return;
+    const block = selectedBlock();
+    const headerLinkKind = event.target.dataset.headerLink;
+    if (headerLinkKind) {
+      const firstPage = state.document.pages[0]?.id || "inicio";
+      const nextValue = event.target.value === "page" ? `page:${firstPage}` : event.target.value === "room-service" ? "module:room-service" : event.target.value === "anchor" ? "#conteudo" : event.target.value === "email" ? "mailto:" : event.target.value === "phone" ? "tel:" : "https://";
+      setPath(state.document.settings.header, headerLinkKind, nextValue);
+      checkpoint(); renderCanvas(); renderInspector(); renderSaveState(); scheduleAutosave(); return;
+    }
+    if (event.target.dataset.headerLinkPage) {
+      setPath(state.document.settings.header, event.target.dataset.headerLinkPage, `page:${event.target.value}`);
+      checkpoint(); renderCanvas(); renderSaveState(); scheduleAutosave(); return;
+    }
+    if (event.target.dataset.headerLinkValue) {
+      setPath(state.document.settings.header, event.target.dataset.headerLinkValue, event.target.value);
+      checkpoint(); renderCanvas(); renderSaveState(); scheduleAutosave(); return;
+    }
+    const linkKind = event.target.dataset.linkKind;
+    if (block && linkKind) {
+      const firstPage = state.document.pages[0]?.id || "inicio";
+      const nextValue = event.target.value === "page" ? `page:${firstPage}` : event.target.value === "room-service" ? "module:room-service" : event.target.value === "anchor" ? "#conteudo" : event.target.value === "email" ? "mailto:" : event.target.value === "phone" ? "tel:" : "https://";
+      setPath(block.content, linkKind, nextValue);
+      checkpoint();
+      renderCanvas();
+      renderInspector();
+      renderSaveState();
+      scheduleAutosave();
+      return;
+    }
+    if (block && event.target.dataset.linkPage) {
+      setPath(block.content, event.target.dataset.linkPage, `page:${event.target.value}`);
+      checkpoint(); renderCanvas(); renderSaveState(); scheduleAutosave(); return;
+    }
+    if (block && event.target.dataset.linkValue) {
+      setPath(block.content, event.target.dataset.linkValue, event.target.value);
+      checkpoint(); renderCanvas(); renderSaveState(); scheduleAutosave(); return;
+    }
     if (event.target.type === "range") {
       const output = event.target.closest("label")?.querySelector("output");
       if (output) output.textContent = event.target.dataset.styleField?.startsWith("offset_") ? `${event.target.value}px` : event.target.value;
     }
-    const block = selectedBlock();
     if (event.target.dataset.docField) setPath(state.document.settings, event.target.dataset.docField, inputValue(event.target));
+    if (event.target.dataset.pageField) setPath(activePage(), event.target.dataset.pageField, inputValue(event.target));
+    if (event.target.dataset.pageSettingField) setPath(activePage().settings, event.target.dataset.pageSettingField, inputValue(event.target));
+    if (event.target.dataset.headerField) setPath(state.document.settings.header, event.target.dataset.headerField, inputValue(event.target));
+    if (event.target.dataset.pwaField) setPath(state.document.settings.pwa, event.target.dataset.pwaField, inputValue(event.target));
+    if (event.target.dataset.editorField) setPath(state.document.settings.editor, event.target.dataset.editorField, inputValue(event.target));
     if (block && event.target.dataset.contentField) setPath(block.content, event.target.dataset.contentField, inputValue(event.target));
     if (block && event.target.dataset.styleField) setPath(block.styles[state.styleTarget], event.target.dataset.styleField, emptyAsUndefined(event.target));
     if (block && event.target.dataset.visibilityField) setPath(block.visibility, event.target.dataset.visibilityField, event.target.checked);
-    if (event.target.matches("[data-doc-field],[data-content-field],[data-style-field],[data-visibility-field]")) {
+    if (event.target.matches("[data-doc-field],[data-page-field],[data-page-setting-field],[data-header-field],[data-pwa-field],[data-editor-field],[data-content-field],[data-style-field],[data-visibility-field]")) {
       checkpoint();
       renderCanvas();
+      if (event.target.dataset.contentField === "mode") renderInspector();
       renderSaveState();
+      scheduleAutosave();
     }
   }
 
@@ -410,7 +531,8 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     event.preventDefault();
     const target = event.target.closest("[data-canvas-block],[data-layer-id]");
     const targetId = target?.dataset.canvasBlock || target?.dataset.layerId;
-    const targetIndex = targetId ? state.document.blocks.findIndex((block) => block.id === targetId) : state.document.blocks.length;
+    const blocks = pageBlocks();
+    const targetIndex = targetId ? blocks.findIndex((block) => block.id === targetId) : blocks.length;
     const type = event.dataTransfer.getData("application/x-fioreze-block-type");
     if (type) return addBlock(type, targetIndex);
     const blockId = event.dataTransfer.getData("application/x-fioreze-block-id");
@@ -504,17 +626,17 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     renderCanvas();
   }
 
-  function addBlock(type, index = state.document.blocks.length) {
+  function addBlock(type, index = pageBlocks().length) {
     if (!BLOCK_LABELS[type]) return;
     const block = createBlock(type);
-    state.document.blocks.splice(Math.max(0, index), 0, block);
+    pageBlocks().splice(Math.max(0, index), 0, block);
     state.selectedId = block.id;
     checkpoint();
     renderAll();
   }
 
   function deleteSelected(blockId = state.selectedId) {
-    const result = deleteVisualBlock(state.document, blockId);
+    const result = deleteVisualBlock(activePage(), blockId);
     if (!result.changed) return;
     state.selectedId = result.selectedId;
     checkpoint();
@@ -523,9 +645,9 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
   }
 
   function duplicateSelected(blockId = state.selectedId) {
-    const source = state.document.blocks.find((block) => block.id === blockId);
+    const source = pageBlocks().find((block) => block.id === blockId);
     if (!source) return;
-    const result = duplicateVisualBlock(state.document, blockId, uniqueBlockId(source.type));
+    const result = duplicateVisualBlock(activePage(), blockId, uniqueBlockId(source.type));
     if (!result.changed) return;
     state.selectedId = result.selectedId;
     checkpoint();
@@ -534,7 +656,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
   }
 
   function moveSelected(delta, blockId = state.selectedId) {
-    const result = moveVisualBlock(state.document, blockId, delta);
+    const result = moveVisualBlock(activePage(), blockId, delta);
     if (!result.changed) return;
     state.selectedId = result.selectedId;
     checkpoint();
@@ -543,7 +665,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
   }
 
   function reorderBlock(blockId, targetIndex) {
-    const result = reorderVisualBlock(state.document, blockId, targetIndex);
+    const result = reorderVisualBlock(activePage(), blockId, targetIndex);
     clearDragState();
     if (!result.changed) return;
     state.selectedId = result.selectedId;
@@ -556,7 +678,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     const block = clone(state.clipboardBlock);
     block.id = uniqueBlockId(block.type);
     const index = selectedIndex();
-    state.document.blocks.splice(index < 0 ? state.document.blocks.length : index + 1, 0, block);
+    pageBlocks().splice(index < 0 ? pageBlocks().length : index + 1, 0, block);
     state.selectedId = block.id;
     checkpoint();
     renderAll();
@@ -605,10 +727,19 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
   function selectMedia(mediaId) {
     const field = els.mediaDialog.dataset.field;
     if (state.mediaTarget === "page") {
-      setPath(state.document.settings, field, mediaId);
+      setPath(activePage().settings, field, mediaId);
       checkpoint();
       closeMediaPicker();
       renderAll();
+      scheduleAutosave();
+      return;
+    }
+    if (state.mediaTarget === "document" || state.mediaTarget === "header") {
+      setPath(state.mediaTarget === "header" ? state.document.settings.header : state.document.settings, field, mediaId);
+      checkpoint();
+      closeMediaPicker();
+      renderAll();
+      scheduleAutosave();
       return;
     }
     const block = selectedBlock();
@@ -621,16 +752,106 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     checkpoint();
     closeMediaPicker();
     renderAll();
+    scheduleAutosave();
   }
 
   function closeMediaPicker() {
     if (els.mediaDialog.open) els.mediaDialog.close();
   }
 
-  async function save() {
+  function switchPage(pageId) {
+    const page = state.document.pages.find((item) => item.id === pageId);
+    if (!page) return;
+    state.activePageId = page.id;
+    state.selectedId = page.blocks[0]?.id || null;
+    renderAll();
+    requestAnimationFrame(() => fitCanvas(true));
+  }
+
+  async function addPage() {
+    if (state.document.pages.length >= 20) return announce("O site já atingiu o limite de páginas.", true);
+    const values = await requestForm({
+      title: "Nova página",
+      message: "Defina como a página aparecerá no menu e no endereço do site.",
+      confirmLabel: "Criar página",
+      fields: [
+        { name: "name", label: "Nome", value: "Nova página", required: true },
+        { name: "slug", label: "Endereço", value: uniquePageSlug("nova-pagina"), required: true },
+      ],
+    });
+    if (!values) return;
+    const slug = uniquePageSlug(slugify(values.slug || values.name));
+    const page = {
+      id: uniquePageId(slug || "pagina"),
+      slug,
+      name: values.name.trim(),
+      title: values.name.trim(),
+      show_in_navigation: true,
+      settings: clone(activePage()?.settings || defaultPageSettings()),
+      blocks: [],
+    };
+    state.document.pages.push(page);
+    state.activePageId = page.id;
+    state.selectedId = null;
+    checkpoint();
+    renderAll();
+    scheduleAutosave();
+    announce("Página criada.");
+  }
+
+  function duplicatePage(pageId) {
+    const source = state.document.pages.find((page) => page.id === pageId);
+    if (!source || state.document.pages.length >= 20) return;
+    const copy = clone(source);
+    copy.id = uniquePageId(`${source.id}-copia`);
+    copy.slug = uniquePageSlug(`${source.slug || "inicio"}-copia`);
+    copy.name = `${source.name} - cópia`;
+    copy.title = copy.name;
+    copy.blocks = copy.blocks.map((block) => ({ ...block, id: uniqueBlockId(block.type) }));
+    state.document.pages.splice(state.document.pages.indexOf(source) + 1, 0, copy);
+    state.activePageId = copy.id;
+    state.selectedId = copy.blocks[0]?.id || null;
+    checkpoint(); renderAll(); scheduleAutosave(); announce("Página duplicada.");
+  }
+
+  async function deletePage(pageId) {
+    const page = state.document.pages.find((item) => item.id === pageId);
+    if (!page || !page.slug) return;
+    if (!await requestConfirmation({ title: "Excluir página?", message: `A página “${page.name}” e todos os seus blocos serão removidos do rascunho.`, confirmLabel: "Excluir página", danger: true })) return;
+    state.document.pages = state.document.pages.filter((item) => item.id !== pageId);
+    state.activePageId = state.document.pages[0].id;
+    state.selectedId = activePage().blocks[0]?.id || null;
+    checkpoint(); renderAll(); scheduleAutosave(); announce("Página excluída.");
+  }
+
+  function uniquePageSlug(value) {
+    const base = slugify(value) || "pagina";
+    let candidate = base;
+    let suffix = 2;
+    while (state.document.pages.some((page) => page.slug === candidate)) candidate = `${base}-${suffix++}`;
+    return candidate;
+  }
+
+  function uniquePageId(value) {
+    const base = slugify(value) || "pagina";
+    let candidate = base;
+    let suffix = 2;
+    while (state.document.pages.some((page) => page.id === candidate)) candidate = `${base}-${suffix++}`;
+    return candidate;
+  }
+
+  function scheduleAutosave() {
+    window.clearTimeout(state.autosaveTimer);
+    const editor = state.document?.settings?.editor;
+    if (!editor?.autosave_enabled || !isDirty() || state.saving) return;
+    state.autosaveTimer = window.setTimeout(() => save({ automatic: true }).catch(() => {}), Math.max(15, Number(editor.autosave_interval_seconds || 30)) * 1000);
+  }
+
+  async function save({ automatic = false } = {}) {
     if (!state.portal || state.saving || !isDirty()) return state.portal;
+    window.clearTimeout(state.autosaveTimer);
     state.saving = true;
-    renderSaveState("Salvando...");
+    renderSaveState(automatic ? "Salvamento automático..." : "Salvando...");
     try {
       const payload = await adminApi(`/api/v1/admin/visual-portals/${encodeURIComponent(state.portal.id)}`, {
         method: "PATCH",
@@ -638,12 +859,13 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
       });
       state.portal = payload.data.portal;
       state.document = clone(state.portal.document);
+      if (!activePage()) state.activePageId = state.document.pages[0]?.id || null;
       state.original = stableJson(state.document);
       state.history = [clone(state.document)];
       state.historyIndex = 0;
       await loadVersions();
       renderAll();
-      announce("Alterações salvas.");
+      announce(automatic ? "Rascunho salvo automaticamente." : "Alterações salvas.");
       onSaved(state.portal);
       return state.portal;
     } catch (error) {
@@ -652,13 +874,14 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     } finally {
       state.saving = false;
       renderSaveState();
+      scheduleAutosave();
     }
   }
 
   async function publish() {
     try {
       if (isDirty()) await save();
-      if (!window.confirm("Publicar esta versão agora? O endereço público será atualizado.")) return;
+      if (!await requestConfirmation({ title: "Publicar site?", message: "Todas as páginas desta versão ficarão disponíveis no endereço público.", confirmLabel: "Publicar agora" })) return;
       setBusy(true, "Publicando portal...");
       const payload = await adminApi(`/api/v1/admin/visual-portals/${encodeURIComponent(state.portal.id)}/publish`, { method: "POST", body: {} });
       state.portal = payload.data.portal;
@@ -674,6 +897,8 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
   }
 
   function preview() {
+    state.previewDocument = null;
+    state.previewVersionId = "";
     state.previewViewport = state.viewport;
     updatePreviewDialog();
     els.previewDialog.showModal();
@@ -688,12 +913,14 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
   function updatePreviewDialog() {
     els.previewDialog.dataset.viewport = state.previewViewport;
     els.previewDeviceButtons.forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.previewViewport === state.previewViewport)));
-    els.previewDialogFrame.srcdoc = previewDocumentHtml();
+    els.previewDialogFrame.srcdoc = previewDocumentHtml(state.previewDocument || state.document);
+    els.previewVersionActions.hidden = !state.previewVersionId;
   }
 
   async function saveTemplate() {
-    const name = window.prompt("Nome do novo modelo:", `${state.portal.name} - modelo`);
-    if (!name?.trim()) return;
+    const values = await requestForm({ title: "Salvar como modelo", message: "O modelo incluirá todas as páginas, o cabeçalho e a identidade visual.", confirmLabel: "Salvar modelo", fields: [{ name: "name", label: "Nome do modelo", value: `${state.portal.name} - modelo`, required: true }] });
+    const name = values?.name?.trim();
+    if (!name) return;
     try {
       await adminApi("/api/v1/admin/visual-portal-templates", {
         method: "POST",
@@ -709,12 +936,13 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
   }
 
   async function applyTemplateDocument(templateId) {
-    if (!window.confirm("Substituir todos os blocos atuais por este modelo?")) return;
+    if (!await requestConfirmation({ title: "Aplicar modelo?", message: "As páginas e configurações atuais do rascunho serão substituídas pelo modelo selecionado.", confirmLabel: "Aplicar modelo" })) return;
     try {
       const params = new URLSearchParams({ hotel_id: state.portal.hotel_id, module_key: state.portal.module_key });
       const payload = await adminApi(`/api/v1/admin/visual-portal-templates/${encodeURIComponent(templateId)}?${params}`);
       state.document = clone(payload.data.template.document);
-      state.selectedId = state.document.blocks[0]?.id || null;
+      state.activePageId = state.document.pages[0]?.id || null;
+      state.selectedId = activePage()?.blocks[0]?.id || null;
       checkpoint();
       renderAll();
       announce("Modelo aplicado. Salve para confirmar.");
@@ -724,7 +952,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
   }
 
   async function archiveTemplateDocument(templateId) {
-    if (!window.confirm("Arquivar este modelo salvo?")) return;
+    if (!await requestConfirmation({ title: "Arquivar modelo?", message: "O modelo deixará de aparecer para a equipe, sem alterar os sites que já o utilizam.", confirmLabel: "Arquivar", danger: true })) return;
     try {
       await adminApi(`/api/v1/admin/visual-portal-templates/${encodeURIComponent(templateId)}`, { method: "DELETE", body: {} });
       await loadTemplates();
@@ -735,17 +963,19 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
   }
 
   async function restoreVersionDocument(versionId) {
-    if (!window.confirm("Restaurar esta versão como novo rascunho? A versão publicada continuará no ar até uma nova publicação.")) return;
+    if (!versionId || !await requestConfirmation({ title: "Restaurar esta versão?", message: "Ela será copiada para um novo rascunho. O site publicado continuará no ar até uma nova publicação.", confirmLabel: "Restaurar versão" })) return;
     try {
       setBusy(true, "Restaurando versão...");
       const payload = await adminApi(`/api/v1/admin/visual-portals/${encodeURIComponent(state.portal.id)}/versions/${encodeURIComponent(versionId)}/restore`, { method: "POST", body: {} });
       state.portal = payload.data.portal;
       state.document = clone(state.portal.document);
+      state.activePageId = state.document.pages[0]?.id || null;
       state.original = stableJson(state.document);
-      state.selectedId = state.document.blocks[0]?.id || null;
+      state.selectedId = activePage()?.blocks[0]?.id || null;
       state.history = [clone(state.document)];
       state.historyIndex = 0;
       await loadVersions();
+      if (els.previewDialog.open) els.previewDialog.close();
       renderAll();
       onSaved(state.portal);
       announce("Versão restaurada como rascunho.");
@@ -756,11 +986,28 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     }
   }
 
+  async function previewSavedVersion(versionId) {
+    try {
+      setBusy(true, "Preparando prévia da versão...");
+      const payload = await adminApi(`/api/v1/admin/visual-portals/${encodeURIComponent(state.portal.id)}/versions/${encodeURIComponent(versionId)}`);
+      state.previewDocument = clone(payload.data.version.document);
+      state.previewVersionId = versionId;
+      state.previewViewport = state.viewport;
+      updatePreviewDialog();
+      els.previewDialog.showModal();
+    } catch (error) {
+      announce(error.message || "Não foi possível abrir a prévia da versão.", true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function undo() {
     if (state.historyIndex <= 0) return;
     state.historyIndex -= 1;
     state.document = clone(state.history[state.historyIndex]);
-    if (!selectedBlock()) state.selectedId = state.document.blocks[0]?.id || null;
+    if (!activePage()) state.activePageId = state.document.pages[0]?.id || null;
+    if (!selectedBlock()) state.selectedId = pageBlocks()[0]?.id || null;
     renderAll();
   }
 
@@ -768,7 +1015,8 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     if (state.historyIndex >= state.history.length - 1) return;
     state.historyIndex += 1;
     state.document = clone(state.history[state.historyIndex]);
-    if (!selectedBlock()) state.selectedId = state.document.blocks[0]?.id || null;
+    if (!activePage()) state.activePageId = state.document.pages[0]?.id || null;
+    if (!selectedBlock()) state.selectedId = pageBlocks()[0]?.id || null;
     renderAll();
   }
 
@@ -779,6 +1027,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     state.history.push(clone(state.document));
     if (state.history.length > HISTORY_LIMIT) state.history.shift();
     state.historyIndex = state.history.length - 1;
+    scheduleAutosave();
   }
 
   function renderSaveState(forced = "") {
@@ -793,11 +1042,19 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
   }
 
   function selectedBlock() {
-    return state.document?.blocks.find((block) => block.id === state.selectedId) || null;
+    return pageBlocks().find((block) => block.id === state.selectedId) || null;
   }
 
   function selectedIndex() {
-    return state.document?.blocks.findIndex((block) => block.id === state.selectedId) ?? -1;
+    return pageBlocks().findIndex((block) => block.id === state.selectedId);
+  }
+
+  function activePage() {
+    return state.document?.pages?.find((page) => page.id === state.activePageId) || null;
+  }
+
+  function pageBlocks() {
+    return activePage()?.blocks || [];
   }
 
   function setBusy(visible, text = "") {
@@ -813,17 +1070,91 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     announce.timer = window.setTimeout(() => { els.toast.hidden = true; }, 3600);
   }
 
-  function previewDocumentHtml() {
+  function requestConfirmation({ title, message, confirmLabel = "Confirmar", danger = false }) {
+    return requestForm({ title, message, confirmLabel, danger, fields: [] }).then((value) => Boolean(value));
+  }
+
+  function requestForm({ title, message, confirmLabel = "Confirmar", danger = false, fields = [] }) {
+    return new Promise((resolve) => {
+      els.actionDialogTitle.textContent = title;
+      els.actionDialogMessage.textContent = message || "";
+      els.actionDialogFields.innerHTML = fields.map((field) => `<label><span>${escapeHtml(field.label)}</span><input name="${escapeAttr(field.name)}" value="${escapeAttr(field.value || "")}" ${field.required ? "required" : ""}></label>`).join("");
+      els.actionDialogConfirm.textContent = confirmLabel;
+      els.actionDialogConfirm.classList.toggle("danger", danger);
+      const finish = (value) => {
+        els.actionDialog.removeEventListener("close", onClose);
+        els.actionDialogForm.removeEventListener("submit", onSubmit);
+        resolve(value);
+      };
+      const onClose = () => finish(null);
+      const onSubmit = (event) => {
+        event.preventDefault();
+        const values = Object.fromEntries(new FormData(els.actionDialogForm));
+        els.actionDialog.removeEventListener("close", onClose);
+        els.actionDialog.close();
+        finish(values);
+      };
+      els.actionDialog.addEventListener("close", onClose, { once: true });
+      els.actionDialogForm.addEventListener("submit", onSubmit, { once: true });
+      els.actionDialog.showModal();
+      els.actionDialogFields.querySelector("input")?.focus();
+    });
+  }
+
+  function defaultPageSettings() {
     const settings = state.document.settings;
+    return {
+      background_color: settings.background_color,
+      text_color: settings.text_color,
+      surface_color: settings.surface_color,
+      content_width: settings.content_width,
+      page_padding: settings.page_padding,
+      block_gap: settings.block_gap,
+      background_media_asset_id: "",
+      background_overlay: 0,
+      background_position: "center",
+      background_fit: "cover",
+      background_fixed: false,
+    };
+  }
+
+  function previewHeaderHtml(documentValue, page) {
+    const header = documentValue.settings.header;
+    if (!header.enabled) return "";
+    const logo = mediaById(header.logo_media_asset_id);
+    const pages = header.show_navigation ? documentValue.pages.filter((item) => item.show_in_navigation) : [];
+    return `<div class="${editorHeaderClasses(header)}" style="--vp-header-bg:${escapeAttr(header.background_color)};--vp-header-text:${escapeAttr(header.text_color)};--vp-header-accent:${escapeAttr(header.accent_color)}">${header.show_logo ? `<div class="vp-editor-brand">${logo ? `<img src="${escapeAttr(logo.public_url)}" alt="">` : `<strong>${escapeHtml(state.portal.hotel_name)}</strong>`}</div>` : ""}<nav>${pages.map((item) => `<span class="${item.id === page.id ? "is-current" : ""}">${escapeHtml(item.name)}</span>`).join("")}</nav>${header.cta_text ? `<span class="vp-editor-header-cta">${escapeHtml(header.cta_text)}</span>` : ""}</div>`;
+  }
+
+  function editorHeaderClasses(header) {
+    return [
+      "vp-editor-site-header",
+      `header-${header.style}`,
+      header.position === "sticky" ? "is-sticky" : "",
+      header.transparent ? "is-transparent" : "",
+      header.blur ? "has-blur" : "",
+    ].filter(Boolean).map(escapeAttr).join(" ");
+  }
+
+  function previewDocumentHtml(sourceDocument = state.document) {
+    const previousDocument = state.document;
+    const previousPageId = state.activePageId;
+    const page = sourceDocument.pages.find((item) => item.id === previousPageId) || sourceDocument.pages[0];
+    const siteSettings = sourceDocument.settings;
+    const settings = page.settings;
     const previousViewport = state.viewport;
     let blocks = "";
     try {
+      state.document = sourceDocument;
+      state.activePageId = page.id;
       state.viewport = state.previewViewport;
-      blocks = state.document.blocks.map((block, index) => renderEditableBlock(block, index).replace(/draggable="true"/g, "").replace(/<div class="vp-block-toolbar">[\s\S]*?<\/div>/, "")).join("");
+      blocks = page.blocks.map((block, index) => renderEditableBlock(block, index).replace(/draggable="true"/g, "").replace(/<div class="vp-block-toolbar">[\s\S]*?<\/div>/, "")).join("");
     } finally {
       state.viewport = previousViewport;
+      state.document = previousDocument;
+      state.activePageId = previousPageId;
     }
-    return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;background:${settings.background_color};color:${settings.text_color};font-family:${settings.font_family}}${builderPreviewCss()}</style></head><body><main class="vp-preview-page ${settings.background_media_asset_id ? "has-page-media" : ""}" style="--vp-page-bg:${settings.background_color};--vp-page-text:${settings.text_color};--vp-page-primary:${settings.primary_color};--vp-page-surface:${settings.surface_color};--vp-page-font:${settings.font_family};--vp-page-gap:${settings.block_gap}px;--vp-page-padding:${settings.page_padding}px;--vp-page-overlay:${Number(settings.background_overlay || 0) / 100};--vp-page-media-position:${settings.background_position || "center"};--vp-page-media-fit:${settings.background_fit || "cover"}">${pageBackgroundPreview(settings)}<div class="vp-page-content">${blocks}</div></main></body></html>`;
+    return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;background:${settings.background_color};color:${settings.text_color};font-family:${siteSettings.font_family}}${builderPreviewCss()}</style></head><body><main class="vp-preview-page ${settings.background_media_asset_id ? "has-page-media" : ""}" style="--vp-page-bg:${settings.background_color};--vp-page-text:${settings.text_color};--vp-page-primary:${siteSettings.primary_color};--vp-page-surface:${settings.surface_color};--vp-page-font:${siteSettings.font_family};--vp-page-gap:${settings.block_gap}px;--vp-page-padding:${settings.page_padding}px;--vp-page-overlay:${Number(settings.background_overlay || 0) / 100};--vp-page-media-position:${settings.background_position || "center"};--vp-page-media-fit:${settings.background_fit || "cover"}">${pageBackgroundPreview(settings)}${previewHeaderHtml(sourceDocument, page)}<div class="vp-page-content">${blocks}</div></main></body></html>`;
   }
 }
 
@@ -841,14 +1172,15 @@ function createBuilderRoot() {
       <div class="vp-builder-actions"><span data-builder-save-state></span><button type="button" data-builder-preview>${icon("eye")} Visualizar</button><button type="button" data-builder-save>${icon("save")} Salvar</button><button class="primary" type="button" data-builder-publish>${icon("publish")} Publicar</button></div>
     </header>
     <div class="vp-builder-workspace">
-      <aside class="vp-left-panel"><nav><button type="button" data-builder-tab="blocks" aria-selected="true">${icon("plusgrid")}<span>Blocos</span></button><button type="button" data-builder-tab="layers">${icon("layers")}<span>Camadas</span></button><button type="button" data-builder-tab="templates">${icon("template")}<span>Modelos</span></button><button type="button" data-builder-tab="versions">${icon("history")}<span>Versões</span></button></nav><div class="vp-left-content"></div></aside>
+      <aside class="vp-left-panel"><nav><button type="button" data-builder-tab="pages">${icon("page")}<span>Páginas</span></button><button type="button" data-builder-tab="blocks" aria-selected="true">${icon("plusgrid")}<span>Blocos</span></button><button type="button" data-builder-tab="layers">${icon("layers")}<span>Camadas</span></button><button type="button" data-builder-tab="templates">${icon("template")}<span>Modelos</span></button><button type="button" data-builder-tab="versions">${icon("history")}<span>Versões</span></button></nav><div class="vp-left-content"></div></aside>
       <main class="vp-stage" data-viewport="desktop"><div class="vp-stage-toolbar"><button type="button" data-page-settings>${icon("sliders")} Configurações da página</button><span>Arraste os blocos para reorganizar</span></div><div class="vp-stage-scroll"><div class="vp-canvas-frame"><div class="vp-builder-canvas" data-builder-canvas></div></div></div></main>
       <aside class="vp-inspector"><header><div><strong>Propriedades</strong><span>Selecione um bloco</span></div>${icon("sliders")}</header><div class="vp-inspector-body"></div></aside>
     </div>
     <div class="vp-builder-busy" hidden><span class="admin-modern-spinner"></span><strong>Carregando...</strong></div>
     <p class="vp-builder-toast" role="status" aria-live="polite" hidden></p>
     <dialog class="vp-media-picker"><header><div><strong>Biblioteca de Mídia</strong><span>Selecione um arquivo da unidade</span></div><button type="button" data-media-picker-close>${icon("close")}</button></header><div class="vp-media-picker-grid"></div></dialog>
-    <dialog class="vp-live-preview" data-viewport="desktop"><header><strong>Pré-visualização</strong><div class="vp-preview-device-controls" aria-label="Dispositivo da pré-visualização"><button type="button" data-preview-viewport="desktop" aria-pressed="true">${icon("desktop")} Desktop</button><button type="button" data-preview-viewport="mobile" aria-pressed="false">${icon("mobile")} Mobile</button></div><button type="button" data-preview-close title="Fechar">${icon("close")}</button></header><div class="vp-preview-frame-wrap"><iframe title="Pré-visualização do portal" sandbox="allow-scripts allow-forms allow-popups allow-presentation"></iframe></div></dialog>`;
+    <dialog class="vp-live-preview" data-viewport="desktop"><header><strong>Pré-visualização</strong><div class="vp-preview-device-controls" aria-label="Dispositivo da pré-visualização"><button type="button" data-preview-viewport="desktop" aria-pressed="true">${icon("desktop")} Desktop</button><button type="button" data-preview-viewport="mobile" aria-pressed="false">${icon("mobile")} Mobile</button></div><div class="vp-preview-version-actions" hidden><button type="button" data-preview-version-restore>${icon("undo")} Restaurar esta versão</button></div><button type="button" data-preview-close title="Fechar">${icon("close")}</button></header><div class="vp-preview-frame-wrap"><iframe title="Pré-visualização do portal" sandbox="allow-scripts allow-forms allow-popups allow-presentation"></iframe></div></dialog>
+    <dialog class="vp-action-dialog"><form method="dialog"><header><strong></strong><button type="button" data-action-dialog-close title="Fechar">${icon("close")}</button></header><p></p><div class="vp-action-dialog-fields"></div><footer><button type="button" data-action-dialog-close>Cancelar</button><button class="primary" type="submit">Confirmar</button></footer></form></dialog>`;
   document.body.append(root);
   return root;
 }
@@ -881,6 +1213,13 @@ function mapElements(root) {
     previewDialog: root.querySelector(".vp-live-preview"),
     previewDialogFrame: root.querySelector(".vp-live-preview iframe"),
     previewDeviceButtons: [...root.querySelectorAll("[data-preview-viewport]")],
+    previewVersionActions: root.querySelector(".vp-preview-version-actions"),
+    actionDialog: root.querySelector(".vp-action-dialog"),
+    actionDialogForm: root.querySelector(".vp-action-dialog form"),
+    actionDialogTitle: root.querySelector(".vp-action-dialog header strong"),
+    actionDialogMessage: root.querySelector(".vp-action-dialog form > p"),
+    actionDialogFields: root.querySelector(".vp-action-dialog-fields"),
+    actionDialogConfirm: root.querySelector(".vp-action-dialog footer .primary"),
   };
 }
 
@@ -893,7 +1232,7 @@ function createBlock(type) {
     button: { text: "Novo botão", url: "/", style: "solid" },
     image: { media_asset_id: "", alt_text: "", caption: "", fit: "cover" },
     video: { media_asset_id: "", poster_media_asset_id: "", title: "", autoplay: false, muted: true, loop: false, controls: true },
-    embed: { title: "Conteúdo incorporado", url: "", aspect_ratio: "16:9", allow_fullscreen: true },
+    embed: { title: "Conteúdo incorporado", mode: "url", url: "", html: "", aspect_ratio: "16:9", allow_fullscreen: true },
     gallery: { title: "Galeria", media_asset_ids: [] },
     "feature-grid": { items: [{ title: "Novo destaque", text: "Descreva este conteúdo.", media_asset_id: "", button_text: "", button_url: "" }] },
     quote: { quote: "Uma frase memorável para destacar.", author: "" },
@@ -913,7 +1252,7 @@ function createBlock(type) {
 }
 
 function builderPreviewCss() {
-  return `.vp-preview-page{position:relative;min-height:100vh;background:var(--vp-page-bg);color:var(--vp-page-text);font-family:var(--vp-page-font)}.vp-page-background{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none}.vp-page-background.is-fixed{position:fixed}.vp-page-background img,.vp-page-background video{width:100%;height:100%;object-fit:var(--vp-page-media-fit);object-position:var(--vp-page-media-position)}.vp-page-background span{position:absolute;inset:0;background:rgba(0,0,0,var(--vp-page-overlay))}.vp-page-content{position:relative;z-index:1;display:grid;gap:var(--vp-page-gap)}.vp-canvas-block{position:relative;padding:40px var(--vp-page-padding)}.vp-block-toolbar{display:none}.vp-preview-inner{width:min(100%,1120px);margin:auto}.vp-preview-hero{display:grid;place-items:center;min-height:420px;padding:64px;background-position:center;background-size:cover;text-align:center}.vp-preview-hero.has-media{color:#fff}.vp-preview-hero h1{font-size:clamp(2.6rem,6vw,6rem);line-height:1}.vp-preview-inner h2{font-size:clamp(2rem,4vw,4rem)}.vp-preview-button{display:inline-flex;padding:12px 18px;border-radius:999px;background:var(--vp-page-primary);color:#fff;text-decoration:none}.vp-preview-grid,.vp-preview-gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}.vp-preview-grid article{overflow:hidden;border:1px solid #ddd;border-radius:24px}.vp-preview-grid article>div{padding:18px}.vp-preview-grid img,.vp-preview-gallery img,.vp-preview-media img,.vp-preview-media video{width:100%;display:block;object-fit:cover}.vp-preview-grid img,.vp-preview-gallery img{aspect-ratio:4/3}.vp-preview-quote{font-size:2.4rem;text-align:center}.vp-preview-embed{position:relative;aspect-ratio:var(--vp-embed-ratio);overflow:hidden;border-radius:inherit;background:#e9ebef}.vp-preview-embed iframe{width:100%;height:100%;border:0}.vp-preview-embed>span{display:none}@media(max-width:760px){.vp-preview-grid,.vp-preview-gallery{grid-template-columns:1fr}.vp-preview-hero{padding:32px 18px}.vp-canvas-block{padding-inline:18px}}`;
+  return `.vp-preview-page{position:relative;min-height:100vh;background:var(--vp-page-bg);color:var(--vp-page-text);font-family:var(--vp-page-font)}.vp-page-background{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none}.vp-page-background.is-fixed{position:fixed}.vp-page-background img,.vp-page-background video{width:100%;height:100%;object-fit:var(--vp-page-media-fit);object-position:var(--vp-page-media-position)}.vp-page-background span{position:absolute;inset:0;background:rgba(0,0,0,var(--vp-page-overlay))}.vp-editor-site-header{position:relative;z-index:4;display:grid;grid-template-columns:minmax(150px,1fr) auto minmax(150px,1fr);align-items:center;gap:22px;min-height:76px;padding:12px 28px;background:var(--vp-header-bg);color:var(--vp-header-text)}.vp-editor-site-header.is-sticky{position:sticky;top:0}.vp-editor-site-header.is-transparent,.vp-editor-site-header.header-minimal{background:transparent}.vp-editor-site-header.has-blur{backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}.vp-editor-site-header.header-floating{margin:16px;border:1px solid rgba(0,0,0,.1);border-radius:18px;background:color-mix(in srgb,var(--vp-header-bg) 84%,transparent);backdrop-filter:blur(18px)}.vp-editor-site-header.header-centered{grid-template-columns:1fr;justify-items:center}.vp-editor-brand img{display:block;max-width:180px;max-height:48px}.vp-editor-site-header nav{display:flex;justify-content:center;gap:4px;scrollbar-width:none}.vp-editor-site-header nav::-webkit-scrollbar{display:none}.vp-editor-site-header nav span{padding:8px 11px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}.vp-editor-site-header nav span.is-current{background:color-mix(in srgb,var(--vp-header-accent) 14%,transparent);color:var(--vp-header-accent)}.vp-editor-header-cta{justify-self:end;padding:9px 14px;border-radius:999px;background:var(--vp-header-accent);color:#fff;font-size:11px;font-weight:750}.vp-page-content{position:relative;z-index:1;display:grid;gap:var(--vp-page-gap)}.vp-canvas-block{position:relative;padding:40px var(--vp-page-padding)}.vp-block-toolbar{display:none}.vp-preview-inner{width:min(100%,1120px);margin:auto}.vp-preview-hero{display:grid;place-items:center;min-height:420px;padding:64px;background-position:center;background-size:cover;text-align:center}.vp-preview-hero.has-media{color:#fff}.vp-preview-hero h1{font-size:clamp(2.6rem,6vw,6rem);line-height:1}.vp-preview-inner h2{font-size:clamp(2rem,4vw,4rem)}.vp-preview-button{display:inline-flex;padding:12px 18px;border-radius:999px;background:var(--vp-page-primary);color:#fff;text-decoration:none}.vp-preview-grid,.vp-preview-gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}.vp-preview-grid article{overflow:hidden;border:1px solid #ddd;border-radius:24px}.vp-preview-grid article>div{padding:18px}.vp-preview-grid img,.vp-preview-gallery img,.vp-preview-media img,.vp-preview-media video{width:100%;display:block;object-fit:cover}.vp-preview-grid img,.vp-preview-gallery img{aspect-ratio:4/3}.vp-preview-quote{font-size:2.4rem;text-align:center}.vp-preview-embed{position:relative;aspect-ratio:var(--vp-embed-ratio);overflow:hidden;border-radius:inherit;background:#e9ebef}.vp-preview-embed iframe{width:100%;height:100%;border:0}.vp-preview-embed>span{display:none}@media(max-width:760px){.vp-editor-site-header{grid-template-columns:minmax(0,1fr);gap:8px;padding:12px 18px}.vp-editor-site-header nav{justify-content:flex-start;overflow-x:auto}.vp-preview-grid,.vp-preview-gallery{grid-template-columns:1fr}.vp-preview-hero{padding:32px 18px}.vp-canvas-block{padding-inline:18px}}`;
 }
 
 function editableStyle(style) {
@@ -939,6 +1278,7 @@ function previewButton(text, url, style = "solid") { return text ? `<a class="vp
 function blockLabel(block, index) { return block.content?.title || block.content?.text?.slice(0, 32) || `${BLOCK_LABELS[block.type]} ${index + 1}`; }
 function iconForBlock(type) { return BLOCKS.find(([key]) => key === type)?.[3] || icon("grid"); }
 function uniqueBlockId(type) { return `${type}-${crypto.randomUUID().slice(0, 8)}`; }
+function slugify(value) { return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 70); }
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 function escapeCssUrl(value) { return String(value || "").replace(/["'()\\\n\r]/g, ""); }
 function formatVersionDate(value) { const date = new Date(value); return Number.isNaN(date.getTime()) ? "data indisponível" : new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(date); }
@@ -957,10 +1297,21 @@ function toggleField(label, field, checked, scope = "content") { const attr = sc
 function mediaField(label, field, value, kind) { return `<div class="vp-media-field"><span>${escapeHtml(label)}</span><button type="button" data-choose-media="${escapeAttr(field)}" data-media-kind="${kind}">${value ? `${icon(kind === "video" ? "video" : "image")}<strong>Trocar arquivo</strong>` : `${icon("plus")}<strong>Escolher da biblioteca</strong>`}</button></div>`; }
 function pageMediaField(value) { return `<div class="vp-media-field"><span>Imagem ou vídeo</span><button type="button" data-choose-media="background_media_asset_id" data-media-kind="any" data-media-target="page">${value ? `${icon("image")}<strong>Trocar fundo</strong>` : `${icon("plus")}<strong>Escolher da biblioteca</strong>`}</button></div>`; }
 function docToggleField(label, field, checked) { return `<label class="vp-toggle"><input type="checkbox" data-doc-field="${escapeAttr(field)}" ${checked ? "checked" : ""}><span></span><strong>${escapeHtml(label)}</strong></label>`; }
+function pageColorField(label, field, value) { return `<label class="vp-color-field"><span>${escapeHtml(label)}</span><input type="color" data-page-setting-field="${escapeAttr(field)}" value="${escapeAttr(value || "#ffffff")}"><input data-page-setting-field="${escapeAttr(field)}" value="${escapeAttr(value || "")}"></label>`; }
+function headerColorField(label, field, value) { return `<label class="vp-color-field"><span>${escapeHtml(label)}</span><input type="color" data-header-field="${escapeAttr(field)}" value="${escapeAttr(value || "#ffffff")}"><input data-header-field="${escapeAttr(field)}" value="${escapeAttr(value || "")}"></label>`; }
+function pageRangeField(label, field, value, min, max) { return `<label class="vp-range-field"><span>${escapeHtml(label)} <output>${value}</output></span><input type="range" data-page-setting-field="${escapeAttr(field)}" min="${min}" max="${max}" value="${value}"></label>`; }
+function editorRangeField(label, field, value, min, max) { return `<label class="vp-range-field"><span>${escapeHtml(label)} <output>${value}</output></span><input type="range" data-editor-field="${escapeAttr(field)}" min="${min}" max="${max}" value="${value}"></label>`; }
+function pageToggleField(label, field, checked) { return `<label class="vp-toggle"><input type="checkbox" data-page-field="${escapeAttr(field)}" ${checked ? "checked" : ""}><span></span><strong>${escapeHtml(label)}</strong></label>`; }
+function pageSettingToggleField(label, field, checked) { return `<label class="vp-toggle"><input type="checkbox" data-page-setting-field="${escapeAttr(field)}" ${checked ? "checked" : ""}><span></span><strong>${escapeHtml(label)}</strong></label>`; }
+function headerToggleField(label, field, checked) { return `<label class="vp-toggle"><input type="checkbox" data-header-field="${escapeAttr(field)}" ${checked ? "checked" : ""}><span></span><strong>${escapeHtml(label)}</strong></label>`; }
+function pwaToggleField(label, field, checked) { return `<label class="vp-toggle"><input type="checkbox" data-pwa-field="${escapeAttr(field)}" ${checked ? "checked" : ""}><span></span><strong>${escapeHtml(label)}</strong></label>`; }
+function editorToggleField(label, field, checked) { return `<label class="vp-toggle"><input type="checkbox" data-editor-field="${escapeAttr(field)}" ${checked ? "checked" : ""}><span></span><strong>${escapeHtml(label)}</strong></label>`; }
+function textFieldForScope(label, field, value, scope) { return `<label><span>${escapeHtml(label)}</span><input data-${escapeAttr(scope)}-field="${escapeAttr(field)}" value="${escapeAttr(value || "")}"></label>`; }
+function siteMediaField(label, field, value, kind, target) { return `<div class="vp-media-field"><span>${escapeHtml(label)}</span><button type="button" data-choose-media="${escapeAttr(field)}" data-media-kind="${kind}" data-media-target="${escapeAttr(target)}">${value ? `${icon("image")}<strong>Trocar arquivo</strong>` : `${icon("plus")}<strong>Escolher da biblioteca</strong>`}</button></div>`; }
 
 function icon(name) {
   const paths = {
-    back: '<path d="m15 18-6-6 6-6"/>', undo: '<path d="M9 7 4 12l5 5"/><path d="M5 12h8a6 6 0 0 1 6 6"/>', redo: '<path d="m15 7 5 5-5 5"/><path d="M19 12h-8a6 6 0 0 0-6 6"/>', desktop: '<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>', mobile: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>', zoomout: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4M8 11h6"/>', eye: '<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/>', save: '<path d="M5 3h12l2 2v16H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/>', publish: '<path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 14v6h14v-6"/>', plusgrid: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M17.5 14v7M14 17.5h7"/>', layers: '<path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 16l9 5 9-5"/>', template: '<path d="M4 4h16v16H4zM4 10h16M10 10v10"/>', history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>', sliders: '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>', search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>', sparkles: '<path d="m12 3 1.4 4.1L17.5 8.5l-4.1 1.4L12 14l-1.4-4.1-4.1-1.4 4.1-1.4L12 3Z"/><path d="m19 14 .7 2.3L22 17l-2.3.7L19 20l-.7-2.3L16 17l2.3-.7L19 14Z"/>', heading: '<path d="M5 5v14M19 5v14M5 12h14"/>', text: '<path d="M4 6h16M4 10h16M4 14h12M4 18h9"/>', button: '<rect x="3" y="7" width="18" height="10" rx="3"/><path d="M9 12h6"/>', image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="2"/><path d="m3 17 5-5 4 4 3-3 6 6"/>', video: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3V9Z"/>', embed: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m9 10-3 2 3 2M15 10l3 2-3 2"/>', move: '<path d="M12 2v20M2 12h20M8 6l4-4 4 4M8 18l4 4 4-4M6 8l-4 4 4 4M18 8l4 4-4 4"/>', target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>', gallery: '<rect x="3" y="3" width="8" height="8"/><rect x="13" y="3" width="8" height="8"/><rect x="3" y="13" width="8" height="8"/><rect x="13" y="13" width="8" height="8"/>', grid: '<rect x="3" y="4" width="5" height="16"/><rect x="10" y="4" width="5" height="16"/><rect x="17" y="4" width="4" height="16"/>', quote: '<path d="M5 7h5v5H7v5H4v-7a3 3 0 0 1 3-3M15 7h5v5h-3v5h-3v-7a3 3 0 0 1 3-3"/>', contact: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>', divider: '<path d="M3 12h18"/>', spacer: '<path d="M8 3h8M8 21h8M12 3v18M9 6l3-3 3 3M9 18l3 3 3-3"/>', grip: '<circle cx="9" cy="7" r="1"/><circle cx="15" cy="7" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="17" r="1"/><circle cx="15" cy="17" r="1"/>', up: '<path d="m6 15 6-6 6 6"/>', down: '<path d="m6 9 6 6 6-6"/>', copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V4H4v12h4"/>', trash: '<path d="M4 7h16M9 7V4h6v3M7 7l1 14h8l1-14M10 11v6M14 11v6"/>', plus: '<path d="M12 5v14M5 12h14"/>', bookmark: '<path d="M6 3h12v18l-6-4-6 4V3Z"/>', close: '<path d="m6 6 12 12M18 6 6 18"/>',
+    back: '<path d="m15 18-6-6 6-6"/>', undo: '<path d="M9 7 4 12l5 5"/><path d="M5 12h8a6 6 0 0 1 6 6"/>', redo: '<path d="m15 7 5 5-5 5"/><path d="M19 12h-8a6 6 0 0 0-6 6"/>', desktop: '<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>', mobile: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>', zoomout: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4M8 11h6"/>', eye: '<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/>', save: '<path d="M5 3h12l2 2v16H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/>', publish: '<path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 14v6h14v-6"/>', plusgrid: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M17.5 14v7M14 17.5h7"/>', layers: '<path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 16l9 5 9-5"/>', template: '<path d="M4 4h16v16H4zM4 10h16M10 10v10"/>', history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>', page: '<path d="M6 3h9l3 3v15H6z"/><path d="M15 3v4h4M9 12h6M9 16h6"/>', home: '<path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10M9 20v-6h6v6"/>', sliders: '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>', search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>', sparkles: '<path d="m12 3 1.4 4.1L17.5 8.5l-4.1 1.4L12 14l-1.4-4.1-4.1-1.4 4.1-1.4L12 3Z"/><path d="m19 14 .7 2.3L22 17l-2.3.7L19 20l-.7-2.3L16 17l2.3-.7L19 14Z"/>', heading: '<path d="M5 5v14M19 5v14M5 12h14"/>', text: '<path d="M4 6h16M4 10h16M4 14h12M4 18h9"/>', button: '<rect x="3" y="7" width="18" height="10" rx="3"/><path d="M9 12h6"/>', image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="2"/><path d="m3 17 5-5 4 4 3-3 6 6"/>', video: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3V9Z"/>', embed: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m9 10-3 2 3 2M15 10l3 2-3 2"/>', move: '<path d="M12 2v20M2 12h20M8 6l4-4 4 4M8 18l4 4 4-4M6 8l-4 4 4 4M18 8l4 4-4 4"/>', target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>', gallery: '<rect x="3" y="3" width="8" height="8"/><rect x="13" y="3" width="8" height="8"/><rect x="3" y="13" width="8" height="8"/><rect x="13" y="13" width="8" height="8"/>', grid: '<rect x="3" y="4" width="5" height="16"/><rect x="10" y="4" width="5" height="16"/><rect x="17" y="4" width="4" height="16"/>', quote: '<path d="M5 7h5v5H7v5H4v-7a3 3 0 0 1 3-3M15 7h5v5h-3v5h-3v-7a3 3 0 0 1 3-3"/>', contact: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>', divider: '<path d="M3 12h18"/>', spacer: '<path d="M8 3h8M8 21h8M12 3v18M9 6l3-3 3 3M9 18l3 3 3-3"/>', grip: '<circle cx="9" cy="7" r="1"/><circle cx="15" cy="7" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="17" r="1"/><circle cx="15" cy="17" r="1"/>', up: '<path d="m6 15 6-6 6 6"/>', down: '<path d="m6 9 6 6 6-6"/>', copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V4H4v12h4"/>', trash: '<path d="M4 7h16M9 7V4h6v3M7 7l1 14h8l1-14M10 11v6M14 11v6"/>', plus: '<path d="M12 5v14M5 12h14"/>', bookmark: '<path d="M6 3h12v18l-6-4-6 4V3Z"/>', close: '<path d="m6 6 12 12M18 6 6 18"/>',
   };
   return `<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[name] || paths.grid}</svg>`;
 }

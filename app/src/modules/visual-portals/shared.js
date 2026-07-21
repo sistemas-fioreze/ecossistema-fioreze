@@ -46,11 +46,15 @@ export function isVisualPortalPublicHost(request, env) {
 
 export function matchVisualPortalPublicPath(pathname) {
   const parts = safePathParts(pathname);
-  if (!parts || parts.length !== 2) return null;
-  const [hotelSlug, portalSlug] = parts;
+  if (!parts || parts.length < 2 || parts.length > 3) return null;
+  const [hotelSlug, portalSlug, pageSlug = ""] = parts;
   if (RESERVED_ROOT_SEGMENTS.has(hotelSlug) || TECHNICAL_PRODUCT_SLUGS.has(portalSlug)) return null;
   if (!isSafeIdentifier(hotelSlug) || !isSafeIdentifier(portalSlug)) return null;
-  return { hotel_slug: hotelSlug, portal_slug: portalSlug };
+  if (!pageSlug) return { hotel_slug: hotelSlug, portal_slug: portalSlug, page_slug: "" };
+  if (pageSlug === "manifest.webmanifest") return { hotel_slug: hotelSlug, portal_slug: portalSlug, resource: "manifest" };
+  if (pageSlug === "sw.js") return { hotel_slug: hotelSlug, portal_slug: portalSlug, resource: "service-worker" };
+  if (!isSafeIdentifier(pageSlug)) return null;
+  return { hotel_slug: hotelSlug, portal_slug: portalSlug, page_slug: pageSlug };
 }
 
 export function matchLegacyVisualPortalPath(pathname) {

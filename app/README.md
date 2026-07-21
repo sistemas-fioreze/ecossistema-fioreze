@@ -139,6 +139,7 @@ Implementados:
 - `POST /api/v1/admin/visual-portals/:id/publish`
 - `POST /api/v1/admin/visual-portals/:id/duplicate`
 - `GET /api/v1/admin/visual-portals/:id/versions`
+- `GET /api/v1/admin/visual-portals/:id/versions/:versionId`
 - `POST /api/v1/admin/visual-portals/:id/versions/:versionId/restore`
 - `GET /api/v1/admin/visual-portal-templates`
 - `POST /api/v1/admin/visual-portal-templates`
@@ -166,6 +167,9 @@ Implementados:
 - `HEAD /portal-content/:hotel_slug/:page_slug`
 - `GET /:hotel_slug/:portal_slug` (portal visual oficial)
 - `HEAD /:hotel_slug/:portal_slug` (portal visual oficial)
+- `GET /:hotel_slug/:portal_slug/:page_slug` (página interna do portal visual)
+- `GET /:hotel_slug/:portal_slug/manifest.webmanifest` (manifesto opcional do portal instalável)
+- `GET /:hotel_slug/:portal_slug/sw.js` (service worker restrito ao portal instalável)
 - `GET|HEAD /portal/:hotel_slug/:portal_slug` redireciona para a URL canônica
 
 Contratos futuros:
@@ -472,7 +476,7 @@ O shell `/admin/portais/` e a Central de Portais Fioreze. A interface segue a me
 - telas dedicadas para areas e navegacao por unidade;
 - auditoria administrativa em `admin_audit_log`.
 
-Em **Conteudos > Construtor**, a Central oferece um editor visual compartilhado para Portal do Hospede, Emporio, Spa, Pacotes Romanticos e modulos publicos futuros. O editor possui canvas desktop/mobile, blocos arrastaveis, camadas, estilos responsivos, Biblioteca de Midia, desfazer/refazer, modelos reutilizaveis, revisoes e publicacao separada do rascunho. O documento salvo e JSON estruturado e validado; nao e HTML executavel. A arquitetura e os controles estao documentados em `docs/arquitetura/VISUAL_PORTAL_BUILDER.md`.
+Em **Conteúdos > Construtor**, a Central oferece um editor visual compartilhado para Portal do Hóspede, Empório, Spa, Pacotes Românticos e módulos públicos futuros. O editor possui sites multipágina, canvas desktop/mobile, cabeçalho e favicon personalizados, fundos com imagem ou vídeo, blocos arrastáveis, camadas, estilos responsivos, Biblioteca de Mídia, destinos por seletor, HTML incorporado sanitizado, desfazer/refazer, salvamento automático, modo instalável, modelos reutilizáveis, prévia de revisões e publicação separada do rascunho. O documento salvo é JSON estruturado e validado; HTML incorporado permanece isolado sem scripts. A arquitetura e os controles estão documentados em `docs/arquitetura/VISUAL_PORTAL_BUILDER.md`.
 
 O shell publico do Portal do Hospede e unico para todos os hoteis. Ele reproduz a composicao visual da referencia aprovada com identidade dinamica por unidade: carregamento com logo horizontal, cabecalho responsivo, navegacao inferior no mobile, servicos ilustrados, evento em destaque, lista e calendario de eventos, detalhe editorial, informacoes do hotel, clima e blog. Cores, tipografia, logos, modulos, imagens e conteudos continuam vindo do bootstrap e das APIs do hotel selecionado; nenhum HTML ou dado do Muller fica fixo no shell compartilhado.
 

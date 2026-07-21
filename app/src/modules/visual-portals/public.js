@@ -1,7 +1,11 @@
 import { all, first } from "../../core/database.js";
 import { notFoundError } from "../../core/errors.js";
 import { isSafeIdentifier } from "../../core/identifiers.js";
-import { collectVisualPortalMediaIds, normalizeVisualPortalDocument } from "../../services/visual-portal-document.js";
+import {
+  collectVisualPortalMediaIds,
+  getVisualPortalPage,
+  normalizeVisualPortalDocument,
+} from "../../services/visual-portal-document.js";
 
 export async function serveVisualPortal({ env, params, head = false }) {
   if (!isSafeIdentifier(params.hotel_slug) || !isSafeIdentifier(params.portal_slug)) {
@@ -35,10 +39,14 @@ export async function serveVisualPortal({ env, params, head = false }) {
   if (!portal) throw notFoundError("Portal nao encontrado.");
 
   const document = normalizeVisualPortalDocument(JSON.parse(portal.published_document_json));
+  const page = getVisualPortalPage(document, params.page_slug || "");
+  if (params.resource === "manifest") return serveVisualPortalManifest({ portal, document, head });
+  if (params.resource === "service-worker") return serveVisualPortalServiceWorker({ portal, head });
+  if (!page) throw notFoundError("Página não encontrada.");
   const media = await loadPublishedMedia(env, portal.hotel_id, document);
-  const headers = visualPortalHeaders();
+  const headers = visualPortalHeaders(document.settings.pwa.install_enabled);
   if (head) return new Response(null, { status: 200, headers });
-  return new Response(renderVisualPortalPage({ portal, document, media }), { status: 200, headers });
+  return new Response(renderVisualPortalPage({ portal, document, page, media }), { status: 200, headers });
 }
 
 async function loadPublishedMedia(env, hotelId, document) {
@@ -57,35 +65,42 @@ async function loadPublishedMedia(env, hotelId, document) {
   return new Map(rows.filter((row) => /^\/media\/[a-z0-9_-]+$/i.test(row.public_url || "")).map((row) => [row.id, row]));
 }
 
-export function renderVisualPortalPage({ portal, document, media = new Map() }) {
+export function renderVisualPortalPage({ portal, document, page = getVisualPortalPage(document, ""), media = new Map() }) {
+  if (!page) throw notFoundError("Página não encontrada.");
   const settings = document.settings;
-  const blocks = document.blocks.map((block) => renderBlock(block, media)).join("");
-  const logo = safeMediaPath(portal.logo_url);
-  const pageBackground = renderPageBackground(settings, media);
+  const pageSettings = page.settings;
   const homePath = portal.portal_slug ? `/${portal.hotel_slug}/${portal.portal_slug}` : "#conteudo";
+  const context = { portal, document, homePath };
+  const blocks = page.blocks.map((block) => renderBlock(block, media, context)).join("");
+  const headerLogo = media.get(settings.header.logo_media_asset_id)?.public_url || safeMediaPath(portal.logo_url);
+  const favicon = media.get(settings.favicon_media_asset_id)?.public_url || safeMediaPath(portal.icon_url);
+  const pageBackground = renderPageBackground(pageSettings, media);
+  const pwaEnabled = settings.pwa.install_enabled;
+  const manifestPath = `${homePath}/manifest.webmanifest`;
+  const serviceWorkerPath = `${homePath}/sw.js`;
+  const pageTitle = page.slug ? `${page.title} | ${portal.title}` : portal.title;
+  const header = renderSiteHeader({ portal, document, page, logo: headerLogo, context });
   return `<!doctype html>
-<html lang="${escapeAttr(String(portal.locale || "pt-BR").replace("_", "-"))}">
+<html lang="${escapeAttr(String(portal.locale || "pt-BR").replace("_", "-"))}"${pwaEnabled ? ` data-install-enabled="true" data-service-worker="${escapeAttr(serviceWorkerPath)}" data-service-worker-scope="${escapeAttr(`${homePath}/`)}"` : ""}>
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="${escapeAttr(settings.primary_color)}">
-    <title>${escapeHtml(portal.title)} | ${escapeHtml(portal.hotel_short_name || portal.hotel_name)}</title>
-    <style>${visualPortalCss(settings)}</style>
+    <title>${escapeHtml(pageTitle)} | ${escapeHtml(portal.hotel_short_name || portal.hotel_name)}</title>
+    ${favicon ? `<link rel="icon" href="${escapeAttr(favicon)}">` : ""}
+    ${pwaEnabled ? `<link rel="manifest" href="${escapeAttr(manifestPath)}"><script src="/js/modules/visual-portal-runtime.js" defer></script>` : ""}
+    <style>${visualPortalCss(settings, pageSettings)}</style>
   </head>
   <body>
     <a class="skip-link" href="#conteudo">Ir para o conteúdo</a>
     ${pageBackground}
-    <header class="site-header">
-      <a class="brand" href="${escapeAttr(homePath)}" aria-label="${escapeAttr(portal.hotel_name)}">
-        ${logo ? `<img src="${escapeAttr(logo)}" alt="${escapeAttr(portal.hotel_name)}">` : `<strong>${escapeHtml(portal.hotel_short_name || portal.hotel_name)}</strong>`}
-      </a>
-    </header>
-    <main id="conteudo" class="visual-page" data-module="${escapeAttr(portal.module_key)}">${blocks || '<section class="empty-page"><h1>Conteúdo em preparação</h1></section>'}</main>
+    ${header}
+    <main id="conteudo" class="visual-page" data-module="${escapeAttr(portal.module_key)}" data-page="${escapeAttr(page.id)}">${blocks || '<section class="empty-page"><h1>Conteúdo em preparação</h1></section>'}</main>
   </body>
 </html>`;
 }
 
-function renderBlock(block, media) {
+function renderBlock(block, media, context) {
   const classes = [
     "visual-block",
     `visual-${block.type}`,
@@ -98,11 +113,11 @@ function renderBlock(block, media) {
   if (block.type === "hero") {
     const asset = media.get(content.media_asset_id);
     const background = asset && String(asset.mime_type).startsWith("image/") ? ` style="background-image:linear-gradient(rgba(0,0,0,${content.overlay / 100}),rgba(0,0,0,${content.overlay / 100})),url('${escapeCssUrl(asset.public_url)}')"` : "";
-    return `<section ${attributes}><div class="hero-media"${background}><div class="block-inner hero-copy">${content.eyebrow ? `<p class="eyebrow">${escapeHtml(content.eyebrow)}</p>` : ""}<h1>${escapeHtml(content.title)}</h1>${paragraphs(content.text)}${buttonLink(content.button_text, content.button_url)}</div></div></section>`;
+    return `<section ${attributes}><div class="hero-media"${background}><div class="block-inner hero-copy">${content.eyebrow ? `<p class="eyebrow">${escapeHtml(content.eyebrow)}</p>` : ""}<h1>${escapeHtml(content.title)}</h1>${paragraphs(content.text)}${buttonLink(content.button_text, content.button_url, "solid", context)}</div></div></section>`;
   }
   if (block.type === "heading") return `<section ${attributes}><div class="block-inner"><h2>${escapeHtml(content.title)}</h2>${paragraphs(content.text)}</div></section>`;
   if (block.type === "text") return `<section ${attributes}><div class="block-inner rich-text">${paragraphs(content.text)}</div></section>`;
-  if (block.type === "button") return `<section ${attributes}><div class="block-inner">${buttonLink(content.text, content.url, content.style)}</div></section>`;
+  if (block.type === "button") return `<section ${attributes}><div class="block-inner">${buttonLink(content.text, content.url, content.style, context)}</div></section>`;
   if (block.type === "image") {
     const asset = media.get(content.media_asset_id);
     if (!asset || !String(asset.mime_type).startsWith("image/")) return "";
@@ -116,19 +131,23 @@ function renderBlock(block, media) {
     return `<section ${attributes}><div class="block-inner">${content.title ? `<h2>${escapeHtml(content.title)}</h2>` : ""}<video ${flags} playsinline preload="metadata"${poster ? ` poster="${escapeAttr(poster.public_url)}"` : ""}><source src="${escapeAttr(asset.public_url)}" type="${escapeAttr(asset.mime_type)}"></video></div></section>`;
   }
   if (block.type === "embed") {
-    if (!content.url) return "";
+    if (content.mode === "html" && !content.html) return "";
+    if (content.mode !== "html" && !content.url) return "";
     const allowFullscreen = content.allow_fullscreen ? " allowfullscreen" : "";
-    return `<section ${attributes}><div class="block-inner embed-frame" style="--embed-ratio:${escapeAttr(embedRatio(content.aspect_ratio))}"><iframe src="${escapeAttr(content.url)}" title="${escapeAttr(content.title || "Conteúdo incorporado")}" loading="lazy" sandbox="allow-scripts allow-forms allow-popups allow-presentation" referrerpolicy="strict-origin-when-cross-origin"${allowFullscreen}></iframe></div></section>`;
+    const source = content.mode === "html"
+      ? ` srcdoc="${escapeAttr(content.html)}" sandbox="allow-forms allow-popups allow-presentation"`
+      : ` src="${escapeAttr(content.url)}" sandbox="allow-scripts allow-forms allow-popups allow-presentation" referrerpolicy="strict-origin-when-cross-origin"`;
+    return `<section ${attributes}><div class="block-inner embed-frame" style="--embed-ratio:${escapeAttr(embedRatio(content.aspect_ratio))}"><iframe${source} title="${escapeAttr(content.title || "Conteúdo incorporado")}" loading="lazy"${allowFullscreen}></iframe></div></section>`;
   }
   if (block.type === "gallery") {
     const assets = content.media_asset_ids.map((id) => media.get(id)).filter((asset) => asset && String(asset.mime_type).startsWith("image/"));
     return `<section ${attributes}><div class="block-inner">${content.title ? `<h2>${escapeHtml(content.title)}</h2>` : ""}<div class="gallery-grid">${assets.map((asset) => `<img src="${escapeAttr(asset.public_url)}" alt="${escapeAttr(asset.alt_text || "")}" loading="lazy">`).join("")}</div></div></section>`;
   }
   if (block.type === "feature-grid") {
-    return `<section ${attributes}><div class="block-inner feature-grid">${content.items.map((item) => { const asset = media.get(item.media_asset_id); return `<article>${asset && String(asset.mime_type).startsWith("image/") ? `<img src="${escapeAttr(asset.public_url)}" alt="${escapeAttr(asset.alt_text || "")}" loading="lazy">` : ""}<div><h3>${escapeHtml(item.title)}</h3>${paragraphs(item.text)}${buttonLink(item.button_text, item.button_url, "ghost")}</div></article>`; }).join("")}</div></section>`;
+    return `<section ${attributes}><div class="block-inner feature-grid">${content.items.map((item) => { const asset = media.get(item.media_asset_id); return `<article>${asset && String(asset.mime_type).startsWith("image/") ? `<img src="${escapeAttr(asset.public_url)}" alt="${escapeAttr(asset.alt_text || "")}" loading="lazy">` : ""}<div><h3>${escapeHtml(item.title)}</h3>${paragraphs(item.text)}${buttonLink(item.button_text, item.button_url, "ghost", context)}</div></article>`; }).join("")}</div></section>`;
   }
   if (block.type === "quote") return `<figure ${attributes}><div class="block-inner"><blockquote>${escapeHtml(content.quote)}</blockquote>${content.author ? `<figcaption>${escapeHtml(content.author)}</figcaption>` : ""}</div></figure>`;
-  if (block.type === "contact") return `<section ${attributes}><div class="block-inner contact-panel"><h2>${escapeHtml(content.title)}</h2>${paragraphs(content.text)}<address>${content.address ? `<span>${escapeHtml(content.address)}</span>` : ""}${content.phone ? `<a href="tel:${escapeAttr(content.phone.replace(/[^+\d]/g, ""))}">${escapeHtml(content.phone)}</a>` : ""}${content.email ? `<a href="mailto:${escapeAttr(content.email)}">${escapeHtml(content.email)}</a>` : ""}</address>${buttonLink(content.button_text, content.button_url)}</div></section>`;
+  if (block.type === "contact") return `<section ${attributes}><div class="block-inner contact-panel"><h2>${escapeHtml(content.title)}</h2>${paragraphs(content.text)}<address>${content.address ? `<span>${escapeHtml(content.address)}</span>` : ""}${content.phone ? `<a href="tel:${escapeAttr(content.phone.replace(/[^+\d]/g, ""))}">${escapeHtml(content.phone)}</a>` : ""}${content.email ? `<a href="mailto:${escapeAttr(content.email)}">${escapeHtml(content.email)}</a>` : ""}</address>${buttonLink(content.button_text, content.button_url, "solid", context)}</div></section>`;
   if (block.type === "divider") return `<div ${attributes}><div class="block-inner divider"><span></span>${content.label ? `<em>${escapeHtml(content.label)}</em>` : ""}<span></span></div></div>`;
   return `<div ${attributes} aria-hidden="true"></div>`;
 }
@@ -176,11 +195,33 @@ function renderPageBackground(settings, media) {
   return `<div class="page-background${settings.background_fixed ? " is-fixed" : ""}" aria-hidden="true">${element}<span style="opacity:${Number(settings.background_overlay || 0) / 100}"></span></div>`;
 }
 
-function visualPortalCss(settings) {
+function renderSiteHeader({ portal, document, page, logo, context }) {
+  const header = document.settings.header;
+  if (!header.enabled) return "";
+  const navigation = header.show_navigation
+    ? document.pages.filter((item) => item.show_in_navigation).map((item) => {
+      const href = resolvePortalHref(`page:${item.id}`, context);
+      return `<a href="${escapeAttr(href)}"${item.id === page.id ? ' aria-current="page"' : ""}>${escapeHtml(item.name)}</a>`;
+    }).join("")
+    : "";
+  const classes = [
+    "site-header",
+    `header-${header.style}`,
+    header.position === "sticky" ? "is-sticky" : "",
+    header.transparent ? "is-transparent" : "",
+    header.blur ? "has-blur" : "",
+  ].filter(Boolean).join(" ");
+  const brand = header.show_logo
+    ? `<a class="brand" href="${escapeAttr(context.homePath)}" aria-label="${escapeAttr(portal.hotel_name)}">${logo ? `<img src="${escapeAttr(logo)}" alt="${escapeAttr(portal.hotel_name)}">` : `<strong>${escapeHtml(portal.hotel_short_name || portal.hotel_name)}</strong>`}</a>`
+    : "";
+  return `<header class="${classes}" style="--header-bg:${escapeAttr(header.background_color)};--header-text:${escapeAttr(header.text_color)};--header-accent:${escapeAttr(header.accent_color)}"><div class="header-inner">${brand}<nav aria-label="Navegação do site">${navigation}</nav><div class="header-actions">${buttonLink(header.cta_text, header.cta_url, "solid", context)}${document.settings.pwa.install_enabled ? '<button class="install-app-button" type="button" data-install-app hidden>Instalar app</button>' : ""}</div></div></header>`;
+}
+
+function visualPortalCss(settings, pageSettings) {
   return `
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
-body{position:relative;margin:0;background:${settings.background_color};color:${settings.text_color};font-family:${settings.font_family};line-height:1.6}
+body{position:relative;margin:0;background:${pageSettings.background_color};color:${pageSettings.text_color};font-family:${settings.font_family};line-height:1.6}
 a{color:inherit}
 .skip-link{position:fixed;left:1rem;top:-5rem;z-index:100;background:#fff;color:#111;padding:.7rem 1rem}
 .skip-link:focus{top:1rem}
@@ -188,12 +229,27 @@ a{color:inherit}
 .page-background.is-fixed{position:fixed}
 .page-background img,.page-background video{display:block;width:100%;height:100%}
 .page-background span{position:absolute;inset:0;background:#000}
-.site-header{position:absolute;inset:0 0 auto;z-index:10;display:flex;align-items:center;min-height:76px;padding:14px max(24px,env(safe-area-inset-left))}
+.site-header{position:relative;z-index:10;width:100%;min-height:76px;padding:12px max(24px,env(safe-area-inset-left));background:var(--header-bg);color:var(--header-text)}
+.site-header.is-sticky{position:sticky;top:0}
+.site-header.is-transparent{background:transparent}
+.site-header.has-blur{backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.site-header.has-blur:not(.is-transparent){background:color-mix(in srgb,var(--header-bg) 86%,transparent)}
+.header-inner{display:grid;grid-template-columns:minmax(150px,1fr) auto minmax(150px,1fr);align-items:center;gap:24px;width:min(100%,1440px);min-height:52px;margin-inline:auto}
+.header-inner nav{display:flex;align-items:center;justify-content:center;gap:6px;min-width:0}
+.header-inner nav a{padding:.65rem .85rem;border-radius:999px;text-decoration:none;font-size:.9rem;font-weight:700;white-space:nowrap}
+.header-inner nav a:hover,.header-inner nav a[aria-current="page"]{background:color-mix(in srgb,var(--header-accent) 14%,transparent);color:var(--header-accent)}
+.header-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px}
+.header-centered .header-inner{grid-template-columns:1fr;justify-items:center}
+.header-centered .header-actions{justify-content:center}
+.header-floating{padding-top:18px;background:transparent}
+.header-floating .header-inner{padding:8px 12px;border:1px solid color-mix(in srgb,var(--header-text) 13%,transparent);border-radius:18px;background:color-mix(in srgb,var(--header-bg) 84%,transparent);box-shadow:0 14px 36px rgba(0,0,0,.08);backdrop-filter:blur(18px)}
+.header-minimal{background:transparent}
 .brand{display:inline-flex;align-items:center;text-decoration:none}
 .brand img{display:block;max-width:180px;max-height:48px}
 .brand strong{font-size:1.1rem}
-.visual-page{position:relative;z-index:1;--page-width:${widthValue(settings.content_width)};--page-pad:${settings.page_padding}px;--block-gap:${settings.block_gap}px;display:grid;gap:var(--block-gap);min-height:100vh}
-.visual-block{--align:var(--base-align,left);--width:var(--base-width,${widthValue(settings.content_width)});--background:var(--base-background,transparent);--text:var(--base-text,inherit);--accent:var(--base-accent,${settings.primary_color});--padding-top:var(--base-padding-top,0px);--padding-bottom:var(--base-padding-bottom,0px);--padding-inline:var(--base-padding-inline,var(--page-pad));--gap:var(--base-gap,20px);--min-height:var(--base-min-height,0px);--radius:var(--base-radius,0px);--columns:var(--base-columns,3);--offset-x:var(--base-offset-x,0px);--offset-y:var(--base-offset-y,0px);margin:0;background:var(--background);color:var(--text);text-align:var(--align);min-height:var(--min-height);padding:var(--padding-top) var(--padding-inline) var(--padding-bottom);border-radius:var(--radius);transform:translate(var(--offset-x),var(--offset-y))}
+.install-app-button{min-height:42px;padding:.6rem 1rem;border:1px solid var(--header-accent);border-radius:999px;background:var(--header-accent);color:#fff;font:inherit;font-weight:750;cursor:pointer}
+.visual-page{position:relative;z-index:1;--page-width:${widthValue(pageSettings.content_width)};--page-pad:${pageSettings.page_padding}px;--block-gap:${pageSettings.block_gap}px;display:grid;gap:var(--block-gap);min-height:calc(100vh - 76px)}
+.visual-block{--align:var(--base-align,left);--width:var(--base-width,${widthValue(pageSettings.content_width)});--background:var(--base-background,transparent);--text:var(--base-text,inherit);--accent:var(--base-accent,${settings.primary_color});--padding-top:var(--base-padding-top,0px);--padding-bottom:var(--base-padding-bottom,0px);--padding-inline:var(--base-padding-inline,var(--page-pad));--gap:var(--base-gap,20px);--min-height:var(--base-min-height,0px);--radius:var(--base-radius,0px);--columns:var(--base-columns,3);--offset-x:var(--base-offset-x,0px);--offset-y:var(--base-offset-y,0px);margin:0;background:var(--background);color:var(--text);text-align:var(--align);min-height:var(--min-height);padding:var(--padding-top) var(--padding-inline) var(--padding-bottom);border-radius:var(--radius);transform:translate(var(--offset-x),var(--offset-y))}
 .block-inner{width:min(100%,var(--width));margin-inline:auto}
 .visual-block h1,.visual-block h2,.visual-block h3,.visual-block p{margin-top:0;overflow-wrap:anywhere}
 .visual-block h1{font-size:var(--base-heading-size,clamp(2.5rem,7vw,6.5rem));line-height:.98;letter-spacing:0;margin-bottom:1.4rem}
@@ -227,7 +283,7 @@ a{color:inherit}
 .visual-spacer{min-height:var(--min-height,48px)}
 .hide-desktop{display:none}
 @media (min-width:761px){
-  .visual-block{--align:var(--desktop-align,var(--base-align,left));--width:var(--desktop-width,var(--base-width,${widthValue(settings.content_width)}));--background:var(--desktop-background,var(--base-background,transparent));--text:var(--desktop-text,var(--base-text,inherit));--accent:var(--desktop-accent,var(--base-accent,${settings.primary_color}));--padding-top:var(--desktop-padding-top,var(--base-padding-top,0px));--padding-bottom:var(--desktop-padding-bottom,var(--base-padding-bottom,0px));--padding-inline:var(--desktop-padding-inline,var(--base-padding-inline,var(--page-pad)));--gap:var(--desktop-gap,var(--base-gap,20px));--min-height:var(--desktop-min-height,var(--base-min-height,0px));--radius:var(--desktop-radius,var(--base-radius,0px));--columns:var(--desktop-columns,var(--base-columns,3));--offset-x:var(--desktop-offset-x,var(--base-offset-x,0px));--offset-y:var(--desktop-offset-y,var(--base-offset-y,0px))}
+  .visual-block{--align:var(--desktop-align,var(--base-align,left));--width:var(--desktop-width,var(--base-width,${widthValue(pageSettings.content_width)}));--background:var(--desktop-background,var(--base-background,transparent));--text:var(--desktop-text,var(--base-text,inherit));--accent:var(--desktop-accent,var(--base-accent,${settings.primary_color}));--padding-top:var(--desktop-padding-top,var(--base-padding-top,0px));--padding-bottom:var(--desktop-padding-bottom,var(--base-padding-bottom,0px));--padding-inline:var(--desktop-padding-inline,var(--base-padding-inline,var(--page-pad)));--gap:var(--desktop-gap,var(--base-gap,20px));--min-height:var(--desktop-min-height,var(--base-min-height,0px));--radius:var(--desktop-radius,var(--base-radius,0px));--columns:var(--desktop-columns,var(--base-columns,3));--offset-x:var(--desktop-offset-x,var(--base-offset-x,0px));--offset-y:var(--desktop-offset-y,var(--base-offset-y,0px))}
   .visual-block h1{font-size:var(--desktop-heading-size,var(--base-heading-size,clamp(2.5rem,7vw,6.5rem)))}
   .visual-block h2{font-size:var(--desktop-heading-size,var(--base-heading-size,clamp(2rem,4vw,4.2rem)))}
   .visual-block h3{font-size:var(--desktop-heading-size,var(--base-heading-size,1.25rem))}
@@ -235,9 +291,14 @@ a{color:inherit}
   .visual-quote blockquote{font-size:var(--desktop-heading-size,var(--base-heading-size,clamp(1.6rem,3.2vw,3.3rem)))}
 }
 @media (max-width:760px){
-  .site-header{min-height:64px;padding-inline:max(18px,env(safe-area-inset-left))}
+  .site-header{min-height:64px;padding-inline:max(14px,env(safe-area-inset-left))}
+  .header-inner{grid-template-columns:minmax(0,1fr) auto;gap:10px}
+  .header-inner nav{grid-column:1/-1;justify-content:flex-start;overflow:auto;padding-bottom:2px;scrollbar-width:none}
+  .header-inner nav::-webkit-scrollbar{display:none}
+  .header-actions .visual-button{display:none}
+  .header-centered .header-inner{grid-template-columns:1fr}
   .brand img{max-width:142px;max-height:38px}
-  .visual-block{--align:var(--mobile-align,var(--base-align,left));--width:var(--mobile-width,var(--base-width,${widthValue(settings.content_width)}));--background:var(--mobile-background,var(--base-background,transparent));--text:var(--mobile-text,var(--base-text,inherit));--accent:var(--mobile-accent,var(--base-accent,${settings.primary_color}));--padding-top:var(--mobile-padding-top,var(--base-padding-top,0px));--padding-bottom:var(--mobile-padding-bottom,var(--base-padding-bottom,0px));--padding-inline:var(--mobile-padding-inline,var(--base-padding-inline,18px));--gap:var(--mobile-gap,var(--base-gap,16px));--min-height:var(--mobile-min-height,var(--base-min-height,0px));--radius:var(--mobile-radius,var(--base-radius,0px));--columns:var(--mobile-columns,1);--offset-x:var(--mobile-offset-x,var(--base-offset-x,0px));--offset-y:var(--mobile-offset-y,var(--base-offset-y,0px))}
+  .visual-block{--align:var(--mobile-align,var(--base-align,left));--width:var(--mobile-width,var(--base-width,${widthValue(pageSettings.content_width)}));--background:var(--mobile-background,var(--base-background,transparent));--text:var(--mobile-text,var(--base-text,inherit));--accent:var(--mobile-accent,var(--base-accent,${settings.primary_color}));--padding-top:var(--mobile-padding-top,var(--base-padding-top,0px));--padding-bottom:var(--mobile-padding-bottom,var(--base-padding-bottom,0px));--padding-inline:var(--mobile-padding-inline,var(--base-padding-inline,18px));--gap:var(--mobile-gap,var(--base-gap,16px));--min-height:var(--mobile-min-height,var(--base-min-height,0px));--radius:var(--mobile-radius,var(--base-radius,0px));--columns:var(--mobile-columns,1);--offset-x:var(--mobile-offset-x,var(--base-offset-x,0px));--offset-y:var(--mobile-offset-y,var(--base-offset-y,0px))}
   .hide-desktop{display:initial}.hide-mobile{display:none}
   .feature-grid,.gallery-grid{grid-template-columns:repeat(var(--columns),minmax(0,1fr))}
   .visual-button{width:100%}
@@ -255,10 +316,22 @@ function paragraphs(value) {
   return String(value || "").split(/\n{2,}/).map((paragraph) => paragraph.trim()).filter(Boolean).map((paragraph) => `<p>${escapeHtml(paragraph).replaceAll("\n", "<br>")}</p>`).join("");
 }
 
-function buttonLink(text, url, style = "solid") {
+function buttonLink(text, url, style = "solid", context) {
   if (!text || !url) return "";
-  const external = /^https:\/\//i.test(url);
-  return `<a class="visual-button is-${escapeAttr(style || "solid")}" href="${escapeAttr(url)}"${external ? ' target="_blank" rel="noopener noreferrer"' : ""}>${escapeHtml(text)}</a>`;
+  const href = resolvePortalHref(url, context);
+  const external = /^https:\/\//i.test(href);
+  return `<a class="visual-button is-${escapeAttr(style || "solid")}" href="${escapeAttr(href)}"${external ? ' target="_blank" rel="noopener noreferrer"' : ""}>${escapeHtml(text)}</a>`;
+}
+
+function resolvePortalHref(value, context) {
+  const target = String(value || "");
+  if (!context) return target;
+  if (target === "module:room-service") return `/${context.portal.hotel_slug}/room-service`;
+  if (!target.startsWith("page:")) return target;
+  const pageId = target.slice(5);
+  const page = context.document.pages.find((item) => item.id === pageId);
+  if (!page) return context.homePath;
+  return page.slug ? `${context.homePath}/${page.slug}` : context.homePath;
 }
 
 function widthValue(width) {
@@ -269,10 +342,6 @@ function embedRatio(value) {
   return ({ "16:9": "16 / 9", "4:3": "4 / 3", "1:1": "1", "9:16": "9 / 16" })[value] || "16 / 9";
 }
 
-function alignmentMargin() {
-  return "auto";
-}
-
 function safeMediaPath(value) {
   return /^\/(?:media|assets)\/[a-z0-9_./-]+$/i.test(value || "") ? value : "";
 }
@@ -281,19 +350,19 @@ function escapeCssUrl(value) {
   return String(value).replace(/["'()\\\n\r]/g, "");
 }
 
-function visualPortalHeaders() {
+function visualPortalHeaders(pwaEnabled = false) {
   return {
     "content-type": "text/html; charset=utf-8",
     "cache-control": "public, max-age=60, stale-while-revalidate=300",
     "content-security-policy": [
       "default-src 'none'",
-      "script-src 'none'",
+      pwaEnabled ? "script-src 'self'" : "script-src 'none'",
       "style-src 'unsafe-inline'",
       "img-src 'self' data:",
       "media-src 'self'",
       "frame-src https:",
       "font-src 'self' data:",
-      "connect-src 'none'",
+      pwaEnabled ? "connect-src 'self'" : "connect-src 'none'",
       "object-src 'none'",
       "base-uri 'none'",
       "form-action 'none'",
@@ -302,6 +371,40 @@ function visualPortalHeaders() {
     "referrer-policy": "strict-origin-when-cross-origin",
     "x-content-type-options": "nosniff",
   };
+}
+
+function serveVisualPortalManifest({ portal, document, head }) {
+  if (!document.settings.pwa.install_enabled) throw notFoundError("Manifesto não encontrado.");
+  const favicon = document.settings.favicon_media_asset_id ? `/media/${document.settings.favicon_media_asset_id}` : safeMediaPath(portal.icon_url);
+  const startUrl = `/${portal.hotel_slug}/${portal.portal_slug}`;
+  const payload = {
+    id: startUrl,
+    name: document.settings.pwa.app_name || portal.title,
+    short_name: document.settings.pwa.short_name || portal.hotel_short_name || portal.hotel_name,
+    description: document.settings.pwa.description || portal.title,
+    start_url: `${startUrl}/`,
+    scope: `${startUrl}/`,
+    display: document.settings.pwa.display,
+    background_color: document.settings.background_color,
+    theme_color: document.settings.primary_color,
+    icons: favicon ? [{ src: favicon, sizes: "any", purpose: "any maskable" }] : [],
+  };
+  const headers = { "content-type": "application/manifest+json; charset=utf-8", "cache-control": "public, max-age=60", "x-content-type-options": "nosniff" };
+  return new Response(head ? null : JSON.stringify(payload), { status: 200, headers });
+}
+
+function serveVisualPortalServiceWorker({ portal, head }) {
+  const scope = `/${portal.hotel_slug}/${portal.portal_slug}/`;
+  const source = `self.addEventListener("install",event=>event.waitUntil(self.skipWaiting()));self.addEventListener("activate",event=>event.waitUntil(self.clients.claim()));self.addEventListener("fetch",event=>{const url=new URL(event.request.url);if(event.request.method!=="GET"||url.origin!==self.location.origin||!url.pathname.startsWith(${JSON.stringify(scope)}))return;event.respondWith(fetch(event.request));});`;
+  return new Response(head ? null : source, {
+    status: 200,
+    headers: {
+      "content-type": "text/javascript; charset=utf-8",
+      "cache-control": "no-store",
+      "service-worker-allowed": scope,
+      "x-content-type-options": "nosniff",
+    },
+  });
 }
 
 function escapeHtml(value) {
