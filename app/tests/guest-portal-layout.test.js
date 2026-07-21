@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
+import { resolvePortalSwipe } from "../public/js/core/portal-home.js";
 
 const portalScript = fs.readFileSync(new URL("../public/js/core/portal-home.js", import.meta.url), "utf8");
 const portalCss = fs.readFileSync(
@@ -130,11 +131,33 @@ test("inicio mobile usa contraste branco e header com respiro seguro", () => {
   assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\.is-mobile-home\) \.site-header\.is-scrolled\s*\{[\s\S]*?rgba\(18, 13, 10, 0\.46\)/);
 });
 
-test("inicio mobile oculta informes e usa servicos escuros com fundo transparente", () => {
+test("inicio mobile oculta informes e usa servicos com vidro escuro", () => {
   assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.home-info-section\s*\{\s*display:\s*none/);
-  assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.quick-card,[\s\S]*?\.quick-card:hover\s*\{[\s\S]*?background:\s*transparent;[\s\S]*?backdrop-filter:\s*none/);
-  assert.match(portalCss, /\.quick-card > svg,[\s\S]*?\.quick-card > strong,[\s\S]*?\.quick-card > span\s*\{[\s\S]*?color:\s*var\(--guest-primary-strong\)/);
+  assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.quick-card,[\s\S]*?\.quick-card:hover\s*\{[\s\S]*?background:\s*rgba\(18, 13, 10, 0\.68\);[\s\S]*?backdrop-filter:\s*blur\(16px\) saturate\(1\.12\)/);
+  assert.match(portalCss, /\.quick-card > svg,[\s\S]*?\.quick-card > strong,[\s\S]*?\.quick-card > span\s*\{[\s\S]*?color:\s*#fff/);
   assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.quick-card > span\s*\{[\s\S]*?overflow:\s*visible;[\s\S]*?-webkit-line-clamp:\s*unset/);
+});
+
+test("swipe horizontal mobile avanca e volta entre as guias", () => {
+  assert.equal(resolvePortalSwipe({ activeTab: "inicio", startX: 310, startY: 420, endX: 110, endY: 426, durationMs: 280 }), "servicos");
+  assert.equal(resolvePortalSwipe({ activeTab: "eventos", startX: 80, startY: 420, endX: 270, endY: 414, durationMs: 300 }), "servicos");
+});
+
+test("swipe mobile respeita limites e preserva a rolagem vertical", () => {
+  assert.equal(resolvePortalSwipe({ activeTab: "inicio", startX: 290, startY: 420, endX: 90, endY: 425, durationMs: 250 }), "servicos");
+  assert.equal(resolvePortalSwipe({ activeTab: "inicio", startX: 80, startY: 420, endX: 290, endY: 425, durationMs: 250 }), null);
+  assert.equal(resolvePortalSwipe({ activeTab: "blog", startX: 290, startY: 420, endX: 80, endY: 425, durationMs: 250 }), null);
+  assert.equal(resolvePortalSwipe({ activeTab: "servicos", startX: 300, startY: 200, endX: 270, endY: 400, durationMs: 250 }), null);
+  assert.equal(resolvePortalSwipe({ activeTab: "servicos", startX: 300, startY: 200, endX: 230, endY: 205, durationMs: 900 }), null);
+});
+
+test("gesto mobile ignora controles interativos e usa somente o conteudo", () => {
+  assert.match(portalScript, /MOBILE_SWIPE_BLOCKED_SELECTOR/);
+  assert.match(portalScript, /event\.target\.closest\?\.\(MOBILE_SWIPE_BLOCKED_SELECTOR\)/);
+  assert.match(portalScript, /addEventListener\("touchstart"/);
+  assert.match(portalScript, /addEventListener\("touchend"/);
+  assert.match(portalScript, /addEventListener\("touchcancel"/);
+  assert.match(portalCss, /\.guest-shell,[\s\S]*?touch-action:\s*pan-y/);
 });
 
 test("navegacao mobile alinha icone e texto sem fundo borrado", () => {
