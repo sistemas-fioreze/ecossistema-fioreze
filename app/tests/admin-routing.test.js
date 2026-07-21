@@ -100,6 +100,17 @@ test("subrotas administrativas entregam o shell correto ao atualizar pagina", as
   assert.match(await media.text(), /Central de Portais Fioreze/);
 });
 
+test("configuracoes reune as areas de equipe sem criar outro shell", async () => {
+  const { fetch } = createWorkerTestContext();
+  const redirect = await fetch("/admin/configuracoes", { redirect: "manual" });
+  const shell = await fetch("/admin/configuracoes/", { redirect: "manual" });
+
+  assert.equal(redirect.status, 308);
+  assert.equal(new URL(redirect.headers.get("location")).pathname, "/admin/configuracoes/");
+  assert.equal(shell.status, 200);
+  assert.match(await shell.text(), /settingsManager/);
+});
+
 test("todos os modulos da Central de Portais entregam o shell funcional", async () => {
   const { fetch } = createWorkerTestContext();
   for (const path of [

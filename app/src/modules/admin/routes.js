@@ -78,7 +78,10 @@ import {
   getAdminShortLink,
   getAdminShortLinkAnalytics,
   getAdminShortLinkQrCode,
+  listAdminShortLinkShares,
   listAdminShortLinks,
+  revokeAdminShortLinkShare,
+  shareAdminShortLink,
   updateAdminShortLink,
 } from "./short-links.js";
 import {
@@ -737,6 +740,21 @@ export function registerAdminRoutes(router) {
   router.delete("/api/v1/admin/short-links/:id/permanent", async ({ request, env, params }) => {
     const session = await requireAuthentication({ request, env });
     return ok(await deleteAdminShortLink({ request, env, session, linkId: params.id }));
+  });
+
+  router.get("/api/v1/admin/short-links/:id/shares", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await listAdminShortLinkShares({ env, session, linkId: params.id }));
+  });
+
+  router.post("/api/v1/admin/short-links/:id/shares", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await shareAdminShortLink({ request, env, session, linkId: params.id }));
+  });
+
+  router.delete("/api/v1/admin/short-links/:id/shares/:userId", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await revokeAdminShortLinkShare({ request, env, session, linkId: params.id, userId: params.userId }));
   });
 
   router.get("/api/v1/admin/custom-portal-pages", async ({ request, env, url }) => {

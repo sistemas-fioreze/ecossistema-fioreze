@@ -56,6 +56,10 @@ A Central Administrativa oferece fluxos funcionais para:
 - Auditoria administrativa;
 - Minha conta e avatar.
 
+Usuarios, perfis e permissoes, auditoria e Minha conta ficam reunidos em `/admin/configuracoes/`. Essas areas continuam protegidas individualmente pelas permissoes do backend, mas deixam de ocupar entradas separadas na navegacao principal.
+
+O Inicio usa somente dados da sessao autenticada e das APIs administrativas para mostrar unidades autorizadas, areas disponiveis, permissoes por area e mensagens nao lidas. O painel externo permanece sem superficie decorativa; cards e graficos organizam apenas informacoes operacionais reais.
+
 Usuarios podem ser removidos sem apagar o historico: a conta e arquivada, as sessoes sao revogadas e os vinculos ativos sao encerrados. Perfis sem usuarios podem ser excluidos, enquanto perfis administrativos protegidos permanecem bloqueados contra remocao.
 
 ## Linguagem

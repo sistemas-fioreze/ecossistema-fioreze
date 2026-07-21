@@ -1,5 +1,5 @@
 import { all, batch, first, statement } from "../../core/database.js";
-import { badRequest, conflict, notFoundError } from "../../core/errors.js";
+import { badRequest, conflict, forbidden, notFoundError } from "../../core/errors.js";
 import { createPublicId } from "../../core/identifiers.js";
 import { requestNow } from "../../core/time.js";
 import { optionalString, readJson, requireString } from "../../core/validation.js";
@@ -38,8 +38,16 @@ export async function listAdminShortLinks({ request, env, session, url }) {
   const offset = parseInteger(url.searchParams.get("offset"), { defaultValue: 0, max: 10000 });
   const sort = SORTS[url.searchParams.get("sort")] ? url.searchParams.get("sort") : "created";
 
-  const filters = ["sl.hotel_id = ?"];
-  const params = [hotelId];
+  const filters = [
+    "sl.hotel_id = ?",
+    `(sl.created_by_user_id = ? OR EXISTS (
+      SELECT 1
+        FROM short_link_user_shares sls
+       WHERE sls.short_link_id = sl.id
+         AND sls.user_id = ?
+    ))`,
+  ];
+  const params = [hotelId, session.user.id, session.user.id];
   if (status) {
     if (!["active", "paused", "archived"].includes(status)) throw badRequest("status invalido.");
     filters.push("sl.status = ?");
@@ -64,7 +72,7 @@ export async function listAdminShortLinks({ request, env, session, url }) {
   );
 
   return {
-    links: rows.map((row) => formatShortLink(row, { request, env })),
+    links: rows.map((row) => formatShortLink(row, { request, env, session })),
     public_url_base: shortLinkPublicUrlPreviewBase(env, request),
     pagination: { limit, offset, count: rows.length },
   };
@@ -115,20 +123,20 @@ export async function createAdminShortLink({ request, env, session }) {
   ]);
 
   const created = await loadShortLinkForSession({ env, session, linkId: id });
-  return { link: formatShortLink(created, { request, env }), warnings: destination.warnings };
+  return { link: formatShortLink(created, { request, env, session }), warnings: destination.warnings };
 }
 
 export async function getAdminShortLink({ request, env, session, linkId }) {
   requirePermission(session, READ_PERMISSION);
   const link = await loadShortLinkForSession({ env, session, linkId });
   if (!link) throw notFoundError("Link nao encontrado.");
-  return { link: formatShortLink(link, { request, env }) };
+  return { link: formatShortLink(link, { request, env, session }) };
 }
 
 export async function updateAdminShortLink({ request, env, session, linkId }) {
   requirePermission(session, UPDATE_PERMISSION);
   assertAdminMutationAllowed({ request });
-  const current = await loadShortLinkForSession({ env, session, linkId });
+  const current = await loadShortLinkForSession({ env, session, linkId, ownerOnly: true });
   if (!current) throw notFoundError("Link nao encontrado.");
   if (current.status === "archived") throw badRequest("Link arquivado nao pode ser alterado.");
 
@@ -180,7 +188,7 @@ export async function updateAdminShortLink({ request, env, session, linkId }) {
   assertDateWindow(startsAt, expiresAt);
 
   if (!changedFields.length) {
-    return { link: formatShortLink(current, { request, env }), changed_fields: [], warnings };
+    return { link: formatShortLink(current, { request, env, session }), changed_fields: [], warnings };
   }
 
   const now = requestNow({ request, env });
@@ -213,15 +221,15 @@ export async function updateAdminShortLink({ request, env, session, linkId }) {
   ]);
 
   const updated = await loadShortLinkForSession({ env, session, linkId });
-  return { link: formatShortLink(updated, { request, env }), changed_fields: changedFields, warnings };
+  return { link: formatShortLink(updated, { request, env, session }), changed_fields: changedFields, warnings };
 }
 
 export async function archiveAdminShortLink({ request, env, session, linkId }) {
   requirePermission(session, ARCHIVE_PERMISSION);
   assertAdminMutationAllowed({ request });
-  const current = await loadShortLinkForSession({ env, session, linkId });
+  const current = await loadShortLinkForSession({ env, session, linkId, ownerOnly: true });
   if (!current) throw notFoundError("Link nao encontrado.");
-  if (current.status === "archived") return { link: formatShortLink(current, { request, env }), archived: false };
+  if (current.status === "archived") return { link: formatShortLink(current, { request, env, session }), archived: false };
 
   const now = requestNow({ request, env });
   await batch(env, [
@@ -249,13 +257,13 @@ export async function archiveAdminShortLink({ request, env, session, linkId }) {
   ]);
 
   const archived = await loadShortLinkForSession({ env, session, linkId });
-  return { link: formatShortLink(archived, { request, env }), archived: true };
+  return { link: formatShortLink(archived, { request, env, session }), archived: true };
 }
 
 export async function deleteAdminShortLink({ request, env, session, linkId }) {
   requirePermission(session, DELETE_PERMISSION);
   assertAdminMutationAllowed({ request });
-  const current = await loadShortLinkForSession({ env, session, linkId });
+  const current = await loadShortLinkForSession({ env, session, linkId, ownerOnly: true });
   if (!current) throw notFoundError("Link nao encontrado.");
   if (current.status !== "archived") {
     throw conflict("Arquive o link antes de exclui-lo definitivamente.");
@@ -325,9 +333,130 @@ export async function getAdminShortLinkAnalytics({ request, env, session, linkId
   };
 }
 
-async function loadShortLinkForSession({ env, session, linkId }) {
+export async function listAdminShortLinkShares({ env, session, linkId }) {
+  requirePermission(session, UPDATE_PERMISSION);
+  const link = await loadShortLinkForSession({ env, session, linkId, ownerOnly: true });
+  if (!link) throw notFoundError("Link nao encontrado.");
+
+  const users = await all(
+    env,
+    `SELECT u.id, u.display_name, u.email,
+            CASE WHEN sls.user_id IS NULL THEN 0 ELSE 1 END AS shared
+       FROM admin_users u
+       JOIN admin_hotel_access aha
+         ON aha.user_id = u.id
+        AND aha.hotel_id = ?
+       LEFT JOIN short_link_user_shares sls
+         ON sls.short_link_id = ?
+        AND sls.user_id = u.id
+      WHERE u.status = 'active'
+        AND u.id <> ?
+      ORDER BY lower(u.display_name), lower(u.email), u.id`,
+    [link.hotel_id, link.id, session.user.id],
+  );
+
+  return {
+    link_id: link.id,
+    users: users.map((user) => ({
+      id: user.id,
+      display_name: user.display_name,
+      email: user.email,
+      shared: Number(user.shared || 0) === 1,
+    })),
+  };
+}
+
+export async function shareAdminShortLink({ request, env, session, linkId }) {
+  requirePermission(session, UPDATE_PERMISSION);
+  assertAdminMutationAllowed({ request });
+  const link = await loadShortLinkForSession({ env, session, linkId, ownerOnly: true });
+  if (!link) throw notFoundError("Link nao encontrado.");
+  const payload = await readJson(request);
+  rejectUnknownFields(payload, new Set(["user_id"]));
+  const userId = requireString(payload.user_id, "user_id", { max: 120 });
+  if (userId === session.user.id) throw badRequest("O proprietario ja possui acesso ao link.");
+
+  const target = await first(
+    env,
+    `SELECT u.id, u.display_name, u.email
+       FROM admin_users u
+       JOIN admin_hotel_access aha
+         ON aha.user_id = u.id
+        AND aha.hotel_id = ?
+      WHERE u.id = ?
+        AND u.status = 'active'
+      LIMIT 1`,
+    [link.hotel_id, userId],
+  );
+  if (!target) throw forbidden("O usuario nao pertence a esta unidade.");
+
+  const existing = await first(
+    env,
+    "SELECT user_id FROM short_link_user_shares WHERE short_link_id = ? AND user_id = ? LIMIT 1",
+    [link.id, userId],
+  );
+  if (existing) return { link_id: link.id, user_id: userId, shared: false };
+
+  const now = requestNow({ request, env });
+  await batch(env, [
+    statement(
+      env,
+      `INSERT INTO short_link_user_shares (
+         short_link_id, user_id, shared_by_user_id, access_level, created_at
+       ) VALUES (?, ?, ?, 'viewer', ?)`,
+      [link.id, userId, session.user.id, now],
+    ),
+    auditStatement(env, {
+      hotelId: link.hotel_id,
+      actorUserId: session.user.id,
+      action: "short-link.share",
+      entityId: link.id,
+      metadata: { shared_user_id: userId, access_level: "viewer" },
+      createdAt: now,
+    }),
+  ]);
+  return { link_id: link.id, user_id: userId, shared: true };
+}
+
+export async function revokeAdminShortLinkShare({ request, env, session, linkId, userId }) {
+  requirePermission(session, UPDATE_PERMISSION);
+  assertAdminMutationAllowed({ request });
+  const link = await loadShortLinkForSession({ env, session, linkId, ownerOnly: true });
+  if (!link) throw notFoundError("Link nao encontrado.");
+  const safeUserId = requireString(userId, "user_id", { max: 120 });
+  const existing = await first(
+    env,
+    "SELECT user_id FROM short_link_user_shares WHERE short_link_id = ? AND user_id = ? LIMIT 1",
+    [link.id, safeUserId],
+  );
+  if (!existing) return { link_id: link.id, user_id: safeUserId, revoked: false };
+
+  const now = requestNow({ request, env });
+  const results = await batch(env, [
+    statement(env, "DELETE FROM short_link_user_shares WHERE short_link_id = ? AND user_id = ?", [link.id, safeUserId]),
+    auditStatement(env, {
+      hotelId: link.hotel_id,
+      actorUserId: session.user.id,
+      action: "short-link.share-revoke",
+      entityId: link.id,
+      metadata: { shared_user_id: safeUserId },
+      createdAt: now,
+    }),
+  ]);
+  return { link_id: link.id, user_id: safeUserId, revoked: Number(results[0]?.meta?.changes || 0) === 1 };
+}
+
+async function loadShortLinkForSession({ env, session, linkId, ownerOnly = false }) {
   if (!session.hotel_ids.length) return null;
   const placeholders = session.hotel_ids.map(() => "?").join(", ");
+  const accessFilter = ownerOnly
+    ? "AND sl.created_by_user_id = ?"
+    : `AND (sl.created_by_user_id = ? OR EXISTS (
+         SELECT 1
+           FROM short_link_user_shares sls
+          WHERE sls.short_link_id = sl.id
+            AND sls.user_id = ?
+       ))`;
   return first(
     env,
     `SELECT sl.*, h.name AS hotel_name, h.timezone AS hotel_timezone
@@ -335,8 +464,9 @@ async function loadShortLinkForSession({ env, session, linkId }) {
        JOIN hotels h ON h.id = sl.hotel_id
       WHERE sl.id = ?
         AND sl.hotel_id IN (${placeholders})
+        ${accessFilter}
       LIMIT 1`,
-    [linkId, ...session.hotel_ids],
+    [linkId, ...session.hotel_ids, session.user.id, ...(ownerOnly ? [] : [session.user.id])],
   );
 }
 
@@ -348,7 +478,8 @@ function selectHotelForList(session, requestedHotelId) {
   return hotel;
 }
 
-function formatShortLink(row, { request, env }) {
+function formatShortLink(row, { request, env, session }) {
+  const owner = row.created_by_user_id === session.user.id;
   return {
     id: row.id,
     hotel_id: row.hotel_id,
@@ -372,6 +503,8 @@ function formatShortLink(row, { request, env }) {
     created_at: row.created_at,
     updated_at: row.updated_at,
     archived_at: row.archived_at || null,
+    access_level: owner ? "owner" : "viewer",
+    can_manage: owner,
   };
 }
 

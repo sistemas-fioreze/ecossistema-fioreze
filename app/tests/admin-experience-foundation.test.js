@@ -52,7 +52,7 @@ test("CSS administrativo contem drawer mobile, ajuda e reduced motion", () => {
   assert.match(css, /admin-mobile-menu/);
   assert.match(css, /admin-help-drawer/);
   assert.match(css, /prefers-reduced-motion/);
-  assert.match(css, /admin-content-loader[\s\S]*backdrop-filter: blur\(5px\)/);
+  assert.match(css, /admin-content-loader[\s\S]*backdrop-filter: blur\(3px\)/);
   assert.equal((css.match(/backdrop-filter:/g) || []).length, 1);
 });
 
@@ -73,6 +73,33 @@ test("Central Administrativa usa a linguagem visual do ERP sem modulos de fachad
   assert.match(management, /temporary_password/);
   assert.match(management, /permission_keys/);
   assert.doesNotMatch(source, /#preparacao|Em preparacao|Unidade Fioreze Demo|Fioreze Demo|unidade-demo/);
+});
+
+test("navegacao centraliza equipe e conta em Configuracoes e Inicio usa dashboard real", () => {
+  const home = fs.readFileSync("public/admin/index.html", "utf8");
+  const shell = fs.readFileSync("public/js/modules/admin/shared/admin-auth-view.js", "utf8");
+  const controller = fs.readFileSync("public/js/modules/admin/admin.js", "utf8");
+
+  assert.match(home, /adminHomeDashboard/);
+  assert.match(home, /homePermissionsChart/);
+  assert.match(home, /settingsManager/);
+  assert.match(shell, /\/admin\/configuracoes\//);
+  assert.doesNotMatch(shell, /\["users", "Usuários"|\["roles", "Perfis e permissões"|\["account", "Minha conta"/);
+  assert.match(controller, /renderSettings/);
+  assert.match(controller, /getPermissions/);
+  assert.match(controller, /unreadMessageCount/);
+});
+
+test("interface de links diferencia propriedade e compartilhamento", () => {
+  const html = fs.readFileSync("public/admin/portais/index.html", "utf8");
+  const source = fs.readFileSync("public/js/modules/admin/portals.js", "utf8");
+
+  assert.match(html, /shortLinkSharingPanel/);
+  assert.match(html, /shortLinkSharingForm/);
+  assert.match(source, /link\.can_manage/);
+  assert.match(source, /Compartilhado com você/);
+  assert.match(source, /\/shares/);
+  assert.match(source, /data-share-revoke/);
 });
 
 test("Central compartilha as proporcoes e os controles do shell oficial do ERP", () => {
@@ -134,11 +161,11 @@ test("login usa marca estatica, paleta padrao e spinner proprio", () => {
 
 test("shells administrativos continuam respondendo sem fallback incorreto", async () => {
   const { fetch } = createWorkerTestContext();
-  for (const path of ["/admin/", "/admin/portais/", "/admin/portais/unidades/", "/admin/portais/media/", "/admin/portais/links/", "/erp/room-service/"]) {
+  for (const path of ["/admin/", "/admin/configuracoes/", "/admin/portais/", "/admin/portais/unidades/", "/admin/portais/media/", "/admin/portais/links/", "/erp/room-service/"]) {
     const response = await fetch(path, { redirect: "manual" });
     const html = await response.text();
     assert.equal(response.status, 200, path);
-    assert.match(html, /loginForm|routeOutlet|portalsContent|unitsManager|mediaLibrary|shortLinksManager/, path);
+    assert.match(html, /loginForm|settingsManager|routeOutlet|portalsContent|unitsManager|mediaLibrary|shortLinksManager/, path);
     assert.doesNotMatch(html, /"error"|Not Found/, path);
   }
 });

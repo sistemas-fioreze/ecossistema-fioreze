@@ -264,6 +264,25 @@
                   <a id="shortLinkQrDownload" class="admin-primary-button" href="#" download>Baixar SVG</a>
                 </div>
               </aside>
+              <section id="shortLinkSharingPanel" class="admin-link-sharing" hidden>
+                <header>
+                  <div>
+                    <span>Privacidade</span>
+                    <h4>Compartilhar acesso</h4>
+                    <p>Somente você e as pessoas escolhidas podem visualizar este link.</p>
+                  </div>
+                  <span class="admin-link-owner-badge">Você é o proprietário</span>
+                </header>
+                <form id="shortLinkSharingForm" class="admin-link-sharing-form">
+                  <label>
+                    <span>Usuário da mesma unidade</span>
+                    <select id="shortLinkShareUser" name="user_id" required></select>
+                  </label>
+                  <button class="admin-primary-button" type="submit">Compartilhar</button>
+                </form>
+                <p id="shortLinkSharingMessage" class="admin-muted" role="status" aria-live="polite"></p>
+                <div id="shortLinkSharesList" class="admin-link-share-list"></div>
+              </section>
               <div id="shortLinksAnalytics" class="admin-short-links-analytics-panel"></div>
             </div>
 
