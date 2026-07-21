@@ -173,7 +173,7 @@ test("configuracao e Central preservam Worker-first e nova experiencia", () => {
   const config = JSON.parse(fs.readFileSync("wrangler.jsonc", "utf8"));
   const html = fs.readFileSync("public/admin/portais/index.html", "utf8");
   const script = fs.readFileSync("public/js/modules/admin/portals.js", "utf8");
-  assert.ok(config.assets.run_worker_first.includes("/portal-content/*"));
+  assert.ok(config.assets.run_worker_first.includes("/*"));
   assert.match(html, /Links e QR Codes/);
   assert.match(html, /Criador de portais/);
   assert.doesNotMatch(html, /data-content-type="custom_pages"/);

@@ -50,7 +50,7 @@ Todas as mutacoes exigem sessao, acesso explicito ao hotel e as protecoes admini
 - por hotel: `app/public/assets/hotels/<hotel_id>/`;
 - somente arquivos sanitizados e autorizados podem entrar no Git.
 
-O servico em `app/src/services/media-service.js` rejeita URL remota como padrao conservador. `/media/*` permanece em `assets.run_worker_first` para que o Worker processe a rota antes do fallback SPA.
+O servico em `app/src/services/media-service.js` rejeita URL remota como padrao conservador. `assets.run_worker_first` usa `/*` para que `/media/*` e as demais rotas sejam processadas pelo Worker antes do fallback SPA.
 
 ## Evolucoes Futuras
 

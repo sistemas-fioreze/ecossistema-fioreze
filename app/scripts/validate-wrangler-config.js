@@ -50,11 +50,9 @@ if (r2.remote === true || /prod/i.test(r2.bucket_name || "")) {
   process.exit(1);
 }
 
-for (const route of ["/api/*", "/admin/*", "/erp/*", "/media/*", "/embed/*", "/go/*", "/portal-content/*", "/portal/*", "/*/*"]) {
-  if (!workerFirstRoutes.has(route)) {
-    console.error(`Static Assets deve executar o Worker primeiro para ${route}.`);
-    process.exit(1);
-  }
+if (workerFirstRoutes.size !== 1 || !workerFirstRoutes.has("/*")) {
+  console.error("Static Assets deve executar o Worker primeiro em todas as rotas com /*.");
+  process.exit(1);
 }
 
 if (config.vars?.VISUAL_PORTAL_PUBLIC_ORIGIN !== "https://portal.hoteisfioreze.com.br") {

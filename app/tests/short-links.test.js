@@ -49,7 +49,7 @@ test("Worker e Pages geram o dominio curto oficial sem remover o fallback Worker
   const worker = JSON.parse(fs.readFileSync("wrangler.jsonc", "utf8"));
   const pages = JSON.parse(fs.readFileSync("pages/wrangler.jsonc", "utf8"));
   assert.equal(worker.workers_dev, true);
-  assert.ok(worker.assets.run_worker_first.includes("/go/*"));
+  assert.ok(worker.assets.run_worker_first.includes("/*"));
   assert.equal(worker.vars.SHORT_LINK_PUBLIC_ORIGIN, SHORT_LINK_ORIGIN);
   assert.equal(pages.vars.SHORT_LINK_PUBLIC_ORIGIN, SHORT_LINK_ORIGIN);
   assert.equal((worker.routes || []).some((route) => route.pattern === "go.hoteisfioreze.com.br"), false);

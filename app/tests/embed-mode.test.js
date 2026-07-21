@@ -9,7 +9,7 @@ const EMBED_PERMISSIONS = ["portals.embed.read", "portals.embed.update"];
 
 test("wrangler mantem /embed/* em run_worker_first", () => {
   const config = JSON.parse(fs.readFileSync("wrangler.jsonc", "utf8"));
-  assert.ok(config.assets.run_worker_first.includes("/embed/*"));
+  assert.ok(config.assets.run_worker_first.includes("/*"));
 });
 
 test("bootstrap geral nao publica configuracoes embed privadas", async () => {

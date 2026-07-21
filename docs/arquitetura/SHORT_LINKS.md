@@ -138,7 +138,7 @@ As configuracoes do Worker e do Pages mantem:
 - `workers_dev=true`;
 - sem `routes[].pattern=go.hoteisfioreze.com.br`;
 - `SHORT_LINK_PUBLIC_ORIGIN=https://go.hoteisfioreze.com.br`;
-- `assets.run_worker_first` contendo `/go/*`.
+- `assets.run_worker_first` contendo `/*`, que inclui a rota `/go/*`.
 
 Nao existe uma rota Custom Domain no `fioreze-portais-dev`: o hostname oficial entra pelo projeto Pages, enquanto o Worker continua publicado em `workers.dev`. O DNS externo deve manter somente o CNAME do hostname `go` para `fioreze-portais-pages-dev.pages.dev`. Nenhuma configuracao do dominio raiz ou de `www` faz parte deste fluxo.
 
@@ -170,7 +170,7 @@ A auditoria registra entidade, ID, hotel, slug, campos alterados e usuario. O de
 
 ## Troubleshooting
 
-- Se `/go/:slug` retornar HTML do SPA no Workers.dev, confirme `assets.run_worker_first` contendo `/go/*`.
+- Se `/go/:slug` retornar HTML do SPA no Workers.dev, confirme `assets.run_worker_first` contendo `/*`.
 - Se `go.hoteisfioreze.com.br/<slug>` nao resolver, confirme o CNAME externo para `fioreze-portais-pages-dev.pages.dev` e o Custom Domain no projeto Pages.
 - Se `go.hoteisfioreze.com.br/<slug>` retornar HTML, confirme `SHORT_LINK_PUBLIC_ORIGIN` no Pages e se a versao publicada contem o roteamento exclusivo por hostname.
 - Se o certificado estiver pendente, aguarde o status do dominio no Pages antes de considerar rollback.
