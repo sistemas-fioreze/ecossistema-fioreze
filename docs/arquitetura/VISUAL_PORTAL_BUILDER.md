@@ -44,7 +44,7 @@ https://portal.hoteisfioreze.com.br/:hotel_slug/:portal_slug
 
 O registro continua vinculado a `hotel_id` e `module_key`. A rota pública responde somente quando hotel, módulo e portal estão ativos e públicos. `VISUAL_PORTAL_PUBLIC_ORIGIN` define a origem exibida pela Central; sem ela, ambientes locais usam a origem técnica da requisição.
 
-O formato anterior `/portal/:hotel_slug/:portal_slug` redireciona permanentemente para o endereço canônico. No domínio oficial, o shell legado do Portal do Hóspede e as antigas páginas em `/portal-content/*` não são expostos: caminhos como `/:hotel_slug` ou `/:hotel_slug/inicio` retornam 404. `/:hotel_slug/room-service` permanece reservado ao Room Service e continua fora do construtor.
+O formato anterior `/portal/:hotel_slug/:portal_slug` redireciona permanentemente para o endereço canônico. No domínio oficial, o shell legado do Portal do Hóspede e as antigas páginas em `/portal-content/*` não são expostos: `/:hotel_slug` retorna 404, e qualquer segundo segmento só responde quando corresponde a um portal personalizado publicado. `/:hotel_slug/room-service` permanece reservado ao Room Service e continua fora do construtor.
 
 ## Documento visual
 
