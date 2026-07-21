@@ -24,7 +24,7 @@ O construtor fica em **Central Administrativa > Criador de portais** e oferece:
 - tipografia, espaçamento, colunas, cores, largura e visibilidade ajustáveis separadamente para desktop e mobile;
 - imagens e vídeos da Biblioteca de Mídia da própria unidade, inclusive como fundo independente de cada página;
 - favicon e cabeçalho opcional com logotipo, menu, cores, transparência total, desfoque e ação principal;
-- capa, títulos, textos, botões, imagens, vídeos, galeria, grade, citação, contato, incorporações, divisor e espaçador;
+- capa, títulos, textos, botões, imagens, vídeos, galeria, grade, perguntas frequentes, indicadores, linha do tempo, citação, contato, incorporações, divisor e espaçador;
 - incorporações HTTPS para Google Maps, páginas hospedadas e serviços compatíveis com `iframe`;
 - incorporações de HTML sanitizado em iframe isolado e sem execução de scripts;
 - desfazer, refazer, copiar, colar, duplicar, mover e excluir blocos;
@@ -33,7 +33,6 @@ O construtor fica em **Central Administrativa > Criador de portais** e oferece:
 - publicação explícita;
 - acesso direto à versão publicada pela barra do editor;
 - histórico de versões com prévia visual desktop/mobile antes da restauração para um novo rascunho;
-- opção de aplicativo instalável com manifesto, service worker restrito ao portal e solicitação nativa quando o navegador estiver apto;
 - duplicação de portal;
 - arquivamento reversível e exclusão definitiva, disponível somente para portais já arquivados;
 - modelos internos e modelos salvos pela equipe.
@@ -80,9 +79,6 @@ O campo JSON usa `schema_version=2`. Documentos `schema_version=1` são promovid
       "logo_media_asset_id": "",
       "show_navigation": true
     },
-    "pwa": {
-      "install_enabled": false
-    },
     "editor": {
       "autosave_enabled": true,
       "autosave_interval_seconds": 30
@@ -117,7 +113,7 @@ No site publicado, a navegação desktop usa links diretos para os slugs configu
 - HTML incorporado passa pelo sanitizador compartilhado antes de ser salvo; scripts, eventos, estilos perigosos e URLs inseguras são removidos;
 - incorporações aceitam apenas URLs HTTPS sem credenciais e rejeitam endereços locais ou privados;
 - incorporações HTML usam `srcdoc` em sandbox sem `allow-scripts`; incorporações HTTPS também não recebem `allow-same-origin`;
-- o portal usa CSP estrita e executa somente o runtime local responsável pela navegação móvel e pela instalação opcional;
+- o portal usa CSP estrita e executa somente o runtime local responsável pela navegação móvel;
 - APIs administrativas exigem sessão, permissão e acesso ao hotel;
 - mutações exigem origem válida e o header administrativo;
 - o editor usa `expected_revision` para impedir sobrescrita silenciosa;
@@ -143,8 +139,6 @@ Cada portal publicado fornece `public_url`. A Central pode enviar esse endereço
 6. publicar novamente após a revisão.
 
 Nenhuma edição de rascunho muda uma página já publicada até a ação de publicação.
-
-Quando o modo instalável está ativo, o portal publica manifesto, ícone e service worker no próprio escopo. O botão usa o evento nativo `beforeinstallprompt` quando ele é oferecido pelo navegador. Em navegadores que não expõem esse evento, a interface apresenta a orientação adequada para concluir a instalação pelo menu do navegador, sem simular uma instalação.
 
 O histórico oferece uma prévia visual do snapshot antes da restauração. Confirmações, exclusões e restaurações usam diálogos e mensagens do próprio editor; o fluxo não depende de `alert`, `confirm` ou `prompt` do navegador.
 

@@ -39,13 +39,11 @@ export async function serveVisualPortal({ env, params, head = false }) {
   if (!portal) throw notFoundError("Portal nao encontrado.");
 
   const document = normalizeVisualPortalDocument(JSON.parse(portal.published_document_json));
+  if (params.resource === "removed-installation-resource") throw notFoundError("Recurso não encontrado.");
   const page = getVisualPortalPage(document, params.page_slug || "");
-  if (params.resource === "manifest") return serveVisualPortalManifest({ portal, document, head });
-  if (params.resource === "service-worker") return serveVisualPortalServiceWorker({ portal, head });
-  if (params.resource === "app-icon") return serveVisualPortalAppIcon({ portal, document, head });
   if (!page) throw notFoundError("Página não encontrada.");
   const media = await loadPublishedMedia(env, portal.hotel_id, document);
-  const headers = visualPortalHeaders(document.settings.pwa.install_enabled);
+  const headers = visualPortalHeaders();
   if (head) return new Response(null, { status: 200, headers });
   return new Response(renderVisualPortalPage({ portal, document, page, media }), { status: 200, headers });
 }
@@ -76,20 +74,16 @@ export function renderVisualPortalPage({ portal, document, page = getVisualPorta
   const headerLogo = media.get(settings.header.logo_media_asset_id)?.public_url || safeMediaPath(portal.logo_url);
   const favicon = media.get(settings.favicon_media_asset_id)?.public_url || safeMediaPath(portal.icon_url);
   const pageBackground = renderPageBackground(pageSettings, media);
-  const pwaEnabled = settings.pwa.install_enabled;
-  const manifestPath = `${homePath}/manifest.webmanifest`;
-  const serviceWorkerPath = `${homePath}/sw.js`;
   const pageTitle = page.slug ? `${page.title} | ${portal.title}` : portal.title;
   const header = renderSiteHeader({ portal, document, page, logo: headerLogo, context });
   return `<!doctype html>
-<html lang="${escapeAttr(String(portal.locale || "pt-BR").replace("_", "-"))}"${pwaEnabled ? ` data-install-enabled="true" data-service-worker="${escapeAttr(serviceWorkerPath)}" data-service-worker-scope="${escapeAttr(homePath)}"` : ""}>
+<html lang="${escapeAttr(String(portal.locale || "pt-BR").replace("_", "-"))}">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="${escapeAttr(settings.primary_color)}">
     <title>${escapeHtml(pageTitle)} | ${escapeHtml(portal.hotel_short_name || portal.hotel_name)}</title>
     ${favicon ? `<link rel="icon" href="${escapeAttr(favicon)}">` : ""}
-    ${pwaEnabled ? `<link rel="manifest" href="${escapeAttr(manifestPath)}">${favicon ? `<link rel="apple-touch-icon" href="${escapeAttr(favicon)}">` : ""}` : ""}
     <script src="/js/modules/visual-portal-runtime.js" defer></script>
     <style>${visualPortalCss(settings, pageSettings)}</style>
   </head>
@@ -148,6 +142,15 @@ function renderBlock(block, media, context) {
   if (block.type === "feature-grid") {
     return `<section ${attributes}><div class="block-inner feature-grid">${content.items.map((item) => { const asset = media.get(item.media_asset_id); return `<article>${asset && String(asset.mime_type).startsWith("image/") ? `<img src="${escapeAttr(asset.public_url)}" alt="${escapeAttr(asset.alt_text || "")}" loading="lazy">` : ""}<div><h3>${escapeHtml(item.title)}</h3>${paragraphs(item.text)}${buttonLink(item.button_text, item.button_url, "ghost", context)}</div></article>`; }).join("")}</div></section>`;
   }
+  if (block.type === "faq") {
+    return `<section ${attributes}><div class="block-inner faq-block">${content.title ? `<h2>${escapeHtml(content.title)}</h2>` : ""}<div class="faq-list">${content.items.map((item) => `<details><summary><span>${escapeHtml(item.question)}</span><i aria-hidden="true"></i></summary><div>${paragraphs(item.answer)}</div></details>`).join("")}</div></div></section>`;
+  }
+  if (block.type === "stats") {
+    return `<section ${attributes}><div class="block-inner stats-block">${content.title ? `<h2>${escapeHtml(content.title)}</h2>` : ""}<div class="stats-grid">${content.items.map((item) => `<article><strong>${escapeHtml(item.value)}</strong><span>${escapeHtml(item.label)}</span></article>`).join("")}</div></div></section>`;
+  }
+  if (block.type === "timeline") {
+    return `<section ${attributes}><div class="block-inner timeline-block">${content.title ? `<h2>${escapeHtml(content.title)}</h2>` : ""}<div class="timeline-list">${content.items.map((item) => `<article><span aria-hidden="true"></span><div>${item.period ? `<small>${escapeHtml(item.period)}</small>` : ""}<h3>${escapeHtml(item.title)}</h3>${paragraphs(item.text)}</div></article>`).join("")}</div></div></section>`;
+  }
   if (block.type === "quote") return `<figure ${attributes}><div class="block-inner"><blockquote>${escapeHtml(content.quote)}</blockquote>${content.author ? `<figcaption>${escapeHtml(content.author)}</figcaption>` : ""}</div></figure>`;
   if (block.type === "contact") return `<section ${attributes}><div class="block-inner contact-panel"><h2>${escapeHtml(content.title)}</h2>${paragraphs(content.text)}<address>${content.address ? `<span>${escapeHtml(content.address)}</span>` : ""}${content.phone ? `<a href="tel:${escapeAttr(content.phone.replace(/[^+\d]/g, ""))}">${escapeHtml(content.phone)}</a>` : ""}${content.email ? `<a href="mailto:${escapeAttr(content.email)}">${escapeHtml(content.email)}</a>` : ""}</address>${buttonLink(content.button_text, content.button_url, "solid", context)}</div></section>`;
   if (block.type === "divider") return `<div ${attributes}><div class="block-inner divider"><span></span>${content.label ? `<em>${escapeHtml(content.label)}</em>` : ""}<span></span></div></div>`;
@@ -200,12 +203,19 @@ function renderPageBackground(settings, media) {
 function renderSiteHeader({ portal, document, page, logo, context }) {
   const header = document.settings.header;
   if (!header.enabled) return "";
-  const navigation = header.show_navigation
-    ? document.pages.filter((item) => item.show_in_navigation).map((item) => {
+  const navigationPages = header.show_navigation
+    ? document.pages.filter((item) => item.show_in_navigation)
+    : [];
+  const navigation = navigationPages
+    .map((item) => {
       const href = resolvePortalHref(`page:${item.id}`, context);
       return `<a href="${escapeAttr(href)}"${item.id === page.id ? ' aria-current="page"' : ""}>${escapeHtml(item.name)}</a>`;
-    }).join("")
-    : "";
+    }).join("");
+  const mobileNavigationLinks = navigationPages
+    .map((item) => {
+      const href = resolvePortalHref(`page:${item.id}`, context);
+      return `<a href="${escapeAttr(href)}"${item.id === page.id ? ' aria-current="page"' : ""}><span>${escapeHtml(item.name)}</span><i aria-hidden="true"></i></a>`;
+    }).join("");
   const classes = [
     "site-header",
     `header-${header.style}`,
@@ -217,15 +227,16 @@ function renderSiteHeader({ portal, document, page, logo, context }) {
     ? `<a class="brand" href="${escapeAttr(context.homePath)}" aria-label="${escapeAttr(portal.hotel_name)}">${logo ? `<img src="${escapeAttr(logo)}" alt="${escapeAttr(portal.hotel_name)}">` : `<strong>${escapeHtml(portal.hotel_short_name || portal.hotel_name)}</strong>`}</a>`
     : "";
   const navigationId = `portal-navigation-${portal.portal_slug}`;
-  const hasMobileNavigation = Boolean((header.show_navigation && navigation) || header.cta_text || document.settings.pwa.install_enabled);
+  const hasMobileNavigation = Boolean(navigation || header.cta_text);
   const mobileNavigationStyle = `--header-bg:${escapeAttr(header.background_color)};--header-text:${escapeAttr(header.text_color)};--header-accent:${escapeAttr(header.accent_color)}`;
   const mobileMenuToggle = hasMobileNavigation
     ? `<button class="mobile-menu-toggle" type="button" data-mobile-menu-toggle aria-controls="${escapeAttr(navigationId)}" aria-expanded="false" aria-label="Abrir menu"><span></span><span></span><span></span></button>`
     : "";
+  const mobileBrand = `<a class="mobile-navigation-brand" href="${escapeAttr(context.homePath)}">${logo ? `<img src="${escapeAttr(logo)}" alt="">` : '<span class="mobile-navigation-mark" aria-hidden="true">F</span>'}<span><small>Portal da unidade</small><strong>${escapeHtml(portal.hotel_short_name || portal.hotel_name)}</strong></span></a>`;
   const mobileNavigation = hasMobileNavigation
-    ? `<button class="mobile-menu-backdrop" type="button" data-mobile-menu-close aria-label="Fechar menu" tabindex="-1"></button><aside class="mobile-navigation" id="${escapeAttr(navigationId)}" aria-hidden="true" style="${mobileNavigationStyle}"><header><strong>Menu</strong><button type="button" data-mobile-menu-close aria-label="Fechar menu">×</button></header>${header.show_navigation && navigation ? `<nav aria-label="Navegação móvel do site">${navigation}</nav>` : ""}<div class="mobile-navigation-actions">${buttonLink(header.cta_text, header.cta_url, "solid", context)}${document.settings.pwa.install_enabled ? '<button class="install-app-button" type="button" data-install-app>Instalar app</button>' : ""}</div></aside>`
+    ? `<button class="mobile-menu-backdrop" type="button" data-mobile-menu-close aria-label="Fechar menu" tabindex="-1"></button><aside class="mobile-navigation" id="${escapeAttr(navigationId)}" aria-hidden="true" style="${mobileNavigationStyle}"><header>${mobileBrand}<button class="mobile-navigation-close" type="button" data-mobile-menu-close aria-label="Fechar menu"><span></span><span></span></button></header>${mobileNavigationLinks ? `<div class="mobile-navigation-section"><small>Navegação</small><nav aria-label="Navegação móvel do site">${mobileNavigationLinks}</nav></div>` : ""}<div class="mobile-navigation-actions">${buttonLink(header.cta_text, header.cta_url, "solid", context)}</div><footer><span></span><small>${escapeHtml(portal.title)}</small></footer></aside>`
     : "";
-  return `<header class="${classes}" style="--header-bg:${escapeAttr(header.background_color)};--header-text:${escapeAttr(header.text_color)};--header-accent:${escapeAttr(header.accent_color)}"><div class="header-inner">${brand}<nav class="desktop-navigation" aria-label="Navegação do site">${navigation}</nav><div class="header-actions">${buttonLink(header.cta_text, header.cta_url, "solid", context)}${document.settings.pwa.install_enabled ? '<button class="install-app-button" type="button" data-install-app>Instalar app</button>' : ""}</div>${mobileMenuToggle}</div></header>${mobileNavigation}`;
+  return `<header class="${classes}" style="--header-bg:${escapeAttr(header.background_color)};--header-text:${escapeAttr(header.text_color)};--header-accent:${escapeAttr(header.accent_color)}"><div class="header-inner">${brand}<nav class="desktop-navigation" aria-label="Navegação do site">${navigation}</nav><div class="header-actions">${buttonLink(header.cta_text, header.cta_url, "solid", context)}</div>${mobileMenuToggle}</div></header>${mobileNavigation}`;
 }
 
 function visualPortalCss(settings, pageSettings) {
@@ -259,9 +270,7 @@ a{color:inherit}
 .brand{display:inline-flex;align-items:center;text-decoration:none}
 .brand img{display:block;max-width:180px;max-height:48px}
 .brand strong{font-size:1.1rem}
-.install-app-button{min-height:42px;padding:.6rem 1rem;border:1px solid var(--header-accent);border-radius:999px;background:var(--header-accent);color:#fff;font:inherit;font-weight:750;cursor:pointer}
 .mobile-menu-toggle,.mobile-menu-backdrop,.mobile-navigation{display:none}
-.portal-runtime-toast{position:fixed;right:18px;bottom:18px;z-index:120;max-width:min(380px,calc(100vw - 36px));padding:13px 16px;border:1px solid color-mix(in srgb,var(--header-accent,#513b2d) 24%,#ddd);border-radius:14px;background:#fff;color:#202124;box-shadow:0 18px 50px rgba(0,0,0,.18);font:600 .9rem/1.4 system-ui,sans-serif}
 .visual-page{position:relative;z-index:1;--page-width:${widthValue(pageSettings.content_width)};--page-pad:${pageSettings.page_padding}px;--block-gap:${pageSettings.block_gap}px;display:grid;gap:var(--block-gap);min-height:calc(100vh - 76px)}
 .visual-block{--align:var(--base-align,left);--width:var(--base-width,${widthValue(pageSettings.content_width)});--background:var(--base-background,transparent);--text:var(--base-text,inherit);--accent:var(--base-accent,${settings.primary_color});--padding-top:var(--base-padding-top,0px);--padding-bottom:var(--base-padding-bottom,0px);--padding-inline:var(--base-padding-inline,var(--page-pad));--gap:var(--base-gap,20px);--min-height:var(--base-min-height,0px);--radius:var(--base-radius,0px);--columns:var(--base-columns,3);--offset-x:var(--base-offset-x,0px);--offset-y:var(--base-offset-y,0px);margin:0;background:var(--background);color:var(--text);text-align:var(--align);min-height:var(--min-height);padding:var(--padding-top) var(--padding-inline) var(--padding-bottom);border-radius:var(--radius);transform:translate(var(--offset-x),var(--offset-y))}
 .block-inner{width:min(100%,var(--width));margin-inline:auto}
@@ -288,6 +297,28 @@ a{color:inherit}
 .feature-grid article{overflow:hidden;background:color-mix(in srgb,var(--background) 82%,#fff);border:1px solid color-mix(in srgb,currentColor 14%,transparent);border-radius:var(--radius,20px);text-align:left}
 .feature-grid article img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover}
 .feature-grid article>div{padding:1.25rem}
+.faq-block>h2,.stats-block>h2,.timeline-block>h2{margin-bottom:1.5rem}
+.faq-list{display:grid;gap:10px}
+.faq-list details{border:1px solid color-mix(in srgb,currentColor 14%,transparent);border-radius:max(12px,var(--radius));background:color-mix(in srgb,var(--background) 86%,#fff);text-align:left}
+.faq-list summary{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:1.1rem 1.2rem;cursor:pointer;font-weight:750;list-style:none}
+.faq-list summary::-webkit-details-marker{display:none}
+.faq-list summary i{position:relative;width:18px;height:18px;flex:0 0 18px}
+.faq-list summary i::before,.faq-list summary i::after{position:absolute;left:2px;top:8px;width:14px;height:2px;border-radius:2px;background:var(--accent);content:"";transition:transform .2s ease}
+.faq-list summary i::after{transform:rotate(90deg)}
+.faq-list details[open] summary i::after{transform:rotate(0)}
+.faq-list details>div{padding:0 1.2rem 1.15rem;color:color-mix(in srgb,currentColor 78%,transparent)}
+.faq-list details>div p{margin-inline:0}
+.stats-grid{display:grid;grid-template-columns:repeat(var(--columns),minmax(0,1fr));gap:var(--gap)}
+.stats-grid article{display:grid;align-content:center;gap:.35rem;min-height:150px;padding:1.35rem;border:1px solid color-mix(in srgb,currentColor 13%,transparent);border-radius:max(16px,var(--radius));background:color-mix(in srgb,var(--background) 84%,#fff)}
+.stats-grid strong{color:var(--accent);font-size:clamp(2.1rem,5vw,4.4rem);line-height:1;font-weight:850}
+.stats-grid span{font-weight:650}
+.timeline-list{position:relative;display:grid;gap:0;text-align:left}
+.timeline-list::before{position:absolute;top:10px;bottom:10px;left:8px;width:2px;background:color-mix(in srgb,var(--accent) 30%,transparent);content:""}
+.timeline-list article{position:relative;display:grid;grid-template-columns:18px minmax(0,1fr);gap:18px;padding-bottom:1.7rem}
+.timeline-list article>span{position:relative;z-index:1;width:18px;height:18px;margin-top:4px;border:4px solid color-mix(in srgb,var(--background) 82%,#fff);border-radius:50%;background:var(--accent);box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 38%,transparent)}
+.timeline-list article small{display:block;margin-bottom:.25rem;color:var(--accent);font-size:.76rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+.timeline-list article h3{margin-bottom:.45rem}
+.timeline-list article p{margin-inline:0}
 .visual-quote blockquote{max-width:950px;margin:0 auto;font-size:var(--base-heading-size,clamp(1.6rem,3.2vw,3.3rem));line-height:1.2;font-weight:650}
 .visual-quote figcaption{margin-top:1.25rem}
 .contact-panel address{display:grid;gap:.35rem;font-style:normal}
@@ -308,27 +339,43 @@ a{color:inherit}
   .site-header{min-height:64px;padding-inline:max(14px,env(safe-area-inset-left))}
   .header-inner{grid-template-columns:minmax(0,1fr) auto;gap:10px}
   .desktop-navigation,.header-actions{display:none!important}
-  .mobile-menu-toggle{display:grid;width:44px;height:44px;place-content:center;gap:5px;padding:0;border:1px solid color-mix(in srgb,var(--header-text) 16%,transparent);border-radius:13px;background:color-mix(in srgb,var(--header-bg) 70%,transparent);color:var(--header-text)}
+  .mobile-menu-toggle{display:grid;width:44px;height:44px;place-content:center;gap:5px;padding:0;border:0;border-radius:0;background:transparent;color:var(--header-text);cursor:pointer}
   .mobile-menu-toggle span{display:block;width:20px;height:2px;border-radius:2px;background:currentColor;transition:transform .22s ease,opacity .22s ease}
-  .mobile-menu-backdrop{position:fixed;inset:0;z-index:30;border:0;background:rgba(12,14,17,.48);opacity:0;pointer-events:none;transition:opacity .24s ease}
-  .mobile-navigation{position:fixed;top:0;right:0;bottom:0;z-index:31;display:grid;width:min(84vw,330px);align-content:start;gap:20px;padding:max(22px,env(safe-area-inset-top)) 20px 24px;background:var(--header-bg);color:var(--header-text);box-shadow:-18px 0 60px rgba(0,0,0,.24);transform:translateX(105%);transition:transform .26s cubic-bezier(.2,.8,.2,1)}
-  .mobile-navigation>header{display:flex;align-items:center;justify-content:space-between}
-  .mobile-navigation>header strong{font-size:1.15rem}
-  .mobile-navigation>header button{display:grid;width:42px;height:42px;place-items:center;padding:0;border:0;border-radius:12px;background:color-mix(in srgb,currentColor 9%,transparent);color:inherit;font-size:1.7rem}
-  .mobile-navigation nav{display:grid;gap:7px}
-  .mobile-navigation nav a{display:block;padding:.85rem 1rem;border-radius:12px;text-decoration:none;font-weight:750}
-  .mobile-navigation nav a[aria-current="page"]{background:color-mix(in srgb,var(--header-accent) 16%,transparent);color:var(--header-accent)}
-  .mobile-navigation-actions{display:grid;gap:10px;margin-top:8px}
-  .mobile-navigation-actions .visual-button,.mobile-navigation-actions .install-app-button{display:flex;width:100%;justify-content:center}
-  body.portal-menu-open .mobile-menu-backdrop{display:block;opacity:1;pointer-events:auto}
-  body.portal-menu-open .mobile-navigation{transform:translateX(0)}
+  .mobile-menu-backdrop{position:fixed;inset:0;z-index:30;display:block;border:0;background:rgba(11,13,17,.56);backdrop-filter:blur(4px);opacity:0;pointer-events:none;transition:opacity .28s ease}
+  .mobile-navigation{position:fixed;top:0;right:0;bottom:0;z-index:31;display:flex;width:min(88vw,360px);flex-direction:column;padding:max(18px,env(safe-area-inset-top)) 18px max(18px,env(safe-area-inset-bottom));overflow-y:auto;background:color-mix(in srgb,var(--header-bg) 96%,#fff);color:var(--header-text);box-shadow:-28px 0 80px rgba(0,0,0,.3);transform:translateX(105%);visibility:hidden;transition:transform .3s cubic-bezier(.22,.85,.24,1),visibility 0s linear .3s}
+  .mobile-navigation>header{display:flex;align-items:center;justify-content:space-between;gap:14px;padding-bottom:20px;border-bottom:1px solid color-mix(in srgb,currentColor 11%,transparent)}
+  .mobile-navigation-brand{display:flex;min-width:0;align-items:center;gap:12px;text-decoration:none}
+  .mobile-navigation-brand img{display:block;width:72px;height:40px;object-fit:contain;object-position:left center}
+  .mobile-navigation-mark{display:grid;width:42px;height:42px;place-items:center;border-radius:12px;background:var(--header-accent);color:#fff;font-size:1.2rem;font-weight:850}
+  .mobile-navigation-brand>span:last-child{display:grid;min-width:0;line-height:1.2}
+  .mobile-navigation-brand small{margin-bottom:3px;color:color-mix(in srgb,currentColor 58%,transparent);font-size:.68rem;font-weight:750;text-transform:uppercase;letter-spacing:.06em}
+  .mobile-navigation-brand strong{overflow:hidden;font-size:1rem;text-overflow:ellipsis;white-space:nowrap}
+  .mobile-navigation-close{position:relative;width:42px;height:42px;flex:0 0 42px;padding:0;border:0;background:transparent;color:inherit;cursor:pointer}
+  .mobile-navigation-close span{position:absolute;left:11px;top:20px;width:20px;height:2px;border-radius:2px;background:currentColor}
+  .mobile-navigation-close span:first-child{transform:rotate(45deg)}
+  .mobile-navigation-close span:last-child{transform:rotate(-45deg)}
+  .mobile-navigation-section{display:grid;gap:10px;padding:22px 0}
+  .mobile-navigation-section>small{padding-inline:8px;color:color-mix(in srgb,currentColor 52%,transparent);font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.1em}
+  .mobile-navigation nav{display:grid;gap:4px}
+  .mobile-navigation nav a{display:flex;min-height:52px;align-items:center;justify-content:space-between;gap:12px;padding:.8rem .9rem;border-radius:12px;text-decoration:none;font-weight:740;transition:background .18s ease,color .18s ease,transform .18s ease}
+  .mobile-navigation nav a i{width:8px;height:8px;border-top:1.5px solid currentColor;border-right:1.5px solid currentColor;opacity:.45;transform:rotate(45deg)}
+  .mobile-navigation nav a:hover{background:color-mix(in srgb,var(--header-accent) 9%,transparent);transform:translateX(2px)}
+  .mobile-navigation nav a[aria-current="page"]{background:var(--header-accent);color:#fff}
+  .mobile-navigation nav a[aria-current="page"] i{opacity:1}
+  .mobile-navigation-actions{display:grid;gap:10px;margin-top:auto;padding-top:8px}
+  .mobile-navigation-actions .visual-button{display:flex;width:100%;justify-content:center}
+  .mobile-navigation>footer{display:flex;align-items:center;gap:8px;padding:18px 8px 4px;color:color-mix(in srgb,currentColor 50%,transparent)}
+  .mobile-navigation>footer span{width:18px;height:1px;background:currentColor}
+  .mobile-navigation>footer small{font-size:.72rem}
+  body.portal-menu-open .mobile-menu-backdrop{opacity:1;pointer-events:auto}
+  body.portal-menu-open .mobile-navigation{transform:translateX(0);visibility:visible;transition-delay:0s}
   body.portal-menu-open{overflow:hidden}
   .header-actions .visual-button{display:none}
   .header-centered .header-inner{grid-template-columns:1fr}
   .brand img{max-width:142px;max-height:38px}
   .visual-block{--align:var(--mobile-align,var(--base-align,left));--width:var(--mobile-width,var(--base-width,${widthValue(pageSettings.content_width)}));--background:var(--mobile-background,var(--base-background,transparent));--text:var(--mobile-text,var(--base-text,inherit));--accent:var(--mobile-accent,var(--base-accent,${settings.primary_color}));--padding-top:var(--mobile-padding-top,var(--base-padding-top,0px));--padding-bottom:var(--mobile-padding-bottom,var(--base-padding-bottom,0px));--padding-inline:var(--mobile-padding-inline,var(--base-padding-inline,18px));--gap:var(--mobile-gap,var(--base-gap,16px));--min-height:var(--mobile-min-height,var(--base-min-height,0px));--radius:var(--mobile-radius,var(--base-radius,0px));--columns:var(--mobile-columns,1);--offset-x:var(--mobile-offset-x,var(--base-offset-x,0px));--offset-y:var(--mobile-offset-y,var(--base-offset-y,0px))}
   .hide-desktop{display:initial}.hide-mobile{display:none}
-  .feature-grid,.gallery-grid{grid-template-columns:repeat(var(--columns),minmax(0,1fr))}
+  .feature-grid,.gallery-grid,.stats-grid{grid-template-columns:repeat(var(--columns),minmax(0,1fr))}
   .visual-button{width:100%}
   .visual-block h1{font-size:var(--mobile-heading-size,var(--base-heading-size,clamp(2.45rem,13vw,4.4rem)))}
   .visual-block h2{font-size:var(--mobile-heading-size,var(--base-heading-size,clamp(2rem,10vw,3rem)))}
@@ -378,7 +425,7 @@ function escapeCssUrl(value) {
   return String(value).replace(/["'()\\\n\r]/g, "");
 }
 
-function visualPortalHeaders(pwaEnabled = false) {
+function visualPortalHeaders() {
   return {
     "content-type": "text/html; charset=utf-8",
     "cache-control": "public, max-age=60, stale-while-revalidate=300",
@@ -390,7 +437,7 @@ function visualPortalHeaders(pwaEnabled = false) {
       "media-src 'self'",
       "frame-src https:",
       "font-src 'self' data:",
-      pwaEnabled ? "connect-src 'self'" : "connect-src 'none'",
+      "connect-src 'none'",
       "object-src 'none'",
       "base-uri 'none'",
       "form-action 'none'",
@@ -399,60 +446,6 @@ function visualPortalHeaders(pwaEnabled = false) {
     "referrer-policy": "strict-origin-when-cross-origin",
     "x-content-type-options": "nosniff",
   };
-}
-
-function serveVisualPortalManifest({ portal, document, head }) {
-  if (!document.settings.pwa.install_enabled) throw notFoundError("Manifesto não encontrado.");
-  const favicon = document.settings.favicon_media_asset_id ? `/media/${document.settings.favicon_media_asset_id}` : safeMediaPath(portal.icon_url);
-  const startUrl = `/${portal.hotel_slug}/${portal.portal_slug}`;
-  const generatedIcon = `${startUrl}/app-icon.svg`;
-  const payload = {
-    id: startUrl,
-    name: document.settings.pwa.app_name || portal.title,
-    short_name: document.settings.pwa.short_name || portal.hotel_short_name || portal.hotel_name,
-    description: document.settings.pwa.description || portal.title,
-    start_url: startUrl,
-    scope: startUrl,
-    display: document.settings.pwa.display,
-    background_color: document.settings.background_color,
-    theme_color: document.settings.primary_color,
-    icons: [
-      ...(favicon ? [{ src: favicon, sizes: "192x192 512x512", purpose: "any" }] : []),
-      { src: generatedIcon, sizes: "any", type: "image/svg+xml", purpose: "any maskable" },
-    ],
-    prefer_related_applications: false,
-  };
-  const headers = { "content-type": "application/manifest+json; charset=utf-8", "cache-control": "public, max-age=60", "x-content-type-options": "nosniff" };
-  return new Response(head ? null : JSON.stringify(payload), { status: 200, headers });
-}
-
-function serveVisualPortalAppIcon({ portal, document, head }) {
-  if (!document.settings.pwa.install_enabled) throw notFoundError("Ícone do aplicativo não encontrado.");
-  const label = String(portal.hotel_short_name || portal.hotel_name || "F").trim().slice(0, 2).toUpperCase();
-  const color = document.settings.primary_color;
-  const source = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="${escapeAttr(color)}"/><text x="256" y="300" text-anchor="middle" fill="#fff" font-family="system-ui,sans-serif" font-size="210" font-weight="800">${escapeHtml(label)}</text></svg>`;
-  return new Response(head ? null : source, {
-    status: 200,
-    headers: {
-      "content-type": "image/svg+xml; charset=utf-8",
-      "cache-control": "public, max-age=3600",
-      "x-content-type-options": "nosniff",
-    },
-  });
-}
-
-function serveVisualPortalServiceWorker({ portal, head }) {
-  const scope = `/${portal.hotel_slug}/${portal.portal_slug}`;
-  const source = `self.addEventListener("install",event=>event.waitUntil(self.skipWaiting()));self.addEventListener("activate",event=>event.waitUntil(self.clients.claim()));self.addEventListener("fetch",event=>{const url=new URL(event.request.url);const scope=${JSON.stringify(scope)};if(event.request.method!=="GET"||url.origin!==self.location.origin||(url.pathname!==scope&&!url.pathname.startsWith(scope+"/")))return;event.respondWith(fetch(event.request));});`;
-  return new Response(head ? null : source, {
-    status: 200,
-    headers: {
-      "content-type": "text/javascript; charset=utf-8",
-      "cache-control": "no-store",
-      "service-worker-allowed": scope,
-      "x-content-type-options": "nosniff",
-    },
-  });
 }
 
 function escapeHtml(value) {

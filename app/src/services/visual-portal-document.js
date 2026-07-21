@@ -9,7 +9,8 @@ export const VISUAL_PORTAL_MAX_BYTES = 250000;
 
 export const VISUAL_PORTAL_BLOCK_TYPES = new Set([
   "hero", "heading", "text", "button", "image", "video", "embed",
-  "gallery", "feature-grid", "quote", "contact", "divider", "spacer",
+  "gallery", "feature-grid", "faq", "stats", "timeline", "quote", "contact",
+  "divider", "spacer",
 ]);
 
 const ALIGNMENTS = new Set(["left", "center", "right"]);
@@ -21,7 +22,6 @@ const EMBED_RATIOS = new Set(["16:9", "4:3", "1:1", "9:16"]);
 const EMBED_MODES = new Set(["url", "html"]);
 const HEADER_STYLES = new Set(["standard", "centered", "floating", "minimal"]);
 const HEADER_POSITIONS = new Set(["static", "sticky"]);
-const PWA_DISPLAYS = new Set(["standalone", "minimal-ui", "browser"]);
 const COLOR_PATTERN = /^(#[0-9a-f]{6}|rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\))$/i;
 const MEDIA_ID_PATTERN = /^media_[a-z0-9-]{8,80}$/i;
 
@@ -222,7 +222,6 @@ function guestPortalClassicTemplate(base) {
     settings: {
       ...base.settings,
       header: { ...base.settings.header, style: "floating", position: "sticky", blur: true },
-      pwa: { ...base.settings.pwa, app_name: "Portal do Hóspede", short_name: "Portal" },
     },
     pages,
   });
@@ -280,7 +279,6 @@ function normalizeDocumentSettings(input) {
     background_fixed: Boolean(input.background_fixed),
     favicon_media_asset_id: mediaId(input.favicon_media_asset_id),
     header: normalizeHeaderSettings(input.header || {}, primaryColor),
-    pwa: normalizePwaSettings(input.pwa || {}),
     editor: {
       autosave_enabled: input.editor?.autosave_enabled !== false,
       autosave_interval_seconds: normalizeNumber(input.editor?.autosave_interval_seconds, 15, 120, 30),
@@ -306,16 +304,6 @@ function normalizeHeaderSettings(input, primaryColor) {
   };
 }
 
-function normalizePwaSettings(input) {
-  return {
-    install_enabled: Boolean(input.install_enabled),
-    app_name: text(input.app_name, 80),
-    short_name: text(input.short_name, 30),
-    description: text(input.description, 180),
-    display: normalizeEnum(input.display, PWA_DISPLAYS, "standalone"),
-  };
-}
-
 function normalizePageSettings(input, fallback) {
   return {
     background_color: normalizeColor(input.background_color || fallback.background_color, "cor de fundo da página"),
@@ -338,7 +326,7 @@ function pageSettingsFromDocument(settings) {
 
 function block(type, id, content, baseStyles = {}) {
   const mobileStyles = {};
-  if (["feature-grid", "gallery"].includes(type)) mobileStyles.columns = 1;
+  if (["feature-grid", "gallery", "stats"].includes(type)) mobileStyles.columns = 1;
   if (type === "heading") mobileStyles.heading_size = 38;
   if (type === "quote") mobileStyles.heading_size = 30;
   return normalizeBlock({ id, type, content, styles: { base: baseStyles, desktop: {}, mobile: mobileStyles }, visibility: { desktop: true, mobile: true } }, 0);
@@ -384,6 +372,9 @@ function normalizeBlockContent(type, input) {
   }
   if (type === "gallery") return { title: text(input.title, 180), media_asset_ids: uniqueMediaIds(input.media_asset_ids, 24) };
   if (type === "feature-grid") return { items: normalizeFeatureItems(input.items) };
+  if (type === "faq") return { title: text(input.title, 180), items: normalizeFaqItems(input.items) };
+  if (type === "stats") return { title: text(input.title, 180), items: normalizeStatItems(input.items) };
+  if (type === "timeline") return { title: text(input.title, 180), items: normalizeTimelineItems(input.items) };
   if (type === "quote") return { quote: text(input.quote, 1800), author: text(input.author, 160) };
   if (type === "contact") return { title: text(input.title, 180), text: text(input.text, 1200), phone: phone(input.phone), email: email(input.email), address: text(input.address, 500), button_text: text(input.button_text, 80), button_url: safeUrl(input.button_url) };
   if (type === "divider") return { label: text(input.label, 100) };
@@ -394,6 +385,34 @@ function normalizeFeatureItems(items) {
   if (items == null) return [];
   if (!Array.isArray(items) || items.length > 12) throw badRequest("A grade excede o limite de itens.");
   return items.map((item) => ({ title: text(item?.title, 160), text: text(item?.text, 1000), media_asset_id: mediaId(item?.media_asset_id), button_text: text(item?.button_text, 80), button_url: safeUrl(item?.button_url) }));
+}
+
+function normalizeFaqItems(items) {
+  if (items == null) return [];
+  if (!Array.isArray(items) || items.length > 16) throw badRequest("A lista de perguntas excede o limite de itens.");
+  return items.map((item) => ({
+    question: text(item?.question, 240),
+    answer: text(item?.answer, 2400),
+  }));
+}
+
+function normalizeStatItems(items) {
+  if (items == null) return [];
+  if (!Array.isArray(items) || items.length > 8) throw badRequest("A lista de indicadores excede o limite de itens.");
+  return items.map((item) => ({
+    value: text(item?.value, 60),
+    label: text(item?.label, 180),
+  }));
+}
+
+function normalizeTimelineItems(items) {
+  if (items == null) return [];
+  if (!Array.isArray(items) || items.length > 16) throw badRequest("A linha do tempo excede o limite de itens.");
+  return items.map((item) => ({
+    period: text(item?.period, 80),
+    title: text(item?.title, 180),
+    text: text(item?.text, 1600),
+  }));
 }
 
 function normalizeBlockStyles(input) {
