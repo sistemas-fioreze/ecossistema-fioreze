@@ -111,6 +111,11 @@ const els = {
   shortLinkQrUrl: document.getElementById("shortLinkQrUrl"),
   shortLinkQrDownload: document.getElementById("shortLinkQrDownload"),
   copyShortLinkQrButton: document.getElementById("copyShortLinkQrButton"),
+  shortLinkSharingPanel: document.getElementById("shortLinkSharingPanel"),
+  shortLinkSharingForm: document.getElementById("shortLinkSharingForm"),
+  shortLinkShareUser: document.getElementById("shortLinkShareUser"),
+  shortLinkSharingMessage: document.getElementById("shortLinkSharingMessage"),
+  shortLinkSharesList: document.getElementById("shortLinkSharesList"),
   addShortLinkButton: document.getElementById("addShortLinkButton"),
   cancelShortLinkButton: document.getElementById("cancelShortLinkButton"),
   contentManager: document.getElementById("contentManager"),
@@ -145,7 +150,6 @@ const portalCards = [
   ["conteudos", "Conteúdos", "Páginas, eventos e informações dos hotéis.", "/admin/portais/conteudos/"],
   ["modulos", "Áreas", "Ativação e ajustes das experiências.", "/admin/portais/areas/"],
   ["navegacao", "Navegação", "Menus e caminhos dos portais.", "/admin/portais/navegacao/"],
-  ["auditoria", "Auditoria", "Histórico das alterações administrativas.", "/admin/portais/auditoria/"],
 ];
 const mediaFields = ["logo_url", "horizontal_logo_url", "icon_url", "favicon_url", "cover_image_url", "social_image_url"];
 const settingFields = [
@@ -200,6 +204,7 @@ let movingMediaAsset = null;
 let currentShortLinks = [];
 let currentShortLink = null;
 let currentShortLinkPublicBase = "";
+let currentShortLinkShareUsers = [];
 let currentUnits = [];
 let currentUnit = null;
 let currentModules = [];
@@ -277,6 +282,8 @@ els.shortLinksForm.addEventListener("submit", saveShortLink);
 els.shortLinksForm.addEventListener("input", updateShortLinkPreview);
 els.shortLinksList.addEventListener("click", handleShortLinkAction);
 els.copyShortLinkQrButton.addEventListener("click", copyCurrentShortLinkUrl);
+els.shortLinkSharingForm.addEventListener("submit", shareCurrentShortLink);
+els.shortLinkSharesList.addEventListener("click", revokeCurrentShortLinkShare);
 
 els.unitFilters.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -392,7 +399,6 @@ function renderNav(session) {
     ["Conteúdos", "/admin/portais/conteudos/", canAccessContent(session)],
     ["Áreas", "/admin/portais/areas/", canAccessAreas(session)],
     ["Navegação", "/admin/portais/navegacao/", canAccessNavigation(session)],
-    ["Auditoria", "/admin/portais/auditoria/", canAccessAudit(session)],
   ];
   els.portalsNav.innerHTML = items
     .map(([label, href, enabled]) =>
@@ -1068,16 +1074,17 @@ function renderShortLinksList() {
 }
 
 function renderShortLinkRow(link) {
-  const canUpdate = hasPermission(currentSession, PORTALS_LINKS_UPDATE_PERMISSION) && link.status !== "archived";
-  const canArchive = hasPermission(currentSession, PORTALS_LINKS_ARCHIVE_PERMISSION) && link.status !== "archived";
-  const canDelete = hasPermission(currentSession, PORTALS_LINKS_DELETE_PERMISSION) && link.status === "archived";
+  const canManage = link.can_manage === true;
+  const canUpdate = canManage && hasPermission(currentSession, PORTALS_LINKS_UPDATE_PERMISSION) && link.status !== "archived";
+  const canArchive = canManage && hasPermission(currentSession, PORTALS_LINKS_ARCHIVE_PERMISSION) && link.status !== "archived";
+  const canDelete = canManage && hasPermission(currentSession, PORTALS_LINKS_DELETE_PERMISSION) && link.status === "archived";
   return `
     <article class="admin-short-link-row admin-link-card">
       <span class="admin-link-card-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.2 1.2"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.2-1.2"/></svg>
       </span>
       <div class="admin-link-card-copy">
-        <div><strong>${escapeHtml(link.internal_name)}</strong><span class="admin-status" data-status="${escapeAttr(link.status)}">${escapeHtml(shortLinkStatus(link.status))}</span></div>
+        <div><strong>${escapeHtml(link.internal_name)}</strong><span class="admin-status" data-status="${escapeAttr(link.status)}">${escapeHtml(shortLinkStatus(link.status))}</span><span class="admin-link-access-badge" data-access="${escapeAttr(link.access_level)}">${canManage ? "Criado por você" : "Compartilhado com você"}</span></div>
         <a href="${escapeAttr(link.public_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(link.public_url)}</a>
         <small>Destino: ${escapeHtml(link.destination_summary || link.destination_scheme)}</small>
       </div>
@@ -1087,9 +1094,10 @@ function renderShortLinkRow(link) {
         <small>${escapeHtml(link.hotel_name || link.hotel_id)}</small>
       </div>
       <div class="admin-row-actions">
-        <button type="button" data-link-action="edit" data-link-id="${escapeAttr(link.id)}">Abrir</button>
+        <button type="button" data-link-action="edit" data-link-id="${escapeAttr(link.id)}">${canManage ? "Abrir" : "Visualizar"}</button>
         <button type="button" data-link-action="copy" data-link-id="${escapeAttr(link.id)}">Copiar</button>
         <button type="button" data-link-action="qr" data-link-id="${escapeAttr(link.id)}">QR Code</button>
+        ${canUpdate ? `<button type="button" data-link-action="share" data-link-id="${escapeAttr(link.id)}">Compartilhar</button>` : ""}
         ${canUpdate ? `<button type="button" data-link-action="toggle" data-link-id="${escapeAttr(link.id)}">${link.status === "active" ? "Pausar" : "Reativar"}</button>` : ""}
         ${canArchive ? `<button class="danger" type="button" data-link-action="archive" data-link-id="${escapeAttr(link.id)}">Arquivar</button>` : ""}
         ${canDelete ? `<button class="danger" type="button" data-link-action="delete" data-link-id="${escapeAttr(link.id)}">Excluir</button>` : ""}
@@ -1101,21 +1109,29 @@ function renderShortLinkRow(link) {
 function openShortLinkEditor(link = null, defaults = {}) {
   currentShortLink = link;
   els.shortLinksEditor.hidden = false;
-  els.shortLinksEditorTitle.textContent = link ? "Editar link personalizado" : "Novo link personalizado";
+  const canManage = !link || link.can_manage === true;
+  els.shortLinksEditorTitle.textContent = link ? (canManage ? "Editar link personalizado" : "Detalhes do link compartilhado") : "Novo link personalizado";
   const form = els.shortLinksForm;
   form.elements.hotel_id.value = link?.hotel_id || defaults.hotel_id || els.shortLinksHotel.value || getAuthorizedHotels(currentSession)[0]?.hotel_id || "";
   form.elements.internal_name.value = link?.internal_name || defaults.internal_name || "";
   form.elements.slug.value = link?.slug || defaults.slug || "";
-  form.elements.slug.disabled = Boolean(link);
+  form.elements.slug.disabled = Boolean(link) || !canManage;
   form.elements.destination_url.value = link?.destination_url || defaults.destination_url || "";
   form.elements.status.value = link?.status === "archived" ? "paused" : link?.status || "active";
   form.elements.starts_at.value = toLocalDateTime(link?.starts_at);
   form.elements.expires_at.value = toLocalDateTime(link?.expires_at);
   form.elements.notes.value = link?.notes || "";
+  for (const control of form.elements) {
+    if (!control.name || control.name === "hotel_id" || control.name === "slug") continue;
+    control.disabled = !canManage;
+  }
+  form.querySelector('[type="submit"]').hidden = !canManage;
   renderShortLinkAnalytics(null);
   renderShortLinkQr(link);
+  resetShortLinkSharing();
   updateShortLinkPreview();
   if (link && hasPermission(currentSession, PORTALS_LINKS_ANALYTICS_PERMISSION)) loadShortLinkAnalytics(link.id);
+  if (link && canManage && hasPermission(currentSession, PORTALS_LINKS_UPDATE_PERMISSION)) loadShortLinkShares(link.id);
 }
 
 function closeShortLinkEditor() {
@@ -1123,8 +1139,11 @@ function closeShortLinkEditor() {
   els.shortLinksEditor.hidden = true;
   els.shortLinksForm.reset();
   els.shortLinksPreview.textContent = "";
+  for (const control of els.shortLinksForm.elements) control.disabled = false;
+  els.shortLinksForm.querySelector('[type="submit"]').hidden = false;
   renderShortLinkQr(null);
   renderShortLinkAnalytics(null);
+  resetShortLinkSharing();
 }
 
 async function saveShortLink(event) {
@@ -1172,6 +1191,11 @@ async function handleShortLinkAction(event) {
   if (action === "qr") {
     openShortLinkEditor(link);
     els.shortLinkQrPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    return;
+  }
+  if (action === "share") {
+    openShortLinkEditor(link);
+    els.shortLinkSharingPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
     return;
   }
   if (action === "toggle") {
@@ -1249,6 +1273,81 @@ async function copyCurrentShortLinkUrl() {
   window.setTimeout(() => {
     els.copyShortLinkQrButton.textContent = "Copiar endereço";
   }, 1600);
+}
+
+async function loadShortLinkShares(linkId) {
+  els.shortLinkSharingPanel.hidden = false;
+  els.shortLinkSharingMessage.textContent = "Carregando pessoas...";
+  try {
+    const payload = await adminApi(`/api/v1/admin/short-links/${encodeURIComponent(linkId)}/shares`);
+    currentShortLinkShareUsers = payload.data.users || [];
+    renderShortLinkShares();
+    els.shortLinkSharingMessage.textContent = "";
+  } catch (error) {
+    currentShortLinkShareUsers = [];
+    renderShortLinkShares();
+    els.shortLinkSharingMessage.textContent = error.message || "Não foi possível carregar o compartilhamento.";
+  }
+}
+
+function renderShortLinkShares() {
+  const available = currentShortLinkShareUsers.filter((user) => !user.shared);
+  const shared = currentShortLinkShareUsers.filter((user) => user.shared);
+  els.shortLinkShareUser.innerHTML = available.length
+    ? `<option value="">Selecione uma pessoa</option>${available.map((user) => `<option value="${escapeAttr(user.id)}">${escapeHtml(user.display_name)} · ${escapeHtml(maskEmail(user.email))}</option>`).join("")}`
+    : '<option value="">Todos os usuários disponíveis já têm acesso</option>';
+  els.shortLinkShareUser.disabled = available.length === 0;
+  els.shortLinkSharingForm.querySelector('button[type="submit"]').disabled = available.length === 0;
+  els.shortLinkSharesList.innerHTML = shared.length
+    ? shared.map((user) => `<article><span class="admin-link-share-avatar">${escapeHtml(initials(user.display_name))}</span><div><strong>${escapeHtml(user.display_name)}</strong><small>${escapeHtml(maskEmail(user.email))} · Pode visualizar</small></div><button type="button" data-share-revoke="${escapeAttr(user.id)}">Remover acesso</button></article>`).join("")
+    : '<div class="admin-empty">Este link ainda não foi compartilhado.</div>';
+}
+
+async function shareCurrentShortLink(event) {
+  event.preventDefault();
+  if (!currentShortLink?.can_manage || !els.shortLinkShareUser.value) return;
+  try {
+    await adminApi(`/api/v1/admin/short-links/${encodeURIComponent(currentShortLink.id)}/shares`, {
+      method: "POST",
+      body: { user_id: els.shortLinkShareUser.value },
+    });
+    els.shortLinkSharingMessage.textContent = "Acesso compartilhado.";
+    await loadShortLinkShares(currentShortLink.id);
+  } catch (error) {
+    els.shortLinkSharingMessage.textContent = error.message || "Não foi possível compartilhar o link.";
+  }
+}
+
+async function revokeCurrentShortLinkShare(event) {
+  const button = event.target.closest("[data-share-revoke]");
+  if (!button || !currentShortLink?.can_manage) return;
+  try {
+    await adminApi(`/api/v1/admin/short-links/${encodeURIComponent(currentShortLink.id)}/shares/${encodeURIComponent(button.dataset.shareRevoke)}`, {
+      method: "DELETE",
+      body: {},
+    });
+    els.shortLinkSharingMessage.textContent = "Acesso removido.";
+    await loadShortLinkShares(currentShortLink.id);
+  } catch (error) {
+    els.shortLinkSharingMessage.textContent = error.message || "Não foi possível remover o acesso.";
+  }
+}
+
+function resetShortLinkSharing() {
+  currentShortLinkShareUsers = [];
+  els.shortLinkSharingPanel.hidden = true;
+  els.shortLinkSharingMessage.textContent = "";
+  els.shortLinkShareUser.innerHTML = "";
+  els.shortLinkSharesList.innerHTML = "";
+}
+
+function maskEmail(email) {
+  const [name = "", domain = ""] = String(email || "").split("@");
+  return `${name.slice(0, 2)}${name.length > 2 ? "•••" : ""}${domain ? `@${domain}` : ""}`;
+}
+
+function initials(name) {
+  return String(name || "U").split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
 }
 
 function shortLinkStatus(status) {

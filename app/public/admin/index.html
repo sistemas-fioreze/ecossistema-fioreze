@@ -48,26 +48,37 @@
           </div>
         </header>
 
-        <section class="admin-launcher-grid" aria-label="Sistemas administrativos">
-          <article class="admin-launcher-panel">
-            <div class="admin-panel-heading">
-              <h2>Atalhos rápidos</h2>
-            </div>
-            <div id="systemsList" class="admin-system-list"></div>
-            <p id="noSystemsMessage" class="admin-empty" hidden>Nenhum sistema administrativo disponível para este usuário.</p>
-          </article>
+        <section id="adminHomeDashboard" class="admin-home-dashboard" aria-label="Visão geral administrativa">
+          <div class="admin-home-kpis">
+            <article><span class="admin-home-kpi-icon" data-icon="units" aria-hidden="true"></span><div><small>Unidades autorizadas</small><strong id="homeHotelsKpi">0</strong><span>na sua sessão</span></div></article>
+            <article><span class="admin-home-kpi-icon" data-icon="apps" aria-hidden="true"></span><div><small>Áreas disponíveis</small><strong id="homeSystemsKpi">0</strong><span>conforme seu perfil</span></div></article>
+            <article><span class="admin-home-kpi-icon" data-icon="shield" aria-hidden="true"></span><div><small>Permissões ativas</small><strong id="homePermissionsKpi">0</strong><span>acessos concedidos</span></div></article>
+            <article><span class="admin-home-kpi-icon" data-icon="mail" aria-hidden="true"></span><div><small>Mensagens não lidas</small><strong id="homeMessagesKpi">0</strong><span>na caixa de entrada</span></div></article>
+          </div>
 
-          <aside class="admin-launcher-panel">
-            <div class="admin-panel-heading">
-              <h2>Suas unidades</h2>
-            </div>
-            <div id="authorizedHotels" class="admin-hotel-list"></div>
-            <div class="admin-info-box">
-              <span>Impressão de pedidos</span>
-              <strong>Gerenciada no ERP Room Service</strong>
-              <p class="admin-muted">A Central organiza unidades, acessos e experiências digitais.</p>
-            </div>
-          </aside>
+          <div class="admin-home-grid">
+            <section class="admin-home-chart-card">
+              <header><div><span>Visão de acesso</span><h2>Permissões por área</h2></div><small>Atualizado pela sessão</small></header>
+              <div id="homePermissionsChart" class="admin-home-bars"></div>
+            </section>
+            <section class="admin-home-units-card">
+              <header><div><span>Operação</span><h2>Suas unidades</h2></div></header>
+              <div id="authorizedHotels" class="admin-home-hotel-list"></div>
+            </section>
+          </div>
+
+          <section class="admin-home-actions">
+            <header><div><span>Acesso rápido</span><h2>Continue seu trabalho</h2></div></header>
+            <div id="systemsList" class="admin-home-action-grid"></div>
+            <p id="noSystemsMessage" class="admin-empty" hidden>Nenhuma área administrativa disponível para este usuário.</p>
+          </section>
+        </section>
+
+        <section id="settingsManager" class="admin-settings-manager admin-management-panel" hidden>
+          <header class="admin-settings-heading">
+            <div><p class="eyebrow">Administração</p><h2>Configurações</h2><p>Contas, acessos e histórico reunidos em um único lugar.</p></div>
+          </header>
+          <div id="settingsGrid" class="admin-settings-grid"></div>
         </section>
 
         <section id="usersManager" class="admin-launcher-panel admin-management-panel" hidden>

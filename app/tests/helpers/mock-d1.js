@@ -31,9 +31,9 @@ function createAssetsBinding() {
       const pathname = new URL(request.url).pathname;
       const htmlByPath = {
         "/admin/":
-          '<!doctype html><html><body><h1>Ecossistema Fioreze</h1><form id="loginForm"></form><div id="systemsList"></div></body></html>',
+          '<!doctype html><html><body><h1>Ecossistema Fioreze</h1><form id="loginForm"></form><div id="systemsList"></div><section id="settingsManager"></section></body></html>',
         "/admin/index.html":
-          '<!doctype html><html><body><h1>Ecossistema Fioreze</h1><form id="loginForm"></form><div id="systemsList"></div></body></html>',
+          '<!doctype html><html><body><h1>Ecossistema Fioreze</h1><form id="loginForm"></form><div id="systemsList"></div><section id="settingsManager"></section></body></html>',
         "/erp/room-service/":
           '<!doctype html><html><body data-erp="room-service"><h1>ERP Room Service Fioreze</h1><form id="loginForm"></form><div id="routeOutlet"></div><script type="module" src="/js/modules/room-service-erp/app.js"></script></body></html>',
         "/erp/room-service/index.html":
@@ -64,6 +64,8 @@ function createAssetsBinding() {
           '<!doctype html><html><body><h1>Central Administrativa Fioreze</h1><form id="loginForm"></form><section id="messagesManager"></section></body></html>',
         "/admin/minha-conta/":
           '<!doctype html><html><body><h1>Central Administrativa Fioreze</h1><form id="loginForm"></form><section id="accountManager"></section></body></html>',
+        "/admin/configuracoes/":
+          '<!doctype html><html><body><h1>Central Administrativa Fioreze</h1><form id="loginForm"></form><section id="settingsManager"></section></body></html>',
       };
       if (htmlByPath[pathname]) {
         return new Response(htmlByPath[pathname], {
@@ -473,6 +475,7 @@ function createFixtureData() {
         archived_at: null,
       },
     ],
+    shortLinkUserShares: [],
     shortLinkClicksDaily: [],
     customPortalPages: [],
     portalPages: [
@@ -1170,11 +1173,33 @@ class MockD1Database {
     }
 
     if (normalized.includes("from short_links sl") && normalized.includes("where sl.id = ?") && normalized.includes("sl.hotel_id in")) {
-      const [linkId, ...hotelIds] = params;
-      const link = this.data.shortLinks.find((entry) => entry.id === linkId && hotelIds.includes(entry.hotel_id));
+      const hasSharedAccess = normalized.includes("from short_link_user_shares sls");
+      const linkId = params[0];
+      const ownerUserId = params.at(hasSharedAccess ? -2 : -1);
+      const viewerUserId = params.at(-1);
+      const hotelIds = params.slice(1, hasSharedAccess ? -2 : -1);
+      const link = this.data.shortLinks.find((entry) =>
+        entry.id === linkId &&
+        hotelIds.includes(entry.hotel_id) &&
+        (entry.created_by_user_id === ownerUserId || (hasSharedAccess && this.data.shortLinkUserShares.some(
+          (share) => share.short_link_id === entry.id && share.user_id === viewerUserId,
+        )))
+      );
       if (!link) return null;
       const hotel = this.data.hotels.find((entry) => entry.id === link.hotel_id) || {};
       return { ...link, hotel_name: hotel.name, hotel_timezone: hotel.timezone };
+    }
+
+    if (normalized.includes("select user_id from short_link_user_shares")) {
+      const [shortLinkId, userId] = params;
+      return this.data.shortLinkUserShares.find((entry) => entry.short_link_id === shortLinkId && entry.user_id === userId) || null;
+    }
+
+    if (normalized.includes("from admin_users u") && normalized.includes("join admin_hotel_access aha") && normalized.includes("where u.id = ?")) {
+      const [hotelId, userId] = params;
+      const user = this.data.adminUsers.find((entry) => entry.id === userId && entry.status === "active");
+      const access = this.data.adminHotelAccess.some((entry) => entry.user_id === userId && entry.hotel_id === hotelId);
+      return user && access ? { id: user.id, display_name: user.display_name, email: user.email } : null;
     }
 
     if (normalized.includes("from navigation_items") && normalized.includes("where id = ? and hotel_id = ?")) {
@@ -1772,8 +1797,8 @@ class MockD1Database {
     }
 
     if (normalized.includes("from short_links sl") && normalized.includes("join hotels h")) {
-      const [hotelId] = params;
-      let cursor = 1;
+      const [hotelId, ownerUserId, viewerUserId] = params;
+      let cursor = 3;
       const hasStatus = normalized.includes("sl.status = ?");
       const status = hasStatus ? params[cursor++] : "";
       const hasSearch = normalized.includes("lower(sl.internal_name) like ?");
@@ -1783,6 +1808,9 @@ class MockD1Database {
       const offset = Number(params[cursor++] || 0);
       let rows = this.data.shortLinks
         .filter((link) => link.hotel_id === hotelId)
+        .filter((link) => link.created_by_user_id === ownerUserId || this.data.shortLinkUserShares.some(
+          (share) => share.short_link_id === link.id && share.user_id === viewerUserId,
+        ))
         .filter((link) => !status || link.status === status)
         .filter((link) => {
           if (!search) return true;
@@ -1802,6 +1830,21 @@ class MockD1Database {
         rows = rows.sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id));
       }
       return rows.slice(offset, offset + limit);
+    }
+
+    if (normalized.includes("from admin_users u") && normalized.includes("left join short_link_user_shares sls")) {
+      const [hotelId, shortLinkId, ownerUserId] = params;
+      return this.data.adminHotelAccess
+        .filter((access) => access.hotel_id === hotelId && access.user_id !== ownerUserId)
+        .map((access) => this.data.adminUsers.find((user) => user.id === access.user_id && user.status === "active"))
+        .filter(Boolean)
+        .map((user) => ({
+          id: user.id,
+          display_name: user.display_name,
+          email: user.email,
+          shared: this.data.shortLinkUserShares.some((share) => share.short_link_id === shortLinkId && share.user_id === user.id) ? 1 : 0,
+        }))
+        .sort((left, right) => left.display_name.localeCompare(right.display_name) || left.email.localeCompare(right.email));
     }
 
     if (normalized.includes("from short_link_clicks_daily") && normalized.includes("where short_link_id = ?")) {
@@ -2545,6 +2588,15 @@ class MockD1Database {
       return d1Result(1);
     }
 
+    if (normalized.startsWith("insert into short_link_user_shares")) {
+      const [short_link_id, user_id, shared_by_user_id, created_at] = params;
+      if (this.data.shortLinkUserShares.some((entry) => entry.short_link_id === short_link_id && entry.user_id === user_id)) {
+        throw new Error("UNIQUE constraint failed: short_link_user_shares.short_link_id, short_link_user_shares.user_id");
+      }
+      this.data.shortLinkUserShares.push({ short_link_id, user_id, shared_by_user_id, access_level: "viewer", created_at });
+      return d1Result(1);
+    }
+
     if (normalized.startsWith("insert into short_link_clicks_daily")) {
       const [short_link_id, hotel_id, click_date, first_clicked_at, last_clicked_at] = params;
       const existing = this.data.shortLinkClicksDaily.find(
@@ -2990,8 +3042,18 @@ class MockD1Database {
       );
       if (index === -1) return d1Result(0);
       this.data.shortLinks.splice(index, 1);
+      this.data.shortLinkUserShares = this.data.shortLinkUserShares.filter((entry) => entry.short_link_id !== id);
       this.data.shortLinkClicksDaily = this.data.shortLinkClicksDaily.filter((entry) => entry.short_link_id !== id);
       return d1Result(1);
+    }
+
+    if (normalized.startsWith("delete from short_link_user_shares")) {
+      const [shortLinkId, userId] = params;
+      const before = this.data.shortLinkUserShares.length;
+      this.data.shortLinkUserShares = this.data.shortLinkUserShares.filter(
+        (entry) => entry.short_link_id !== shortLinkId || entry.user_id !== userId,
+      );
+      return d1Result(before - this.data.shortLinkUserShares.length);
     }
 
     if (normalized.startsWith("update hotels")) {

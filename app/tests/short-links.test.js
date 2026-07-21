@@ -35,6 +35,16 @@ test("migration 0011 cria links curtos, analytics agregada e permissoes sem asso
   assert.equal(/admin_role_permissions/i.test(migration), false);
 });
 
+test("migration 0024 cria compartilhamento privado sem duplicar acesso", () => {
+  const migration = fs.readFileSync("migrations/0024_short_link_user_sharing.sql", "utf8").toLowerCase();
+
+  assert.match(migration, /create table if not exists short_link_user_shares/);
+  assert.match(migration, /primary key \(short_link_id, user_id\)/);
+  assert.match(migration, /references short_links\(id\) on delete cascade/);
+  assert.match(migration, /references admin_users\(id\)/);
+  assert.match(migration, /access_level text not null default 'viewer'/);
+});
+
 test("Worker e Pages geram o dominio curto oficial sem remover o fallback Workers.dev", () => {
   const worker = JSON.parse(fs.readFileSync("wrangler.jsonc", "utf8"));
   const pages = JSON.parse(fs.readFileSync("pages/wrangler.jsonc", "utf8"));
@@ -266,6 +276,116 @@ test("admin lista links somente do hotel autorizado", async () => {
   assert.equal(forbidden.response.status, 401);
 });
 
+test("links ficam privados para o criador ate um compartilhamento explicito", async () => {
+  const { json, env } = createWorkerTestContext();
+  grantPermissions(env);
+  const ownerCookie = await createSessionCookie(env);
+  const viewerId = addMullerViewer(env);
+  const viewerCookie = await createSessionCookie(env, viewerId);
+
+  const before = await json("/api/v1/admin/short-links?hotel_id=muller-fioreze", withCookie(viewerCookie));
+  const shared = await json(
+    "/api/v1/admin/short-links/link-muller-reservas/shares",
+    withCookie(ownerCookie, adminJson("POST", { user_id: viewerId })),
+  );
+  const after = await json("/api/v1/admin/short-links?hotel_id=muller-fioreze", withCookie(viewerCookie));
+  const detail = await json("/api/v1/admin/short-links/link-muller-reservas", withCookie(viewerCookie));
+
+  assert.equal(before.response.status, 200);
+  assert.deepEqual(before.body.data.links, []);
+  assert.equal(shared.response.status, 200);
+  assert.equal(shared.body.data.shared, true);
+  assert.deepEqual(after.body.data.links.map((link) => link.id), ["link-muller-reservas"]);
+  assert.equal(after.body.data.links[0].access_level, "viewer");
+  assert.equal(after.body.data.links[0].can_manage, false);
+  assert.equal(detail.body.data.link.can_manage, false);
+  assert.equal(env.__data.adminAuditLog.at(-1).action, "short-link.share");
+});
+
+test("usuario compartilhado consulta QR e metricas mas nao altera nem gerencia o link", async () => {
+  const { fetch, json, env } = createWorkerTestContext();
+  grantPermissions(env);
+  const viewerId = addMullerViewer(env);
+  env.__data.shortLinkUserShares.push({
+    short_link_id: "link-muller-reservas",
+    user_id: viewerId,
+    shared_by_user_id: "user-demo-admin",
+    access_level: "viewer",
+    created_at: "2026-07-12T12:00:00.000Z",
+  });
+  const cookie = await createSessionCookie(env, viewerId);
+
+  const qr = await fetch("/api/v1/admin/short-links/link-muller-reservas/qrcode.svg", withCookie(cookie));
+  const analytics = await json("/api/v1/admin/short-links/link-muller-reservas/analytics", withCookie(cookie));
+  const update = await json(
+    "/api/v1/admin/short-links/link-muller-reservas",
+    withCookie(cookie, adminJson("PATCH", { status: "paused" })),
+  );
+  const shares = await json("/api/v1/admin/short-links/link-muller-reservas/shares", withCookie(cookie));
+  const archive = await json(
+    "/api/v1/admin/short-links/link-muller-reservas",
+    withCookie(cookie, adminJson("DELETE", {})),
+  );
+
+  assert.equal(qr.status, 200);
+  assert.match(qr.headers.get("content-type") || "", /image\/svg\+xml/);
+  assert.equal(analytics.response.status, 200);
+  assert.equal(update.response.status, 404);
+  assert.equal(shares.response.status, 404);
+  assert.equal(archive.response.status, 404);
+  assert.equal(env.__data.shortLinks.find((link) => link.id === "link-muller-reservas").status, "active");
+});
+
+test("proprietario revoga compartilhamento e o link volta a ficar invisivel", async () => {
+  const { json, env } = createWorkerTestContext();
+  grantPermissions(env);
+  const ownerCookie = await createSessionCookie(env);
+  const viewerId = addMullerViewer(env);
+  const viewerCookie = await createSessionCookie(env, viewerId);
+
+  await json(
+    "/api/v1/admin/short-links/link-muller-reservas/shares",
+    withCookie(ownerCookie, adminJson("POST", { user_id: viewerId })),
+  );
+  const candidates = await json("/api/v1/admin/short-links/link-muller-reservas/shares", withCookie(ownerCookie));
+  const revoked = await json(
+    `/api/v1/admin/short-links/link-muller-reservas/shares/${viewerId}`,
+    withCookie(ownerCookie, adminJson("DELETE", {})),
+  );
+  const hidden = await json("/api/v1/admin/short-links/link-muller-reservas", withCookie(viewerCookie));
+
+  assert.equal(candidates.response.status, 200);
+  assert.equal(candidates.body.data.users.find((user) => user.id === viewerId).shared, true);
+  assert.equal(revoked.body.data.revoked, true);
+  assert.equal(hidden.response.status, 404);
+  assert.equal(env.__data.shortLinkUserShares.length, 0);
+  assert.equal(env.__data.adminAuditLog.at(-1).action, "short-link.share-revoke");
+});
+
+test("proprietario nao compartilha link com usuario sem acesso a unidade", async () => {
+  const { json, env } = createWorkerTestContext();
+  grantPermissions(env);
+  const cookie = await createSessionCookie(env);
+
+  const response = await json(
+    "/api/v1/admin/short-links/link-muller-reservas/shares",
+    withCookie(cookie, adminJson("POST", { user_id: AURORA_USER_ID })),
+  );
+
+  assert.equal(response.response.status, 403);
+  assert.equal(env.__data.shortLinkUserShares.length, 0);
+});
+
+test("gestao de compartilhamento exige permissao de atualizar links", async () => {
+  const { json, env } = createWorkerTestContext();
+  grantPermissions(env, ["portals.links.read"]);
+  const cookie = await createSessionCookie(env);
+
+  const response = await json("/api/v1/admin/short-links/link-muller-reservas/shares", withCookie(cookie));
+
+  assert.equal(response.response.status, 401);
+});
+
 test("admin gera links e preview com a origem oficial configurada", async () => {
   const { json, env } = createWorkerTestContext({ SHORT_LINK_PUBLIC_ORIGIN: SHORT_LINK_ORIGIN });
   grantPermissions(env);
@@ -418,4 +538,18 @@ function grantPermissions(env, permissions = LINK_PERMISSIONS) {
     );
     if (!exists) env.__data.adminRolePermissions.push({ role_id: "role-demo-manager", permission_id: permission.id });
   }
+}
+
+function addMullerViewer(env) {
+  const id = "user-muller-viewer";
+  env.__data.adminUsers.push({
+    ...env.__data.adminUsers.find((user) => user.id === AURORA_USER_ID),
+    id,
+    user_number: 3,
+    display_name: "Pessoa Compartilhada",
+    email: "viewer@example.invalid",
+  });
+  env.__data.adminUserRoles.push({ user_id: id, role_id: "role-demo-manager" });
+  env.__data.adminHotelAccess.push({ user_id: id, hotel_id: "muller-fioreze", access_level: "viewer" });
+  return id;
 }

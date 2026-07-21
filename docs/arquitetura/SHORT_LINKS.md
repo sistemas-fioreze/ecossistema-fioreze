@@ -23,6 +23,18 @@ O endereco tecnico continua disponivel como contingencia:
 - `starts_at` e `expires_at` permitem publicar campanhas temporarias.
 - Links pausados, arquivados, futuros ou expirados respondem como 404 generico.
 - A tela administrativa exibe, antecipa e copia o `public_url` retornado pela API usando o dominio oficial.
+- Cada link fica visivel somente para seu criador ate que ele compartilhe o acesso com outra pessoa da mesma unidade.
+
+## Propriedade e Compartilhamento
+
+`short_links.created_by_user_id` define o proprietario do link. Listagem, detalhes, QR Code e analytics aceitam somente o proprietario ou um usuario presente em `short_link_user_shares`.
+
+- O proprietario pode editar, pausar, reativar, arquivar, excluir e gerenciar compartilhamentos.
+- Um usuario compartilhado recebe acesso de visualizacao: pode abrir os detalhes, copiar o endereco, gerar o QR Code e consultar metricas quando tiver as permissoes administrativas correspondentes.
+- O acesso compartilhado nao permite editar, arquivar, excluir nem compartilhar novamente.
+- Somente usuarios ativos que tambem possuam acesso ao `hotel_id` do link podem ser convidados.
+- Revogar o compartilhamento remove imediatamente o link da listagem e dos endpoints autenticados do usuario.
+- Compartilhar e revogar geram `short-link.share` e `short-link.share-revoke` na auditoria.
 
 ## Destinos Permitidos
 
@@ -151,6 +163,8 @@ Acoes registradas:
 - `short-link.update`
 - `short-link.archive`
 - `short-link.delete`
+- `short-link.share`
+- `short-link.share-revoke`
 
 A auditoria registra entidade, ID, hotel, slug, campos alterados e usuario. O destino completo nao e gravado no audit log para reduzir risco de expor tokens ou parametros sensiveis.
 

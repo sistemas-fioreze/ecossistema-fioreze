@@ -133,6 +133,9 @@ Implementados:
 - `DELETE /api/v1/admin/custom-portal-pages/:id`
 - `GET /api/v1/admin/short-links/:id/qrcode.svg`
 - `DELETE /api/v1/admin/short-links/:id/permanent`
+- `GET /api/v1/admin/short-links/:id/shares`
+- `POST /api/v1/admin/short-links/:id/shares`
+- `DELETE /api/v1/admin/short-links/:id/shares/:userId`
 - `GET /api/v1/admin/portal/content`
 - `POST /api/v1/admin/portal/pages`
 - `GET /api/v1/admin/portal/pages/:id`
@@ -458,6 +461,10 @@ O shell publico do Portal do Hospede e unico para todos os hoteis. Ele reproduz 
 A migration `0022_guest_portal_event_details.sql` amplia `events` de forma aditiva com descricao completa, local, categoria e tags. A migration `0023_guest_portal_event_actions.sql` acrescenta um botao editorial opcional por evento, formado por texto e URL HTTPS validados em conjunto. Esses campos sustentam a visualizacao editorial de eventos e podem ser administrados pela Central de Portais. As migrations nao cadastram nem alteram eventos existentes.
 
 A Central tambem possui gestao completa de usuarios, senhas temporarias, sessoes, perfis e permissoes. Segredos temporarios sao exibidos uma unica vez e nunca sao gravados na auditoria.
+
+O Inicio administrativo apresenta indicadores e graficos calculados a partir da sessao e das APIs atuais. Usuarios, perfis e permissoes, auditoria e Minha conta ficam reunidos em `/admin/configuracoes/`, sem remover a protecao individual de cada area.
+
+A migration `0024_short_link_user_sharing.sql` torna cada link visivel somente para seu criador e para usuarios da mesma unidade escolhidos por ele. O acesso compartilhado permite visualizar detalhes, QR Code e metricas, mas editar, arquivar, excluir e gerenciar compartilhamentos continuam exclusivos do proprietario.
 
 As APIs de Unidades exigem sessao administrativa, permissoes `portals.hotels.*`, acesso explicito ao hotel, protecao de origem e header administrativo para mutacoes. A migration `0009_admin_units_management_permissions.sql` cadastra as permissoes, mas nao associa roles automaticamente. O seed local pode liberar essas permissoes para o usuario ficticio de desenvolvimento.
 

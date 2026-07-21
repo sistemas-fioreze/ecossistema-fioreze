@@ -1,15 +1,12 @@
 import { adminApi } from "./admin-api.js";
 import {
   canAccessAreas,
-  canAccessAudit,
   canAccessContent,
   canAccessLinks,
   canAccessMediaLibrary,
   canAccessNavigation,
   canAccessPortals,
-  canAccessRoles,
   canAccessUnits,
-  canAccessUsers,
 } from "./admin-session.js";
 
 const ADMIN_LOGO_URL = "/assets/shared/fioreze-central-logo.jpg";
@@ -59,6 +56,11 @@ const HELP_CONTENT = {
     title: "Ajuda da Conta",
     body: "Atualize sua senha e encerre sessões quando precisar proteger seu acesso.",
     examples: ["Troque a senha com frequência.", "Use sair de todos os dispositivos se perder acesso a algum aparelho."],
+  },
+  settings: {
+    title: "Ajuda das Configurações",
+    body: "Encontre em um só lugar as contas, os perfis, as permissões e o histórico administrativo.",
+    examples: ["Revise acessos da equipe.", "Consulte a auditoria antes de alterar permissões."],
   },
 };
 
@@ -292,7 +294,7 @@ function enhanceAdminExperience(session) {
       </aside>
       <div class="admin-mobile-backdrop" data-admin-backdrop hidden></div>
       <div class="admin-content-loader" data-admin-content-loader hidden aria-live="polite" aria-busy="true">
-        <div><span class="admin-modern-spinner" aria-hidden="true"></span><strong>Atualizando conteúdo...</strong></div>
+        <div><span class="admin-modern-spinner" aria-hidden="true"></span><strong>Carregando área...</strong></div>
       </div>
       <aside class="admin-help-drawer" data-admin-help hidden aria-label="Ajuda desta página">
         <div>
@@ -454,7 +456,7 @@ function enhanceSessionControl(sessionBox, session, userName, hotels) {
         ).join("")}</div>
         <small data-admin-palette-status>Escolha as cores da sua Central.</small>
       </div>
-      <a href="/admin/minha-conta/">${icon("user")} Minha conta</a>
+      <a href="/admin/configuracoes/">${icon("settings")} Configurações</a>
     </div>`,
   );
   const nameSlot = sessionBox.querySelector("[data-admin-session-name]");
@@ -579,11 +581,8 @@ function renderGlobalNav(session, section) {
     ["portals", "Conteúdos", "/admin/portais/conteudos/", "content", canAccessContent(session)],
     ["portals", "Áreas", "/admin/portais/areas/", "grid", canAccessAreas(session)],
     ["portals", "Navegação", "/admin/portais/navegacao/", "navigation", canAccessNavigation(session)],
-    ["portals", "Auditoria", "/admin/portais/auditoria/", "history", canAccessAudit(session)],
-    ["users", "Usuários", "/admin/usuarios/", "users", canAccessUsers(session)],
-    ["roles", "Perfis e permissões", "/admin/perfis/", "shield", canAccessRoles(session)],
     ["messages", "Mensagens", "/admin/mensagens/", "mail", true],
-    ["account", "Minha conta", "/admin/minha-conta/", "user", true],
+    ["settings", "Configurações", "/admin/configuracoes/", "settings", true],
   ];
   return `<nav class="admin-global-nav">${items
     .map(([area, label, href, iconName, enabled]) =>
@@ -596,6 +595,9 @@ function renderGlobalNav(session, section) {
 
 function isActive(href, section) {
   const path = window.location.pathname;
+  if (href === "/admin/configuracoes/") {
+    return ["/admin/configuracoes/", "/admin/usuarios/", "/admin/perfis/", "/admin/minha-conta/", "/admin/portais/auditoria/"].some((prefix) => path.startsWith(prefix));
+  }
   if (href === "/admin/") return section === "home" && path === "/admin/";
   if (href === "/admin/portais/") return path === href;
   return path.startsWith(href);
@@ -609,6 +611,7 @@ function adminArea(section) {
     roles: "Equipe",
     messages: "Comunicação",
     account: "Conta",
+    settings: "Configurações",
   }[section] || "Central Administrativa";
 }
 
@@ -651,6 +654,7 @@ function icon(name) {
     shield: '<path d="M12 3 5 6v5c0 5 3 8 7 10 4-2 7-5 7-10V6z"/><path d="m9 12 2 2 4-4"/>',
     user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
     mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+    settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6 1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/>',
   };
   return `<svg class="admin-svg-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[name] || paths.help}</svg>`;
 }

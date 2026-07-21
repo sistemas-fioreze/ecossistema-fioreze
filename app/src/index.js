@@ -129,6 +129,7 @@ function resolveAdminAssetPath(pathname) {
     { canonical: "/admin/portais/navegacao/", assetPath: "/admin/portais/" },
     { canonical: "/admin/portais/auditoria/", assetPath: "/admin/portais/" },
     { canonical: "/admin/portais/", assetPath: "/admin/portais/" },
+    { canonical: "/admin/configuracoes/", assetPath: "/admin/" },
     { canonical: "/admin/usuarios/", assetPath: "/admin/" },
     { canonical: "/admin/perfis/", assetPath: "/admin/" },
     { canonical: "/admin/mensagens/", assetPath: "/admin/" },
