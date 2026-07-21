@@ -272,7 +272,7 @@ function openRoleEditor(role = null) {
     <form id="adminRoleForm" class="admin-form-stack">
       <div class="admin-form-grid">
         <label><span>Nome</span><input name="name" maxlength="120" value="${escapeAttr(role?.name || "")}" required></label>
-        <label><span>Identificador</span><input name="role_key" maxlength="80" pattern="[a-z0-9-]+" value="${escapeAttr(role?.role_key || "")}" ${role ? "disabled" : "required"}></label>
+        <label><span>Identificador</span><input name="role_key" maxlength="80" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" value="${escapeAttr(role?.role_key || "")}" ${role ? "disabled" : "required"}></label>
       </div>
       <label><span>Descrição</span><textarea name="description" maxlength="500" rows="2">${escapeHtml(role?.description || "")}</textarea></label>
       <div class="admin-permission-groups">${Object.entries(groups).map(([group, permissions]) => `

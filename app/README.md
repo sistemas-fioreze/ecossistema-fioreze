@@ -72,7 +72,7 @@ Tabelas principais:
 - core: `hotels`, `hotel_domains`, `hotel_branding`, `hotel_settings`, `modules`, `hotel_modules`, `navigation_items`, `features`, `hotel_features`, `rooms`, `service_hours`, `media_assets`;
 - admin: `admin_users`, `admin_roles`, `admin_permissions`, `admin_user_roles`, `admin_role_permissions`, `admin_hotel_access`, `admin_sessions`, `admin_audit_log`;
 - usuarios operacionais do ERP: `erp_users`, `erp_user_permissions`, `erp_sessions`;
-- portal: `portal_pages`, `portal_sections`, `portal_content_items`, `custom_portal_pages`, `events`, `hotel_information`;
+- portal: `portal_pages`, `portal_sections`, `portal_content_items`, `custom_portal_pages`, `visual_portals`, `visual_portal_versions`, `visual_portal_templates`, `events`, `hotel_information`;
 - catalogos: `catalogs`, `categories`, `catalog_items`, `catalog_item_availability`;
 - pedidos: `orders`, `order_items`, `order_status_history`, `print_events`;
 - spa: `spa_services`, `spa_service_requests`, `spa_appointments`;
@@ -131,6 +131,19 @@ Implementados:
 - `GET /api/v1/admin/custom-portal-pages/:id`
 - `PATCH /api/v1/admin/custom-portal-pages/:id`
 - `DELETE /api/v1/admin/custom-portal-pages/:id`
+- `GET /api/v1/admin/visual-portals`
+- `POST /api/v1/admin/visual-portals`
+- `GET /api/v1/admin/visual-portals/:id`
+- `PATCH /api/v1/admin/visual-portals/:id`
+- `DELETE /api/v1/admin/visual-portals/:id`
+- `POST /api/v1/admin/visual-portals/:id/publish`
+- `POST /api/v1/admin/visual-portals/:id/duplicate`
+- `GET /api/v1/admin/visual-portals/:id/versions`
+- `POST /api/v1/admin/visual-portals/:id/versions/:versionId/restore`
+- `GET /api/v1/admin/visual-portal-templates`
+- `POST /api/v1/admin/visual-portal-templates`
+- `GET /api/v1/admin/visual-portal-templates/:id`
+- `DELETE /api/v1/admin/visual-portal-templates/:id`
 - `GET /api/v1/admin/short-links/:id/qrcode.svg`
 - `DELETE /api/v1/admin/short-links/:id/permanent`
 - `GET /api/v1/admin/short-links/:id/shares`
@@ -151,6 +164,8 @@ Implementados:
 - `HEAD /media/:id`
 - `GET /portal-content/:hotel_slug/:page_slug`
 - `HEAD /portal-content/:hotel_slug/:page_slug`
+- `GET /portal/:hotel_slug/:portal_slug`
+- `HEAD /portal/:hotel_slug/:portal_slug`
 
 Contratos futuros:
 
@@ -456,6 +471,8 @@ O shell `/admin/portais/` e a Central de Portais Fioreze. A interface segue a me
 - telas dedicadas para areas e navegacao por unidade;
 - auditoria administrativa em `admin_audit_log`.
 
+Em **Conteudos > Construtor**, a Central oferece um editor visual compartilhado para Portal do Hospede, Emporio, Spa, Pacotes Romanticos e modulos publicos futuros. O editor possui canvas desktop/mobile, blocos arrastaveis, camadas, estilos responsivos, Biblioteca de Midia, desfazer/refazer, modelos reutilizaveis, revisoes e publicacao separada do rascunho. O documento salvo e JSON estruturado e validado; nao e HTML executavel. A arquitetura e os controles estao documentados em `docs/arquitetura/VISUAL_PORTAL_BUILDER.md`.
+
 O shell publico do Portal do Hospede e unico para todos os hoteis. Ele reproduz a composicao visual da referencia aprovada com identidade dinamica por unidade: carregamento com logo horizontal, cabecalho responsivo, navegacao inferior no mobile, servicos ilustrados, evento em destaque, lista e calendario de eventos, detalhe editorial, informacoes do hotel, clima e blog. Cores, tipografia, logos, modulos, imagens e conteudos continuam vindo do bootstrap e das APIs do hotel selecionado; nenhum HTML ou dado do Muller fica fixo no shell compartilhado.
 
 A migration `0022_guest_portal_event_details.sql` amplia `events` de forma aditiva com descricao completa, local, categoria e tags. A migration `0023_guest_portal_event_actions.sql` acrescenta um botao editorial opcional por evento, formado por texto e URL HTTPS validados em conjunto. Esses campos sustentam a visualizacao editorial de eventos e podem ser administrados pela Central de Portais. As migrations nao cadastram nem alteram eventos existentes.
@@ -530,7 +547,7 @@ No ERP, a mensagem exibida e `Impressao desativada neste ambiente.`. Mudar statu
 
 ## Ainda Falta Migrar
 
-- Portal do Hospede completo;
+- integracao do Portal do Hospede principal com paginas adicionais criadas no Construtor Visual;
 - Emporio funcional;
 - Spa funcional;
 - Pacotes Romanticos funcionais;

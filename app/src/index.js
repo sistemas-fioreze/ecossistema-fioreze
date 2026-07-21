@@ -10,6 +10,7 @@ import { registerEmbedRoutes } from "./modules/embed/public.js";
 import { redirectShortLink } from "./modules/short-links/public.js";
 import { extractCustomDomainSlug, isShortLinkCustomDomainRequest } from "./modules/short-links/shared.js";
 import { serveCustomPortalPage } from "./modules/portal-pages/public.js";
+import { serveVisualPortal } from "./modules/visual-portals/public.js";
 
 const router = new Router();
 
@@ -45,6 +46,8 @@ router.get("/go/:slug", async ({ request, env, ctx, params }) => redirectShortLi
 router.head("/go/:slug", async ({ request, env, params }) => redirectShortLink({ request, env, params, head: true }));
 router.get("/portal-content/:hotel_slug/:page_slug", async ({ env, params }) => serveCustomPortalPage({ env, params }));
 router.head("/portal-content/:hotel_slug/:page_slug", async ({ env, params }) => serveCustomPortalPage({ env, params, head: true }));
+router.get("/portal/:hotel_slug/:portal_slug", async ({ env, params }) => serveVisualPortal({ env, params }));
+router.head("/portal/:hotel_slug/:portal_slug", async ({ env, params }) => serveVisualPortal({ env, params, head: true }));
 
 async function handleRequest(request, env, ctx) {
   const url = new URL(request.url);
@@ -58,7 +61,8 @@ async function handleRequest(request, env, ctx) {
     url.pathname.startsWith("/media/") ||
     url.pathname.startsWith("/embed/") ||
     url.pathname.startsWith("/go/") ||
-    url.pathname.startsWith("/portal-content/")
+    url.pathname.startsWith("/portal-content/") ||
+    url.pathname.startsWith("/portal/")
   ) {
     return router.handle(request, env, ctx);
   }
