@@ -96,7 +96,7 @@ function renderPortal(container, state) {
       container.querySelector(".desktop-event-dialog-backdrop .fixed-header-back")?.focus({ preventScroll: true });
     } else {
       document.body.classList.remove("event-dialog-open");
-      container.innerHTML = `${portalCover}${renderEventDetail(state)}${renderBottomNav("eventos", "eventos")}`;
+      container.innerHTML = `${portalCover}${renderEventDetail(state)}`;
     }
     syncHeaderScroll(container);
     return;
@@ -268,7 +268,9 @@ function afterRender(container, state, scroll = true) {
 }
 
 function syncHeaderScroll(container) {
-  container.querySelector(".site-header")?.classList.toggle("is-scrolled", window.scrollY > 8);
+  const isScrolled = window.scrollY > 8;
+  container.querySelector(".site-header")?.classList.toggle("is-scrolled", isScrolled);
+  container.querySelector("[data-portal-header-nav]")?.classList.toggle("is-scrolled", isScrolled);
 }
 
 function animateTabChange(container, state) {
@@ -660,7 +662,7 @@ function renderBottomNav(activeTab, previousTab = activeTab) {
   const activeIndex = Math.max(0, NAV_ITEMS.findIndex(([key]) => key === activeTab));
   const previousIndex = Math.max(0, NAV_ITEMS.findIndex(([key]) => key === previousTab));
   const changing = activeIndex !== previousIndex;
-  return `<div class="bottom-nav-shell"><nav class="bottom-nav${changing ? " is-changing" : ""}" aria-label="Navegação do Portal do Hóspede" style="--nav-index:${activeIndex};--nav-from-index:${previousIndex}"><span class="nav-slider" aria-hidden="true"></span>${NAV_ITEMS.map(([key, label, iconName]) => `<button type="button" class="${key === activeTab ? "active" : ""}" data-portal-tab="${key}"${key === activeTab ? ' aria-current="page"' : ""}>${icon(iconName)}<span>${label}</span></button>`).join("")}</nav></div>`;
+  return `<div class="bottom-nav-shell portal-header-nav" data-portal-header-nav><nav class="bottom-nav${changing ? " is-changing" : ""}" aria-label="Navegação principal do Portal do Hóspede" style="--nav-index:${activeIndex};--nav-from-index:${previousIndex}"><span class="nav-slider" aria-hidden="true"></span>${NAV_ITEMS.map(([key, label, iconName]) => `<button type="button" class="${key === activeTab ? "active" : ""}" data-portal-tab="${key}"${key === activeTab ? ' aria-current="page"' : ""}>${icon(iconName)}<span>${label}</span></button>`).join("")}</nav></div>`;
 }
 
 function getServiceModules(bootstrap) {

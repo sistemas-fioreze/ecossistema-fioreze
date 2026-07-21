@@ -85,6 +85,15 @@ test("header movel ganha blur somente depois da rolagem", () => {
   assert.match(portalCss, /\.site-header\.is-scrolled/);
 });
 
+test("mobile leva a navegacao inferior para o cabecalho do portal", () => {
+  assert.match(portalScript, /class="bottom-nav-shell portal-header-nav" data-portal-header-nav/);
+  assert.match(portalScript, /querySelector\("\[data-portal-header-nav\]"\)\?\.classList\.toggle\("is-scrolled"/);
+  assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.portal-header-nav\s*\{[\s\S]*?position:\s*fixed;[\s\S]*?top:\s*calc\(62px \+ env\(safe-area-inset-top\)\);[\s\S]*?bottom:\s*auto/);
+  assert.match(portalCss, /\.portal-header-nav \.bottom-nav\s*\{[\s\S]*?height:\s*52px;[\s\S]*?border-radius:\s*14px/);
+  assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.guest-shell\s*\{[\s\S]*?padding-top:\s*calc\(146px \+ env\(safe-area-inset-top\)\)/);
+  assert.match(portalCss, /@media \(max-width: 380px\)/);
+});
+
 test("desktop centraliza header e mostra SVG em todas as guias", () => {
   assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.portal-app-top \.site-header\s*\{[\s\S]*?margin-right:\s*auto;[\s\S]*?margin-left:\s*auto/);
   assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.bottom-nav-shell\s*\{[\s\S]*?width:\s*min\(610px, calc\(100vw - 520px\)\)/);
