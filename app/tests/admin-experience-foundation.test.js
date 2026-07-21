@@ -102,6 +102,30 @@ test("interface de links diferencia propriedade e compartilhamento", () => {
   assert.match(source, /data-share-revoke/);
 });
 
+test("textos visiveis da Central preservam acentuacao em portugues", () => {
+  const visibleSources = [
+    "public/admin/index.html",
+    "public/admin/portais/index.html",
+    "public/js/modules/admin/admin.js",
+    "public/js/modules/admin/portals.js",
+    "public/js/modules/admin/room-service.js",
+  ].map((path) => fs.readFileSync(path, "utf8")).join("\n");
+
+  for (const legacyText of [
+    "Nao foi possivel",
+    "nao disponivel",
+    "Permissao administrativa",
+    "Nao informado",
+    "Hospede",
+    "Acomodacao",
+    "Biblioteca de Midia",
+    "imagem ou video",
+    "Video sera",
+  ]) {
+    assert.doesNotMatch(visibleSources, new RegExp(legacyText), legacyText);
+  }
+});
+
 test("Central compartilha as proporcoes e os controles do shell oficial do ERP", () => {
   const shell = fs.readFileSync("public/js/modules/admin/shared/admin-auth-view.js", "utf8");
   const css = fs.readFileSync("public/css/modules/admin/admin-erp-aligned.css", "utf8");

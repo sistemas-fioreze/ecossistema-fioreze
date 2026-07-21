@@ -556,7 +556,7 @@ async function openExistingUnit(hotelId) {
     dirty = false;
     renderUnitEditor();
   } catch (error) {
-    els.unitEditorForm.innerHTML = `<div class="admin-empty">${escapeHtml(error.message || "Unidade indisponivel.")}</div>`;
+    els.unitEditorForm.innerHTML = `<div class="admin-empty">${escapeHtml(error.message || "Unidade indisponível.")}</div>`;
   }
 }
 
@@ -760,15 +760,15 @@ async function openMediaSelector(fieldName) {
     return mimeType.startsWith("image/") || (allowVideo && mimeType.startsWith("video/"));
   });
   if (!assets.length) {
-    setMessage(allowVideo ? "Nenhuma imagem ou video ativo disponivel para esta unidade." : "Nenhuma imagem ativa disponivel para esta unidade.");
+    setMessage(allowVideo ? "Nenhuma imagem ou vídeo ativo disponível para esta unidade." : "Nenhuma imagem ativa disponível para esta unidade.");
     return;
   }
   const currentRef = inputValue(fieldName);
   els.dialogTitle.textContent = `Selecionar ${mediaLabel(fieldName).toLowerCase()}`;
   els.dialogBody.innerHTML = contentForm("identity-media", `
     <fieldset class="admin-content-media-picker admin-identity-media-picker">
-      <legend>Biblioteca de Midia</legend>
-      <p>${allowVideo ? "Escolha uma imagem ou video. Videos serao exibidos somente no portal desktop." : "Escolha uma imagem ativa desta unidade."}</p>
+      <legend>Biblioteca de Mídia</legend>
+      <p>${allowVideo ? "Escolha uma imagem ou vídeo. Vídeos serão exibidos somente no portal desktop." : "Escolha uma imagem ativa desta unidade."}</p>
       <div>
         <label class="admin-content-media-option no-media">
           <input type="radio" name="media_asset_id" value="" ${currentRef ? "" : "checked"}>
@@ -800,7 +800,7 @@ function renderIdentityMediaOption(asset, currentRef) {
   const preview = isVideo
     ? `<video src="${escapeAttr(asset.public_url)}" muted playsinline preload="metadata"></video>`
     : `<img src="${escapeAttr(asset.public_url)}" alt="" loading="lazy" decoding="async">`;
-  return `<label class="admin-content-media-option"><input type="radio" name="media_asset_id" value="${escapeAttr(asset.id)}" ${checked ? "checked" : ""}><span>${preview}<strong>${escapeHtml(asset.original_filename || (isVideo ? "Video" : "Imagem"))}</strong></span></label>`;
+  return `<label class="admin-content-media-option"><input type="radio" name="media_asset_id" value="${escapeAttr(asset.id)}" ${checked ? "checked" : ""}><span>${preview}<strong>${escapeHtml(asset.original_filename || (isVideo ? "Vídeo" : "Imagem"))}</strong></span></label>`;
 }
 
 async function saveCurrentUnit() {
@@ -1560,7 +1560,7 @@ function renderMediaItems() {
   const totalItems = currentFolders.length + currentAssets.length;
   els.mediaItemCount.textContent = `${totalItems} ${totalItems === 1 ? "item" : "itens"}`;
   if (!totalItems) {
-    els.mediaGrid.innerHTML = `<div class="admin-media-empty">${driveIcon("media")}<strong>Nenhum arquivo nesta pasta</strong><span>Crie uma pasta ou envie uma imagem ou video.</span></div>`;
+    els.mediaGrid.innerHTML = `<div class="admin-media-empty">${driveIcon("media")}<strong>Nenhum arquivo nesta pasta</strong><span>Crie uma pasta ou envie uma imagem ou vídeo.</span></div>`;
     return;
   }
 
@@ -1576,7 +1576,7 @@ function renderMediaCard(asset) {
       <div class="admin-media-preview">
         ${
           isVideo
-            ? `<video src="${escapeAttr(asset.public_url)}" aria-label="${escapeAttr(asset.alt_text || asset.original_filename || "Video")}" muted playsinline preload="metadata"></video>`
+            ? `<video src="${escapeAttr(asset.public_url)}" aria-label="${escapeAttr(asset.alt_text || asset.original_filename || "Vídeo")}" muted playsinline preload="metadata"></video>`
             : `<img src="${escapeAttr(asset.public_url)}" alt="${escapeAttr(asset.alt_text || "")}" loading="lazy" decoding="async">`
         }
         <span>${driveIcon(isVideo ? "video" : "image")}</span>
@@ -2810,7 +2810,7 @@ function mediaLabel(name) {
     horizontal_logo_url: "Logo horizontal",
     icon_url: "Logo reduzida",
     favicon_url: "Favicon",
-    cover_image_url: "Capa do portal (imagem ou video)",
+    cover_image_url: "Capa do portal (imagem ou vídeo)",
     social_image_url: "Imagem social",
   }[name] || name;
 }
