@@ -3620,20 +3620,28 @@
 
   .quick-card,
   .quick-card:hover {
-    border-color: color-mix(in srgb, var(--guest-primary-strong) 28%, transparent);
-    color: var(--guest-primary-strong);
-    background: transparent;
-    box-shadow: none;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+    border-color: rgba(255, 255, 255, 0.24);
+    color: #fff;
+    background: rgba(18, 13, 10, 0.68);
+    box-shadow: 0 14px 30px rgba(18, 12, 8, 0.2);
+    backdrop-filter: blur(16px) saturate(1.12);
+    -webkit-backdrop-filter: blur(16px) saturate(1.12);
   }
 
   .quick-card > svg,
   .quick-card > strong,
   .quick-card > span {
-    color: var(--guest-primary-strong);
+    color: #fff;
     fill: none;
-    text-shadow: none;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.32);
+  }
+
+  .guest-shell,
+  .portal-content-shell,
+  .event-blog-grid,
+  .calendar-shell,
+  .blog-shell {
+    touch-action: pan-y;
   }
 
   .guest-shell {

@@ -18,7 +18,38 @@ const NAV_ITEMS = [
 ];
 
 const EVENT_PAGE_SIZE = 8;
+const MOBILE_SWIPE_MIN_DISTANCE = 56;
+const MOBILE_SWIPE_MAX_DURATION = 700;
+const MOBILE_SWIPE_AXIS_RATIO = 1.35;
+const MOBILE_SWIPE_BLOCKED_SELECTOR = [
+  "a",
+  "button",
+  "input",
+  "select",
+  "textarea",
+  "iframe",
+  "[contenteditable='true']",
+  "[role='dialog']",
+  ".site-header",
+  ".portal-header-nav",
+  ".portal-detail-view",
+].join(",");
 let cleanupCurrentRender = () => {};
+
+export function resolvePortalSwipe({ activeTab, startX, startY, endX, endY, durationMs }) {
+  const coordinates = [startX, startY, endX, endY, durationMs];
+  if (!coordinates.every(Number.isFinite) || durationMs < 0 || durationMs > MOBILE_SWIPE_MAX_DURATION) return null;
+
+  const deltaX = endX - startX;
+  const deltaY = endY - startY;
+  const horizontalDistance = Math.abs(deltaX);
+  if (horizontalDistance < MOBILE_SWIPE_MIN_DISTANCE || horizontalDistance < Math.abs(deltaY) * MOBILE_SWIPE_AXIS_RATIO) return null;
+
+  const activeIndex = NAV_ITEMS.findIndex(([key]) => key === activeTab);
+  if (activeIndex < 0) return null;
+  const targetIndex = deltaX < 0 ? activeIndex + 1 : activeIndex - 1;
+  return NAV_ITEMS[targetIndex]?.[0] || null;
+}
 
 export async function render(container, context) {
   cleanupCurrentRender();
@@ -47,6 +78,7 @@ export async function render(container, context) {
     tabTransitionTimer: null,
     scrollHandler: null,
     eventDialogKeyHandler: null,
+    swipeGesture: null,
   };
 
   state.scrollHandler = () => syncHeaderScroll(container);
@@ -137,18 +169,12 @@ function bindPortal(container, state) {
     const tabButton = event.target.closest("[data-portal-tab]");
     if (tabButton) {
       const focusMaps = tabButton.hasAttribute("data-portal-map-open");
-      state.previousTab = state.activeTab;
-      state.activeTab = tabButton.dataset.portalTab;
-      state.selectedEventId = null;
-      state.eventPage = 1;
-      renderPortal(container, state);
-      afterRender(container, state, !focusMaps);
+      activatePortalTab(container, state, tabButton.dataset.portalTab, { scroll: !focusMaps });
       if (focusMaps) {
         window.requestAnimationFrame(() => {
           container.querySelector("[data-maps-section]")?.scrollIntoView({ behavior: "smooth", block: "start" });
         });
       }
-      if (state.activeTab === "blog") loadBlog(container, state);
       return;
     }
 
@@ -244,6 +270,49 @@ function bindPortal(container, state) {
 
     if (event.target.closest("[data-reload]")) window.location.reload();
   });
+
+  container.addEventListener("touchstart", (event) => {
+    state.swipeGesture = null;
+    if (isDesktopPortal() || state.weatherOpen || state.selectedEventId || event.touches.length !== 1) return;
+    if (event.target.closest?.(MOBILE_SWIPE_BLOCKED_SELECTOR)) return;
+    const touch = event.touches[0];
+    state.swipeGesture = {
+      startX: touch.clientX,
+      startY: touch.clientY,
+      startedAt: Date.now(),
+    };
+  }, { passive: true });
+
+  container.addEventListener("touchend", (event) => {
+    const gesture = state.swipeGesture;
+    state.swipeGesture = null;
+    if (!gesture || isDesktopPortal() || event.changedTouches.length !== 1) return;
+    const touch = event.changedTouches[0];
+    const nextTab = resolvePortalSwipe({
+      activeTab: state.activeTab,
+      startX: gesture.startX,
+      startY: gesture.startY,
+      endX: touch.clientX,
+      endY: touch.clientY,
+      durationMs: Date.now() - gesture.startedAt,
+    });
+    if (nextTab) activatePortalTab(container, state, nextTab);
+  }, { passive: true });
+
+  container.addEventListener("touchcancel", () => {
+    state.swipeGesture = null;
+  }, { passive: true });
+}
+
+function activatePortalTab(container, state, nextTab, { scroll = true } = {}) {
+  if (!NAV_ITEMS.some(([key]) => key === nextTab)) return;
+  state.previousTab = state.activeTab;
+  state.activeTab = nextTab;
+  state.selectedEventId = null;
+  state.eventPage = 1;
+  renderPortal(container, state);
+  afterRender(container, state, scroll);
+  if (state.activeTab === "blog") loadBlog(container, state);
 }
 
 function closeEventDetail(container, state) {
