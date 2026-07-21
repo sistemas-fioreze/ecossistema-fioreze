@@ -12,6 +12,7 @@ export const VISUAL_PORTAL_BLOCK_TYPES = new Set([
   "button",
   "image",
   "video",
+  "embed",
   "gallery",
   "feature-grid",
   "quote",
@@ -24,6 +25,8 @@ const ALIGNMENTS = new Set(["left", "center", "right"]);
 const WIDTHS = new Set(["narrow", "content", "wide", "full"]);
 const BUTTON_STYLES = new Set(["solid", "outline", "ghost"]);
 const MEDIA_FITS = new Set(["cover", "contain"]);
+const BACKGROUND_POSITIONS = new Set(["center", "top", "bottom", "left", "right"]);
+const EMBED_RATIOS = new Set(["16:9", "4:3", "1:1", "9:16"]);
 const COLOR_PATTERN = /^(#[0-9a-f]{6}|rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\))$/i;
 const MEDIA_ID_PATTERN = /^media_[a-z0-9-]{8,80}$/i;
 
@@ -39,6 +42,11 @@ export function createBlankVisualPortalDocument({ primaryColor = "#513b2d", font
       content_width: "content",
       page_padding: 24,
       block_gap: 24,
+      background_media_asset_id: "",
+      background_overlay: 0,
+      background_position: "center",
+      background_fit: "cover",
+      background_fixed: false,
     },
     blocks: [
       normalizeBlock({
@@ -95,6 +103,7 @@ export function normalizeVisualPortalDocument(input) {
 
 export function collectVisualPortalMediaIds(document) {
   const ids = new Set();
+  addMediaId(ids, document.settings?.background_media_asset_id);
   for (const block of document.blocks || []) {
     addMediaId(ids, block.content?.media_asset_id);
     addMediaId(ids, block.content?.poster_media_asset_id);
@@ -120,7 +129,7 @@ export function visualPortalTemplateDocument(templateKey, branding = {}) {
           { title: "Gastronomia", text: "Sabores selecionados para cada momento.", button_text: "Explorar", button_url: "/" },
           { title: "Bem-estar", text: "Uma pausa para cuidar de você.", button_text: "Conhecer", button_url: "/" },
           { title: "Eventos", text: "Programação especial durante sua estadia.", button_text: "Ver agenda", button_url: "/" },
-        ] }, { columns: 3 }),
+        ] }, { columns: 3, border_radius: 24 }),
         block("quote", "mensagem", { quote: "Cada detalhe foi pensado para tornar sua experiência memorável.", author: "Equipe Fioreze" }, { alignment: "center" }),
       ],
     });
@@ -136,8 +145,49 @@ export function visualPortalTemplateDocument(templateKey, branding = {}) {
           { title: "Atendimento cuidadoso", text: "Uma experiência pensada nos detalhes." },
           { title: "Conforto", text: "Praticidade durante toda a sua estadia." },
           { title: "Qualidade", text: "Seleção e execução com padrão Fioreze." },
-        ] }, { columns: 3 }),
+        ] }, { columns: 3, border_radius: 24 }),
         block("button", "acao-principal", { text: "Solicitar serviço", url: "/" }, { alignment: "center" }),
+      ],
+    });
+  }
+
+  if (templateKey === "digital-store") {
+    return normalizeVisualPortalDocument({
+      ...base,
+      settings: { ...base.settings, background_color: "#f5f6f8", surface_color: "#ffffff", block_gap: 28 },
+      blocks: [
+        { ...base.blocks[0], content: { ...base.blocks[0].content, eyebrow: "Loja digital", title: "Escolhas especiais, em um só lugar", text: "Apresente produtos, experiências e coleções com uma navegação clara e convidativa.", button_text: "Explorar coleção", button_url: "/" }, styles: { ...base.blocks[0].styles, base: { ...base.blocks[0].styles.base, border_radius: 28 } } },
+        block("heading", "titulo-colecao", { title: "Destaques da loja", text: "Organize seus produtos em vitrines modernas e responsivas." }, { alignment: "center" }),
+        block("feature-grid", "vitrine", { items: [
+          { title: "Seleção da casa", text: "Uma curadoria para ocasiões especiais.", button_text: "Ver detalhes", button_url: "/" },
+          { title: "Presentes", text: "Opções prontas para surpreender.", button_text: "Conhecer", button_url: "/" },
+          { title: "Experiências", text: "Momentos criados para aproveitar a estadia.", button_text: "Descobrir", button_url: "/" },
+        ] }, { columns: 3, border_radius: 24 }),
+        block("contact", "atendimento-loja", { title: "Precisa de ajuda?", text: "Nossa equipe está à disposição para orientar sua escolha.", button_text: "Falar com a equipe", button_url: "/" }, { border_radius: 24, background_color: "#ffffff", padding_inline: 36 }),
+      ],
+    });
+  }
+
+  if (templateKey === "campaign") {
+    return normalizeVisualPortalDocument({
+      ...base,
+      blocks: [
+        { ...base.blocks[0], content: { ...base.blocks[0].content, eyebrow: "Novidade", title: "Uma campanha que merece destaque", text: "Conte a história, apresente os benefícios e conduza o visitante para uma ação clara." }, styles: { ...base.blocks[0].styles, base: { ...base.blocks[0].styles.base, border_radius: 28, min_height: 560 } } },
+        block("text", "historia", { text: "Use este espaço para desenvolver a mensagem principal com clareza e personalidade." }, { width: "narrow", text_size: 18, border_radius: 20 }),
+        block("button", "acao-campanha", { text: "Quero saber mais", url: "/", style: "solid" }, { alignment: "center" }),
+      ],
+    });
+  }
+
+  if (templateKey === "events") {
+    return normalizeVisualPortalDocument({
+      ...base,
+      blocks: [
+        { ...base.blocks[0], content: { ...base.blocks[0].content, eyebrow: "Agenda", title: "Experiências para viver agora", text: "Apresente eventos, datas especiais e atrações em uma página visual." }, styles: { ...base.blocks[0].styles, base: { ...base.blocks[0].styles.base, border_radius: 28 } } },
+        block("feature-grid", "agenda", { items: [
+          { title: "Experiência gastronômica", text: "Data, horário e detalhes do evento.", button_text: "Ver programação", button_url: "/" },
+          { title: "Música e encontros", text: "Uma programação para aproveitar cada momento.", button_text: "Abrir agenda", button_url: "/" },
+        ] }, { columns: 2, border_radius: 24 }),
       ],
     });
   }
@@ -169,6 +219,11 @@ function normalizeDocumentSettings(input) {
     content_width: normalizeEnum(input.content_width, WIDTHS, "content"),
     page_padding: normalizeNumber(input.page_padding, 0, 80, 24),
     block_gap: normalizeNumber(input.block_gap, 0, 80, 24),
+    background_media_asset_id: mediaId(input.background_media_asset_id),
+    background_overlay: normalizeNumber(input.background_overlay, 0, 90, 0),
+    background_position: normalizeEnum(input.background_position, BACKGROUND_POSITIONS, "center"),
+    background_fit: normalizeEnum(input.background_fit, MEDIA_FITS, "cover"),
+    background_fixed: Boolean(input.background_fixed),
   };
 }
 
@@ -206,6 +261,7 @@ function normalizeBlockContent(type, input) {
   if (type === "button") return { text: text(input.text, 80), url: safeUrl(input.url), style: normalizeEnum(input.style, BUTTON_STYLES, "solid") };
   if (type === "image") return { media_asset_id: mediaId(input.media_asset_id), alt_text: text(input.alt_text, 300), caption: text(input.caption, 500), fit: normalizeEnum(input.fit, MEDIA_FITS, "cover") };
   if (type === "video") return { media_asset_id: mediaId(input.media_asset_id), poster_media_asset_id: mediaId(input.poster_media_asset_id), title: text(input.title, 180), autoplay: Boolean(input.autoplay), muted: input.muted !== false, loop: Boolean(input.loop), controls: input.controls !== false };
+  if (type === "embed") return { title: text(input.title, 180), url: safeEmbedUrl(input.url), aspect_ratio: normalizeEnum(input.aspect_ratio, EMBED_RATIOS, "16:9"), allow_fullscreen: input.allow_fullscreen !== false };
   if (type === "gallery") return { title: text(input.title, 180), media_asset_ids: uniqueMediaIds(input.media_asset_ids, 24) };
   if (type === "feature-grid") return { items: normalizeFeatureItems(input.items) };
   if (type === "quote") return { quote: text(input.quote, 1800), author: text(input.author, 160) };
@@ -242,6 +298,8 @@ function normalizeBlockStyles(input) {
     columns: optionalNumber(input.columns, 1, 4),
     heading_size: optionalNumber(input.heading_size, 18, 160),
     text_size: optionalNumber(input.text_size, 12, 40),
+    offset_x: optionalNumber(input.offset_x, -320, 320),
+    offset_y: optionalNumber(input.offset_y, -320, 320),
   };
 }
 
@@ -259,6 +317,33 @@ function safeUrl(value) {
   if (normalized.startsWith("/") && !normalized.startsWith("//")) return normalized;
   if (/^(https:\/\/|mailto:|tel:)/i.test(normalized)) return normalized;
   throw badRequest("Um endereco de link do portal nao e permitido.");
+}
+
+function safeEmbedUrl(value) {
+  const normalized = text(value, 2000);
+  if (!normalized) return "";
+  let url;
+  try {
+    url = new URL(normalized);
+  } catch {
+    throw badRequest("O endereco incorporado e invalido.");
+  }
+  const hostname = url.hostname.toLowerCase();
+  if (url.protocol !== "https:" || url.username || url.password || hostname === "localhost" || hostname.endsWith(".localhost") || isPrivateHostname(hostname)) {
+    throw badRequest("O endereco incorporado nao e permitido.");
+  }
+  return url.toString();
+}
+
+function isPrivateHostname(hostname) {
+  if (hostname.startsWith("[") || hostname.includes(":")) return true;
+  if (/^(?:127|10)\./.test(hostname) || /^192\.168\./.test(hostname)) return true;
+  if (/^169\.254\./.test(hostname) || /^198\.(?:18|19)\./.test(hostname)) return true;
+  const shared = hostname.match(/^100\.(\d{1,3})\./);
+  if (shared && Number(shared[1]) >= 64 && Number(shared[1]) <= 127) return true;
+  const match = hostname.match(/^172\.(\d{1,3})\./);
+  if (match && Number(match[1]) >= 16 && Number(match[1]) <= 31) return true;
+  return hostname === "0.0.0.0" || hostname === "::1" || hostname.endsWith(".local");
 }
 
 function mediaId(value) {

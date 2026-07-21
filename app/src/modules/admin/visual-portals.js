@@ -15,8 +15,11 @@ import { HOTELS_READ_PERMISSION, HOTELS_SETTINGS_PERMISSION } from "./hotels.js"
 const PORTAL_STATUSES = new Set(["draft", "published", "archived"]);
 const BLOCKED_MODULES = new Set(["admin", "room-service"]);
 const BUILT_IN_TEMPLATES = [
-  { id: "builtin-showcase", template_key: "showcase", name: "Portal completo", description: "Apresentação, experiências e chamada principal.", builtin: true },
-  { id: "builtin-service", template_key: "service", name: "Página de serviço", description: "Benefícios e chamada para um serviço ou experiência.", builtin: true },
+  { id: "builtin-showcase", template_key: "showcase", name: "Hospitalidade moderna", description: "Capa, experiências e destaques com cartões arredondados.", builtin: true },
+  { id: "builtin-digital-store", template_key: "digital-store", name: "Loja digital", description: "Vitrine responsiva para produtos, presentes e experiências.", builtin: true },
+  { id: "builtin-campaign", template_key: "campaign", name: "Campanha", description: "Página de conversão com mensagem e chamada principal.", builtin: true },
+  { id: "builtin-events", template_key: "events", name: "Agenda e eventos", description: "Programação visual com chamadas para cada experiência.", builtin: true },
+  { id: "builtin-service", template_key: "service", name: "Serviço premium", description: "Benefícios e chamada para um serviço ou experiência.", builtin: true },
   { id: "builtin-blank", template_key: "blank", name: "Página em branco", description: "Comece com uma tela totalmente livre.", builtin: true },
 ];
 

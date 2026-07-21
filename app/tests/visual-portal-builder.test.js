@@ -18,6 +18,12 @@ import {
   normalizeVisualPortalDocument,
   visualPortalTemplateDocument,
 } from "../src/services/visual-portal-document.js";
+import {
+  deleteVisualBlock,
+  duplicateVisualBlock,
+  moveVisualBlock,
+  reorderVisualBlock,
+} from "../public/js/modules/admin/portal-builder-state.js";
 
 const NOW = "2026-07-21T14:00:00.000Z";
 const SESSION = {
@@ -93,11 +99,85 @@ test("modelos internos oferecem pagina completa, servico e tela livre", () => {
   assert.equal(blank.blocks.length, 0);
 });
 
+test("modelos modernos incluem loja digital, campanha e agenda", () => {
+  const store = visualPortalTemplateDocument("digital-store");
+  const campaign = visualPortalTemplateDocument("campaign");
+  const events = visualPortalTemplateDocument("events");
+  assert.ok(store.blocks.some((block) => block.id === "vitrine" && block.type === "feature-grid"));
+  assert.equal(store.blocks.find((block) => block.id === "vitrine").styles.base.border_radius, 24);
+  assert.ok(campaign.blocks.some((block) => block.id === "acao-campanha"));
+  assert.ok(events.blocks.some((block) => block.id === "agenda"));
+});
+
+test("acoes de bloco movem, duplicam, reordenam e excluem o alvo correto", () => {
+  const document = {
+    blocks: [
+      { id: "primeiro", type: "text", content: { text: "A" } },
+      { id: "segundo", type: "text", content: { text: "B" } },
+      { id: "terceiro", type: "text", content: { text: "C" } },
+    ],
+  };
+  assert.equal(moveVisualBlock(document, "segundo", -1).changed, true);
+  assert.deepEqual(document.blocks.map((block) => block.id), ["segundo", "primeiro", "terceiro"]);
+  assert.equal(duplicateVisualBlock(document, "primeiro", "primeiro-copia").selectedId, "primeiro-copia");
+  assert.deepEqual(document.blocks.map((block) => block.id), ["segundo", "primeiro", "primeiro-copia", "terceiro"]);
+  assert.equal(reorderVisualBlock(document, "terceiro", 0).changed, true);
+  assert.deepEqual(document.blocks.map((block) => block.id), ["terceiro", "segundo", "primeiro", "primeiro-copia"]);
+  const deleted = deleteVisualBlock(document, "segundo");
+  assert.equal(deleted.removed.id, "segundo");
+  assert.deepEqual(document.blocks.map((block) => block.id), ["terceiro", "primeiro", "primeiro-copia"]);
+});
+
+test("fundo de pagina, posicao responsiva e incorporacao HTTPS sao normalizados", () => {
+  const document = createBlankVisualPortalDocument();
+  document.settings.background_media_asset_id = "media_background01";
+  document.settings.background_overlay = 42;
+  document.settings.background_position = "top";
+  document.settings.background_fixed = true;
+  document.blocks[0].styles.desktop.offset_x = 36;
+  document.blocks[0].styles.mobile.offset_y = -24;
+  document.blocks.push({
+    id: "mapa-incorporado",
+    type: "embed",
+    content: { title: "Mapa", url: "https://www.google.com/maps/embed?pb=demo", aspect_ratio: "4:3", allow_fullscreen: true },
+    styles: { base: { border_radius: 24 }, desktop: {}, mobile: {} },
+    visibility: { desktop: true, mobile: true },
+  });
+  const normalized = normalizeVisualPortalDocument(document);
+  assert.deepEqual(collectVisualPortalMediaIds(normalized), ["media_background01"]);
+  assert.equal(normalized.blocks[0].styles.desktop.offset_x, 36);
+  assert.equal(normalized.blocks[0].styles.mobile.offset_y, -24);
+  assert.equal(normalized.blocks[1].content.aspect_ratio, "4:3");
+
+  const media = new Map([["media_background01", { id: "media_background01", public_url: "/media/media_background01", mime_type: "video/mp4", alt_text: "" }]]);
+  const html = renderVisualPortalPage({
+    portal: { title: "Portal", hotel_name: "Hotel", hotel_slug: "hotel", module_key: "guest-portal", locale: "pt-BR" },
+    document: normalized,
+    media,
+  });
+  assert.match(html, /class="page-background is-fixed"/);
+  assert.match(html, /<video muted loop autoplay playsinline/);
+  assert.match(html, /class="block-inner embed-frame"/);
+  assert.match(html, /sandbox="allow-scripts allow-forms allow-popups allow-presentation"/);
+  assert.doesNotMatch(html, /allow-presentation allow-same-origin/);
+  assert.match(html, /--desktop-offset-x:36px/);
+});
+
+test("incorporacao rejeita protocolos e destinos locais", () => {
+  for (const url of ["javascript:alert(1)", "http://example.com/frame", "https://localhost/map", "https://192.168.1.10/frame", "https://[::1]/frame", "https://169.254.1.1/frame"]) {
+    const document = createBlankVisualPortalDocument();
+    document.blocks.push({ id: "embed-invalido", type: "embed", content: { url }, styles: { base: {}, desktop: {}, mobile: {} } });
+    assert.throws(() => normalizeVisualPortalDocument(document), /incorporado.*nao e permitido|incorporado e invalido/i);
+  }
+});
+
 test("tipografia responsiva e limitada e renderizada por dispositivo", () => {
   const document = createBlankVisualPortalDocument();
   document.blocks[0].styles.desktop.heading_size = 92;
+  document.blocks[0].styles.desktop.width = "wide";
   document.blocks[0].styles.mobile.heading_size = 44;
   document.blocks[0].styles.mobile.text_size = 15;
+  document.blocks[0].styles.mobile.width = "narrow";
   const normalized = normalizeVisualPortalDocument(document);
   const html = renderVisualPortalPage({
     portal: {
@@ -110,8 +190,10 @@ test("tipografia responsiva e limitada e renderizada por dispositivo", () => {
     document: normalized,
   });
   assert.match(html, /--desktop-heading-size:92px/);
+  assert.match(html, /--desktop-width:1440px/);
   assert.match(html, /--mobile-heading-size:44px/);
   assert.match(html, /--mobile-text-size:15px/);
+  assert.match(html, /--mobile-width:720px/);
 
   const invalid = structuredClone(document);
   invalid.blocks[0].styles.mobile.heading_size = 161;
@@ -228,15 +310,27 @@ test("Central integra construtor visual e Worker-first preserva a rota publica",
   const builder = fs.readFileSync("public/js/modules/admin/portal-builder.js", "utf8");
   const css = fs.readFileSync("public/css/modules/admin/portal-builder.css", "utf8");
   const wrangler = JSON.parse(fs.readFileSync("wrangler.jsonc", "utf8"));
-  assert.match(html, /data-content-type="visual_portals"/);
+  assert.match(html, /id="contentManager"/);
+  assert.doesNotMatch(html, /data-content-type="(?:pages|custom_pages|events|information)"/);
+  assert.doesNotMatch(html, /data-unit-tab="(?:modules|navigation)"/);
   assert.match(html, /portal-builder\.css/);
   assert.match(portals, /createVisualPortalBuilder/);
   assert.match(builder, /application\/x-fioreze-block-type/);
   assert.match(builder, /data-viewport="desktop"/);
   assert.match(builder, /data-viewport="mobile"/);
+  assert.match(builder, /closest\("button\[data-viewport\]"\)/);
+  assert.match(builder, /data-preview-viewport="desktop"/);
+  assert.match(builder, /data-preview-viewport="mobile"/);
+  assert.match(builder, /data-media-target="page"/);
+  assert.match(builder, /data-reset-position/);
+  assert.match(builder, /type === "embed"/);
   assert.match(builder, /visual-portal-templates/);
   assert.match(builder, /fitCanvas\(true\)/);
   assert.match(css, /grid-template-columns:\s*286px minmax\(0, 1fr\) 318px/);
+  assert.match(css, /\.vp-live-preview\[data-viewport="mobile"\]/);
+  assert.doesNotMatch(portals, /\["modulos", "Áreas"/);
+  assert.doesNotMatch(portals, /\["navegacao", "Navegação"/);
+  assert.match(portals, /module_key: "guest-portal"/);
   assert.ok(wrangler.assets.run_worker_first.includes("/portal/*"));
 });
 
