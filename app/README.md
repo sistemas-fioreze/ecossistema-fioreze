@@ -164,8 +164,9 @@ Implementados:
 - `HEAD /media/:id`
 - `GET /portal-content/:hotel_slug/:page_slug`
 - `HEAD /portal-content/:hotel_slug/:page_slug`
-- `GET /portal/:hotel_slug/:portal_slug`
-- `HEAD /portal/:hotel_slug/:portal_slug`
+- `GET /:hotel_slug/:portal_slug` (portal visual oficial)
+- `HEAD /:hotel_slug/:portal_slug` (portal visual oficial)
+- `GET|HEAD /portal/:hotel_slug/:portal_slug` redireciona para a URL canônica
 
 Contratos futuros:
 

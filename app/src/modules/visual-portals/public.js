@@ -9,7 +9,7 @@ export async function serveVisualPortal({ env, params, head = false }) {
   }
   const portal = await first(
     env,
-    `SELECT vp.id, vp.title, vp.module_key, vp.published_document_json,
+    `SELECT vp.id, vp.slug AS portal_slug, vp.title, vp.module_key, vp.published_document_json,
             h.id AS hotel_id, h.name AS hotel_name, h.short_name AS hotel_short_name,
             h.slug AS hotel_slug, h.locale, h.timezone,
             hb.logo_url, hb.icon_url, hb.primary_color, hb.secondary_color,
@@ -62,6 +62,7 @@ export function renderVisualPortalPage({ portal, document, media = new Map() }) 
   const blocks = document.blocks.map((block) => renderBlock(block, media)).join("");
   const logo = safeMediaPath(portal.logo_url);
   const pageBackground = renderPageBackground(settings, media);
+  const homePath = portal.portal_slug ? `/${portal.hotel_slug}/${portal.portal_slug}` : "#conteudo";
   return `<!doctype html>
 <html lang="${escapeAttr(String(portal.locale || "pt-BR").replace("_", "-"))}">
   <head>
@@ -75,7 +76,7 @@ export function renderVisualPortalPage({ portal, document, media = new Map() }) 
     <a class="skip-link" href="#conteudo">Ir para o conteúdo</a>
     ${pageBackground}
     <header class="site-header">
-      <a class="brand" href="/${escapeAttr(portal.hotel_slug)}" aria-label="${escapeAttr(portal.hotel_name)}">
+      <a class="brand" href="${escapeAttr(homePath)}" aria-label="${escapeAttr(portal.hotel_name)}">
         ${logo ? `<img src="${escapeAttr(logo)}" alt="${escapeAttr(portal.hotel_name)}">` : `<strong>${escapeHtml(portal.hotel_short_name || portal.hotel_name)}</strong>`}
       </a>
     </header>

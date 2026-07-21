@@ -10,10 +10,12 @@ import {
   normalizeVisualPortalDocument,
   visualPortalTemplateDocument,
 } from "../../services/visual-portal-document.js";
+import { visualPortalPublicUrl } from "../visual-portals/shared.js";
 import { HOTELS_READ_PERMISSION, HOTELS_SETTINGS_PERMISSION } from "./hotels.js";
 
 const PORTAL_STATUSES = new Set(["draft", "published", "archived"]);
 const BLOCKED_MODULES = new Set(["admin", "room-service"]);
+const RESERVED_PORTAL_SLUGS = new Set(["room-service"]);
 const BUILT_IN_TEMPLATES = [
   { id: "builtin-showcase", template_key: "showcase", name: "Hospitalidade moderna", description: "Capa, experiências e destaques com cartões arredondados.", builtin: true },
   { id: "builtin-digital-store", template_key: "digital-store", name: "Loja digital", description: "Vitrine responsiva para produtos, presentes e experiências.", builtin: true },
@@ -55,14 +57,14 @@ export async function listAdminVisualPortals({ request, env, session, url }) {
                vp.updated_at DESC, vp.name`,
     params,
   );
-  return { portals: rows.map((row) => formatPortal(row, { request })) };
+  return { portals: rows.map((row) => formatPortal(row, { request, env })) };
 }
 
 export async function getAdminVisualPortal({ request, env, session, portalId }) {
   requirePermission(session, HOTELS_READ_PERMISSION);
   const portal = await loadPortalForSession({ env, session, portalId, includeDocument: true });
   if (!portal) throw notFoundError("Portal visual nao encontrado.");
-  return { portal: formatPortal(portal, { request, includeDocument: true }) };
+  return { portal: formatPortal(portal, { request, env, includeDocument: true }) };
 }
 
 export async function createAdminVisualPortal({ request, env, session }) {
@@ -116,7 +118,7 @@ export async function createAdminVisualPortal({ request, env, session }) {
     }),
   ]);
   const created = await loadPortalForSession({ env, session, portalId, includeDocument: true });
-  return { portal: formatPortal(created, { request, includeDocument: true }) };
+  return { portal: formatPortal(created, { request, env, includeDocument: true }) };
 }
 
 export async function updateAdminVisualPortal({ request, env, session, portalId }) {
@@ -182,7 +184,7 @@ export async function updateAdminVisualPortal({ request, env, session, portalId 
   }
   const updated = await loadPortalForSession({ env, session, portalId, includeDocument: true });
   if (Number(updated?.draft_revision) !== revision) throw conflict("O portal recebeu outra atualizacao. Recarregue e tente novamente.");
-  return { portal: formatPortal(updated, { request, includeDocument: true }) };
+  return { portal: formatPortal(updated, { request, env, includeDocument: true }) };
 }
 
 export async function publishAdminVisualPortal({ request, env, session, portalId }) {
@@ -194,7 +196,7 @@ export async function publishAdminVisualPortal({ request, env, session, portalId
   const document = normalizeVisualPortalDocument(JSON.parse(current.draft_document_json));
   await assertDocumentMediaOwnership(env, current.hotel_id, document);
   if (current.status === "published" && Number(current.published_revision) === Number(current.draft_revision)) {
-    return { portal: formatPortal(current, { request, includeDocument: true }), published: false };
+    return { portal: formatPortal(current, { request, env, includeDocument: true }), published: false };
   }
   const now = requestNow({ request, env });
   await batch(env, [
@@ -226,7 +228,7 @@ export async function publishAdminVisualPortal({ request, env, session, portalId
     }),
   ]);
   const published = await loadPortalForSession({ env, session, portalId, includeDocument: true });
-  return { portal: formatPortal(published, { request, includeDocument: true }), published: true };
+  return { portal: formatPortal(published, { request, env, includeDocument: true }), published: true };
 }
 
 export async function duplicateAdminVisualPortal({ request, env, session, portalId }) {
@@ -258,7 +260,7 @@ export async function archiveAdminVisualPortal({ request, env, session, portalId
   assertAdminMutationAllowed({ request });
   const current = await loadPortalForSession({ env, session, portalId, includeDocument: true });
   if (!current) throw notFoundError("Portal visual nao encontrado.");
-  if (current.status === "archived") return { portal: formatPortal(current, { request, includeDocument: true }), archived: false };
+  if (current.status === "archived") return { portal: formatPortal(current, { request, env, includeDocument: true }), archived: false };
   const now = requestNow({ request, env });
   await batch(env, [
     statement(
@@ -280,7 +282,7 @@ export async function archiveAdminVisualPortal({ request, env, session, portalId
     }),
   ]);
   const archived = await loadPortalForSession({ env, session, portalId, includeDocument: true });
-  return { portal: formatPortal(archived, { request, includeDocument: true }), archived: true };
+  return { portal: formatPortal(archived, { request, env, includeDocument: true }), archived: true };
 }
 
 export async function listAdminVisualPortalVersions({ env, session, portalId }) {
@@ -349,7 +351,7 @@ export async function restoreAdminVisualPortalVersion({ request, env, session, p
     }),
   ]);
   const restored = await loadPortalForSession({ env, session, portalId, includeDocument: true });
-  return { portal: formatPortal(restored, { request, includeDocument: true }) };
+  return { portal: formatPortal(restored, { request, env, includeDocument: true }) };
 }
 
 export async function listAdminVisualPortalTemplates({ env, session, url }) {
@@ -505,7 +507,7 @@ function optionalModuleKey(value) {
 
 function requirePortalSlug(value) {
   const slug = requireString(value, "endereco", { min: 2, max: 100 }).toLowerCase();
-  if (!isSafeIdentifier(slug)) throw badRequest("Endereco do portal invalido.");
+  if (!isSafeIdentifier(slug) || RESERVED_PORTAL_SLUGS.has(slug)) throw badRequest("Endereco do portal invalido.");
   return slug;
 }
 
@@ -581,7 +583,7 @@ function loadTemplateForSession({ env, session, templateId, includeDocument = fa
   );
 }
 
-function formatPortal(row, { request, includeDocument = false }) {
+function formatPortal(row, { request, env, includeDocument = false }) {
   const portal = {
     id: row.id,
     hotel_id: row.hotel_id,
@@ -593,7 +595,7 @@ function formatPortal(row, { request, includeDocument = false }) {
     name: row.name,
     title: row.title,
     status: row.status,
-    public_url: visualPortalPublicUrl(request, row.hotel_slug, row.slug),
+    public_url: visualPortalPublicUrl({ env, request, hotelSlug: row.hotel_slug, portalSlug: row.slug }),
     draft_revision: Number(row.draft_revision),
     published_revision: row.published_revision == null ? null : Number(row.published_revision),
     has_unpublished_changes: row.published_revision == null || Number(row.published_revision) !== Number(row.draft_revision),
@@ -607,10 +609,6 @@ function formatPortal(row, { request, includeDocument = false }) {
     portal.published_document = row.published_document_json ? JSON.parse(row.published_document_json) : null;
   }
   return portal;
-}
-
-export function visualPortalPublicUrl(request, hotelSlug, portalSlug) {
-  return `${new URL(request.url).origin}/portal/${hotelSlug}/${portalSlug}`;
 }
 
 function assertAllowedFields(payload, fields) {

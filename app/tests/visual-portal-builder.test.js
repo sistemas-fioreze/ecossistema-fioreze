@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
 import { DatabaseSync } from "node:sqlite";
+import worker from "../src/index.js";
 import {
   archiveAdminVisualPortal,
   createAdminVisualPortal,
@@ -107,6 +108,24 @@ test("modelos modernos incluem loja digital, campanha e agenda", () => {
   assert.equal(store.blocks.find((block) => block.id === "vitrine").styles.base.border_radius, 24);
   assert.ok(campaign.blocks.some((block) => block.id === "acao-campanha"));
   assert.ok(events.blocks.some((block) => block.id === "agenda"));
+});
+
+test("slug reservado do Room Service nao pode ser usado por portal personalizado", async () => {
+  await assert.rejects(
+    () => createAdminVisualPortal({
+      request: jsonRequest("POST", {
+        hotel_id: "muller-fioreze",
+        module_key: "guest-portal",
+        slug: "room-service",
+        name: "Conflito de rota",
+        title: "Conflito de rota",
+        template_key: "blank",
+      }),
+      env: createSqliteEnv(),
+      session: SESSION,
+    }),
+    (error) => error.status === 400,
+  );
 });
 
 test("acoes de bloco movem, duplicam, reordenam e excluem o alvo correto", () => {
@@ -216,7 +235,7 @@ test("CRUD visual salva versoes, valida isolamento e publica renderizacao segura
   });
   assert.equal(created.portal.status, "draft");
   assert.equal(created.portal.draft_revision, 1);
-  assert.equal(created.portal.public_url, "https://local.test/portal/muller-fioreze/experiencias");
+  assert.equal(created.portal.public_url, "https://portal.hoteisfioreze.com.br/muller-fioreze/experiencias");
 
   const document = structuredClone(created.portal.document);
   document.blocks.push({
@@ -252,6 +271,33 @@ test("CRUD visual salva versoes, valida isolamento e publica renderizacao segura
   assert.match(html, /Experiencias Fioreze/);
   assert.match(html, /\/media\/media_12345678/);
   assert.doesNotMatch(html, /<script/i);
+
+  env.ASSETS = {
+    fetch: async (request) => new Response(`asset:${new URL(request.url).pathname}`, {
+      status: 200,
+      headers: { "content-type": "text/html; charset=utf-8" },
+    }),
+  };
+  const ctx = { waitUntil() {}, passThroughOnException() {} };
+  const canonical = await worker.fetch(new Request(created.portal.public_url), env, ctx);
+  const canonicalHead = await worker.fetch(new Request(created.portal.public_url, { method: "HEAD" }), env, ctx);
+  const legacyPrefix = await worker.fetch(new Request("https://portal.hoteisfioreze.com.br/portal/muller-fioreze/experiencias"), env, ctx);
+  const legacyHome = await worker.fetch(new Request("https://portal.hoteisfioreze.com.br/muller-fioreze"), env, ctx);
+  const unknownLegacyTab = await worker.fetch(new Request("https://portal.hoteisfioreze.com.br/muller-fioreze/inicio"), env, ctx);
+  const legacyHtml = await worker.fetch(new Request("https://portal.hoteisfioreze.com.br/portal-content/muller-fioreze/boas-vindas"), env, ctx);
+  const roomService = await worker.fetch(new Request("https://portal.hoteisfioreze.com.br/muller-fioreze/room-service"), env, ctx);
+
+  assert.equal(canonical.status, 200);
+  assert.match(await canonical.text(), /Experiencias Fioreze/);
+  assert.equal(canonicalHead.status, 200);
+  assert.equal(await canonicalHead.text(), "");
+  assert.equal(legacyPrefix.status, 308);
+  assert.equal(legacyPrefix.headers.get("location"), created.portal.public_url);
+  assert.equal(legacyHome.status, 404);
+  assert.equal(unknownLegacyTab.status, 404);
+  assert.equal(legacyHtml.status, 404);
+  assert.equal(roomService.status, 200);
+  assert.equal(await roomService.text(), "asset:/");
 
   const otherSession = { ...SESSION, hotel_ids: ["aurora-demo"], hotels: [{ hotel_id: "aurora-demo" }] };
   await assert.rejects(
@@ -332,6 +378,8 @@ test("Central integra construtor visual e Worker-first preserva a rota publica",
   assert.doesNotMatch(portals, /\["navegacao", "Navegação"/);
   assert.match(portals, /module_key: "guest-portal"/);
   assert.ok(wrangler.assets.run_worker_first.includes("/portal/*"));
+  assert.ok(wrangler.assets.run_worker_first.includes("/*/*"));
+  assert.equal(wrangler.vars.VISUAL_PORTAL_PUBLIC_ORIGIN, "https://portal.hoteisfioreze.com.br");
 });
 
 function createSqliteEnv() {
@@ -354,7 +402,11 @@ function createSqliteEnv() {
     INSERT INTO media_assets VALUES ('media_12345678','muller-fioreze','/media/media_12345678','Imagem ficticia','image/webp','active');
   `);
   raw.exec(fs.readFileSync("migrations/0025_visual_portal_builder.sql", "utf8"));
-  return { DB: new SqliteD1(raw), ENVIRONMENT: "test" };
+  return {
+    DB: new SqliteD1(raw),
+    ENVIRONMENT: "test",
+    VISUAL_PORTAL_PUBLIC_ORIGIN: "https://portal.hoteisfioreze.com.br",
+  };
 }
 
 class SqliteD1 {
