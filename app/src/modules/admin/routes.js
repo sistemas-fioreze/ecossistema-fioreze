@@ -96,6 +96,7 @@ import {
   archiveAdminVisualPortalTemplate,
   createAdminVisualPortal,
   createAdminVisualPortalTemplate,
+  deleteAdminVisualPortal,
   duplicateAdminVisualPortal,
   getAdminVisualPortal,
   getAdminVisualPortalTemplate,
@@ -821,6 +822,11 @@ export function registerAdminRoutes(router) {
   router.delete("/api/v1/admin/visual-portals/:id", async ({ request, env, params }) => {
     const session = await requireAuthentication({ request, env });
     return ok(await archiveAdminVisualPortal({ request, env, session, portalId: params.id }));
+  });
+
+  router.delete("/api/v1/admin/visual-portals/:id/permanent", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await deleteAdminVisualPortal({ request, env, session, portalId: params.id }));
   });
 
   router.post("/api/v1/admin/visual-portals/:id/publish", async ({ request, env, params }) => {

@@ -53,6 +53,8 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     autosaveTimer: null,
     previewDocument: null,
     previewVersionId: "",
+    previewPageId: "",
+    editorMobileMenuOpen: false,
   };
   const els = mapElements(root);
 
@@ -68,6 +70,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
   window.addEventListener("pointerup", handlePositionPointerUp);
   document.addEventListener("keydown", handleKeyboard);
   window.addEventListener("resize", handleResize);
+  window.addEventListener("message", handlePreviewMessage);
 
   return {
     async open(portalId) {
@@ -175,10 +178,12 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
   function renderAll() {
     if (!state.portal || !state.document) return;
     els.title.textContent = state.portal.name;
-    const page = activePage();
-    els.path.textContent = `/${state.portal.hotel_slug}/${state.portal.slug}${page?.slug ? `/${page.slug}` : ""}`;
+    renderPortalPath();
     els.status.textContent = state.portal.status === "published" ? "Publicado" : "Rascunho";
     els.status.dataset.status = state.portal.status;
+    const hasPublishedVersion = state.portal.status === "published" && Number(state.portal.published_revision || 0) > 0;
+    els.publicLink.hidden = !hasPublishedVersion;
+    els.publicLink.href = hasPublishedVersion ? state.portal.public_url : "#";
     els.deviceButtons.forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.viewport === state.viewport)));
     els.undo.disabled = state.historyIndex <= 0;
     els.redo.disabled = state.historyIndex >= state.history.length - 1;
@@ -222,7 +227,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     els.stage.style.setProperty("--preview-width", `${frameWidth}px`);
     els.stage.style.setProperty("--preview-scale", state.zoom / 100);
     const site = state.document.settings;
-    els.canvas.innerHTML = `<div class="vp-preview-page ${settings.background_media_asset_id ? "has-page-media" : ""}" style="--vp-page-bg:${escapeAttr(settings.background_color)};--vp-page-text:${escapeAttr(settings.text_color)};--vp-page-primary:${escapeAttr(site.primary_color)};--vp-page-surface:${escapeAttr(settings.surface_color)};--vp-page-font:${escapeAttr(site.font_family)};--vp-page-gap:${Number(settings.block_gap)}px;--vp-page-padding:${Number(settings.page_padding)}px;--vp-page-overlay:${Number(settings.background_overlay || 0) / 100};--vp-page-media-position:${escapeAttr(settings.background_position || "center")};--vp-page-media-fit:${escapeAttr(settings.background_fit || "cover")}">${pageBackgroundPreview(settings)}${renderEditorHeader()}<div class="vp-page-content">${page.blocks.map((block, index) => renderEditableBlock(block, index)).join("") || `<button type="button" class="vp-empty-canvas" data-add-block="hero">${icon("plus")}<strong>Adicione o primeiro bloco</strong><span>Comece por uma capa ou arraste qualquer elemento da biblioteca.</span></button>`}</div></div>`;
+    els.canvas.innerHTML = `<div class="vp-preview-page ${settings.background_media_asset_id ? "has-page-media" : ""} ${state.editorMobileMenuOpen ? "is-editor-menu-open" : ""}" style="--vp-page-bg:${escapeAttr(settings.background_color)};--vp-page-text:${escapeAttr(settings.text_color)};--vp-page-primary:${escapeAttr(site.primary_color)};--vp-page-surface:${escapeAttr(settings.surface_color)};--vp-page-font:${escapeAttr(site.font_family)};--vp-page-gap:${Number(settings.block_gap)}px;--vp-page-padding:${Number(settings.page_padding)}px;--vp-page-overlay:${Number(settings.background_overlay || 0) / 100};--vp-page-media-position:${escapeAttr(settings.background_position || "center")};--vp-page-media-fit:${escapeAttr(settings.background_fit || "cover")}">${pageBackgroundPreview(settings)}${renderEditorHeader()}<div class="vp-page-content">${page.blocks.map((block, index) => renderEditableBlock(block, index)).join("") || `<button type="button" class="vp-empty-canvas" data-add-block="hero">${icon("plus")}<strong>Adicione o primeiro bloco</strong><span>Comece por uma capa ou arraste qualquer elemento da biblioteca.</span></button>`}</div></div>`;
   }
 
   function renderEditableBlock(block, index) {
@@ -263,8 +268,12 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     const header = state.document.settings.header;
     if (!header.enabled) return "";
     const logo = mediaById(header.logo_media_asset_id);
-    const nav = header.show_navigation ? state.document.pages.filter((page) => page.show_in_navigation).map((page) => `<span class="${page.id === state.activePageId ? "is-current" : ""}">${escapeHtml(page.name)}</span>`).join("") : "";
-    return `<div class="${editorHeaderClasses(header)}" style="--vp-header-bg:${escapeAttr(header.background_color)};--vp-header-text:${escapeAttr(header.text_color)};--vp-header-accent:${escapeAttr(header.accent_color)}">${header.show_logo ? `<div class="vp-editor-brand">${logo ? `<img src="${escapeAttr(logo.public_url)}" alt="">` : `<strong>${escapeHtml(state.portal.hotel_name)}</strong>`}</div>` : ""}<nav>${nav}</nav>${header.cta_text ? `<span class="vp-editor-header-cta">${escapeHtml(header.cta_text)}</span>` : ""}</div>`;
+    const pages = header.show_navigation ? state.document.pages.filter((page) => page.show_in_navigation) : [];
+    const nav = pages.map((page) => `<button type="button" data-editor-page-link="${escapeAttr(page.id)}" class="${page.id === state.activePageId ? "is-current" : ""}">${escapeHtml(page.name)}</button>`).join("");
+    const brand = header.show_logo ? `<div class="vp-editor-brand">${logo ? `<img src="${escapeAttr(logo.public_url)}" alt="">` : `<strong>${escapeHtml(state.portal.hotel_name)}</strong>`}</div>` : "";
+    const mobileMenuToggle = pages.length ? `<button type="button" class="vp-editor-menu-toggle" data-editor-menu-toggle aria-expanded="${state.editorMobileMenuOpen}" title="Abrir páginas">${icon("menu")}</button>` : "";
+    const mobileMenu = pages.length ? `<button type="button" class="vp-editor-menu-backdrop" data-editor-menu-close aria-label="Fechar menu" tabindex="-1"></button><aside class="vp-editor-mobile-menu" aria-hidden="${!state.editorMobileMenuOpen}"><header><strong>Páginas</strong><button type="button" data-editor-menu-close title="Fechar">${icon("close")}</button></header><nav>${nav}</nav>${header.cta_text ? `<span class="vp-editor-header-cta">${escapeHtml(header.cta_text)}</span>` : ""}</aside>` : "";
+    return `<div class="${editorHeaderClasses(header)}" style="--vp-header-bg:${escapeAttr(header.background_color)};--vp-header-text:${escapeAttr(header.text_color)};--vp-header-accent:${escapeAttr(header.accent_color)}">${brand}<nav class="vp-editor-desktop-nav">${nav}</nav>${header.cta_text ? `<span class="vp-editor-header-cta">${escapeHtml(header.cta_text)}</span>` : ""}${mobileMenuToggle}</div>${mobileMenu}`;
   }
 
   function renderInspector() {
@@ -360,6 +369,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     if (viewport) {
       state.viewport = viewport.dataset.viewport;
       state.styleTarget = state.viewport;
+      state.editorMobileMenuOpen = false;
       state.zoomManuallySet = false;
       renderAll();
       requestAnimationFrame(() => fitCanvas(true));
@@ -370,6 +380,20 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     if (event.target.closest("[data-builder-save]")) return save();
     if (event.target.closest("[data-builder-publish]")) return publish();
     if (event.target.closest("[data-builder-preview]")) return preview();
+    const editorPageLink = event.target.closest("[data-editor-page-link]");
+    if (editorPageLink) return switchPage(editorPageLink.dataset.editorPageLink);
+    if (event.target.closest("[data-editor-menu-toggle]")) {
+      state.editorMobileMenuOpen = !state.editorMobileMenuOpen;
+      renderCanvas();
+      return;
+    }
+    if (event.target.closest("[data-editor-menu-close]")) {
+      state.editorMobileMenuOpen = false;
+      renderCanvas();
+      return;
+    }
+    const toggle = event.target.closest("[data-toggle-scope]");
+    if (toggle) return toggleSetting(toggle);
     const add = event.target.closest("[data-add-block]");
     if (add) return addBlock(add.dataset.addBlock);
     const canvasBlock = event.target.closest("[data-canvas-block]");
@@ -485,7 +509,16 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
       if (output) output.textContent = event.target.dataset.styleField?.startsWith("offset_") ? `${event.target.value}px` : event.target.value;
     }
     if (event.target.dataset.docField) setPath(state.document.settings, event.target.dataset.docField, inputValue(event.target));
-    if (event.target.dataset.pageField) setPath(activePage(), event.target.dataset.pageField, inputValue(event.target));
+    if (event.target.dataset.pageField) {
+      const field = event.target.dataset.pageField;
+      const value = field === "slug" && event.type === "change" ? normalizedPageSlug(event.target.value, activePage().id) : inputValue(event.target);
+      setPath(activePage(), field, value);
+      if (field === "slug" && event.type === "change") {
+        event.target.value = value;
+        renderPortalPath();
+        renderLeftPanel();
+      }
+    }
     if (event.target.dataset.pageSettingField) setPath(activePage().settings, event.target.dataset.pageSettingField, inputValue(event.target));
     if (event.target.dataset.headerField) setPath(state.document.settings.header, event.target.dataset.headerField, inputValue(event.target));
     if (event.target.dataset.pwaField) setPath(state.document.settings.pwa, event.target.dataset.pwaField, inputValue(event.target));
@@ -500,6 +533,30 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
       renderSaveState();
       scheduleAutosave();
     }
+  }
+
+  function toggleSetting(control) {
+    const scope = control.dataset.toggleScope;
+    const field = control.dataset.toggleField;
+    const targets = {
+      document: state.document.settings,
+      page: activePage(),
+      pageSettings: activePage()?.settings,
+      header: state.document.settings.header,
+      pwa: state.document.settings.pwa,
+      editor: state.document.settings.editor,
+      content: selectedBlock()?.content,
+      visibility: selectedBlock()?.visibility,
+    };
+    const target = targets[scope];
+    if (!target || !field) return;
+    setPath(target, field, !Boolean(getPath(target, field)));
+    checkpoint();
+    if (scope === "page") renderLeftPanel();
+    renderCanvas();
+    renderInspector();
+    renderSaveState();
+    scheduleAutosave();
   }
 
   function handleDragStart(event) {
@@ -763,6 +820,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     const page = state.document.pages.find((item) => item.id === pageId);
     if (!page) return;
     state.activePageId = page.id;
+    state.editorMobileMenuOpen = false;
     state.selectedId = page.blocks[0]?.id || null;
     renderAll();
     requestAnimationFrame(() => fitCanvas(true));
@@ -832,6 +890,19 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     return candidate;
   }
 
+  function normalizedPageSlug(value, pageId) {
+    const base = slugify(value) || "pagina";
+    let candidate = base;
+    let suffix = 2;
+    while (state.document.pages.some((page) => page.id !== pageId && page.slug === candidate)) candidate = `${base}-${suffix++}`;
+    return candidate;
+  }
+
+  function renderPortalPath() {
+    const page = activePage();
+    els.path.textContent = `/${state.portal.hotel_slug}/${state.portal.slug}${page?.slug ? `/${page.slug}` : ""}`;
+  }
+
   function uniquePageId(value) {
     const base = slugify(value) || "pagina";
     let candidate = base;
@@ -899,6 +970,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
   function preview() {
     state.previewDocument = null;
     state.previewVersionId = "";
+    state.previewPageId = state.activePageId;
     state.previewViewport = state.viewport;
     updatePreviewDialog();
     els.previewDialog.showModal();
@@ -907,6 +979,14 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
   function setPreviewViewport(viewport) {
     if (!new Set(["desktop", "mobile"]).has(viewport)) return;
     state.previewViewport = viewport;
+    updatePreviewDialog();
+  }
+
+  function handlePreviewMessage(event) {
+    if (event.source !== els.previewDialogFrame.contentWindow || event.data?.type !== "fioreze-visual-preview-page") return;
+    const sourceDocument = state.previewDocument || state.document;
+    if (!sourceDocument?.pages.some((page) => page.id === event.data.pageId)) return;
+    state.previewPageId = event.data.pageId;
     updatePreviewDialog();
   }
 
@@ -992,6 +1072,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
       const payload = await adminApi(`/api/v1/admin/visual-portals/${encodeURIComponent(state.portal.id)}/versions/${encodeURIComponent(versionId)}`);
       state.previewDocument = clone(payload.data.version.document);
       state.previewVersionId = versionId;
+      state.previewPageId = state.previewDocument.pages[0]?.id || "";
       state.previewViewport = state.viewport;
       updatePreviewDialog();
       els.previewDialog.showModal();
@@ -1123,7 +1204,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     if (!header.enabled) return "";
     const logo = mediaById(header.logo_media_asset_id);
     const pages = header.show_navigation ? documentValue.pages.filter((item) => item.show_in_navigation) : [];
-    return `<div class="${editorHeaderClasses(header)}" style="--vp-header-bg:${escapeAttr(header.background_color)};--vp-header-text:${escapeAttr(header.text_color)};--vp-header-accent:${escapeAttr(header.accent_color)}">${header.show_logo ? `<div class="vp-editor-brand">${logo ? `<img src="${escapeAttr(logo.public_url)}" alt="">` : `<strong>${escapeHtml(state.portal.hotel_name)}</strong>`}</div>` : ""}<nav>${pages.map((item) => `<span class="${item.id === page.id ? "is-current" : ""}">${escapeHtml(item.name)}</span>`).join("")}</nav>${header.cta_text ? `<span class="vp-editor-header-cta">${escapeHtml(header.cta_text)}</span>` : ""}</div>`;
+    return `<div class="${editorHeaderClasses(header)}" style="--vp-header-bg:${escapeAttr(header.background_color)};--vp-header-text:${escapeAttr(header.text_color)};--vp-header-accent:${escapeAttr(header.accent_color)}">${header.show_logo ? `<div class="vp-editor-brand">${logo ? `<img src="${escapeAttr(logo.public_url)}" alt="">` : `<strong>${escapeHtml(state.portal.hotel_name)}</strong>`}</div>` : ""}<nav>${pages.map((item) => `<button type="button" data-preview-page="${escapeAttr(item.id)}" class="${item.id === page.id ? "is-current" : ""}">${escapeHtml(item.name)}</button>`).join("")}</nav>${header.cta_text ? `<span class="vp-editor-header-cta">${escapeHtml(header.cta_text)}</span>` : ""}</div>`;
   }
 
   function editorHeaderClasses(header) {
@@ -1139,7 +1220,9 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
   function previewDocumentHtml(sourceDocument = state.document) {
     const previousDocument = state.document;
     const previousPageId = state.activePageId;
-    const page = sourceDocument.pages.find((item) => item.id === previousPageId) || sourceDocument.pages[0];
+    const page = sourceDocument.pages.find((item) => item.id === state.previewPageId)
+      || sourceDocument.pages.find((item) => item.id === previousPageId)
+      || sourceDocument.pages[0];
     const siteSettings = sourceDocument.settings;
     const settings = page.settings;
     const previousViewport = state.viewport;
@@ -1154,7 +1237,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
       state.document = previousDocument;
       state.activePageId = previousPageId;
     }
-    return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;background:${settings.background_color};color:${settings.text_color};font-family:${siteSettings.font_family}}${builderPreviewCss()}</style></head><body><main class="vp-preview-page ${settings.background_media_asset_id ? "has-page-media" : ""}" style="--vp-page-bg:${settings.background_color};--vp-page-text:${settings.text_color};--vp-page-primary:${siteSettings.primary_color};--vp-page-surface:${settings.surface_color};--vp-page-font:${siteSettings.font_family};--vp-page-gap:${settings.block_gap}px;--vp-page-padding:${settings.page_padding}px;--vp-page-overlay:${Number(settings.background_overlay || 0) / 100};--vp-page-media-position:${settings.background_position || "center"};--vp-page-media-fit:${settings.background_fit || "cover"}">${pageBackgroundPreview(settings)}${previewHeaderHtml(sourceDocument, page)}<div class="vp-page-content">${blocks}</div></main></body></html>`;
+    return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;background:${settings.background_color};color:${settings.text_color};font-family:${siteSettings.font_family}}${builderPreviewCss()}</style></head><body><main class="vp-preview-page ${settings.background_media_asset_id ? "has-page-media" : ""}" style="--vp-page-bg:${settings.background_color};--vp-page-text:${settings.text_color};--vp-page-primary:${siteSettings.primary_color};--vp-page-surface:${settings.surface_color};--vp-page-font:${siteSettings.font_family};--vp-page-gap:${settings.block_gap}px;--vp-page-padding:${settings.page_padding}px;--vp-page-overlay:${Number(settings.background_overlay || 0) / 100};--vp-page-media-position:${settings.background_position || "center"};--vp-page-media-fit:${settings.background_fit || "cover"}">${pageBackgroundPreview(settings)}${previewHeaderHtml(sourceDocument, page)}<div class="vp-page-content">${blocks}</div></main><script>document.addEventListener("click",event=>{const target=event.target.closest("[data-preview-page]");if(!target)return;event.preventDefault();parent.postMessage({type:"fioreze-visual-preview-page",pageId:target.dataset.previewPage},"*")});<\/script></body></html>`;
   }
 }
 
@@ -1169,7 +1252,7 @@ function createBuilderRoot() {
       <div class="vp-history-controls"><button type="button" data-builder-undo title="Desfazer (Ctrl+Z)">${icon("undo")}</button><button type="button" data-builder-redo title="Refazer (Ctrl+Y)">${icon("redo")}</button></div>
       <div class="vp-device-controls" aria-label="Visualização"><button type="button" data-viewport="desktop" aria-pressed="true">${icon("desktop")}<span>Desktop</span></button><button type="button" data-viewport="mobile" aria-pressed="false">${icon("mobile")}<span>Mobile</span></button></div>
       <div class="vp-zoom-control"><span>${icon("zoomout")}</span><input type="range" min="45" max="110" value="82" step="1" aria-label="Zoom"><output>82%</output></div>
-      <div class="vp-builder-actions"><span data-builder-save-state></span><button type="button" data-builder-preview>${icon("eye")} Visualizar</button><button type="button" data-builder-save>${icon("save")} Salvar</button><button class="primary" type="button" data-builder-publish>${icon("publish")} Publicar</button></div>
+      <div class="vp-builder-actions"><span data-builder-save-state></span><a data-builder-open-public href="#" target="_blank" rel="noopener noreferrer" hidden>${icon("external")} Abrir publicado</a><button type="button" data-builder-preview>${icon("eye")} Visualizar</button><button type="button" data-builder-save>${icon("save")} Salvar</button><button class="primary" type="button" data-builder-publish>${icon("publish")} Publicar</button></div>
     </header>
     <div class="vp-builder-workspace">
       <aside class="vp-left-panel"><nav><button type="button" data-builder-tab="pages">${icon("page")}<span>Páginas</span></button><button type="button" data-builder-tab="blocks" aria-selected="true">${icon("plusgrid")}<span>Blocos</span></button><button type="button" data-builder-tab="layers">${icon("layers")}<span>Camadas</span></button><button type="button" data-builder-tab="templates">${icon("template")}<span>Modelos</span></button><button type="button" data-builder-tab="versions">${icon("history")}<span>Versões</span></button></nav><div class="vp-left-content"></div></aside>
@@ -1194,6 +1277,7 @@ function mapElements(root) {
     undo: root.querySelector("[data-builder-undo]"),
     redo: root.querySelector("[data-builder-redo]"),
     save: root.querySelector("[data-builder-save]"),
+    publicLink: root.querySelector("[data-builder-open-public]"),
     zoom: root.querySelector(".vp-zoom-control input"),
     zoomLabel: root.querySelector(".vp-zoom-control output"),
     deviceButtons: [...root.querySelectorAll("[data-viewport]")],
@@ -1252,7 +1336,7 @@ function createBlock(type) {
 }
 
 function builderPreviewCss() {
-  return `.vp-preview-page{position:relative;min-height:100vh;background:var(--vp-page-bg);color:var(--vp-page-text);font-family:var(--vp-page-font)}.vp-page-background{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none}.vp-page-background.is-fixed{position:fixed}.vp-page-background img,.vp-page-background video{width:100%;height:100%;object-fit:var(--vp-page-media-fit);object-position:var(--vp-page-media-position)}.vp-page-background span{position:absolute;inset:0;background:rgba(0,0,0,var(--vp-page-overlay))}.vp-editor-site-header{position:relative;z-index:4;display:grid;grid-template-columns:minmax(150px,1fr) auto minmax(150px,1fr);align-items:center;gap:22px;min-height:76px;padding:12px 28px;background:var(--vp-header-bg);color:var(--vp-header-text)}.vp-editor-site-header.is-sticky{position:sticky;top:0}.vp-editor-site-header.is-transparent,.vp-editor-site-header.header-minimal{background:transparent}.vp-editor-site-header.has-blur{backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}.vp-editor-site-header.header-floating{margin:16px;border:1px solid rgba(0,0,0,.1);border-radius:18px;background:color-mix(in srgb,var(--vp-header-bg) 84%,transparent);backdrop-filter:blur(18px)}.vp-editor-site-header.header-centered{grid-template-columns:1fr;justify-items:center}.vp-editor-brand img{display:block;max-width:180px;max-height:48px}.vp-editor-site-header nav{display:flex;justify-content:center;gap:4px;scrollbar-width:none}.vp-editor-site-header nav::-webkit-scrollbar{display:none}.vp-editor-site-header nav span{padding:8px 11px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}.vp-editor-site-header nav span.is-current{background:color-mix(in srgb,var(--vp-header-accent) 14%,transparent);color:var(--vp-header-accent)}.vp-editor-header-cta{justify-self:end;padding:9px 14px;border-radius:999px;background:var(--vp-header-accent);color:#fff;font-size:11px;font-weight:750}.vp-page-content{position:relative;z-index:1;display:grid;gap:var(--vp-page-gap)}.vp-canvas-block{position:relative;padding:40px var(--vp-page-padding)}.vp-block-toolbar{display:none}.vp-preview-inner{width:min(100%,1120px);margin:auto}.vp-preview-hero{display:grid;place-items:center;min-height:420px;padding:64px;background-position:center;background-size:cover;text-align:center}.vp-preview-hero.has-media{color:#fff}.vp-preview-hero h1{font-size:clamp(2.6rem,6vw,6rem);line-height:1}.vp-preview-inner h2{font-size:clamp(2rem,4vw,4rem)}.vp-preview-button{display:inline-flex;padding:12px 18px;border-radius:999px;background:var(--vp-page-primary);color:#fff;text-decoration:none}.vp-preview-grid,.vp-preview-gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}.vp-preview-grid article{overflow:hidden;border:1px solid #ddd;border-radius:24px}.vp-preview-grid article>div{padding:18px}.vp-preview-grid img,.vp-preview-gallery img,.vp-preview-media img,.vp-preview-media video{width:100%;display:block;object-fit:cover}.vp-preview-grid img,.vp-preview-gallery img{aspect-ratio:4/3}.vp-preview-quote{font-size:2.4rem;text-align:center}.vp-preview-embed{position:relative;aspect-ratio:var(--vp-embed-ratio);overflow:hidden;border-radius:inherit;background:#e9ebef}.vp-preview-embed iframe{width:100%;height:100%;border:0}.vp-preview-embed>span{display:none}@media(max-width:760px){.vp-editor-site-header{grid-template-columns:minmax(0,1fr);gap:8px;padding:12px 18px}.vp-editor-site-header nav{justify-content:flex-start;overflow-x:auto}.vp-preview-grid,.vp-preview-gallery{grid-template-columns:1fr}.vp-preview-hero{padding:32px 18px}.vp-canvas-block{padding-inline:18px}}`;
+  return `.vp-preview-page{position:relative;min-height:100vh;background:var(--vp-page-bg);color:var(--vp-page-text);font-family:var(--vp-page-font)}.vp-page-background{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none}.vp-page-background.is-fixed{position:fixed}.vp-page-background img,.vp-page-background video{width:100%;height:100%;object-fit:var(--vp-page-media-fit);object-position:var(--vp-page-media-position)}.vp-page-background span{position:absolute;inset:0;background:rgba(0,0,0,var(--vp-page-overlay))}.vp-editor-site-header{position:relative;z-index:4;display:grid;grid-template-columns:minmax(150px,1fr) auto minmax(150px,1fr);align-items:center;gap:22px;min-height:76px;padding:12px 28px;background:var(--vp-header-bg);color:var(--vp-header-text)}.vp-editor-site-header.is-sticky{position:sticky;top:0}.vp-editor-site-header.is-transparent,.vp-editor-site-header.header-minimal{background:transparent}.vp-editor-site-header.has-blur{backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}.vp-editor-site-header.header-floating{margin:16px;border:1px solid rgba(0,0,0,.1);border-radius:18px;background:color-mix(in srgb,var(--vp-header-bg) 84%,transparent);backdrop-filter:blur(18px)}.vp-editor-site-header.header-floating.is-transparent{border-color:transparent;background:transparent;box-shadow:none}.vp-editor-site-header.header-centered{grid-template-columns:1fr;justify-items:center}.vp-editor-brand img{display:block;max-width:180px;max-height:48px}.vp-editor-site-header nav{display:flex;justify-content:center;gap:4px;scrollbar-width:none}.vp-editor-site-header nav::-webkit-scrollbar{display:none}.vp-editor-site-header nav button{padding:8px 11px;border:0;border-radius:999px;background:transparent;color:inherit;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap}.vp-editor-site-header nav button.is-current{background:color-mix(in srgb,var(--vp-header-accent) 14%,transparent);color:var(--vp-header-accent)}.vp-editor-header-cta{justify-self:end;padding:9px 14px;border-radius:999px;background:var(--vp-header-accent);color:#fff;font-size:11px;font-weight:750}.vp-page-content{position:relative;z-index:1;display:grid;gap:var(--vp-page-gap)}.vp-canvas-block{position:relative;padding:40px var(--vp-page-padding)}.vp-block-toolbar{display:none}.vp-preview-inner{width:min(100%,1120px);margin:auto}.vp-preview-hero{display:grid;place-items:center;min-height:420px;padding:64px;background-position:center;background-size:cover;text-align:center}.vp-preview-hero.has-media{color:#fff}.vp-preview-hero h1{font-size:clamp(2.6rem,6vw,6rem);line-height:1}.vp-preview-inner h2{font-size:clamp(2rem,4vw,4rem)}.vp-preview-button{display:inline-flex;padding:12px 18px;border-radius:999px;background:var(--vp-page-primary);color:#fff;text-decoration:none}.vp-preview-grid,.vp-preview-gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}.vp-preview-grid article{overflow:hidden;border:1px solid #ddd;border-radius:24px}.vp-preview-grid article>div{padding:18px}.vp-preview-grid img,.vp-preview-gallery img,.vp-preview-media img,.vp-preview-media video{width:100%;display:block;object-fit:cover}.vp-preview-grid img,.vp-preview-gallery img{aspect-ratio:4/3}.vp-preview-quote{font-size:2.4rem;text-align:center}.vp-preview-embed{position:relative;aspect-ratio:var(--vp-embed-ratio);overflow:hidden;border-radius:inherit;background:#e9ebef}.vp-preview-embed iframe{width:100%;height:100%;border:0}.vp-preview-embed>span{display:none}@media(max-width:760px){.vp-editor-site-header{grid-template-columns:minmax(0,1fr);gap:8px;padding:12px 18px}.vp-editor-site-header nav{justify-content:flex-start;overflow-x:auto}.vp-preview-grid,.vp-preview-gallery{grid-template-columns:1fr}.vp-preview-hero{padding:32px 18px}.vp-canvas-block{padding-inline:18px}}`;
 }
 
 function editableStyle(style) {
@@ -1285,6 +1369,7 @@ function formatVersionDate(value) { const date = new Date(value); return Number.
 function clone(value) { return JSON.parse(JSON.stringify(value)); }
 function stableJson(value) { return JSON.stringify(value); }
 function setPath(target, path, value) { const parts = path.split("."); const last = parts.pop(); const parent = parts.reduce((current, part) => current[Number.isInteger(Number(part)) ? Number(part) : part], target); if (value === undefined) delete parent[last]; else parent[last] = value; }
+function getPath(target, path) { return path.split(".").reduce((current, part) => current?.[Number.isInteger(Number(part)) ? Number(part) : part], target); }
 function inputValue(input) { if (input.type === "checkbox") return input.checked; if (input.type === "number" || input.type === "range") return Number(input.value); return input.value; }
 function emptyAsUndefined(input) { return input.value === "" ? undefined : inputValue(input); }
 function options(entries, selected) { return entries.map(([value, label]) => `<option value="${escapeAttr(value)}" ${String(value) === String(selected) ? "selected" : ""}>${escapeHtml(label)}</option>`).join(""); }
@@ -1293,25 +1378,26 @@ function textareaField(label, field, value, rows = 5) { return `<label><span>${e
 function colorField(label, field, value, scope, optional = false) { const attr = scope === "doc" ? "data-doc-field" : "data-style-field"; return `<label class="vp-color-field"><span>${escapeHtml(label)}</span><input type="color" ${attr}="${escapeAttr(field)}" value="${escapeAttr(value || "#ffffff")}"><input ${attr}="${escapeAttr(field)}" value="${escapeAttr(value || "")}" placeholder="${optional ? "Herdar" : "#000000"}"></label>`; }
 function rangeField(label, field, value, min, max, scope, optional = false) { const attr = scope === "doc" ? "data-doc-field" : scope === "content" ? "data-content-field" : "data-style-field"; return `<label class="vp-range-field"><span>${escapeHtml(label)} <output>${value === "" ? (optional ? "Herdar" : min) : value}</output></span><input type="range" ${attr}="${escapeAttr(field)}" min="${min}" max="${max}" value="${value === "" ? min : value}"></label>`; }
 function positionRangeField(label, field, value) { const normalized = Number(value || 0); return `<label class="vp-range-field"><span>${escapeHtml(label)} <output>${normalized}px</output></span><input type="range" data-style-field="${escapeAttr(field)}" min="-320" max="320" value="${normalized}"></label>`; }
-function toggleField(label, field, checked, scope = "content") { const attr = scope === "visibility" ? "data-visibility-field" : "data-content-field"; return `<label class="vp-toggle"><input type="checkbox" ${attr}="${escapeAttr(field)}" ${checked ? "checked" : ""}><span></span><strong>${escapeHtml(label)}</strong></label>`; }
+function toggleField(label, field, checked, scope = "content") { return switchField(label, field, checked, scope); }
 function mediaField(label, field, value, kind) { return `<div class="vp-media-field"><span>${escapeHtml(label)}</span><button type="button" data-choose-media="${escapeAttr(field)}" data-media-kind="${kind}">${value ? `${icon(kind === "video" ? "video" : "image")}<strong>Trocar arquivo</strong>` : `${icon("plus")}<strong>Escolher da biblioteca</strong>`}</button></div>`; }
 function pageMediaField(value) { return `<div class="vp-media-field"><span>Imagem ou vídeo</span><button type="button" data-choose-media="background_media_asset_id" data-media-kind="any" data-media-target="page">${value ? `${icon("image")}<strong>Trocar fundo</strong>` : `${icon("plus")}<strong>Escolher da biblioteca</strong>`}</button></div>`; }
-function docToggleField(label, field, checked) { return `<label class="vp-toggle"><input type="checkbox" data-doc-field="${escapeAttr(field)}" ${checked ? "checked" : ""}><span></span><strong>${escapeHtml(label)}</strong></label>`; }
+function docToggleField(label, field, checked) { return switchField(label, field, checked, "document"); }
 function pageColorField(label, field, value) { return `<label class="vp-color-field"><span>${escapeHtml(label)}</span><input type="color" data-page-setting-field="${escapeAttr(field)}" value="${escapeAttr(value || "#ffffff")}"><input data-page-setting-field="${escapeAttr(field)}" value="${escapeAttr(value || "")}"></label>`; }
 function headerColorField(label, field, value) { return `<label class="vp-color-field"><span>${escapeHtml(label)}</span><input type="color" data-header-field="${escapeAttr(field)}" value="${escapeAttr(value || "#ffffff")}"><input data-header-field="${escapeAttr(field)}" value="${escapeAttr(value || "")}"></label>`; }
 function pageRangeField(label, field, value, min, max) { return `<label class="vp-range-field"><span>${escapeHtml(label)} <output>${value}</output></span><input type="range" data-page-setting-field="${escapeAttr(field)}" min="${min}" max="${max}" value="${value}"></label>`; }
 function editorRangeField(label, field, value, min, max) { return `<label class="vp-range-field"><span>${escapeHtml(label)} <output>${value}</output></span><input type="range" data-editor-field="${escapeAttr(field)}" min="${min}" max="${max}" value="${value}"></label>`; }
-function pageToggleField(label, field, checked) { return `<label class="vp-toggle"><input type="checkbox" data-page-field="${escapeAttr(field)}" ${checked ? "checked" : ""}><span></span><strong>${escapeHtml(label)}</strong></label>`; }
-function pageSettingToggleField(label, field, checked) { return `<label class="vp-toggle"><input type="checkbox" data-page-setting-field="${escapeAttr(field)}" ${checked ? "checked" : ""}><span></span><strong>${escapeHtml(label)}</strong></label>`; }
-function headerToggleField(label, field, checked) { return `<label class="vp-toggle"><input type="checkbox" data-header-field="${escapeAttr(field)}" ${checked ? "checked" : ""}><span></span><strong>${escapeHtml(label)}</strong></label>`; }
-function pwaToggleField(label, field, checked) { return `<label class="vp-toggle"><input type="checkbox" data-pwa-field="${escapeAttr(field)}" ${checked ? "checked" : ""}><span></span><strong>${escapeHtml(label)}</strong></label>`; }
-function editorToggleField(label, field, checked) { return `<label class="vp-toggle"><input type="checkbox" data-editor-field="${escapeAttr(field)}" ${checked ? "checked" : ""}><span></span><strong>${escapeHtml(label)}</strong></label>`; }
+function pageToggleField(label, field, checked) { return switchField(label, field, checked, "page"); }
+function pageSettingToggleField(label, field, checked) { return switchField(label, field, checked, "pageSettings"); }
+function headerToggleField(label, field, checked) { return switchField(label, field, checked, "header"); }
+function pwaToggleField(label, field, checked) { return switchField(label, field, checked, "pwa"); }
+function editorToggleField(label, field, checked) { return switchField(label, field, checked, "editor"); }
+function switchField(label, field, checked, scope) { return `<button type="button" class="vp-toggle" role="switch" aria-checked="${Boolean(checked)}" data-toggle-scope="${escapeAttr(scope)}" data-toggle-field="${escapeAttr(field)}"><span aria-hidden="true"></span><strong>${escapeHtml(label)}</strong></button>`; }
 function textFieldForScope(label, field, value, scope) { return `<label><span>${escapeHtml(label)}</span><input data-${escapeAttr(scope)}-field="${escapeAttr(field)}" value="${escapeAttr(value || "")}"></label>`; }
 function siteMediaField(label, field, value, kind, target) { return `<div class="vp-media-field"><span>${escapeHtml(label)}</span><button type="button" data-choose-media="${escapeAttr(field)}" data-media-kind="${kind}" data-media-target="${escapeAttr(target)}">${value ? `${icon("image")}<strong>Trocar arquivo</strong>` : `${icon("plus")}<strong>Escolher da biblioteca</strong>`}</button></div>`; }
 
 function icon(name) {
   const paths = {
-    back: '<path d="m15 18-6-6 6-6"/>', undo: '<path d="M9 7 4 12l5 5"/><path d="M5 12h8a6 6 0 0 1 6 6"/>', redo: '<path d="m15 7 5 5-5 5"/><path d="M19 12h-8a6 6 0 0 0-6 6"/>', desktop: '<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>', mobile: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>', zoomout: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4M8 11h6"/>', eye: '<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/>', save: '<path d="M5 3h12l2 2v16H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/>', publish: '<path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 14v6h14v-6"/>', plusgrid: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M17.5 14v7M14 17.5h7"/>', layers: '<path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 16l9 5 9-5"/>', template: '<path d="M4 4h16v16H4zM4 10h16M10 10v10"/>', history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>', page: '<path d="M6 3h9l3 3v15H6z"/><path d="M15 3v4h4M9 12h6M9 16h6"/>', home: '<path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10M9 20v-6h6v6"/>', sliders: '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>', search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>', sparkles: '<path d="m12 3 1.4 4.1L17.5 8.5l-4.1 1.4L12 14l-1.4-4.1-4.1-1.4 4.1-1.4L12 3Z"/><path d="m19 14 .7 2.3L22 17l-2.3.7L19 20l-.7-2.3L16 17l2.3-.7L19 14Z"/>', heading: '<path d="M5 5v14M19 5v14M5 12h14"/>', text: '<path d="M4 6h16M4 10h16M4 14h12M4 18h9"/>', button: '<rect x="3" y="7" width="18" height="10" rx="3"/><path d="M9 12h6"/>', image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="2"/><path d="m3 17 5-5 4 4 3-3 6 6"/>', video: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3V9Z"/>', embed: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m9 10-3 2 3 2M15 10l3 2-3 2"/>', move: '<path d="M12 2v20M2 12h20M8 6l4-4 4 4M8 18l4 4 4-4M6 8l-4 4 4 4M18 8l4 4-4 4"/>', target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>', gallery: '<rect x="3" y="3" width="8" height="8"/><rect x="13" y="3" width="8" height="8"/><rect x="3" y="13" width="8" height="8"/><rect x="13" y="13" width="8" height="8"/>', grid: '<rect x="3" y="4" width="5" height="16"/><rect x="10" y="4" width="5" height="16"/><rect x="17" y="4" width="4" height="16"/>', quote: '<path d="M5 7h5v5H7v5H4v-7a3 3 0 0 1 3-3M15 7h5v5h-3v5h-3v-7a3 3 0 0 1 3-3"/>', contact: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>', divider: '<path d="M3 12h18"/>', spacer: '<path d="M8 3h8M8 21h8M12 3v18M9 6l3-3 3 3M9 18l3 3 3-3"/>', grip: '<circle cx="9" cy="7" r="1"/><circle cx="15" cy="7" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="17" r="1"/><circle cx="15" cy="17" r="1"/>', up: '<path d="m6 15 6-6 6 6"/>', down: '<path d="m6 9 6 6 6-6"/>', copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V4H4v12h4"/>', trash: '<path d="M4 7h16M9 7V4h6v3M7 7l1 14h8l1-14M10 11v6M14 11v6"/>', plus: '<path d="M12 5v14M5 12h14"/>', bookmark: '<path d="M6 3h12v18l-6-4-6 4V3Z"/>', close: '<path d="m6 6 12 12M18 6 6 18"/>',
+    back: '<path d="m15 18-6-6 6-6"/>', undo: '<path d="M9 7 4 12l5 5"/><path d="M5 12h8a6 6 0 0 1 6 6"/>', redo: '<path d="m15 7 5 5-5 5"/><path d="M19 12h-8a6 6 0 0 0-6 6"/>', desktop: '<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>', mobile: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>', zoomout: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4M8 11h6"/>', eye: '<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/>', external: '<path d="M14 4h6v6M20 4l-9 9"/><path d="M18 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h6"/>', menu: '<path d="M4 7h16M4 12h16M4 17h16"/>', save: '<path d="M5 3h12l2 2v16H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/>', publish: '<path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 14v6h14v-6"/>', plusgrid: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M17.5 14v7M14 17.5h7"/>', layers: '<path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 16l9 5 9-5"/>', template: '<path d="M4 4h16v16H4zM4 10h16M10 10v10"/>', history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>', page: '<path d="M6 3h9l3 3v15H6z"/><path d="M15 3v4h4M9 12h6M9 16h6"/>', home: '<path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10M9 20v-6h6v6"/>', sliders: '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>', search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>', sparkles: '<path d="m12 3 1.4 4.1L17.5 8.5l-4.1 1.4L12 14l-1.4-4.1-4.1-1.4 4.1-1.4L12 3Z"/><path d="m19 14 .7 2.3L22 17l-2.3.7L19 20l-.7-2.3L16 17l2.3-.7L19 14Z"/>', heading: '<path d="M5 5v14M19 5v14M5 12h14"/>', text: '<path d="M4 6h16M4 10h16M4 14h12M4 18h9"/>', button: '<rect x="3" y="7" width="18" height="10" rx="3"/><path d="M9 12h6"/>', image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="2"/><path d="m3 17 5-5 4 4 3-3 6 6"/>', video: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3V9Z"/>', embed: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m9 10-3 2 3 2M15 10l3 2-3 2"/>', move: '<path d="M12 2v20M2 12h20M8 6l4-4 4 4M8 18l4 4 4-4M6 8l-4 4 4 4M18 8l4 4-4 4"/>', target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>', gallery: '<rect x="3" y="3" width="8" height="8"/><rect x="13" y="3" width="8" height="8"/><rect x="3" y="13" width="8" height="8"/><rect x="13" y="13" width="8" height="8"/>', grid: '<rect x="3" y="4" width="5" height="16"/><rect x="10" y="4" width="5" height="16"/><rect x="17" y="4" width="4" height="16"/>', quote: '<path d="M5 7h5v5H7v5H4v-7a3 3 0 0 1 3-3M15 7h5v5h-3v5h-3v-7a3 3 0 0 1 3-3"/>', contact: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>', divider: '<path d="M3 12h18"/>', spacer: '<path d="M8 3h8M8 21h8M12 3v18M9 6l3-3 3 3M9 18l3 3 3-3"/>', grip: '<circle cx="9" cy="7" r="1"/><circle cx="15" cy="7" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="17" r="1"/><circle cx="15" cy="17" r="1"/>', up: '<path d="m6 15 6-6 6 6"/>', down: '<path d="m6 9 6 6 6-6"/>', copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V4H4v12h4"/>', trash: '<path d="M4 7h16M9 7V4h6v3M7 7l1 14h8l1-14M10 11v6M14 11v6"/>', plus: '<path d="M12 5v14M5 12h14"/>', bookmark: '<path d="M6 3h12v18l-6-4-6 4V3Z"/>', close: '<path d="m6 6 12 12M18 6 6 18"/>',
   };
   return `<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[name] || paths.grid}</svg>`;
 }

@@ -12,6 +12,8 @@ O construtor fica em **Central Administrativa > Criador de portais** e oferece:
 
 - canvas em tela cheia;
 - criação, duplicação, exclusão e edição de páginas dentro do mesmo site;
+- slug personalizado e único para cada página interna;
+- controle por página para exibir ou ocultar seu botão na navegação;
 - navegação interna por seletor de páginas, sem exigir que a equipe digite URLs;
 - destino especial para o Room Service da unidade, resolvido pelo `hotel_slug`;
 - alternância e pré-visualização separada para desktop e mobile;
@@ -21,7 +23,7 @@ O construtor fica em **Central Administrativa > Criador de portais** e oferece:
 - propriedades globais e substituições por dispositivo;
 - tipografia, espaçamento, colunas, cores, largura e visibilidade ajustáveis separadamente para desktop e mobile;
 - imagens e vídeos da Biblioteca de Mídia da própria unidade, inclusive como fundo independente de cada página;
-- favicon e cabeçalho personalizável com logotipo, menu, cores, transparência, desfoque e ação principal;
+- favicon e cabeçalho opcional com logotipo, menu, cores, transparência total, desfoque e ação principal;
 - capa, títulos, textos, botões, imagens, vídeos, galeria, grade, citação, contato, incorporações, divisor e espaçador;
 - incorporações HTTPS para Google Maps, páginas hospedadas e serviços compatíveis com `iframe`;
 - incorporações de HTML sanitizado em iframe isolado e sem execução de scripts;
@@ -29,9 +31,11 @@ O construtor fica em **Central Administrativa > Criador de portais** e oferece:
 - pré-visualização do rascunho;
 - salvamento manual e automático com intervalo configurável e controle de revisão;
 - publicação explícita;
+- acesso direto à versão publicada pela barra do editor;
 - histórico de versões com prévia visual desktop/mobile antes da restauração para um novo rascunho;
 - opção de aplicativo instalável com manifesto, service worker restrito ao portal e solicitação nativa quando o navegador estiver apto;
 - duplicação de portal;
+- arquivamento reversível e exclusão definitiva, disponível somente para portais já arquivados;
 - modelos internos e modelos salvos pela equipe.
 
 ## Modelo de dados
@@ -103,6 +107,8 @@ O campo JSON usa `schema_version=2`. Documentos `schema_version=1` são promovid
 
 Cada página possui identidade estável, slug único, visibilidade no menu, fundo e blocos próprios. Cada bloco possui `id`, `type`, `content`, `styles.base`, `styles.desktop`, `styles.mobile` e `visibility`. Os estilos por dispositivo incluem os deslocamentos `offset_x` e `offset_y`, usados pelo movimento livre sem misturar o layout desktop com o mobile. O Worker normaliza o documento antes de salvá-lo e novamente antes de servi-lo.
 
+No site publicado, a navegação desktop usa links diretos para os slugs configurados. Em telas móveis, as páginas visíveis são apresentadas em uma gaveta lateral aberta pelo botão de menu, com animação, fechamento por fundo, botão, link ou tecla `Escape`. Páginas ocultas continuam publicáveis e acessíveis pelo endereço, mas não aparecem no menu.
+
 ## Segurança
 
 - textos são tratados como texto e escapados na renderização;
@@ -111,12 +117,13 @@ Cada página possui identidade estável, slug único, visibilidade no menu, fund
 - HTML incorporado passa pelo sanitizador compartilhado antes de ser salvo; scripts, eventos, estilos perigosos e URLs inseguras são removidos;
 - incorporações aceitam apenas URLs HTTPS sem credenciais e rejeitam endereços locais ou privados;
 - incorporações HTML usam `srcdoc` em sandbox sem `allow-scripts`; incorporações HTTPS também não recebem `allow-same-origin`;
-- o portal usa CSP estrita; JavaScript local é liberado somente quando o modo instalável está ativo;
+- o portal usa CSP estrita e executa somente o runtime local responsável pela navegação móvel e pela instalação opcional;
 - APIs administrativas exigem sessão, permissão e acesso ao hotel;
 - mutações exigem origem válida e o header administrativo;
 - o editor usa `expected_revision` para impedir sobrescrita silenciosa;
 - a publicação copia o rascunho validado para um snapshot imutável de publicação;
-- arquivar remove a disponibilidade pública sem excluir o histórico.
+- arquivar remove a disponibilidade pública sem excluir o histórico;
+- excluir definitivamente exige que o portal esteja arquivado, respeita acesso à unidade e registra auditoria na mesma operação atômica.
 
 ## Templates
 
@@ -136,6 +143,8 @@ Cada portal publicado fornece `public_url`. A Central pode enviar esse endereço
 6. publicar novamente após a revisão.
 
 Nenhuma edição de rascunho muda uma página já publicada até a ação de publicação.
+
+Quando o modo instalável está ativo, o portal publica manifesto, ícone e service worker no próprio escopo. O botão usa o evento nativo `beforeinstallprompt` quando ele é oferecido pelo navegador. Em navegadores que não expõem esse evento, a interface apresenta a orientação adequada para concluir a instalação pelo menu do navegador, sem simular uma instalação.
 
 O histórico oferece uma prévia visual do snapshot antes da restauração. Confirmações, exclusões e restaurações usam diálogos e mensagens do próprio editor; o fluxo não depende de `alert`, `confirm` ou `prompt` do navegador.
 

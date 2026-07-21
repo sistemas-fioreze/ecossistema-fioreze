@@ -53,6 +53,7 @@ export function matchVisualPortalPublicPath(pathname) {
   if (!pageSlug) return { hotel_slug: hotelSlug, portal_slug: portalSlug, page_slug: "" };
   if (pageSlug === "manifest.webmanifest") return { hotel_slug: hotelSlug, portal_slug: portalSlug, resource: "manifest" };
   if (pageSlug === "sw.js") return { hotel_slug: hotelSlug, portal_slug: portalSlug, resource: "service-worker" };
+  if (pageSlug === "app-icon.svg") return { hotel_slug: hotelSlug, portal_slug: portalSlug, resource: "app-icon" };
   if (!isSafeIdentifier(pageSlug)) return null;
   return { hotel_slug: hotelSlug, portal_slug: portalSlug, page_slug: pageSlug };
 }

@@ -42,6 +42,7 @@ export async function serveVisualPortal({ env, params, head = false }) {
   const page = getVisualPortalPage(document, params.page_slug || "");
   if (params.resource === "manifest") return serveVisualPortalManifest({ portal, document, head });
   if (params.resource === "service-worker") return serveVisualPortalServiceWorker({ portal, head });
+  if (params.resource === "app-icon") return serveVisualPortalAppIcon({ portal, document, head });
   if (!page) throw notFoundError("Página não encontrada.");
   const media = await loadPublishedMedia(env, portal.hotel_id, document);
   const headers = visualPortalHeaders(document.settings.pwa.install_enabled);
@@ -81,14 +82,15 @@ export function renderVisualPortalPage({ portal, document, page = getVisualPorta
   const pageTitle = page.slug ? `${page.title} | ${portal.title}` : portal.title;
   const header = renderSiteHeader({ portal, document, page, logo: headerLogo, context });
   return `<!doctype html>
-<html lang="${escapeAttr(String(portal.locale || "pt-BR").replace("_", "-"))}"${pwaEnabled ? ` data-install-enabled="true" data-service-worker="${escapeAttr(serviceWorkerPath)}" data-service-worker-scope="${escapeAttr(`${homePath}/`)}"` : ""}>
+<html lang="${escapeAttr(String(portal.locale || "pt-BR").replace("_", "-"))}"${pwaEnabled ? ` data-install-enabled="true" data-service-worker="${escapeAttr(serviceWorkerPath)}" data-service-worker-scope="${escapeAttr(homePath)}"` : ""}>
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="${escapeAttr(settings.primary_color)}">
     <title>${escapeHtml(pageTitle)} | ${escapeHtml(portal.hotel_short_name || portal.hotel_name)}</title>
     ${favicon ? `<link rel="icon" href="${escapeAttr(favicon)}">` : ""}
-    ${pwaEnabled ? `<link rel="manifest" href="${escapeAttr(manifestPath)}"><script src="/js/modules/visual-portal-runtime.js" defer></script>` : ""}
+    ${pwaEnabled ? `<link rel="manifest" href="${escapeAttr(manifestPath)}">${favicon ? `<link rel="apple-touch-icon" href="${escapeAttr(favicon)}">` : ""}` : ""}
+    <script src="/js/modules/visual-portal-runtime.js" defer></script>
     <style>${visualPortalCss(settings, pageSettings)}</style>
   </head>
   <body>
@@ -214,7 +216,16 @@ function renderSiteHeader({ portal, document, page, logo, context }) {
   const brand = header.show_logo
     ? `<a class="brand" href="${escapeAttr(context.homePath)}" aria-label="${escapeAttr(portal.hotel_name)}">${logo ? `<img src="${escapeAttr(logo)}" alt="${escapeAttr(portal.hotel_name)}">` : `<strong>${escapeHtml(portal.hotel_short_name || portal.hotel_name)}</strong>`}</a>`
     : "";
-  return `<header class="${classes}" style="--header-bg:${escapeAttr(header.background_color)};--header-text:${escapeAttr(header.text_color)};--header-accent:${escapeAttr(header.accent_color)}"><div class="header-inner">${brand}<nav aria-label="Navegação do site">${navigation}</nav><div class="header-actions">${buttonLink(header.cta_text, header.cta_url, "solid", context)}${document.settings.pwa.install_enabled ? '<button class="install-app-button" type="button" data-install-app hidden>Instalar app</button>' : ""}</div></div></header>`;
+  const navigationId = `portal-navigation-${portal.portal_slug}`;
+  const hasMobileNavigation = Boolean((header.show_navigation && navigation) || header.cta_text || document.settings.pwa.install_enabled);
+  const mobileNavigationStyle = `--header-bg:${escapeAttr(header.background_color)};--header-text:${escapeAttr(header.text_color)};--header-accent:${escapeAttr(header.accent_color)}`;
+  const mobileMenuToggle = hasMobileNavigation
+    ? `<button class="mobile-menu-toggle" type="button" data-mobile-menu-toggle aria-controls="${escapeAttr(navigationId)}" aria-expanded="false" aria-label="Abrir menu"><span></span><span></span><span></span></button>`
+    : "";
+  const mobileNavigation = hasMobileNavigation
+    ? `<button class="mobile-menu-backdrop" type="button" data-mobile-menu-close aria-label="Fechar menu" tabindex="-1"></button><aside class="mobile-navigation" id="${escapeAttr(navigationId)}" aria-hidden="true" style="${mobileNavigationStyle}"><header><strong>Menu</strong><button type="button" data-mobile-menu-close aria-label="Fechar menu">×</button></header>${header.show_navigation && navigation ? `<nav aria-label="Navegação móvel do site">${navigation}</nav>` : ""}<div class="mobile-navigation-actions">${buttonLink(header.cta_text, header.cta_url, "solid", context)}${document.settings.pwa.install_enabled ? '<button class="install-app-button" type="button" data-install-app>Instalar app</button>' : ""}</div></aside>`
+    : "";
+  return `<header class="${classes}" style="--header-bg:${escapeAttr(header.background_color)};--header-text:${escapeAttr(header.text_color)};--header-accent:${escapeAttr(header.accent_color)}"><div class="header-inner">${brand}<nav class="desktop-navigation" aria-label="Navegação do site">${navigation}</nav><div class="header-actions">${buttonLink(header.cta_text, header.cta_url, "solid", context)}${document.settings.pwa.install_enabled ? '<button class="install-app-button" type="button" data-install-app>Instalar app</button>' : ""}</div>${mobileMenuToggle}</div></header>${mobileNavigation}`;
 }
 
 function visualPortalCss(settings, pageSettings) {
@@ -243,11 +254,14 @@ a{color:inherit}
 .header-centered .header-actions{justify-content:center}
 .header-floating{padding-top:18px;background:transparent}
 .header-floating .header-inner{padding:8px 12px;border:1px solid color-mix(in srgb,var(--header-text) 13%,transparent);border-radius:18px;background:color-mix(in srgb,var(--header-bg) 84%,transparent);box-shadow:0 14px 36px rgba(0,0,0,.08);backdrop-filter:blur(18px)}
+.header-floating.is-transparent .header-inner{border-color:transparent;background:transparent;box-shadow:none}
 .header-minimal{background:transparent}
 .brand{display:inline-flex;align-items:center;text-decoration:none}
 .brand img{display:block;max-width:180px;max-height:48px}
 .brand strong{font-size:1.1rem}
 .install-app-button{min-height:42px;padding:.6rem 1rem;border:1px solid var(--header-accent);border-radius:999px;background:var(--header-accent);color:#fff;font:inherit;font-weight:750;cursor:pointer}
+.mobile-menu-toggle,.mobile-menu-backdrop,.mobile-navigation{display:none}
+.portal-runtime-toast{position:fixed;right:18px;bottom:18px;z-index:120;max-width:min(380px,calc(100vw - 36px));padding:13px 16px;border:1px solid color-mix(in srgb,var(--header-accent,#513b2d) 24%,#ddd);border-radius:14px;background:#fff;color:#202124;box-shadow:0 18px 50px rgba(0,0,0,.18);font:600 .9rem/1.4 system-ui,sans-serif}
 .visual-page{position:relative;z-index:1;--page-width:${widthValue(pageSettings.content_width)};--page-pad:${pageSettings.page_padding}px;--block-gap:${pageSettings.block_gap}px;display:grid;gap:var(--block-gap);min-height:calc(100vh - 76px)}
 .visual-block{--align:var(--base-align,left);--width:var(--base-width,${widthValue(pageSettings.content_width)});--background:var(--base-background,transparent);--text:var(--base-text,inherit);--accent:var(--base-accent,${settings.primary_color});--padding-top:var(--base-padding-top,0px);--padding-bottom:var(--base-padding-bottom,0px);--padding-inline:var(--base-padding-inline,var(--page-pad));--gap:var(--base-gap,20px);--min-height:var(--base-min-height,0px);--radius:var(--base-radius,0px);--columns:var(--base-columns,3);--offset-x:var(--base-offset-x,0px);--offset-y:var(--base-offset-y,0px);margin:0;background:var(--background);color:var(--text);text-align:var(--align);min-height:var(--min-height);padding:var(--padding-top) var(--padding-inline) var(--padding-bottom);border-radius:var(--radius);transform:translate(var(--offset-x),var(--offset-y))}
 .block-inner{width:min(100%,var(--width));margin-inline:auto}
@@ -293,8 +307,22 @@ a{color:inherit}
 @media (max-width:760px){
   .site-header{min-height:64px;padding-inline:max(14px,env(safe-area-inset-left))}
   .header-inner{grid-template-columns:minmax(0,1fr) auto;gap:10px}
-  .header-inner nav{grid-column:1/-1;justify-content:flex-start;overflow:auto;padding-bottom:2px;scrollbar-width:none}
-  .header-inner nav::-webkit-scrollbar{display:none}
+  .desktop-navigation,.header-actions{display:none!important}
+  .mobile-menu-toggle{display:grid;width:44px;height:44px;place-content:center;gap:5px;padding:0;border:1px solid color-mix(in srgb,var(--header-text) 16%,transparent);border-radius:13px;background:color-mix(in srgb,var(--header-bg) 70%,transparent);color:var(--header-text)}
+  .mobile-menu-toggle span{display:block;width:20px;height:2px;border-radius:2px;background:currentColor;transition:transform .22s ease,opacity .22s ease}
+  .mobile-menu-backdrop{position:fixed;inset:0;z-index:30;border:0;background:rgba(12,14,17,.48);opacity:0;pointer-events:none;transition:opacity .24s ease}
+  .mobile-navigation{position:fixed;top:0;right:0;bottom:0;z-index:31;display:grid;width:min(84vw,330px);align-content:start;gap:20px;padding:max(22px,env(safe-area-inset-top)) 20px 24px;background:var(--header-bg);color:var(--header-text);box-shadow:-18px 0 60px rgba(0,0,0,.24);transform:translateX(105%);transition:transform .26s cubic-bezier(.2,.8,.2,1)}
+  .mobile-navigation>header{display:flex;align-items:center;justify-content:space-between}
+  .mobile-navigation>header strong{font-size:1.15rem}
+  .mobile-navigation>header button{display:grid;width:42px;height:42px;place-items:center;padding:0;border:0;border-radius:12px;background:color-mix(in srgb,currentColor 9%,transparent);color:inherit;font-size:1.7rem}
+  .mobile-navigation nav{display:grid;gap:7px}
+  .mobile-navigation nav a{display:block;padding:.85rem 1rem;border-radius:12px;text-decoration:none;font-weight:750}
+  .mobile-navigation nav a[aria-current="page"]{background:color-mix(in srgb,var(--header-accent) 16%,transparent);color:var(--header-accent)}
+  .mobile-navigation-actions{display:grid;gap:10px;margin-top:8px}
+  .mobile-navigation-actions .visual-button,.mobile-navigation-actions .install-app-button{display:flex;width:100%;justify-content:center}
+  body.portal-menu-open .mobile-menu-backdrop{display:block;opacity:1;pointer-events:auto}
+  body.portal-menu-open .mobile-navigation{transform:translateX(0)}
+  body.portal-menu-open{overflow:hidden}
   .header-actions .visual-button{display:none}
   .header-centered .header-inner{grid-template-columns:1fr}
   .brand img{max-width:142px;max-height:38px}
@@ -356,7 +384,7 @@ function visualPortalHeaders(pwaEnabled = false) {
     "cache-control": "public, max-age=60, stale-while-revalidate=300",
     "content-security-policy": [
       "default-src 'none'",
-      pwaEnabled ? "script-src 'self'" : "script-src 'none'",
+      "script-src 'self'",
       "style-src 'unsafe-inline'",
       "img-src 'self' data:",
       "media-src 'self'",
@@ -377,25 +405,45 @@ function serveVisualPortalManifest({ portal, document, head }) {
   if (!document.settings.pwa.install_enabled) throw notFoundError("Manifesto não encontrado.");
   const favicon = document.settings.favicon_media_asset_id ? `/media/${document.settings.favicon_media_asset_id}` : safeMediaPath(portal.icon_url);
   const startUrl = `/${portal.hotel_slug}/${portal.portal_slug}`;
+  const generatedIcon = `${startUrl}/app-icon.svg`;
   const payload = {
     id: startUrl,
     name: document.settings.pwa.app_name || portal.title,
     short_name: document.settings.pwa.short_name || portal.hotel_short_name || portal.hotel_name,
     description: document.settings.pwa.description || portal.title,
-    start_url: `${startUrl}/`,
-    scope: `${startUrl}/`,
+    start_url: startUrl,
+    scope: startUrl,
     display: document.settings.pwa.display,
     background_color: document.settings.background_color,
     theme_color: document.settings.primary_color,
-    icons: favicon ? [{ src: favicon, sizes: "any", purpose: "any maskable" }] : [],
+    icons: [
+      ...(favicon ? [{ src: favicon, sizes: "192x192 512x512", purpose: "any" }] : []),
+      { src: generatedIcon, sizes: "any", type: "image/svg+xml", purpose: "any maskable" },
+    ],
+    prefer_related_applications: false,
   };
   const headers = { "content-type": "application/manifest+json; charset=utf-8", "cache-control": "public, max-age=60", "x-content-type-options": "nosniff" };
   return new Response(head ? null : JSON.stringify(payload), { status: 200, headers });
 }
 
+function serveVisualPortalAppIcon({ portal, document, head }) {
+  if (!document.settings.pwa.install_enabled) throw notFoundError("Ícone do aplicativo não encontrado.");
+  const label = String(portal.hotel_short_name || portal.hotel_name || "F").trim().slice(0, 2).toUpperCase();
+  const color = document.settings.primary_color;
+  const source = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="${escapeAttr(color)}"/><text x="256" y="300" text-anchor="middle" fill="#fff" font-family="system-ui,sans-serif" font-size="210" font-weight="800">${escapeHtml(label)}</text></svg>`;
+  return new Response(head ? null : source, {
+    status: 200,
+    headers: {
+      "content-type": "image/svg+xml; charset=utf-8",
+      "cache-control": "public, max-age=3600",
+      "x-content-type-options": "nosniff",
+    },
+  });
+}
+
 function serveVisualPortalServiceWorker({ portal, head }) {
-  const scope = `/${portal.hotel_slug}/${portal.portal_slug}/`;
-  const source = `self.addEventListener("install",event=>event.waitUntil(self.skipWaiting()));self.addEventListener("activate",event=>event.waitUntil(self.clients.claim()));self.addEventListener("fetch",event=>{const url=new URL(event.request.url);if(event.request.method!=="GET"||url.origin!==self.location.origin||!url.pathname.startsWith(${JSON.stringify(scope)}))return;event.respondWith(fetch(event.request));});`;
+  const scope = `/${portal.hotel_slug}/${portal.portal_slug}`;
+  const source = `self.addEventListener("install",event=>event.waitUntil(self.skipWaiting()));self.addEventListener("activate",event=>event.waitUntil(self.clients.claim()));self.addEventListener("fetch",event=>{const url=new URL(event.request.url);const scope=${JSON.stringify(scope)};if(event.request.method!=="GET"||url.origin!==self.location.origin||(url.pathname!==scope&&!url.pathname.startsWith(scope+"/")))return;event.respondWith(fetch(event.request));});`;
   return new Response(head ? null : source, {
     status: 200,
     headers: {

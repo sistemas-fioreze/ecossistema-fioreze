@@ -2248,8 +2248,9 @@ function renderContentList() {
 function renderContentRow(item, type) {
   if (type === "visual_portals") {
     const canEdit = hasPermission(currentSession, PORTALS_HOTELS_SETTINGS_PERMISSION) && item.status !== "archived";
+    const canDelete = hasPermission(currentSession, PORTALS_HOTELS_SETTINGS_PERMISSION) && item.status === "archived";
     const canCreateLink = item.status === "published" && hasPermission(currentSession, PORTALS_LINKS_CREATE_PERMISSION);
-    return `<article class="admin-data-row admin-content-row admin-visual-portal-row"><span class="admin-role-icon">${featureSvg("builder")}</span><div class="admin-row-copy"><strong>${escapeHtml(item.name)}</strong><a href="${escapeAttr(item.public_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.public_url)}</a><small>Portal personalizado · versão ${Number(item.draft_revision)}${item.has_unpublished_changes ? " · alterações pendentes" : ""}</small></div><span class="admin-status-chip" data-status="${escapeAttr(item.status)}">${contentStatus(item.status)}</span><div class="admin-row-actions">${canEdit ? `<button class="admin-builder-launch" type="button" data-content-action="builder" data-id="${escapeAttr(item.id)}">${featureSvg("builder")} Abrir construtor</button>` : ""}${canCreateLink ? `<button type="button" data-content-action="create-link" data-id="${escapeAttr(item.id)}">Link e QR</button>` : ""}${canEdit ? `<button type="button" data-content-action="duplicate-visual" data-id="${escapeAttr(item.id)}">Duplicar</button><button class="danger" type="button" data-content-action="archive-visual" data-id="${escapeAttr(item.id)}">Arquivar</button>` : ""}</div></article>`;
+    return `<article class="admin-data-row admin-content-row admin-visual-portal-row"><span class="admin-role-icon">${featureSvg("builder")}</span><div class="admin-row-copy"><strong>${escapeHtml(item.name)}</strong><a href="${escapeAttr(item.public_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.public_url)}</a><small>Portal personalizado · versão ${Number(item.draft_revision)}${item.has_unpublished_changes ? " · alterações pendentes" : ""}</small></div><span class="admin-status-chip" data-status="${escapeAttr(item.status)}">${contentStatus(item.status)}</span><div class="admin-row-actions">${canEdit ? `<button class="admin-builder-launch" type="button" data-content-action="builder" data-id="${escapeAttr(item.id)}">${featureSvg("builder")} Abrir construtor</button>` : ""}${canCreateLink ? `<button type="button" data-content-action="create-link" data-id="${escapeAttr(item.id)}">Link e QR</button>` : ""}${canEdit ? `<button type="button" data-content-action="duplicate-visual" data-id="${escapeAttr(item.id)}">Duplicar</button><button class="danger" type="button" data-content-action="archive-visual" data-id="${escapeAttr(item.id)}">Arquivar</button>` : ""}${canDelete ? `<button class="danger" type="button" data-content-action="delete-visual" data-id="${escapeAttr(item.id)}">Excluir definitivamente</button>` : ""}</div></article>`;
   }
   if (type === "pages") {
     return `<article class="admin-data-row admin-content-row"><span class="admin-role-icon">${featureSvg("page")}</span><div class="admin-row-copy"><strong>${escapeHtml(item.title)}</strong><span>/${escapeHtml(item.slug)}</span><small>${Number(item.section_count || 0)} seção(ões) · ordem ${Number(item.sort_order || 0)}</small></div><span class="admin-status-chip" data-status="${escapeAttr(item.status)}">${contentStatus(item.status)}</span><div class="admin-row-actions"><button type="button" data-content-action="sections" data-id="${escapeAttr(item.id)}">Seções</button><button type="button" data-content-action="edit" data-id="${escapeAttr(item.id)}">Editar</button></div></article>`;
@@ -2287,6 +2288,7 @@ function handleContentClick(event) {
   if (action.dataset.contentAction === "create-link") return createShortLinkFromCustomPage(item);
   if (action.dataset.contentAction === "duplicate-visual") return duplicateVisualPortal(item);
   if (action.dataset.contentAction === "archive-visual") return archiveVisualPortal(item);
+  if (action.dataset.contentAction === "delete-visual") return deleteVisualPortal(item);
   if (action.dataset.contentAction === "archive-custom") return archiveCustomPage(item);
   openContentEditor(item);
 }
@@ -2400,13 +2402,49 @@ function duplicateVisualPortal(item) {
 }
 
 async function archiveVisualPortal(item) {
-  if (!window.confirm(`Arquivar o portal “${item.name}”? O endereço público deixará de responder.`)) return;
-  try {
-    await adminApi(`/api/v1/admin/visual-portals/${encodeURIComponent(item.id)}`, { method: "DELETE", body: {} });
-    await loadPortalContent();
-  } catch (error) {
-    els.contentMessage.textContent = error.message || "Não foi possível arquivar o portal.";
-  }
+  els.dialogTitle.textContent = "Arquivar portal";
+  els.dialogBody.innerHTML = contentForm("archive-visual-portal", `<aside class="admin-sanitization-note"><strong>${escapeHtml(item.name)}</strong><span>O endereço público deixará de responder. Você poderá excluir o portal definitivamente depois de arquivá-lo.</span></aside>`);
+  const submit = els.dialogBody.querySelector('button[type="submit"]');
+  submit.textContent = "Arquivar portal";
+  openPortalsDialog();
+  bindDialogForm(async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    try {
+      form.querySelector(".admin-dialog-message").textContent = "Arquivando portal...";
+      await adminApi(`/api/v1/admin/visual-portals/${encodeURIComponent(item.id)}`, { method: "DELETE", body: {} });
+      closePortalsDialog();
+      await loadPortalContent();
+    } catch (error) {
+      form.querySelector(".admin-dialog-message").textContent = error.message || "Não foi possível arquivar o portal.";
+    }
+  });
+}
+
+function deleteVisualPortal(item) {
+  els.dialogTitle.textContent = "Excluir portal definitivamente";
+  els.dialogBody.innerHTML = contentForm("delete-visual-portal", `<aside class="admin-sanitization-note"><strong>${escapeHtml(item.name)}</strong><span>Esta ação apaga o portal e todas as versões salvas. Ela não pode ser desfeita.</span></aside><label><span>Digite EXCLUIR para confirmar</span><input name="confirmation" autocomplete="off" required></label>`);
+  const submit = els.dialogBody.querySelector('button[type="submit"]');
+  submit.textContent = "Excluir definitivamente";
+  submit.classList.add("danger");
+  openPortalsDialog();
+  bindDialogForm(async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const message = form.querySelector(".admin-dialog-message");
+    if (String(new FormData(form).get("confirmation") || "").trim().toUpperCase() !== "EXCLUIR") {
+      message.textContent = "Digite EXCLUIR para confirmar a exclusão.";
+      return;
+    }
+    try {
+      message.textContent = "Excluindo portal...";
+      await adminApi(`/api/v1/admin/visual-portals/${encodeURIComponent(item.id)}/permanent`, { method: "DELETE", body: {} });
+      closePortalsDialog();
+      await loadPortalContent();
+    } catch (error) {
+      message.textContent = error.message || "Não foi possível excluir o portal.";
+    }
+  });
 }
 
 async function saveContent(event, item) {

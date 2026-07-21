@@ -286,6 +286,37 @@ export async function archiveAdminVisualPortal({ request, env, session, portalId
   return { portal: formatPortal(archived, { request, env, includeDocument: true }), archived: true };
 }
 
+export async function deleteAdminVisualPortal({ request, env, session, portalId }) {
+  requirePermission(session, HOTELS_SETTINGS_PERMISSION);
+  assertAdminMutationAllowed({ request });
+  const current = await loadPortalForSession({ env, session, portalId, includeDocument: true });
+  if (!current) throw notFoundError("Portal visual nao encontrado.");
+  if (current.status !== "archived") throw badRequest("Arquive o portal antes de exclui-lo definitivamente.");
+  const now = requestNow({ request, env });
+  const results = await batch(env, [
+    conditionalPortalStatusAuditStatement(env, {
+      hotelId: current.hotel_id,
+      moduleKey: current.module_key,
+      actorUserId: session.user.id,
+      action: "visual-portal.delete",
+      entityId: portalId,
+      metadata: { slug: current.slug, permanent: true },
+      createdAt: now,
+      status: "archived",
+    }),
+    statement(
+      env,
+      `DELETE FROM visual_portals
+        WHERE id = ? AND hotel_id = ? AND status = 'archived'`,
+      [portalId, current.hotel_id],
+    ),
+  ]);
+  if (Number(results?.[1]?.meta?.changes || 0) !== 1) {
+    throw conflict("O portal foi alterado antes da exclusao. Recarregue e tente novamente.");
+  }
+  return { id: portalId, deleted: true };
+}
+
 export async function listAdminVisualPortalVersions({ env, session, portalId }) {
   requirePermission(session, HOTELS_READ_PERMISSION);
   const portal = await loadPortalForSession({ env, session, portalId });
@@ -656,6 +687,23 @@ function auditStatement(env, { hotelId, moduleKey, actorUserId, action, entityId
        entity_id, metadata_json, created_at
      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [createPublicId("audit"), hotelId, moduleKey, actorUserId, action, entityType, entityId, JSON.stringify(metadata), createdAt],
+  );
+}
+
+function conditionalPortalStatusAuditStatement(env, { hotelId, moduleKey, actorUserId, action, entityId, metadata, createdAt, status }) {
+  return statement(
+    env,
+    `INSERT INTO admin_audit_log (
+       id, hotel_id, module_key, actor_user_id, action, entity_type,
+       entity_id, metadata_json, created_at
+     )
+     SELECT ?, ?, ?, ?, ?, 'visual_portal', ?, ?, ?
+       FROM visual_portals
+      WHERE id = ? AND hotel_id = ? AND status = ?`,
+    [
+      createPublicId("audit"), hotelId, moduleKey, actorUserId, action,
+      entityId, JSON.stringify(metadata), createdAt, entityId, hotelId, status,
+    ],
   );
 }
 

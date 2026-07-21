@@ -136,6 +136,7 @@ Implementados:
 - `GET /api/v1/admin/visual-portals/:id`
 - `PATCH /api/v1/admin/visual-portals/:id`
 - `DELETE /api/v1/admin/visual-portals/:id`
+- `DELETE /api/v1/admin/visual-portals/:id/permanent` (somente portal arquivado)
 - `POST /api/v1/admin/visual-portals/:id/publish`
 - `POST /api/v1/admin/visual-portals/:id/duplicate`
 - `GET /api/v1/admin/visual-portals/:id/versions`
@@ -170,6 +171,7 @@ Implementados:
 - `GET /:hotel_slug/:portal_slug/:page_slug` (página interna do portal visual)
 - `GET /:hotel_slug/:portal_slug/manifest.webmanifest` (manifesto opcional do portal instalável)
 - `GET /:hotel_slug/:portal_slug/sw.js` (service worker restrito ao portal instalável)
+- `GET /:hotel_slug/:portal_slug/app-icon.svg` (ícone gerado do portal instalável)
 - `GET|HEAD /portal/:hotel_slug/:portal_slug` redireciona para a URL canônica
 
 Contratos futuros:

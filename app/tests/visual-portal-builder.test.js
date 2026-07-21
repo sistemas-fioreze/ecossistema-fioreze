@@ -7,6 +7,7 @@ import {
   archiveAdminVisualPortal,
   createAdminVisualPortal,
   createAdminVisualPortalTemplate,
+  deleteAdminVisualPortal,
   getAdminVisualPortal,
   getAdminVisualPortalVersion,
   listAdminVisualPortalVersions,
@@ -139,6 +140,22 @@ test("modelo do Portal do Hospede oferece paginas, navegacao e links internos", 
     page: document.pages.find((page) => page.id === "servicos"),
   }), /href="\/hotel-ficticio\/room-service"/);
   assert.match(html, /Navega[cç][aã]o do site/);
+  assert.match(html, /data-mobile-menu-toggle/);
+  assert.match(html, /class="mobile-navigation"/);
+});
+
+test("cabecalho respeita visibilidade, transparencia e paginas ocultas", () => {
+  const document = visualPortalTemplateDocument("guest-portal-classic");
+  document.settings.header.transparent = true;
+  document.pages.find((page) => page.id === "blog").show_in_navigation = false;
+  const portal = { title: "Portal", portal_slug: "inicio", hotel_name: "Hotel", hotel_short_name: "Hotel", hotel_slug: "hotel-ficticio", module_key: "guest-portal", locale: "pt-BR" };
+  const html = renderVisualPortalPage({ portal, document });
+  assert.match(html, /site-header[^"\n]*is-transparent/);
+  assert.doesNotMatch(html, />Blog<\/a>/);
+  assert.match(html, />Serviços<\/a>/);
+
+  document.settings.header.enabled = false;
+  assert.doesNotMatch(renderVisualPortalPage({ portal, document }), /class="site-header/);
 });
 
 test("slug reservado do Room Service nao pode ser usado por portal personalizado", async () => {
@@ -363,10 +380,16 @@ test("CRUD visual salva versoes, valida isolamento e publica renderizacao segura
   );
   const manifestResponse = await serveVisualPortal({ env, params: { hotel_slug: "muller-fioreze", portal_slug: "experiencias", resource: "manifest" } });
   const manifest = await manifestResponse.json();
-  assert.equal(manifest.start_url, "/muller-fioreze/experiencias/");
+  assert.equal(manifest.start_url, "/muller-fioreze/experiencias");
+  assert.equal(manifest.scope, "/muller-fioreze/experiencias");
   assert.equal(manifest.display, "standalone");
+  assert.ok(manifest.icons.some((icon) => icon.src.endsWith("/app-icon.svg") && icon.type === "image/svg+xml"));
+  const iconResponse = await serveVisualPortal({ env, params: { hotel_slug: "muller-fioreze", portal_slug: "experiencias", resource: "app-icon" } });
+  assert.equal(iconResponse.headers.get("content-type"), "image/svg+xml; charset=utf-8");
+  assert.match(await iconResponse.text(), /<svg/);
   const workerResponse = await serveVisualPortal({ env, params: { hotel_slug: "muller-fioreze", portal_slug: "experiencias", resource: "service-worker" } });
   assert.equal(workerResponse.headers.get("content-type"), "text/javascript; charset=utf-8");
+  assert.equal(workerResponse.headers.get("service-worker-allowed"), "/muller-fioreze/experiencias");
   assert.match(await workerResponse.text(), /self\.addEventListener\("fetch"/);
 
   env.ASSETS = {
@@ -418,11 +441,20 @@ test("CRUD visual salva versoes, valida isolamento e publica renderizacao segura
   });
   assert.equal(env.DB.raw.prepare("SELECT COUNT(*) AS total FROM visual_portal_templates").get().total, 1);
 
+  await assert.rejects(
+    () => deleteAdminVisualPortal({ request: jsonRequest("DELETE", {}), env, session: SESSION, portalId: created.portal.id }),
+    (error) => error.status === 400,
+  );
   await archiveAdminVisualPortal({ request: jsonRequest("DELETE", {}), env, session: SESSION, portalId: created.portal.id });
   await assert.rejects(
     () => serveVisualPortal({ env, params: { hotel_slug: "muller-fioreze", portal_slug: "experiencias" } }),
     (error) => error.status === 404,
   );
+  const deleted = await deleteAdminVisualPortal({ request: jsonRequest("DELETE", {}), env, session: SESSION, portalId: created.portal.id });
+  assert.equal(deleted.deleted, true);
+  assert.equal(env.DB.raw.prepare("SELECT COUNT(*) AS total FROM visual_portals WHERE id = ?").get(created.portal.id).total, 0);
+  assert.equal(env.DB.raw.prepare("SELECT COUNT(*) AS total FROM visual_portal_versions WHERE portal_id = ?").get(created.portal.id).total, 0);
+  assert.equal(env.DB.raw.prepare("SELECT COUNT(*) AS total FROM admin_audit_log WHERE action = 'visual-portal.delete' AND entity_id = ?").get(created.portal.id).total, 1);
 });
 
 test("renderer escapa textos e nunca transforma conteudo em script", () => {
@@ -442,7 +474,8 @@ test("renderer escapa textos e nunca transforma conteudo em script", () => {
     document,
     media: new Map(),
   });
-  assert.doesNotMatch(html, /<script|<img src=x/i);
+  assert.doesNotMatch(html, /<img src=x/i);
+  assert.match(html, /<script src="\/js\/modules\/visual-portal-runtime\.js" defer><\/script>/);
   assert.doesNotMatch(html, /onerror="/i);
   assert.match(html, /&lt;script&gt;segredo\(\)&lt;\/script&gt;/);
 });
@@ -465,6 +498,10 @@ test("Central integra construtor visual e Worker-first preserva a rota publica",
   assert.match(builder, /data-preview-viewport="desktop"/);
   assert.match(builder, /data-preview-viewport="mobile"/);
   assert.match(builder, /data-builder-tab="pages"/);
+  assert.match(builder, /data-builder-open-public/);
+  assert.match(builder, /data-editor-page-link/);
+  assert.match(builder, /data-toggle-scope/);
+  assert.match(builder, /role="switch"/);
   assert.match(builder, /data-add-page/);
   assert.match(builder, /data-preview-version/);
   assert.match(builder, /autosave_interval_seconds/);
@@ -478,6 +515,10 @@ test("Central integra construtor visual e Worker-first preserva a rota publica",
   assert.match(builder, /visual-portal-templates/);
   assert.match(builder, /fitCanvas\(true\)/);
   assert.doesNotMatch(builder, /window\.(?:alert|confirm|prompt)\(/);
+  const runtime = fs.readFileSync("public/js/modules/visual-portal-runtime.js", "utf8");
+  assert.match(runtime, /beforeinstallprompt/);
+  assert.match(runtime, /data-mobile-menu-toggle/);
+  assert.doesNotMatch(runtime, /window\.(?:alert|confirm|prompt)\(/);
   assert.match(css, /grid-template-columns:\s*286px minmax\(0, 1fr\) 318px/);
   assert.match(css, /\.vp-live-preview\[data-viewport="mobile"\]/);
   assert.doesNotMatch(portals, /\["modulos", "Áreas"/);
