@@ -17,6 +17,7 @@ const PORTAL_STATUSES = new Set(["draft", "published", "archived"]);
 const BLOCKED_MODULES = new Set(["admin", "room-service"]);
 const RESERVED_PORTAL_SLUGS = new Set(["room-service"]);
 const BUILT_IN_TEMPLATES = [
+  { id: "builtin-guest-portal-classic", template_key: "guest-portal-classic", name: "Portal do Hóspede Fioreze", description: "Site completo com Início, Serviços, Eventos, Hotel, Blog e Como chegar.", builtin: true },
   { id: "builtin-showcase", template_key: "showcase", name: "Hospitalidade moderna", description: "Capa, experiências e destaques com cartões arredondados.", builtin: true },
   { id: "builtin-digital-store", template_key: "digital-store", name: "Loja digital", description: "Vitrine responsiva para produtos, presentes e experiências.", builtin: true },
   { id: "builtin-campaign", template_key: "campaign", name: "Campanha", description: "Página de conversão com mensagem e chamada principal.", builtin: true },
@@ -303,6 +304,34 @@ export async function listAdminVisualPortalVersions({ env, session, portalId }) 
   return { versions };
 }
 
+export async function getAdminVisualPortalVersion({ env, session, portalId, versionId }) {
+  requirePermission(session, HOTELS_READ_PERMISSION);
+  const portal = await loadPortalForSession({ env, session, portalId });
+  if (!portal) throw notFoundError("Portal visual não encontrado.");
+  const version = await first(
+    env,
+    `SELECT v.id, v.portal_id, v.revision, v.version_type, v.document_json,
+            v.created_at, u.display_name AS created_by_name
+       FROM visual_portal_versions v
+       JOIN admin_users u ON u.id = v.created_by_user_id
+      WHERE v.id = ? AND v.portal_id = ? AND v.hotel_id = ?
+      LIMIT 1`,
+    [versionId, portalId, portal.hotel_id],
+  );
+  if (!version) throw notFoundError("Versão do portal não encontrada.");
+  return {
+    version: {
+      id: version.id,
+      portal_id: version.portal_id,
+      revision: Number(version.revision),
+      version_type: version.version_type,
+      created_at: version.created_at,
+      created_by_name: version.created_by_name,
+      document: normalizeVisualPortalDocument(JSON.parse(version.document_json)),
+    },
+  };
+}
+
 export async function restoreAdminVisualPortalVersion({ request, env, session, portalId, versionId }) {
   requirePermission(session, HOTELS_SETTINGS_PERMISSION);
   assertAdminMutationAllowed({ request });
@@ -391,7 +420,7 @@ export async function getAdminVisualPortalTemplate({ env, session, templateId, u
   if (!template || template.hotel_id !== hotelId || template.module_key !== moduleKey || template.status !== "active") {
     throw notFoundError("Modelo visual nao encontrado.");
   }
-  return { template: { ...template, builtin: false, document: JSON.parse(template.document_json) } };
+  return { template: { ...template, builtin: false, document: normalizeVisualPortalDocument(JSON.parse(template.document_json)) } };
 }
 
 export async function createAdminVisualPortalTemplate({ request, env, session }) {
@@ -605,8 +634,10 @@ function formatPortal(row, { request, env, includeDocument = false }) {
     archived_at: row.archived_at || null,
   };
   if (includeDocument) {
-    portal.document = JSON.parse(row.draft_document_json);
-    portal.published_document = row.published_document_json ? JSON.parse(row.published_document_json) : null;
+    portal.document = normalizeVisualPortalDocument(JSON.parse(row.draft_document_json));
+    portal.published_document = row.published_document_json
+      ? normalizeVisualPortalDocument(JSON.parse(row.published_document_json))
+      : null;
   }
   return portal;
 }

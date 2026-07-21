@@ -8,6 +8,7 @@ import {
   createAdminVisualPortal,
   createAdminVisualPortalTemplate,
   getAdminVisualPortal,
+  getAdminVisualPortalVersion,
   listAdminVisualPortalVersions,
   publishAdminVisualPortal,
   updateAdminVisualPortal,
@@ -69,45 +70,75 @@ test("documento visual normaliza estilos responsivos e referencias de midia", ()
   });
 
   assert.equal(document.settings.primary_color, "#a8513e");
-  assert.equal(document.blocks[0].styles.desktop.min_height, 620);
+  assert.equal(homeBlocks(document)[0].styles.desktop.min_height, 620);
   assert.deepEqual(collectVisualPortalMediaIds(document), ["media_12345678", "media_87654321"]);
 });
 
 test("documento visual rejeita codigo, links e referencias fora da lista permitida", () => {
   const blank = createBlankVisualPortalDocument();
   const unsafe = structuredClone(blank);
-  unsafe.blocks.push({
+  homeBlocks(unsafe).push({
     id: "botao-inseguro",
     type: "button",
     content: { text: "Executar", url: "javascript:alert(1)" },
     styles: { base: {}, desktop: {}, mobile: {} },
   });
-  assert.throws(() => normalizeVisualPortalDocument(unsafe), /endereco de link.*nao e permitido/i);
+  assert.throws(() => normalizeVisualPortalDocument(unsafe), /endere[cç]o de link.*n[aã]o [eé] permitido/i);
 
   const invalidMedia = structuredClone(blank);
-  invalidMedia.blocks[0].content.media_asset_id = "arquivo-fora-da-biblioteca";
-  assert.throws(() => normalizeVisualPortalDocument(invalidMedia), /referencia de midia invalida/i);
+  homeBlocks(invalidMedia)[0].content.media_asset_id = "arquivo-fora-da-biblioteca";
+  assert.throws(() => normalizeVisualPortalDocument(invalidMedia), /refer[eê]ncia de m[ií]dia inv[aá]lida/i);
 });
 
 test("modelos internos oferecem pagina completa, servico e tela livre", () => {
   const showcase = visualPortalTemplateDocument("showcase", { primary_color: "#17594a", font_family: "system-ui" });
   const service = visualPortalTemplateDocument("service");
   const blank = visualPortalTemplateDocument("blank");
-  assert.ok(showcase.blocks.some((block) => block.type === "feature-grid"));
-  assert.equal(showcase.blocks[0].styles.mobile.heading_size, 48);
-  assert.equal(showcase.blocks.find((block) => block.type === "feature-grid").styles.mobile.columns, 1);
-  assert.ok(service.blocks.some((block) => block.type === "button"));
-  assert.equal(blank.blocks.length, 0);
+  assert.ok(homeBlocks(showcase).some((block) => block.type === "feature-grid"));
+  assert.equal(homeBlocks(showcase)[0].styles.mobile.heading_size, 48);
+  assert.equal(homeBlocks(showcase).find((block) => block.type === "feature-grid").styles.mobile.columns, 1);
+  assert.ok(homeBlocks(service).some((block) => block.type === "button"));
+  assert.equal(homeBlocks(blank).length, 0);
 });
 
 test("modelos modernos incluem loja digital, campanha e agenda", () => {
   const store = visualPortalTemplateDocument("digital-store");
   const campaign = visualPortalTemplateDocument("campaign");
   const events = visualPortalTemplateDocument("events");
-  assert.ok(store.blocks.some((block) => block.id === "vitrine" && block.type === "feature-grid"));
-  assert.equal(store.blocks.find((block) => block.id === "vitrine").styles.base.border_radius, 24);
-  assert.ok(campaign.blocks.some((block) => block.id === "acao-campanha"));
-  assert.ok(events.blocks.some((block) => block.id === "agenda"));
+  assert.ok(homeBlocks(store).some((block) => block.id === "vitrine" && block.type === "feature-grid"));
+  assert.equal(homeBlocks(store).find((block) => block.id === "vitrine").styles.base.border_radius, 24);
+  assert.ok(homeBlocks(campaign).some((block) => block.id === "acao-campanha"));
+  assert.ok(homeBlocks(events).some((block) => block.id === "agenda"));
+});
+
+test("documentos legados sao promovidos para site multipagina sem perder blocos", () => {
+  const document = normalizeVisualPortalDocument({
+    schema_version: 1,
+    settings: { primary_color: "#513b2d" },
+    blocks: [{ id: "texto-legado", type: "text", content: { text: "Conteúdo preservado" }, styles: { base: {}, desktop: {}, mobile: {} } }],
+  });
+  assert.equal(document.schema_version, 2);
+  assert.equal(document.pages.length, 1);
+  assert.equal(document.pages[0].slug, "");
+  assert.equal(document.pages[0].blocks[0].id, "texto-legado");
+});
+
+test("modelo do Portal do Hospede oferece paginas, navegacao e links internos", () => {
+  const document = visualPortalTemplateDocument("guest-portal-classic", { primary_color: "#8c3d2f", font_family: "system-ui" });
+  assert.deepEqual(document.pages.map((page) => page.slug), ["", "servicos", "eventos", "hotel", "blog", "como-chegar"]);
+  assert.equal(document.settings.header.style, "floating");
+  assert.equal(homeBlocks(document)[0].content.button_url, "page:servicos");
+  const html = renderVisualPortalPage({
+    portal: { title: "Portal", portal_slug: "inicio", hotel_name: "Hotel", hotel_short_name: "Hotel", hotel_slug: "hotel-ficticio", module_key: "guest-portal", locale: "pt-BR" },
+    document,
+  });
+  assert.match(html, /href="\/hotel-ficticio\/inicio\/servicos"/);
+  assert.match(renderVisualPortalPage({
+    portal: { title: "Portal", portal_slug: "inicio", hotel_name: "Hotel", hotel_short_name: "Hotel", hotel_slug: "hotel-ficticio", module_key: "guest-portal", locale: "pt-BR" },
+    document,
+    page: document.pages.find((page) => page.id === "servicos"),
+  }), /href="\/hotel-ficticio\/room-service"/);
+  assert.match(html, /Navega[cç][aã]o do site/);
 });
 
 test("slug reservado do Room Service nao pode ser usado por portal personalizado", async () => {
@@ -149,24 +180,36 @@ test("acoes de bloco movem, duplicam, reordenam e excluem o alvo correto", () =>
 
 test("fundo de pagina, posicao responsiva e incorporacao HTTPS sao normalizados", () => {
   const document = createBlankVisualPortalDocument();
-  document.settings.background_media_asset_id = "media_background01";
-  document.settings.background_overlay = 42;
-  document.settings.background_position = "top";
-  document.settings.background_fixed = true;
-  document.blocks[0].styles.desktop.offset_x = 36;
-  document.blocks[0].styles.mobile.offset_y = -24;
-  document.blocks.push({
+  document.pages[0].settings.background_media_asset_id = "media_background01";
+  document.pages[0].settings.background_overlay = 42;
+  document.pages[0].settings.background_position = "top";
+  document.pages[0].settings.background_fixed = true;
+  homeBlocks(document)[0].styles.desktop.offset_x = 36;
+  homeBlocks(document)[0].styles.mobile.offset_y = -24;
+  homeBlocks(document).push({
     id: "mapa-incorporado",
     type: "embed",
     content: { title: "Mapa", url: "https://www.google.com/maps/embed?pb=demo", aspect_ratio: "4:3", allow_fullscreen: true },
     styles: { base: { border_radius: 24 }, desktop: {}, mobile: {} },
     visibility: { desktop: true, mobile: true },
   });
+  document.settings.favicon_media_asset_id = "media_12345678";
+  document.settings.pwa.install_enabled = true;
+  document.settings.pwa.app_name = "Portal de experiências";
+  document.pages.push({
+    id: "servicos",
+    slug: "servicos",
+    name: "Serviços",
+    title: "Serviços",
+    show_in_navigation: true,
+    settings: structuredClone(document.pages[0].settings),
+    blocks: [{ id: "servicos-titulo", type: "heading", content: { title: "Serviços", text: "Conteúdo fictício" }, styles: { base: {}, desktop: {}, mobile: {} }, visibility: { desktop: true, mobile: true } }],
+  });
   const normalized = normalizeVisualPortalDocument(document);
-  assert.deepEqual(collectVisualPortalMediaIds(normalized), ["media_background01"]);
-  assert.equal(normalized.blocks[0].styles.desktop.offset_x, 36);
-  assert.equal(normalized.blocks[0].styles.mobile.offset_y, -24);
-  assert.equal(normalized.blocks[1].content.aspect_ratio, "4:3");
+  assert.deepEqual(collectVisualPortalMediaIds(normalized), ["media_12345678", "media_background01"]);
+  assert.equal(homeBlocks(normalized)[0].styles.desktop.offset_x, 36);
+  assert.equal(homeBlocks(normalized)[0].styles.mobile.offset_y, -24);
+  assert.equal(homeBlocks(normalized)[1].content.aspect_ratio, "4:3");
 
   const media = new Map([["media_background01", { id: "media_background01", public_url: "/media/media_background01", mime_type: "video/mp4", alt_text: "" }]]);
   const html = renderVisualPortalPage({
@@ -185,18 +228,37 @@ test("fundo de pagina, posicao responsiva e incorporacao HTTPS sao normalizados"
 test("incorporacao rejeita protocolos e destinos locais", () => {
   for (const url of ["javascript:alert(1)", "http://example.com/frame", "https://localhost/map", "https://192.168.1.10/frame", "https://[::1]/frame", "https://169.254.1.1/frame"]) {
     const document = createBlankVisualPortalDocument();
-    document.blocks.push({ id: "embed-invalido", type: "embed", content: { url }, styles: { base: {}, desktop: {}, mobile: {} } });
-    assert.throws(() => normalizeVisualPortalDocument(document), /incorporado.*nao e permitido|incorporado e invalido/i);
+    homeBlocks(document).push({ id: "embed-invalido", type: "embed", content: { url }, styles: { base: {}, desktop: {}, mobile: {} } });
+    assert.throws(() => normalizeVisualPortalDocument(document), /incorporado.*n[aã]o [eé] permitido|incorporado [eé] inv[aá]lido/i);
   }
+});
+
+test("HTML incorporado e sanitizado e isolado sem permissao de scripts", () => {
+  const document = createBlankVisualPortalDocument();
+  homeBlocks(document).push({
+    id: "html-incorporado",
+    type: "embed",
+    content: { mode: "html", title: "Conteúdo", html: '<section onclick="alert(1)"><h2>Conteúdo seguro</h2><script>roubar()</script></section>', aspect_ratio: "16:9" },
+    styles: { base: {}, desktop: {}, mobile: {} },
+    visibility: { desktop: true, mobile: true },
+  });
+  const normalized = normalizeVisualPortalDocument(document);
+  const embed = homeBlocks(normalized).at(-1);
+  assert.match(embed.content.html, /Conteúdo seguro/);
+  assert.doesNotMatch(embed.content.html, /script|onclick/i);
+  const html = renderVisualPortalPage({ portal: { title: "Portal", portal_slug: "site", hotel_name: "Hotel", hotel_slug: "hotel", module_key: "guest-portal", locale: "pt-BR" }, document: normalized });
+  assert.match(html, /srcdoc=/);
+  assert.match(html, /sandbox="allow-forms allow-popups allow-presentation"/);
+  assert.doesNotMatch(html, /srcdoc=.*allow-scripts/);
 });
 
 test("tipografia responsiva e limitada e renderizada por dispositivo", () => {
   const document = createBlankVisualPortalDocument();
-  document.blocks[0].styles.desktop.heading_size = 92;
-  document.blocks[0].styles.desktop.width = "wide";
-  document.blocks[0].styles.mobile.heading_size = 44;
-  document.blocks[0].styles.mobile.text_size = 15;
-  document.blocks[0].styles.mobile.width = "narrow";
+  homeBlocks(document)[0].styles.desktop.heading_size = 92;
+  homeBlocks(document)[0].styles.desktop.width = "wide";
+  homeBlocks(document)[0].styles.mobile.heading_size = 44;
+  homeBlocks(document)[0].styles.mobile.text_size = 15;
+  homeBlocks(document)[0].styles.mobile.width = "narrow";
   const normalized = normalizeVisualPortalDocument(document);
   const html = renderVisualPortalPage({
     portal: {
@@ -215,7 +277,7 @@ test("tipografia responsiva e limitada e renderizada por dispositivo", () => {
   assert.match(html, /--mobile-width:720px/);
 
   const invalid = structuredClone(document);
-  invalid.blocks[0].styles.mobile.heading_size = 161;
+  homeBlocks(invalid)[0].styles.mobile.heading_size = 161;
   assert.throws(() => normalizeVisualPortalDocument(invalid), /valor visual fora do intervalo/i);
 });
 
@@ -238,12 +300,29 @@ test("CRUD visual salva versoes, valida isolamento e publica renderizacao segura
   assert.equal(created.portal.public_url, "https://portal.hoteisfioreze.com.br/muller-fioreze/experiencias");
 
   const document = structuredClone(created.portal.document);
-  document.blocks.push({
+  homeBlocks(document).push({
     id: "imagem-hotel",
     type: "image",
     content: { media_asset_id: "media_12345678", alt_text: "Imagem ficticia", caption: "", fit: "cover" },
     styles: { base: { width: "wide", border_radius: 8 }, desktop: {}, mobile: {} },
     visibility: { desktop: true, mobile: true },
+  });
+  document.settings.favicon_media_asset_id = "media_12345678";
+  document.settings.pwa.install_enabled = true;
+  document.pages.push({
+    id: "servicos",
+    slug: "servicos",
+    name: "Serviços",
+    title: "Serviços",
+    show_in_navigation: true,
+    settings: structuredClone(document.pages[0].settings),
+    blocks: [{
+      id: "servicos-titulo",
+      type: "heading",
+      content: { title: "Serviços", text: "Conteúdo fictício" },
+      styles: { base: {}, desktop: {}, mobile: {} },
+      visibility: { desktop: true, mobile: true },
+    }],
   });
   const updated = await updateAdminVisualPortal({
     request: jsonRequest("PATCH", { document, expected_revision: 1 }),
@@ -256,6 +335,8 @@ test("CRUD visual salva versoes, valida isolamento e publica renderizacao segura
 
   const versions = await listAdminVisualPortalVersions({ env, session: SESSION, portalId: created.portal.id });
   assert.equal(versions.versions.length, 2);
+  const version = await getAdminVisualPortalVersion({ env, session: SESSION, portalId: created.portal.id, versionId: versions.versions[0].id });
+  assert.equal(version.version.document.pages.length, 2);
 
   const published = await publishAdminVisualPortal({
     request: jsonRequest("POST", {}), env, session: SESSION, portalId: created.portal.id,
@@ -267,10 +348,26 @@ test("CRUD visual salva versoes, valida isolamento e publica renderizacao segura
   const response = await serveVisualPortal({ env, params: { hotel_slug: "muller-fioreze", portal_slug: "experiencias" } });
   const html = await response.text();
   assert.equal(response.status, 200);
-  assert.match(response.headers.get("content-security-policy") || "", /script-src 'none'/);
+  assert.match(response.headers.get("content-security-policy") || "", /script-src 'self'/);
   assert.match(html, /Experiencias Fioreze/);
   assert.match(html, /\/media\/media_12345678/);
-  assert.doesNotMatch(html, /<script/i);
+  assert.match(html, /visual-portal-runtime\.js/);
+  assert.match(html, /rel="icon"/);
+
+  const servicesResponse = await serveVisualPortal({ env, params: { hotel_slug: "muller-fioreze", portal_slug: "experiencias", page_slug: "servicos" } });
+  assert.equal(servicesResponse.status, 200);
+  assert.match(await servicesResponse.text(), /Conteúdo fictício/);
+  await assert.rejects(
+    () => serveVisualPortal({ env, params: { hotel_slug: "muller-fioreze", portal_slug: "experiencias", page_slug: "inexistente" } }),
+    (error) => error.status === 404,
+  );
+  const manifestResponse = await serveVisualPortal({ env, params: { hotel_slug: "muller-fioreze", portal_slug: "experiencias", resource: "manifest" } });
+  const manifest = await manifestResponse.json();
+  assert.equal(manifest.start_url, "/muller-fioreze/experiencias/");
+  assert.equal(manifest.display, "standalone");
+  const workerResponse = await serveVisualPortal({ env, params: { hotel_slug: "muller-fioreze", portal_slug: "experiencias", resource: "service-worker" } });
+  assert.equal(workerResponse.headers.get("content-type"), "text/javascript; charset=utf-8");
+  assert.match(await workerResponse.text(), /self\.addEventListener\("fetch"/);
 
   env.ASSETS = {
     fetch: async (request) => new Response(`asset:${new URL(request.url).pathname}`, {
@@ -330,8 +427,8 @@ test("CRUD visual salva versoes, valida isolamento e publica renderizacao segura
 
 test("renderer escapa textos e nunca transforma conteudo em script", () => {
   const document = createBlankVisualPortalDocument();
-  document.blocks[0].content.title = '<img src=x onerror="alert(1)">';
-  document.blocks[0].content.text = "<script>segredo()</script>";
+  homeBlocks(document)[0].content.title = '<img src=x onerror="alert(1)">';
+  homeBlocks(document)[0].content.text = "<script>segredo()</script>";
   const html = renderVisualPortalPage({
     portal: {
       title: "Portal seguro",
@@ -367,11 +464,20 @@ test("Central integra construtor visual e Worker-first preserva a rota publica",
   assert.match(builder, /closest\("button\[data-viewport\]"\)/);
   assert.match(builder, /data-preview-viewport="desktop"/);
   assert.match(builder, /data-preview-viewport="mobile"/);
+  assert.match(builder, /data-builder-tab="pages"/);
+  assert.match(builder, /data-add-page/);
+  assert.match(builder, /data-preview-version/);
+  assert.match(builder, /autosave_interval_seconds/);
+  assert.match(builder, /data-header-field/);
+  assert.match(builder, /data-pwa-field/);
+  assert.match(builder, /data-link-page/);
+  assert.match(builder, /Room Service da unidade/);
   assert.match(builder, /data-media-target="page"/);
   assert.match(builder, /data-reset-position/);
   assert.match(builder, /type === "embed"/);
   assert.match(builder, /visual-portal-templates/);
   assert.match(builder, /fitCanvas\(true\)/);
+  assert.doesNotMatch(builder, /window\.(?:alert|confirm|prompt)\(/);
   assert.match(css, /grid-template-columns:\s*286px minmax\(0, 1fr\) 318px/);
   assert.match(css, /\.vp-live-preview\[data-viewport="mobile"\]/);
   assert.doesNotMatch(portals, /\["modulos", "Áreas"/);
@@ -467,4 +573,8 @@ function jsonRequest(method, body = undefined) {
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
+}
+
+function homeBlocks(document) {
+  return document.pages.find((page) => page.slug === "")?.blocks || [];
 }
