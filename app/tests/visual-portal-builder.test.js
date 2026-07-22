@@ -8,6 +8,7 @@ import {
   createAdminVisualPortal,
   createAdminVisualPortalTemplate,
   deleteAdminVisualPortal,
+  duplicateAdminVisualPortal,
   getAdminVisualPortal,
   getAdminVisualPortalVersion,
   listAdminVisualPortalVersions,
@@ -27,6 +28,7 @@ import {
   moveVisualBlock,
   reorderVisualBlock,
 } from "../public/js/modules/admin/portal-builder-state.js";
+import { MockR2Bucket } from "./helpers/mock-d1.js";
 
 const NOW = "2026-07-21T14:00:00.000Z";
 const SESSION = {
@@ -131,6 +133,9 @@ test("novos blocos normalizam limites e renderizam conteudo funcional", () => {
     { id: "duvidas", type: "faq", content: { title: "Dúvidas", items: [{ question: "Posso editar?", answer: "Sim, todo o conteúdo é editável." }] }, styles: { base: {}, desktop: {}, mobile: {} } },
     { id: "numeros", type: "stats", content: { title: "Indicadores", items: [{ value: "24h", label: "Atendimento" }] }, styles: { base: { columns: 3 }, desktop: {}, mobile: { columns: 1 } } },
     { id: "trajetoria", type: "timeline", content: { title: "Etapas", items: [{ period: "Agora", title: "Publicação", text: "Conteúdo disponível no portal." }] }, styles: { base: {}, desktop: {}, mobile: {} } },
+    { id: "depoimentos", type: "testimonials", content: { title: "Relatos", items: [{ quote: "Estadia excelente", author: "Visitante", role: "Hóspede" }] }, styles: { base: { columns: 2 }, desktop: {}, mobile: { columns: 1 } } },
+    { id: "facilidades", type: "icon-list", content: { title: "Facilidades", items: [{ icon: "map-pin", title: "Localização", text: "Perto de tudo." }] }, styles: { base: { columns: 2 }, desktop: {}, mobile: { columns: 1 } } },
+    { id: "chamada", type: "cta-banner", content: { title: "Reserve sua experiência", text: "Escolha como continuar.", buttons: [{ text: "Conhecer", url: "page:inicio", icon: "arrow-right", style: "solid" }] }, styles: { base: { border_radius: 28 }, desktop: {}, mobile: {} } },
   );
   const normalized = normalizeVisualPortalDocument(document);
   const html = renderVisualPortalPage({ portal: { title: "Portal", portal_slug: "site", hotel_name: "Hotel", hotel_slug: "hotel", module_key: "guest-portal", locale: "pt-BR" }, document: normalized });
@@ -138,8 +143,45 @@ test("novos blocos normalizam limites e renderizam conteudo funcional", () => {
   assert.match(html, /<details><summary>/);
   assert.match(html, /class="stats-grid"/);
   assert.match(html, /class="timeline-list"/);
+  assert.match(html, /class="testimonials-grid"/);
+  assert.match(html, /class="icon-list-grid"/);
+  assert.match(html, /class="block-inner cta-banner"/);
   assert.match(html, /Atendimento/);
   assert.match(html, /Publicação/);
+});
+
+test("cabecalho, cards e botoes aceitam alinhamento, transparencia e midia", () => {
+  const document = createBlankVisualPortalDocument();
+  document.settings.header.desktop_navigation_alignment = "left";
+  document.settings.header.mobile_menu_background_color = "#102030cc";
+  document.settings.header.mobile_menu_text_color = "#ffffffff";
+  document.settings.header.mobile_menu_blur = false;
+  const hero = homeBlocks(document)[0];
+  hero.content.buttons = [
+    { text: "Agenda", url: "page:inicio", icon: "calendar", style: "solid" },
+    { text: "Galeria", url: "page:inicio", media_asset_id: "media_12345678", style: "outline" },
+  ];
+  homeBlocks(document).push({
+    id: "servicos-overlay",
+    type: "feature-grid",
+    content: { layout: "overlay", text_background_color: "#11111199", items: [{ title: "Spa", text: "Bem-estar", media_asset_id: "media_12345678" }] },
+    styles: { base: { border_radius: 32 }, desktop: {}, mobile: {} },
+    visibility: { desktop: true, mobile: true },
+  });
+  const normalized = normalizeVisualPortalDocument(document);
+  const html = renderVisualPortalPage({
+    portal: { title: "Portal", portal_slug: "site", hotel_name: "Hotel", hotel_slug: "hotel", module_key: "guest-portal", locale: "pt-BR" },
+    document: normalized,
+    media: new Map([["media_12345678", { id: "media_12345678", public_url: "/media/media_12345678", mime_type: "image/webp" }]]),
+  });
+  assert.equal(normalized.settings.header.mobile_menu_background_color, "#102030cc");
+  assert.match(html, /navigation-left/);
+  assert.match(html, /--mobile-menu-bg:#102030cc/);
+  assert.doesNotMatch(html, /mobile-navigation has-menu-blur/);
+  assert.match(html, /feature-grid is-overlay/);
+  assert.match(html, /--card-copy-background:#11111199/);
+  assert.match(html, /class="button-media"/);
+  assert.deepEqual(collectVisualPortalMediaIds(normalized), ["media_12345678"]);
 });
 
 test("slug personalizado altera a rota e os links internos sem mudar o id da pagina", () => {
@@ -169,7 +211,7 @@ test("modelo do Portal do Hospede oferece paginas, navegacao e links internos", 
   }), /href="\/hotel-ficticio\/room-service"/);
   assert.match(html, /Navega[cç][aã]o do site/);
   assert.match(html, /data-mobile-menu-toggle/);
-  assert.match(html, /class="mobile-navigation"/);
+  assert.match(html, /class="mobile-navigation/);
 });
 
 test("cabecalho respeita visibilidade, transparencia e paginas ocultas", () => {
@@ -478,6 +520,42 @@ test("CRUD visual salva versoes, valida isolamento e publica renderizacao segura
   assert.equal(env.DB.raw.prepare("SELECT COUNT(*) AS total FROM admin_audit_log WHERE action = 'visual-portal.delete' AND entity_id = ?").get(created.portal.id).total, 1);
 });
 
+test("clonagem para outra unidade copia midias e reescreve referencias", async () => {
+  const env = createSqliteEnv();
+  await env.MEDIA_BUCKET.put("hotels/muller-fioreze/guest-portal/2026/07/media_12345678.webp", new Uint8Array([82, 73, 70, 70]), {
+    httpMetadata: { contentType: "image/webp" },
+  });
+  const session = {
+    ...SESSION,
+    hotel_ids: ["muller-fioreze", "aurora-demo"],
+    hotels: [{ hotel_id: "muller-fioreze" }, { hotel_id: "aurora-demo" }],
+    permissions: [...SESSION.permissions, "portals.media.read", "portals.media.upload"],
+  };
+  const created = await createAdminVisualPortal({
+    request: jsonRequest("POST", { hotel_id: "muller-fioreze", module_key: "guest-portal", slug: "origem", name: "Portal origem", title: "Portal origem", template_key: "blank" }),
+    env,
+    session,
+  });
+  const document = structuredClone(created.portal.document);
+  document.settings.favicon_media_asset_id = "media_12345678";
+  homeBlocks(document).push({ id: "foto", type: "image", content: { media_asset_id: "media_12345678", alt_text: "Foto fictícia" }, styles: { base: {}, desktop: {}, mobile: {} }, visibility: { desktop: true, mobile: true } });
+  await updateAdminVisualPortal({ request: jsonRequest("PATCH", { document, expected_revision: 1 }), env, session, portalId: created.portal.id });
+
+  const duplicated = await duplicateAdminVisualPortal({
+    request: jsonRequest("POST", { hotel_id: "aurora-demo", module_key: "guest-portal", slug: "copia", name: "Portal copiado", title: "Portal copiado" }),
+    env,
+    session,
+    portalId: created.portal.id,
+  });
+  const copiedMediaIds = collectVisualPortalMediaIds(duplicated.portal.document);
+  assert.equal(duplicated.portal.hotel_id, "aurora-demo");
+  assert.equal(copiedMediaIds.length, 1);
+  assert.notEqual(copiedMediaIds[0], "media_12345678");
+  assert.equal(env.DB.raw.prepare("SELECT hotel_id FROM media_assets WHERE id = ?").get(copiedMediaIds[0]).hotel_id, "aurora-demo");
+  assert.equal(env.MEDIA_BUCKET.objects.size, 2);
+  assert.equal(env.DB.raw.prepare("SELECT COUNT(*) AS total FROM admin_audit_log WHERE action = 'media.copy'").get().total, 1);
+});
+
 test("renderer escapa textos e nunca transforma conteudo em script", () => {
   const document = createBlankVisualPortalDocument();
   homeBlocks(document)[0].content.title = '<img src=x onerror="alert(1)">';
@@ -531,6 +609,13 @@ test("Central integra construtor visual e Worker-first preserva a rota publica",
   assert.match(builder, /data-link-page/);
   assert.match(builder, /Room Service da unidade/);
   assert.match(builder, /data-media-target="page"/);
+  assert.match(builder, /data-media-hotel/);
+  assert.match(builder, /data-media-upload/);
+  assert.match(builder, /media-folders/);
+  assert.match(builder, /event\.type === "input" && event\.target\.matches\("select"\)/);
+  assert.match(builder, /data-color-control/);
+  assert.match(builder, /data-add-action-button/);
+  assert.match(builder, /desktop_navigation_alignment/);
   assert.match(builder, /data-reset-position/);
   assert.match(builder, /type === "embed"/);
   assert.match(builder, /visual-portal-templates/);
@@ -543,6 +628,10 @@ test("Central integra construtor visual e Worker-first preserva a rota publica",
   assert.match(builder, /\["faq", "Perguntas frequentes"/);
   assert.match(builder, /\["stats", "Indicadores"/);
   assert.match(builder, /\["timeline", "Linha do tempo"/);
+  assert.match(builder, /\["testimonials", "Depoimentos"/);
+  assert.match(builder, /\["icon-list", "Lista com ícones"/);
+  assert.match(builder, /\["cta-banner", "Chamada destacada"/);
+  assert.match(portals, /Unidade de destino/);
   assert.match(css, /grid-template-columns:\s*286px minmax\(0, 1fr\) 318px/);
   assert.match(css, /\.vp-live-preview\[data-viewport="mobile"\]/);
   assert.doesNotMatch(portals, /\["modulos", "Áreas"/);
@@ -562,18 +651,37 @@ function createSqliteEnv() {
     CREATE TABLE hotel_branding (hotel_id TEXT PRIMARY KEY, logo_url TEXT, icon_url TEXT, primary_color TEXT, secondary_color TEXT, accent_color TEXT, background_color TEXT, text_color TEXT, font_family TEXT);
     CREATE TABLE admin_users (id TEXT PRIMARY KEY, display_name TEXT);
     CREATE TABLE admin_audit_log (id TEXT PRIMARY KEY, hotel_id TEXT, module_key TEXT, actor_user_id TEXT, action TEXT, entity_type TEXT, entity_id TEXT, metadata_json TEXT, created_at TEXT);
-    CREATE TABLE media_assets (id TEXT PRIMARY KEY, hotel_id TEXT, public_url TEXT, alt_text TEXT, mime_type TEXT, status TEXT);
+    CREATE TABLE media_assets (
+      id TEXT PRIMARY KEY, hotel_id TEXT, module_key TEXT, folder_id TEXT,
+      storage_provider TEXT, object_key TEXT, public_url TEXT, alt_text TEXT,
+      mime_type TEXT, status TEXT, created_at TEXT, updated_at TEXT,
+      archived_at TEXT, original_filename TEXT, size_bytes INTEGER,
+      checksum_sha256 TEXT, storage_etag TEXT, uploaded_by_user_id TEXT,
+      archived_by_user_id TEXT
+    );
     INSERT INTO hotels VALUES ('muller-fioreze','muller-fioreze','Muller ficticio','Muller','America/Sao_Paulo','pt-BR','active',NULL);
     INSERT INTO hotels VALUES ('aurora-demo','aurora-demo','Aurora ficticio','Aurora','America/Sao_Paulo','pt-BR','active',NULL);
     INSERT INTO modules VALUES ('guest-portal','Portal do Hospede'), ('emporio','Emporio'), ('room-service','Room Service'), ('admin','Admin');
-    INSERT INTO hotel_modules VALUES ('muller-fioreze','guest-portal',1,1), ('muller-fioreze','emporio',1,1), ('muller-fioreze','room-service',1,1), ('muller-fioreze','admin',1,0);
+    INSERT INTO hotel_modules VALUES ('muller-fioreze','guest-portal',1,1), ('muller-fioreze','emporio',1,1), ('muller-fioreze','room-service',1,1), ('muller-fioreze','admin',1,0), ('aurora-demo','guest-portal',1,1);
     INSERT INTO hotel_branding VALUES ('muller-fioreze','/assets/hotels/muller-fioreze/logo.png',NULL,'#17594a','#f2b84b','#8c3d2f','#f7f4ee','#202124','system-ui');
     INSERT INTO admin_users VALUES ('user-admin','Administradora ficticia');
-    INSERT INTO media_assets VALUES ('media_12345678','muller-fioreze','/media/media_12345678','Imagem ficticia','image/webp','active');
+    INSERT INTO media_assets (
+      id, hotel_id, module_key, folder_id, storage_provider, object_key,
+      public_url, alt_text, mime_type, status, created_at, updated_at,
+      archived_at, original_filename, size_bytes, checksum_sha256,
+      storage_etag, uploaded_by_user_id, archived_by_user_id
+    ) VALUES (
+      'media_12345678','muller-fioreze','guest-portal',NULL,'r2',
+      'hotels/muller-fioreze/guest-portal/2026/07/media_12345678.webp',
+      '/media/media_12345678','Imagem ficticia','image/webp','active',
+      '2026-07-21T14:00:00.000Z','2026-07-21T14:00:00.000Z',NULL,
+      'imagem-ficticia.webp',4,'checksum-ficticio',NULL,'user-admin',NULL
+    );
   `);
   raw.exec(fs.readFileSync("migrations/0025_visual_portal_builder.sql", "utf8"));
   return {
     DB: new SqliteD1(raw),
+    MEDIA_BUCKET: new MockR2Bucket(),
     ENVIRONMENT: "test",
     VISUAL_PORTAL_PUBLIC_ORIGIN: "https://portal.hoteisfioreze.com.br",
   };

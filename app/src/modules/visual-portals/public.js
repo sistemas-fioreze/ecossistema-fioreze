@@ -109,7 +109,7 @@ function renderBlock(block, media, context) {
   if (block.type === "hero") {
     const asset = media.get(content.media_asset_id);
     const background = asset && String(asset.mime_type).startsWith("image/") ? ` style="background-image:linear-gradient(rgba(0,0,0,${content.overlay / 100}),rgba(0,0,0,${content.overlay / 100})),url('${escapeCssUrl(asset.public_url)}')"` : "";
-    return `<section ${attributes}><div class="hero-media"${background}><div class="block-inner hero-copy">${content.eyebrow ? `<p class="eyebrow">${escapeHtml(content.eyebrow)}</p>` : ""}<h1>${escapeHtml(content.title)}</h1>${paragraphs(content.text)}${buttonLink(content.button_text, content.button_url, "solid", context)}</div></div></section>`;
+    return `<section ${attributes}><div class="hero-media"${background}><div class="block-inner hero-copy">${content.eyebrow ? `<p class="eyebrow">${escapeHtml(content.eyebrow)}</p>` : ""}<h1>${escapeHtml(content.title)}</h1>${paragraphs(content.text)}${renderActionButtons(content.buttons, media, context)}</div></div></section>`;
   }
   if (block.type === "heading") return `<section ${attributes}><div class="block-inner"><h2>${escapeHtml(content.title)}</h2>${paragraphs(content.text)}</div></section>`;
   if (block.type === "text") return `<section ${attributes}><div class="block-inner rich-text">${paragraphs(content.text)}</div></section>`;
@@ -140,7 +140,8 @@ function renderBlock(block, media, context) {
     return `<section ${attributes}><div class="block-inner">${content.title ? `<h2>${escapeHtml(content.title)}</h2>` : ""}<div class="gallery-grid">${assets.map((asset) => `<img src="${escapeAttr(asset.public_url)}" alt="${escapeAttr(asset.alt_text || "")}" loading="lazy">`).join("")}</div></div></section>`;
   }
   if (block.type === "feature-grid") {
-    return `<section ${attributes}><div class="block-inner feature-grid">${content.items.map((item) => { const asset = media.get(item.media_asset_id); return `<article>${asset && String(asset.mime_type).startsWith("image/") ? `<img src="${escapeAttr(asset.public_url)}" alt="${escapeAttr(asset.alt_text || "")}" loading="lazy">` : ""}<div><h3>${escapeHtml(item.title)}</h3>${paragraphs(item.text)}${buttonLink(item.button_text, item.button_url, "ghost", context)}</div></article>`; }).join("")}</div></section>`;
+    const overlay = content.layout === "overlay";
+    return `<section ${attributes}><div class="block-inner feature-grid${overlay ? " is-overlay" : ""}" style="--card-copy-background:${escapeAttr(content.text_background_color)}">${content.items.map((item) => { const asset = media.get(item.media_asset_id); return `<article>${asset && String(asset.mime_type).startsWith("image/") ? `<img src="${escapeAttr(asset.public_url)}" alt="${escapeAttr(asset.alt_text || "")}" loading="lazy">` : ""}<div><h3>${escapeHtml(item.title)}</h3>${paragraphs(item.text)}${buttonLink(item.button_text, item.button_url, "ghost", context)}</div></article>`; }).join("")}</div></section>`;
   }
   if (block.type === "faq") {
     return `<section ${attributes}><div class="block-inner faq-block">${content.title ? `<h2>${escapeHtml(content.title)}</h2>` : ""}<div class="faq-list">${content.items.map((item) => `<details><summary><span>${escapeHtml(item.question)}</span><i aria-hidden="true"></i></summary><div>${paragraphs(item.answer)}</div></details>`).join("")}</div></div></section>`;
@@ -150,6 +151,17 @@ function renderBlock(block, media, context) {
   }
   if (block.type === "timeline") {
     return `<section ${attributes}><div class="block-inner timeline-block">${content.title ? `<h2>${escapeHtml(content.title)}</h2>` : ""}<div class="timeline-list">${content.items.map((item) => `<article><span aria-hidden="true"></span><div>${item.period ? `<small>${escapeHtml(item.period)}</small>` : ""}<h3>${escapeHtml(item.title)}</h3>${paragraphs(item.text)}</div></article>`).join("")}</div></div></section>`;
+  }
+  if (block.type === "testimonials") {
+    return `<section ${attributes}><div class="block-inner testimonials-block">${content.title ? `<h2>${escapeHtml(content.title)}</h2>` : ""}<div class="testimonials-grid">${content.items.map((item) => { const asset = media.get(item.media_asset_id); return `<figure>${asset ? `<img src="${escapeAttr(asset.public_url)}" alt="" loading="lazy">` : ""}<blockquote>${escapeHtml(item.quote)}</blockquote><figcaption><strong>${escapeHtml(item.author)}</strong>${item.role ? `<span>${escapeHtml(item.role)}</span>` : ""}</figcaption></figure>`; }).join("")}</div></div></section>`;
+  }
+  if (block.type === "icon-list") {
+    return `<section ${attributes}><div class="block-inner icon-list-block">${content.title ? `<h2>${escapeHtml(content.title)}</h2>` : ""}<div class="icon-list-grid">${content.items.map((item) => `<article>${portalIcon(item.icon)}<div><h3>${escapeHtml(item.title)}</h3>${paragraphs(item.text)}${item.url ? buttonLink("Saiba mais", item.url, "ghost", context) : ""}</div></article>`).join("")}</div></div></section>`;
+  }
+  if (block.type === "cta-banner") {
+    const asset = media.get(content.media_asset_id);
+    const background = asset && String(asset.mime_type).startsWith("image/") ? ` style="background-image:linear-gradient(rgba(0,0,0,${content.overlay / 100}),rgba(0,0,0,${content.overlay / 100})),url('${escapeCssUrl(asset.public_url)}')"` : "";
+    return `<section ${attributes}><div class="block-inner cta-banner"${background}><div>${content.eyebrow ? `<p class="eyebrow">${escapeHtml(content.eyebrow)}</p>` : ""}<h2>${escapeHtml(content.title)}</h2>${paragraphs(content.text)}${renderActionButtons(content.buttons, media, context)}</div></div></section>`;
   }
   if (block.type === "quote") return `<figure ${attributes}><div class="block-inner"><blockquote>${escapeHtml(content.quote)}</blockquote>${content.author ? `<figcaption>${escapeHtml(content.author)}</figcaption>` : ""}</div></figure>`;
   if (block.type === "contact") return `<section ${attributes}><div class="block-inner contact-panel"><h2>${escapeHtml(content.title)}</h2>${paragraphs(content.text)}<address>${content.address ? `<span>${escapeHtml(content.address)}</span>` : ""}${content.phone ? `<a href="tel:${escapeAttr(content.phone.replace(/[^+\d]/g, ""))}">${escapeHtml(content.phone)}</a>` : ""}${content.email ? `<a href="mailto:${escapeAttr(content.email)}">${escapeHtml(content.email)}</a>` : ""}</address>${buttonLink(content.button_text, content.button_url, "solid", context)}</div></section>`;
@@ -219,6 +231,7 @@ function renderSiteHeader({ portal, document, page, logo, context }) {
   const classes = [
     "site-header",
     `header-${header.style}`,
+    `navigation-${header.desktop_navigation_alignment}`,
     header.position === "sticky" ? "is-sticky" : "",
     header.transparent ? "is-transparent" : "",
     header.blur ? "has-blur" : "",
@@ -228,13 +241,13 @@ function renderSiteHeader({ portal, document, page, logo, context }) {
     : "";
   const navigationId = `portal-navigation-${portal.portal_slug}`;
   const hasMobileNavigation = Boolean(navigation || header.cta_text);
-  const mobileNavigationStyle = `--header-bg:${escapeAttr(header.background_color)};--header-text:${escapeAttr(header.text_color)};--header-accent:${escapeAttr(header.accent_color)}`;
+  const mobileNavigationStyle = `--header-bg:${escapeAttr(header.background_color)};--header-text:${escapeAttr(header.text_color)};--header-accent:${escapeAttr(header.accent_color)};--mobile-menu-bg:${escapeAttr(header.mobile_menu_background_color)};--mobile-menu-text:${escapeAttr(header.mobile_menu_text_color)}`;
   const mobileMenuToggle = hasMobileNavigation
     ? `<button class="mobile-menu-toggle" type="button" data-mobile-menu-toggle aria-controls="${escapeAttr(navigationId)}" aria-expanded="false" aria-label="Abrir menu"><span></span><span></span><span></span></button>`
     : "";
   const mobileBrand = `<a class="mobile-navigation-brand" href="${escapeAttr(context.homePath)}">${logo ? `<img src="${escapeAttr(logo)}" alt="">` : '<span class="mobile-navigation-mark" aria-hidden="true">F</span>'}<span><small>Portal da unidade</small><strong>${escapeHtml(portal.hotel_short_name || portal.hotel_name)}</strong></span></a>`;
   const mobileNavigation = hasMobileNavigation
-    ? `<button class="mobile-menu-backdrop" type="button" data-mobile-menu-close aria-label="Fechar menu" tabindex="-1"></button><aside class="mobile-navigation" id="${escapeAttr(navigationId)}" aria-hidden="true" style="${mobileNavigationStyle}"><header>${mobileBrand}<button class="mobile-navigation-close" type="button" data-mobile-menu-close aria-label="Fechar menu"><span></span><span></span></button></header>${mobileNavigationLinks ? `<div class="mobile-navigation-section"><small>Navegação</small><nav aria-label="Navegação móvel do site">${mobileNavigationLinks}</nav></div>` : ""}<div class="mobile-navigation-actions">${buttonLink(header.cta_text, header.cta_url, "solid", context)}</div><footer><span></span><small>${escapeHtml(portal.title)}</small></footer></aside>`
+    ? `<button class="mobile-menu-backdrop" type="button" data-mobile-menu-close aria-label="Fechar menu" tabindex="-1"></button><aside class="mobile-navigation${header.mobile_menu_blur ? " has-menu-blur" : ""}" id="${escapeAttr(navigationId)}" aria-hidden="true" style="${mobileNavigationStyle}"><header>${mobileBrand}<button class="mobile-navigation-close" type="button" data-mobile-menu-close aria-label="Fechar menu"><span></span><span></span></button></header>${mobileNavigationLinks ? `<div class="mobile-navigation-section"><small>Navegação</small><nav aria-label="Navegação móvel do site">${mobileNavigationLinks}</nav></div>` : ""}<div class="mobile-navigation-actions">${buttonLink(header.cta_text, header.cta_url, "solid", context)}</div><footer><span></span><small>${escapeHtml(portal.title)}</small></footer></aside>`
     : "";
   return `<header class="${classes}" style="--header-bg:${escapeAttr(header.background_color)};--header-text:${escapeAttr(header.text_color)};--header-accent:${escapeAttr(header.accent_color)}"><div class="header-inner">${brand}<nav class="desktop-navigation" aria-label="Navegação do site">${navigation}</nav><div class="header-actions">${buttonLink(header.cta_text, header.cta_url, "solid", context)}</div>${mobileMenuToggle}</div></header>${mobileNavigation}`;
 }
@@ -258,6 +271,8 @@ a{color:inherit}
 .site-header.has-blur:not(.is-transparent){background:color-mix(in srgb,var(--header-bg) 86%,transparent)}
 .header-inner{display:grid;grid-template-columns:minmax(150px,1fr) auto minmax(150px,1fr);align-items:center;gap:24px;width:min(100%,1440px);min-height:52px;margin-inline:auto}
 .header-inner nav{display:flex;align-items:center;justify-content:center;gap:6px;min-width:0}
+.navigation-left .header-inner nav{justify-content:flex-start}
+.navigation-right .header-inner nav{justify-content:flex-end}
 .header-inner nav a{padding:.65rem .85rem;border-radius:999px;text-decoration:none;font-size:.9rem;font-weight:700;white-space:nowrap}
 .header-inner nav a:hover,.header-inner nav a[aria-current="page"]{background:color-mix(in srgb,var(--header-accent) 14%,transparent);color:var(--header-accent)}
 .header-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px}
@@ -285,6 +300,9 @@ a{color:inherit}
 .visual-button.is-ghost{min-height:auto;padding:.25rem 0;border:0;border-bottom:1px solid currentColor;border-radius:0;background:transparent;color:var(--accent)}
 .hero-media{display:grid;place-items:center;min-height:inherit;margin:calc(var(--padding-top) * -1) calc(var(--padding-inline) * -1) calc(var(--padding-bottom) * -1);padding:var(--padding-top) var(--padding-inline) var(--padding-bottom);border-radius:inherit;background-position:center;background-size:cover}
 .hero-copy{position:relative}
+.hero-actions,.cta-actions{display:flex;flex-wrap:wrap;justify-content:inherit;gap:.7rem;margin-top:1.2rem}
+.visual-button .button-media{width:22px;height:22px;border-radius:50%;object-fit:cover}
+.visual-button .button-icon{width:18px;height:18px;flex:0 0 18px}
 .visual-hero:has(.hero-media[style]){color:#fff}
 .visual-image img,.visual-video video{display:block;width:100%;max-height:78vh;border-radius:var(--radius);background:#111}
 .visual-image .media-cover{aspect-ratio:16/9;object-fit:cover}
@@ -297,6 +315,9 @@ a{color:inherit}
 .feature-grid article{overflow:hidden;background:color-mix(in srgb,var(--background) 82%,#fff);border:1px solid color-mix(in srgb,currentColor 14%,transparent);border-radius:var(--radius,20px);text-align:left}
 .feature-grid article img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover}
 .feature-grid article>div{padding:1.25rem}
+.feature-grid.is-overlay article{position:relative;display:grid;min-height:340px;align-items:end;border:0;background:#202124;color:#fff}
+.feature-grid.is-overlay article img{position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto}
+.feature-grid.is-overlay article>div{position:relative;z-index:1;margin:.8rem;padding:1.15rem;border-radius:max(12px,calc(var(--radius) * .65));background:var(--card-copy-background);color:inherit;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
 .faq-block>h2,.stats-block>h2,.timeline-block>h2{margin-bottom:1.5rem}
 .faq-list{display:grid;gap:10px}
 .faq-list details{border:1px solid color-mix(in srgb,currentColor 14%,transparent);border-radius:max(12px,var(--radius));background:color-mix(in srgb,var(--background) 86%,#fff);text-align:left}
@@ -319,6 +340,17 @@ a{color:inherit}
 .timeline-list article small{display:block;margin-bottom:.25rem;color:var(--accent);font-size:.76rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
 .timeline-list article h3{margin-bottom:.45rem}
 .timeline-list article p{margin-inline:0}
+.testimonials-grid{display:grid;grid-template-columns:repeat(var(--columns),minmax(0,1fr));gap:var(--gap)}
+.testimonials-grid figure{margin:0;padding:1.4rem;border:1px solid color-mix(in srgb,currentColor 13%,transparent);border-radius:max(16px,var(--radius));background:color-mix(in srgb,var(--background) 84%,#fff);text-align:left}
+.testimonials-grid img{width:52px;height:52px;border-radius:50%;object-fit:cover}
+.testimonials-grid blockquote{margin:1rem 0;font-size:1.08rem}
+.testimonials-grid figcaption{display:grid}.testimonials-grid figcaption span{opacity:.65;font-size:.85rem}
+.icon-list-grid{display:grid;grid-template-columns:repeat(var(--columns),minmax(0,1fr));gap:var(--gap)}
+.icon-list-grid article{display:grid;grid-template-columns:44px minmax(0,1fr);gap:1rem;padding:1.2rem;border-radius:max(14px,var(--radius));background:color-mix(in srgb,var(--background) 84%,#fff);text-align:left}
+.icon-list-grid>article>svg{width:32px;height:32px;color:var(--accent)}
+.icon-list-grid article p{margin-inline:0}
+.cta-banner{position:relative;display:grid;min-height:max(280px,var(--min-height));place-items:center;padding:clamp(2rem,6vw,5rem);overflow:hidden;border-radius:var(--radius);background-position:center;background-size:cover;text-align:var(--align)}
+.cta-banner>div{position:relative;z-index:1;max-width:820px}
 .visual-quote blockquote{max-width:950px;margin:0 auto;font-size:var(--base-heading-size,clamp(1.6rem,3.2vw,3.3rem));line-height:1.2;font-weight:650}
 .visual-quote figcaption{margin-top:1.25rem}
 .contact-panel address{display:grid;gap:.35rem;font-style:normal}
@@ -342,7 +374,8 @@ a{color:inherit}
   .mobile-menu-toggle{display:grid;width:44px;height:44px;place-content:center;gap:5px;padding:0;border:0;border-radius:0;background:transparent;color:var(--header-text);cursor:pointer}
   .mobile-menu-toggle span{display:block;width:20px;height:2px;border-radius:2px;background:currentColor;transition:transform .22s ease,opacity .22s ease}
   .mobile-menu-backdrop{position:fixed;inset:0;z-index:30;display:block;border:0;background:rgba(11,13,17,.56);backdrop-filter:blur(4px);opacity:0;pointer-events:none;transition:opacity .28s ease}
-  .mobile-navigation{position:fixed;top:0;right:0;bottom:0;z-index:31;display:flex;width:min(88vw,360px);flex-direction:column;padding:max(18px,env(safe-area-inset-top)) 18px max(18px,env(safe-area-inset-bottom));overflow-y:auto;background:color-mix(in srgb,var(--header-bg) 96%,#fff);color:var(--header-text);box-shadow:-28px 0 80px rgba(0,0,0,.3);transform:translateX(105%);visibility:hidden;transition:transform .3s cubic-bezier(.22,.85,.24,1),visibility 0s linear .3s}
+  .mobile-navigation{position:fixed;top:0;right:0;bottom:0;z-index:31;display:flex;width:min(88vw,360px);flex-direction:column;padding:max(18px,env(safe-area-inset-top)) 18px max(18px,env(safe-area-inset-bottom));overflow-y:auto;background:var(--mobile-menu-bg);color:var(--mobile-menu-text);box-shadow:-28px 0 80px rgba(0,0,0,.3);transform:translateX(105%);visibility:hidden;transition:transform .3s cubic-bezier(.22,.85,.24,1),visibility 0s linear .3s}
+  .mobile-navigation.has-menu-blur{background:color-mix(in srgb,var(--mobile-menu-bg) 86%,transparent);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px)}
   .mobile-navigation>header{display:flex;align-items:center;justify-content:space-between;gap:14px;padding-bottom:20px;border-bottom:1px solid color-mix(in srgb,currentColor 11%,transparent)}
   .mobile-navigation-brand{display:flex;min-width:0;align-items:center;gap:12px;text-decoration:none}
   .mobile-navigation-brand img{display:block;width:72px;height:40px;object-fit:contain;object-position:left center}
@@ -375,7 +408,8 @@ a{color:inherit}
   .brand img{max-width:142px;max-height:38px}
   .visual-block{--align:var(--mobile-align,var(--base-align,left));--width:var(--mobile-width,var(--base-width,${widthValue(pageSettings.content_width)}));--background:var(--mobile-background,var(--base-background,transparent));--text:var(--mobile-text,var(--base-text,inherit));--accent:var(--mobile-accent,var(--base-accent,${settings.primary_color}));--padding-top:var(--mobile-padding-top,var(--base-padding-top,0px));--padding-bottom:var(--mobile-padding-bottom,var(--base-padding-bottom,0px));--padding-inline:var(--mobile-padding-inline,var(--base-padding-inline,18px));--gap:var(--mobile-gap,var(--base-gap,16px));--min-height:var(--mobile-min-height,var(--base-min-height,0px));--radius:var(--mobile-radius,var(--base-radius,0px));--columns:var(--mobile-columns,1);--offset-x:var(--mobile-offset-x,var(--base-offset-x,0px));--offset-y:var(--mobile-offset-y,var(--base-offset-y,0px))}
   .hide-desktop{display:initial}.hide-mobile{display:none}
-  .feature-grid,.gallery-grid,.stats-grid{grid-template-columns:repeat(var(--columns),minmax(0,1fr))}
+  .feature-grid,.gallery-grid,.stats-grid,.testimonials-grid,.icon-list-grid{grid-template-columns:repeat(var(--columns),minmax(0,1fr))}
+  .hero-actions,.cta-actions{display:grid}
   .visual-button{width:100%}
   .visual-block h1{font-size:var(--mobile-heading-size,var(--base-heading-size,clamp(2.45rem,13vw,4.4rem)))}
   .visual-block h2{font-size:var(--mobile-heading-size,var(--base-heading-size,clamp(2rem,10vw,3rem)))}
@@ -396,6 +430,32 @@ function buttonLink(text, url, style = "solid", context) {
   const href = resolvePortalHref(url, context);
   const external = /^https:\/\//i.test(href);
   return `<a class="visual-button is-${escapeAttr(style || "solid")}" href="${escapeAttr(href)}"${external ? ' target="_blank" rel="noopener noreferrer"' : ""}>${escapeHtml(text)}</a>`;
+}
+
+function renderActionButtons(buttons, media, context) {
+  const items = (buttons || []).filter((button) => button.text && button.url).map((button) => {
+    const href = resolvePortalHref(button.url, context);
+    const external = /^https:\/\//i.test(href);
+    const asset = media.get(button.media_asset_id);
+    const adornment = asset && String(asset.mime_type).startsWith("image/")
+      ? `<img class="button-media" src="${escapeAttr(asset.public_url)}" alt="">`
+      : portalIcon(button.icon, "button-icon");
+    return `<a class="visual-button is-${escapeAttr(button.style || "solid")}" href="${escapeAttr(href)}"${external ? ' target="_blank" rel="noopener noreferrer"' : ""}>${adornment}<span>${escapeHtml(button.text)}</span></a>`;
+  });
+  return items.length ? `<div class="hero-actions">${items.join("")}</div>` : "";
+}
+
+function portalIcon(name, className = "") {
+  const paths = {
+    "arrow-right": '<path d="M5 12h14M13 6l6 6-6 6"/>',
+    calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/>',
+    "map-pin": '<path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/>',
+    phone: '<path d="M7 3H4a1 1 0 0 0-1 1c0 9.4 7.6 17 17 17a1 1 0 0 0 1-1v-3l-4-2-2 2c-3.5-1.5-6.5-4.5-8-8l2-2-2-4Z"/>',
+    "shopping-bag": '<path d="M5 8h14l-1 13H6L5 8Z"/><path d="M9 9V6a3 3 0 0 1 6 0v3"/>',
+    sparkles: '<path d="m12 3 1.4 4.1 4.1 1.4-4.1 1.4L12 14l-1.4-4.1-4.1-1.4 4.1-1.4L12 3Z"/><path d="m19 14 .7 2.3L22 17l-2.3.7L19 20l-.7-2.3L16 17l2.3-.7L19 14Z"/>',
+  };
+  if (!paths[name]) return "";
+  return `<svg class="${escapeAttr(className)}" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[name]}</svg>`;
 }
 
 function resolvePortalHref(value, context) {

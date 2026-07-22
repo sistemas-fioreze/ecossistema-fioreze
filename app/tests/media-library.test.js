@@ -52,6 +52,31 @@ test("upload PNG e WebP valida magic bytes e checksum", async () => {
   assert.equal(env.__data.mediaAssets.at(-1).checksum_sha256.length, 64);
 });
 
+test("copia de midia entre unidades preserva arquivo e cria novo isolamento", async () => {
+  const { json, env } = createWorkerTestContext();
+  grantMediaPermissions(env);
+  env.__data.adminHotelAccess.push({ user_id: "user-demo-admin", hotel_id: "aurora-demo", access_level: "manager" });
+  const cookie = await createSessionCookie(env);
+  const upload = await uploadImage(json, cookie, {
+    file: imageFile(jpegBytes(), "capa-portal.jpg", "image/jpeg"),
+    module_key: "guest-portal",
+  });
+
+  const copied = await json(
+    `/api/v1/admin/media/${encodeURIComponent(upload.body.data.asset.id)}/copy`,
+    withCookie(cookie, adminJson("POST", { hotel_id: "aurora-demo", module_key: "guest-portal" })),
+  );
+
+  assert.equal(copied.response.status, 201);
+  assert.equal(copied.body.data.copied, true);
+  assert.equal(copied.body.data.asset.hotel_id, "aurora-demo");
+  assert.notEqual(copied.body.data.asset.id, upload.body.data.asset.id);
+  assert.equal(copied.body.data.asset.checksum_sha256, upload.body.data.asset.checksum_sha256);
+  assert.equal(env.MEDIA_BUCKET.objects.size, 2);
+  assert.match([...env.MEDIA_BUCKET.objects.keys()].find((key) => key.includes(copied.body.data.asset.id)) || "", /^hotels\/aurora-demo\/guest-portal\//);
+  assert.equal(env.__data.adminAuditLog.filter((entry) => entry.action === "media.copy").length, 1);
+});
+
 test("upload MP4 e WebM valida assinatura, grava R2 e serve video", async () => {
   const { json, fetch, env } = createWorkerTestContext();
   grantMediaPermissions(env);

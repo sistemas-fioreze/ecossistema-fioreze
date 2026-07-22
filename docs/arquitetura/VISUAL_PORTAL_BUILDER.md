@@ -22,9 +22,12 @@ O construtor fica em **Central Administrativa > Criador de portais** e oferece:
 - movimento livre de blocos nos eixos horizontal e vertical, com valores independentes por dispositivo;
 - propriedades globais e substituições por dispositivo;
 - tipografia, espaçamento, colunas, cores, largura e visibilidade ajustáveis separadamente para desktop e mobile;
-- imagens e vídeos da Biblioteca de Mídia da própria unidade, inclusive como fundo independente de cada página;
+- imagens e vídeos da Biblioteca de Mídia, com navegação por unidade autorizada e pasta, upload dentro do próprio seletor e cópia segura para a unidade do portal;
 - favicon e cabeçalho opcional com logotipo, menu, cores, transparência total, desfoque e ação principal;
-- capa, títulos, textos, botões, imagens, vídeos, galeria, grade, perguntas frequentes, indicadores, linha do tempo, citação, contato, incorporações, divisor e espaçador;
+- capa com até quatro ações, títulos, textos, botões, imagens, vídeos, galeria, cards de serviço, depoimentos, lista com ícones, chamada em destaque, perguntas frequentes, indicadores, linha do tempo, citação, contato, incorporações, divisor e espaçador;
+- transparência nos seletores de cor, cantos aplicados diretamente ao componente e guia central durante o movimento livre;
+- cards de serviço empilhados ou sobre a imagem, com controle independente do fundo do texto;
+- navegação desktop alinhada à esquerda ou ao centro e gaveta mobile com cores e desfoque configuráveis;
 - incorporações HTTPS para Google Maps, páginas hospedadas e serviços compatíveis com `iframe`;
 - incorporações de HTML sanitizado em iframe isolado e sem execução de scripts;
 - desfazer, refazer, copiar, colar, duplicar, mover e excluir blocos;
@@ -33,7 +36,7 @@ O construtor fica em **Central Administrativa > Criador de portais** e oferece:
 - publicação explícita;
 - acesso direto à versão publicada pela barra do editor;
 - histórico de versões com prévia visual desktop/mobile antes da restauração para um novo rascunho;
-- duplicação de portal;
+- duplicação de portal na mesma unidade ou em outra unidade autorizada, copiando e remapeando as mídias referenciadas;
 - arquivamento reversível e exclusão definitiva, disponível somente para portais já arquivados;
 - modelos internos e modelos salvos pela equipe.
 
@@ -123,7 +126,7 @@ No site publicado, a navegação desktop usa links diretos para os slugs configu
 
 ## Templates
 
-Existem pontos de partida internos para o Portal do Hóspede Fioreze, hospitalidade, loja digital, campanha, eventos, página de serviço e página em branco. O modelo do Portal do Hóspede entrega Início, Serviços, Eventos, Hotel, Blog e Como chegar, com navegação e destinos internos já conectados. Os modelos permanecem integralmente editáveis. Um usuário autorizado pode salvar o site completo como modelo da unidade e aplicá-lo em outro portal. Um modelo guarda apenas o documento visual e referências de mídia; não copia usuários, configurações privadas ou dados operacionais.
+Existem pontos de partida internos para o Portal do Hóspede Fioreze, hospitalidade, loja digital, campanha, eventos, página de serviço e página em branco. O modelo do Portal do Hóspede entrega Início, Serviços, Eventos, Hotel, Blog e Como chegar, com navegação e destinos internos já conectados. Os modelos permanecem integralmente editáveis. Um usuário autorizado pode salvar o site completo como modelo da unidade e aplicá-lo em outro portal. Um modelo guarda apenas o documento visual e referências de mídia; não copia usuários, configurações privadas ou dados operacionais. A duplicação entre unidades cria novas mídias no destino e troca as referências no documento clonado, evitando dependência das permissões da unidade de origem.
 
 ## Links personalizados
 
