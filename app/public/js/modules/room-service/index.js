@@ -26,7 +26,6 @@ export async function render(container, context) {
     isSubmitting: false,
     cartOpen: false,
     statusTimer: null,
-    observer: null,
   };
 
   container.innerHTML = renderStaticShell();
@@ -54,14 +53,12 @@ export async function render(container, context) {
     renderCatalog(container, state);
     renderRoomOptions(container, state);
     renderCart(container, state);
-    setupCategoryObserver(container, state);
   } catch (error) {
     renderCatalogError(container, error);
   }
 
   cleanupCurrentRender = () => {
     if (state.statusTimer) window.clearInterval(state.statusTimer);
-    if (state.observer) state.observer.disconnect();
   };
 }
 
@@ -255,7 +252,6 @@ function bindStaticActions(container, state) {
   container.querySelector("[data-search]").addEventListener("input", (event) => {
     state.query = event.target.value;
     renderCatalog(container, state);
-    setupCategoryObserver(container, state);
   });
 
   container.querySelector("[data-order-form]").addEventListener("submit", async (event) => {
@@ -732,25 +728,6 @@ function closeImageViewer(container) {
   viewer.hidden = true;
   image.removeAttribute("src");
   image.alt = "";
-}
-
-function setupCategoryObserver(container, state) {
-  if (state.observer) state.observer.disconnect();
-  if (!("IntersectionObserver" in window)) return;
-  const sections = container.querySelectorAll("[data-category-section]");
-  state.observer = new IntersectionObserver(
-    (entries) => {
-      const visible = entries
-        .filter((entry) => entry.isIntersecting)
-        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-      if (!visible || state.activeCategory !== "all") return;
-      container.querySelectorAll("[data-category]").forEach((button) => {
-        button.classList.toggle("active", button.dataset.category === visible.target.dataset.categorySection);
-      });
-    },
-    { rootMargin: "-20% 0px -65% 0px", threshold: [0.1, 0.35, 0.6] },
-  );
-  sections.forEach((section) => state.observer.observe(section));
 }
 
 function scrollCategoryIntoView(container, categoryId) {
