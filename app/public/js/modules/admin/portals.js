@@ -2379,9 +2379,12 @@ async function openVisualPortalCreator() {
 }
 
 function duplicateVisualPortal(item) {
+  const hotels = getAuthorizedHotels(currentSession);
+  const hotelOptions = hotels.map((hotel) => [hotel.hotel_id, hotel.short_name || hotel.name || hotel.hotel_id]);
   els.dialogTitle.textContent = "Duplicar portal";
   els.dialogBody.innerHTML = contentForm("duplicate-visual-portal", `
-    <p class="admin-muted">Uma nova cópia será criada como rascunho, mantendo blocos e identidade visual.</p>
+    <p class="admin-muted">Uma nova cópia será criada como rascunho. Ao escolher outra unidade, as mídias usadas também serão copiadas com segurança.</p>
+    ${dialogSelect("Unidade de destino", "hotel_id", item.hotel_id, hotelOptions)}
     ${dialogField("Nome da cópia", "name", `${item.name} - cópia`, "text", true)}
     ${dialogField("Novo endereço", "slug", `${item.slug}-copia`, "text", true, "[a-z0-9]+(?:-[a-z0-9]+)*")}`);
   openPortalsDialog();
@@ -2393,6 +2396,7 @@ function duplicateVisualPortal(item) {
       form.querySelector(".admin-dialog-message").textContent = "Duplicando...";
       const payload = await adminApi(`/api/v1/admin/visual-portals/${encodeURIComponent(item.id)}/duplicate`, { method: "POST", body });
       closePortalsDialog();
+      els.contentHotel.value = body.hotel_id;
       await loadPortalContent();
       await visualPortalBuilder.open(payload.data.portal.id);
     } catch (error) {

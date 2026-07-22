@@ -10,7 +10,7 @@ export const VISUAL_PORTAL_MAX_BYTES = 250000;
 export const VISUAL_PORTAL_BLOCK_TYPES = new Set([
   "hero", "heading", "text", "button", "image", "video", "embed",
   "gallery", "feature-grid", "faq", "stats", "timeline", "quote", "contact",
-  "divider", "spacer",
+  "testimonials", "icon-list", "cta-banner", "divider", "spacer",
 ]);
 
 const ALIGNMENTS = new Set(["left", "center", "right"]);
@@ -22,7 +22,10 @@ const EMBED_RATIOS = new Set(["16:9", "4:3", "1:1", "9:16"]);
 const EMBED_MODES = new Set(["url", "html"]);
 const HEADER_STYLES = new Set(["standard", "centered", "floating", "minimal"]);
 const HEADER_POSITIONS = new Set(["static", "sticky"]);
-const COLOR_PATTERN = /^(#[0-9a-f]{6}|rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\))$/i;
+const NAVIGATION_ALIGNMENTS = new Set(["left", "center", "right"]);
+const FEATURE_CARD_LAYOUTS = new Set(["stacked", "overlay"]);
+const BUTTON_ICONS = new Set(["", "arrow-right", "calendar", "map-pin", "phone", "shopping-bag", "sparkles"]);
+const COLOR_PATTERN = /^(#[0-9a-f]{6}(?:[0-9a-f]{2})?|rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\))$/i;
 const MEDIA_ID_PATTERN = /^media_[a-z0-9-]{8,80}$/i;
 
 export function createBlankVisualPortalDocument({ primaryColor = "#513b2d", fontFamily = "Inter, system-ui, sans-serif" } = {}) {
@@ -110,6 +113,7 @@ export function collectVisualPortalMediaIds(document) {
       addMediaId(ids, block.content?.poster_media_asset_id);
       for (const mediaId of block.content?.media_asset_ids || []) addMediaId(ids, mediaId);
       for (const item of block.content?.items || []) addMediaId(ids, item.media_asset_id);
+      for (const button of block.content?.buttons || []) addMediaId(ids, button.media_asset_id);
     }
   }
   return [...ids];
@@ -299,6 +303,10 @@ function normalizeHeaderSettings(input, primaryColor) {
     show_navigation: input.show_navigation !== false,
     transparent: Boolean(input.transparent),
     blur: input.blur !== false,
+    desktop_navigation_alignment: normalizeEnum(input.desktop_navigation_alignment, NAVIGATION_ALIGNMENTS, "center"),
+    mobile_menu_background_color: normalizeColor(input.mobile_menu_background_color || input.background_color || "#ffffff", "fundo do menu móvel"),
+    mobile_menu_text_color: normalizeColor(input.mobile_menu_text_color || input.text_color || "#202124", "texto do menu móvel"),
+    mobile_menu_blur: input.mobile_menu_blur !== false,
     cta_text: text(input.cta_text, 80),
     cta_url: safeUrl(input.cta_url),
   };
@@ -353,7 +361,10 @@ function normalizeBlock(input, index) {
 
 function normalizeBlockContent(type, input) {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw badRequest("Conteúdo de bloco inválido.");
-  if (type === "hero") return { eyebrow: text(input.eyebrow, 100), title: text(input.title, 220), text: text(input.text, 1200), button_text: text(input.button_text, 80), button_url: safeUrl(input.button_url), media_asset_id: mediaId(input.media_asset_id), overlay: normalizeNumber(input.overlay, 0, 90, 35) };
+  if (type === "hero") {
+    const buttons = normalizeActionButtons(input.buttons ?? legacyActionButtons(input), 4);
+    return { eyebrow: text(input.eyebrow, 100), title: text(input.title, 220), text: text(input.text, 1200), button_text: buttons[0]?.text || "", button_url: buttons[0]?.url || "", buttons, media_asset_id: mediaId(input.media_asset_id), overlay: normalizeNumber(input.overlay, 0, 90, 35) };
+  }
   if (type === "heading") return { title: text(input.title, 220), text: text(input.text, 1000) };
   if (type === "text") return { text: text(input.text, 5000) };
   if (type === "button") return { text: text(input.text, 80), url: safeUrl(input.url), style: normalizeEnum(input.style, BUTTON_STYLES, "solid") };
@@ -371,10 +382,24 @@ function normalizeBlockContent(type, input) {
     };
   }
   if (type === "gallery") return { title: text(input.title, 180), media_asset_ids: uniqueMediaIds(input.media_asset_ids, 24) };
-  if (type === "feature-grid") return { items: normalizeFeatureItems(input.items) };
+  if (type === "feature-grid") return {
+    layout: normalizeEnum(input.layout, FEATURE_CARD_LAYOUTS, "stacked"),
+    text_background_color: normalizeColor(input.text_background_color || "#ffffffee", "fundo do texto dos cards"),
+    items: normalizeFeatureItems(input.items),
+  };
   if (type === "faq") return { title: text(input.title, 180), items: normalizeFaqItems(input.items) };
   if (type === "stats") return { title: text(input.title, 180), items: normalizeStatItems(input.items) };
   if (type === "timeline") return { title: text(input.title, 180), items: normalizeTimelineItems(input.items) };
+  if (type === "testimonials") return { title: text(input.title, 180), items: normalizeTestimonialItems(input.items) };
+  if (type === "icon-list") return { title: text(input.title, 180), items: normalizeIconListItems(input.items) };
+  if (type === "cta-banner") return {
+    eyebrow: text(input.eyebrow, 100),
+    title: text(input.title, 220),
+    text: text(input.text, 1200),
+    media_asset_id: mediaId(input.media_asset_id),
+    overlay: normalizeNumber(input.overlay, 0, 90, 35),
+    buttons: normalizeActionButtons(input.buttons, 4),
+  };
   if (type === "quote") return { quote: text(input.quote, 1800), author: text(input.author, 160) };
   if (type === "contact") return { title: text(input.title, 180), text: text(input.text, 1200), phone: phone(input.phone), email: email(input.email), address: text(input.address, 500), button_text: text(input.button_text, 80), button_url: safeUrl(input.button_url) };
   if (type === "divider") return { label: text(input.label, 100) };
@@ -385,6 +410,44 @@ function normalizeFeatureItems(items) {
   if (items == null) return [];
   if (!Array.isArray(items) || items.length > 12) throw badRequest("A grade excede o limite de itens.");
   return items.map((item) => ({ title: text(item?.title, 160), text: text(item?.text, 1000), media_asset_id: mediaId(item?.media_asset_id), button_text: text(item?.button_text, 80), button_url: safeUrl(item?.button_url) }));
+}
+
+function legacyActionButtons(input) {
+  return input.button_text ? [{ text: input.button_text, url: input.button_url }] : [];
+}
+
+function normalizeActionButtons(items, limit) {
+  if (items == null) return [];
+  if (!Array.isArray(items) || items.length > limit) throw badRequest("A quantidade de botões excede o limite permitido.");
+  return items.map((item) => ({
+    text: text(item?.text, 80),
+    url: safeUrl(item?.url),
+    icon: normalizeEnum(item?.icon, BUTTON_ICONS, ""),
+    media_asset_id: mediaId(item?.media_asset_id),
+    style: normalizeEnum(item?.style, BUTTON_STYLES, "solid"),
+  }));
+}
+
+function normalizeTestimonialItems(items) {
+  if (items == null) return [];
+  if (!Array.isArray(items) || items.length > 12) throw badRequest("A lista de depoimentos excede o limite de itens.");
+  return items.map((item) => ({
+    quote: text(item?.quote, 1600),
+    author: text(item?.author, 160),
+    role: text(item?.role, 160),
+    media_asset_id: mediaId(item?.media_asset_id),
+  }));
+}
+
+function normalizeIconListItems(items) {
+  if (items == null) return [];
+  if (!Array.isArray(items) || items.length > 16) throw badRequest("A lista com ícones excede o limite de itens.");
+  return items.map((item) => ({
+    icon: normalizeEnum(item?.icon, BUTTON_ICONS, "sparkles"),
+    title: text(item?.title, 180),
+    text: text(item?.text, 1000),
+    url: safeUrl(item?.url),
+  }));
 }
 
 function normalizeFaqItems(items) {

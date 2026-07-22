@@ -18,7 +18,7 @@ import {
   updateAdminHotelSettings,
   updateAdminHotelEmbed,
 } from "./hotels.js";
-import { archiveAdminMedia, getAdminMedia, listAdminMedia, updateAdminMedia, uploadAdminMedia } from "./media.js";
+import { archiveAdminMedia, copyAdminMedia, getAdminMedia, listAdminMedia, updateAdminMedia, uploadAdminMedia } from "./media.js";
 import {
   archiveAdminMediaFolder,
   createAdminMediaFolder,
@@ -687,6 +687,11 @@ export function registerAdminRoutes(router) {
   router.get("/api/v1/admin/media/:id", async ({ request, env, params }) => {
     const session = await requireAuthentication({ request, env });
     return ok(await getAdminMedia({ env, session, assetId: params.id }));
+  });
+
+  router.post("/api/v1/admin/media/:id/copy", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await copyAdminMedia({ request, env, session, assetId: params.id }), { status: 201 });
   });
 
   router.patch("/api/v1/admin/media/:id", async ({ request, env, params }) => {

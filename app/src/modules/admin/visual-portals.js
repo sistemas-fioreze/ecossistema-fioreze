@@ -12,6 +12,7 @@ import {
 } from "../../services/visual-portal-document.js";
 import { visualPortalPublicUrl } from "../visual-portals/shared.js";
 import { HOTELS_READ_PERMISSION, HOTELS_SETTINGS_PERMISSION } from "./hotels.js";
+import { copyMediaAssetToHotel } from "./media.js";
 
 const PORTAL_STATUSES = new Set(["draft", "published", "archived"]);
 const BLOCKED_MODULES = new Set(["admin", "room-service"]);
@@ -238,22 +239,59 @@ export async function duplicateAdminVisualPortal({ request, env, session, portal
   const source = await loadPortalForSession({ env, session, portalId, includeDocument: true });
   if (!source) throw notFoundError("Portal visual nao encontrado.");
   const payload = await readJson(request);
-  assertAllowedFields(payload, ["slug", "name", "title"]);
+  assertAllowedFields(payload, ["hotel_id", "module_key", "slug", "name", "title"]);
+  const targetHotelId = Object.hasOwn(payload, "hotel_id")
+    ? requireString(payload.hotel_id, "unidade", { max: 120 })
+    : source.hotel_id;
+  requireAdminHotelAccess(session, targetHotelId);
+  const targetModuleKey = await requireBuilderModule(env, targetHotelId, payload.module_key || source.module_key);
   const slug = requirePortalSlug(payload.slug);
-  await assertUniqueSlug(env, source.hotel_id, slug);
+  await assertUniqueSlug(env, targetHotelId, slug);
+  let document = normalizeVisualPortalDocument(JSON.parse(source.draft_document_json));
+  if (targetHotelId !== source.hotel_id) {
+    const mediaMap = new Map();
+    for (const mediaId of collectVisualPortalMediaIds(document)) {
+      const copied = await copyMediaAssetToHotel({
+        request,
+        env,
+        session,
+        assetId: mediaId,
+        targetHotelId,
+        moduleKey: targetModuleKey,
+        folderId: null,
+      });
+      mediaMap.set(mediaId, copied.asset.id);
+    }
+    document = remapVisualPortalMedia(document, mediaMap);
+  }
   const duplicateRequest = new Request(request.url, {
     method: "POST",
     headers: request.headers,
     body: JSON.stringify({
-      hotel_id: source.hotel_id,
-      module_key: source.module_key,
+      hotel_id: targetHotelId,
+      module_key: targetModuleKey,
       slug,
       name: payload.name || `${source.name} - copia`,
       title: payload.title || source.title,
-      document: JSON.parse(source.draft_document_json),
+      document,
     }),
   });
   return createAdminVisualPortal({ request: duplicateRequest, env, session });
+}
+
+function remapVisualPortalMedia(value, mediaMap, key = "") {
+  if (Array.isArray(value)) {
+    if (key === "media_asset_ids") return value.map((item) => mediaMap.get(item) || item);
+    return value.map((item) => remapVisualPortalMedia(item, mediaMap));
+  }
+  if (!value || typeof value !== "object") {
+    if (key.endsWith("media_asset_id") && typeof value === "string") return mediaMap.get(value) || value;
+    return value;
+  }
+  return Object.fromEntries(Object.entries(value).map(([entryKey, entryValue]) => [
+    entryKey,
+    remapVisualPortalMedia(entryValue, mediaMap, entryKey),
+  ]));
 }
 
 export async function archiveAdminVisualPortal({ request, env, session, portalId }) {

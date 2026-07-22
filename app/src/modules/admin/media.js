@@ -229,6 +229,141 @@ export async function getAdminMedia({ env, session, assetId }) {
   return { asset: formatMediaAsset(asset) };
 }
 
+export async function copyAdminMedia({ request, env, session, assetId }) {
+  const payload = await readJson(request);
+  const allowedFields = new Set(["hotel_id", "module_key", "folder_id"]);
+  const unknownFields = Object.keys(payload).filter((key) => !allowedFields.has(key));
+  if (unknownFields.length) throw badRequest("Campos de copia de midia nao permitidos.", { fields: unknownFields });
+  const targetHotelId = requireString(payload.hotel_id, "hotel_id", { max: 80 });
+  return copyMediaAssetToHotel({
+    request,
+    env,
+    session,
+    assetId,
+    targetHotelId,
+    moduleKey: payload.module_key,
+    folderId: payload.folder_id,
+  });
+}
+
+export async function copyMediaAssetToHotel({ request, env, session, assetId, targetHotelId, moduleKey, folderId }) {
+  requirePermission(session, READ_PERMISSION);
+  requirePermission(session, UPLOAD_PERMISSION);
+  assertAdminMutationAllowed({ request });
+  requireAdminHotelAccess(session, targetHotelId);
+  const source = await loadMediaForSession(env, session, assetId);
+  if (!source || source.status !== "active") throw notFoundError("Midia nao encontrada.");
+  if (source.hotel_id === targetHotelId) return { asset: formatMediaAsset(source), copied: false };
+
+  const targetModuleKey = await normalizeModuleKey(env, moduleKey ?? source.module_key);
+  const targetFolderId = normalizeFolderId(folderId);
+  if (targetFolderId) await requireFolderInHotel(env, targetHotelId, targetFolderId);
+  const storedSource = await loadStoredMediaForSession(env, session, assetId);
+  if (!storedSource?.object_key) throw notFoundError("Midia nao encontrada.");
+
+  const bucket = requireMediaBucket(env);
+  let sourceObject;
+  try {
+    sourceObject = await bucket.get(storedSource.object_key);
+  } catch {
+    throw new AppError(503, "storage_unavailable", "Armazenamento de midia indisponivel.");
+  }
+  if (!sourceObject?.body) throw notFoundError("Arquivo de midia nao encontrado.");
+
+  const now = requestNow({ request, env });
+  const copiedAssetId = createPublicId("media");
+  const extension = MIME_EXTENSIONS[source.mime_type];
+  if (!extension) throw badRequest("Formato de midia nao permitido para copia.");
+  const objectKey = buildObjectKey({
+    hotelId: targetHotelId,
+    moduleKey: targetModuleKey,
+    createdAt: now,
+    assetId: copiedAssetId,
+    extension,
+  });
+  const publicUrl = `/media/${copiedAssetId}`;
+
+  let putResult;
+  try {
+    putResult = await bucket.put(objectKey, sourceObject.body, {
+      httpMetadata: {
+        contentType: source.mime_type,
+        cacheControl: PUBLIC_CACHE_CONTROL,
+      },
+      customMetadata: {
+        asset_id: copiedAssetId,
+        hotel_id: targetHotelId,
+        module_key: targetModuleKey || "shared",
+        copied_from_asset_id: source.id,
+      },
+    });
+  } catch {
+    throw new AppError(503, "storage_unavailable", "Armazenamento de midia indisponivel.");
+  }
+
+  const etag = putResult?.httpEtag || putResult?.etag || null;
+  try {
+    await batch(env, [
+      statement(
+        env,
+        `INSERT INTO media_assets (
+           id, hotel_id, module_key, folder_id, storage_provider, object_key, public_url,
+           alt_text, mime_type, status, created_at, updated_at, archived_at,
+           original_filename, size_bytes, checksum_sha256, storage_etag,
+           uploaded_by_user_id, archived_by_user_id
+         ) VALUES (?, ?, ?, ?, 'r2', ?, ?, ?, ?, 'active', ?, ?, NULL, ?, ?, ?, ?, ?, NULL)`,
+        [
+          copiedAssetId,
+          targetHotelId,
+          targetModuleKey,
+          targetFolderId,
+          objectKey,
+          publicUrl,
+          source.alt_text || null,
+          source.mime_type,
+          now,
+          now,
+          source.original_filename,
+          source.size_bytes,
+          source.checksum_sha256,
+          etag,
+          session.user.id,
+        ],
+      ),
+      auditStatement(env, {
+        hotelId: targetHotelId,
+        moduleKey: targetModuleKey,
+        actorUserId: session.user.id,
+        action: "media.copy",
+        entityId: copiedAssetId,
+        metadata: { source_hotel_id: source.hotel_id, source_asset_id: source.id },
+        createdAt: now,
+      }),
+    ]);
+  } catch {
+    await bucket.delete(objectKey).catch(() => null);
+    throw new AppError(500, "media_metadata_failed", "A copia da midia nao pode ser salva.");
+  }
+
+  return {
+    asset: formatMediaAsset({
+      ...source,
+      id: copiedAssetId,
+      hotel_id: targetHotelId,
+      module_key: targetModuleKey,
+      folder_id: targetFolderId,
+      public_url: publicUrl,
+      created_at: now,
+      updated_at: now,
+      archived_at: null,
+      storage_etag: etag,
+      uploaded_by_user_id: session.user.id,
+      archived_by_user_id: null,
+    }),
+    copied: true,
+  };
+}
+
 export async function updateAdminMedia({ request, env, session, assetId }) {
   requirePermission(session, UPDATE_PERMISSION);
   assertAdminMutationAllowed({ request });
@@ -374,6 +509,22 @@ async function loadMediaForSession(env, session, assetId) {
        FROM media_assets
       WHERE id = ?
         AND hotel_id IN (${placeholders})
+      LIMIT 1`,
+    [assetId, ...session.hotel_ids],
+  );
+}
+
+async function loadStoredMediaForSession(env, session, assetId) {
+  if (!session.hotel_ids.length) return null;
+  const placeholders = session.hotel_ids.map(() => "?").join(", ");
+  return first(
+    env,
+    `SELECT id, hotel_id, object_key
+       FROM media_assets
+      WHERE id = ?
+        AND hotel_id IN (${placeholders})
+        AND storage_provider = 'r2'
+        AND status = 'active'
       LIMIT 1`,
     [assetId, ...session.hotel_ids],
   );
