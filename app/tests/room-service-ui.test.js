@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import test from "node:test";
 import { createCartStore, cartStorageKey } from "../public/js/modules/room-service/cart.js";
 import { filterCatalog, flattenCatalog, formatMoney, getCatalogItemMap, sanitizeMediaPath } from "../public/js/modules/room-service/catalog.js";
 import { internalsForTests } from "../public/js/modules/room-service/index.js";
 import { evaluateServiceStatus } from "../public/js/modules/room-service/service-status.js";
 
-const { submitOrder, syncSubmitButton, updateServiceStatus } = internalsForTests;
+const { renderStaticShell, submitOrder, syncSubmitButton, updateServiceStatus } = internalsForTests;
 
 const CATEGORIES = [
   {
@@ -55,7 +56,24 @@ test("catalogo achata categorias e sanitiza imagens remotas", () => {
   assert.equal(items[0].category_name, "Bebidas");
   assert.equal(items[0].image_url, "/assets/hotels/muller-fioreze/logo.png");
   assert.equal(items[1].image_url, null);
+  assert.equal(sanitizeMediaPath("/media/media_demo-123"), "/media/media_demo-123");
   assert.equal(sanitizeMediaPath("https://example.invalid/a.png"), null);
+});
+
+test("shell do Room Service preserva a hierarquia exata do template sem dependencias legadas", () => {
+  const shell = renderStaticShell();
+  const css = fs.readFileSync(new URL("../public/css/modules/room-service/room-service.css", import.meta.url), "utf8");
+
+  assert.ok(shell.indexOf("rs-order-column") < shell.indexOf("rs-menu-column"));
+  assert.match(shell, /data-rs-loader/);
+  assert.match(shell, /data-hotel-logo-shell/);
+  assert.match(shell, /Resumo do Pedido/);
+  assert.match(shell, /data-image-viewer/);
+  assert.match(shell, /data-submit-overlay/);
+  assert.doesNotMatch(shell, /data-mobile-cart|script\.google|cdn\.tailwindcss|postimg/i);
+  assert.match(css, /grid-template-columns:\s*380px minmax\(0, 1fr\)/);
+  assert.match(css, /\.rs-product-card\s*\{[\s\S]*?min-height:\s*220px/);
+  assert.match(css, /\.rs-product-media\s*\{[\s\S]*?position:\s*absolute/);
 });
 
 test("catalogo filtra por categoria e busca textual", () => {
@@ -134,7 +152,7 @@ test("botao de pedido fica habilitado quando o servico esta aberto", () => {
   syncSubmitButton(container, { status: { open: true }, isSubmitting: false });
 
   assert.equal(button.disabled, false);
-  assert.equal(button.textContent, "Finalizar pedido");
+  assert.equal(button.textContent, "Finalizar Pedido");
   assert.equal(button.getAttribute("aria-disabled"), "false");
   assert.equal(button.classList.contains("is-closed"), false);
 });
@@ -171,7 +189,7 @@ test("botao de pedido volta habilitado quando envio termina com servico aberto",
   syncSubmitButton(container, state);
 
   assert.equal(button.disabled, false);
-  assert.equal(button.textContent, "Finalizar pedido");
+  assert.equal(button.textContent, "Finalizar Pedido");
   assert.equal(button.classList.contains("is-submitting"), false);
 });
 
@@ -201,7 +219,7 @@ test("botao de pedido acompanha atualizacao de horario aberto e fechado", () => 
 
   updateServiceStatus(container, state, new Date("2026-07-05T20:00:00.000Z"));
   assert.equal(button.disabled, false);
-  assert.equal(button.textContent, "Finalizar pedido");
+  assert.equal(button.textContent, "Finalizar Pedido");
 
   updateServiceStatus(container, state, new Date("2026-07-05T18:00:00.000Z"));
   assert.equal(button.disabled, true);
@@ -209,7 +227,7 @@ test("botao de pedido acompanha atualizacao de horario aberto e fechado", () => 
 
   updateServiceStatus(container, state, new Date("2026-07-06T20:00:00.000Z"));
   assert.equal(button.disabled, false);
-  assert.equal(button.textContent, "Finalizar pedido");
+  assert.equal(button.textContent, "Finalizar Pedido");
 });
 
 test("submitOrder bloqueia antes do POST quando o servico esta fechado", async () => {

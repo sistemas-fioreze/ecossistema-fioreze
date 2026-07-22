@@ -1,6 +1,6 @@
 # Inventario tecnico da UI Room Service Muller
 
-Data: 2026-07-05
+Data: 2026-07-05, revisado em 2026-07-21
 
 Fonte historica sanitizada:
 
@@ -103,7 +103,7 @@ O card legado contem:
 Reimplementar:
 
 - `name`, `description`, `price_cents`, `currency`, `image_url`, `available`, `availability_label`;
-- fallback visual quando nao houver imagem;
+- composicao sem espaco vazio quando nao houver imagem;
 - `loading="lazy"`;
 - texto alternativo derivado do nome enquanto o schema nao trouxer alt text especifico;
 - botao desabilitado quando indisponivel.
@@ -245,7 +245,7 @@ Na nova UI:
 - testar 320, 360, 375, 390, 430, 768 e 1366 px;
 - evitar rolagem horizontal;
 - manter area de toque minima;
-- usar drawer/painel de carrinho acessivel no mobile;
+- manter formulario e resumo no fluxo principal no mobile;
 - respeitar `prefers-reduced-motion`.
 
 ## Botao voltar e navegacao
