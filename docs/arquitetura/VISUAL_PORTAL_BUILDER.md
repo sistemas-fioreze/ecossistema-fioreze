@@ -26,7 +26,7 @@ O construtor fica em **Central Administrativa > Criador de portais** e oferece:
 - favicon e cabeçalho opcional com logotipo, menu, cores, transparência total, desfoque e ação principal;
 - capa com até quatro ações, títulos, textos, botões, imagens, vídeos, galeria, cards de serviço, depoimentos, lista com ícones, chamada em destaque, perguntas frequentes, indicadores, linha do tempo, citação, contato, incorporações, divisor e espaçador;
 - transparência nos seletores de cor, cantos aplicados diretamente ao componente e guia central durante o movimento livre;
-- cards de serviço empilhados ou sobre a imagem, com controle independente do fundo do texto;
+- cards de serviço empilhados ou sobre a imagem, com controle independente de cor, transparência e desfoque do fundo, além da cor do texto;
 - navegação desktop alinhada à esquerda ou ao centro e gaveta mobile com cores e desfoque configuráveis;
 - incorporações HTTPS para Google Maps, páginas hospedadas e serviços compatíveis com `iframe`;
 - incorporações de HTML sanitizado em iframe isolado e sem execução de scripts;

@@ -1060,8 +1060,13 @@ html.visual-builder-open body {
   margin: 10px;
   border-radius: max(10px, calc(var(--vp-radius, 0px) * .65));
   background: var(--vp-card-copy-bg, #ffffffe8);
+  color: var(--vp-card-copy-text, #fff);
+  backdrop-filter: blur(var(--vp-card-copy-blur, 12px));
+  -webkit-backdrop-filter: blur(var(--vp-card-copy-blur, 12px));
+}
+
+.vp-preview-grid.is-overlay article > div .vp-preview-button.is-ghost {
   color: inherit;
-  backdrop-filter: blur(12px);
 }
 
 .vp-preview-testimonials,

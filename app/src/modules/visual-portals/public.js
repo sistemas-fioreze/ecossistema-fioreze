@@ -141,7 +141,7 @@ function renderBlock(block, media, context) {
   }
   if (block.type === "feature-grid") {
     const overlay = content.layout === "overlay";
-    return `<section ${attributes}><div class="block-inner feature-grid${overlay ? " is-overlay" : ""}" style="--card-copy-background:${escapeAttr(content.text_background_color)}">${content.items.map((item) => { const asset = media.get(item.media_asset_id); return `<article>${asset && String(asset.mime_type).startsWith("image/") ? `<img src="${escapeAttr(asset.public_url)}" alt="${escapeAttr(asset.alt_text || "")}" loading="lazy">` : ""}<div><h3>${escapeHtml(item.title)}</h3>${paragraphs(item.text)}${buttonLink(item.button_text, item.button_url, "ghost", context)}</div></article>`; }).join("")}</div></section>`;
+    return `<section ${attributes}><div class="block-inner feature-grid${overlay ? " is-overlay" : ""}" style="--card-copy-background:${escapeAttr(content.text_background_color)};--card-copy-text:${escapeAttr(content.text_color)};--card-copy-blur:${Number(content.text_background_blur)}px">${content.items.map((item) => { const asset = media.get(item.media_asset_id); return `<article>${asset && String(asset.mime_type).startsWith("image/") ? `<img src="${escapeAttr(asset.public_url)}" alt="${escapeAttr(asset.alt_text || "")}" loading="lazy">` : ""}<div><h3>${escapeHtml(item.title)}</h3>${paragraphs(item.text)}${buttonLink(item.button_text, item.button_url, "ghost", context)}</div></article>`; }).join("")}</div></section>`;
   }
   if (block.type === "faq") {
     return `<section ${attributes}><div class="block-inner faq-block">${content.title ? `<h2>${escapeHtml(content.title)}</h2>` : ""}<div class="faq-list">${content.items.map((item) => `<details><summary><span>${escapeHtml(item.question)}</span><i aria-hidden="true"></i></summary><div>${paragraphs(item.answer)}</div></details>`).join("")}</div></div></section>`;
@@ -317,7 +317,8 @@ a{color:inherit}
 .feature-grid article>div{padding:1.25rem}
 .feature-grid.is-overlay article{position:relative;display:grid;min-height:340px;align-items:end;border:0;background:#202124;color:#fff}
 .feature-grid.is-overlay article img{position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto}
-.feature-grid.is-overlay article>div{position:relative;z-index:1;margin:.8rem;padding:1.15rem;border-radius:max(12px,calc(var(--radius) * .65));background:var(--card-copy-background);color:inherit;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.feature-grid.is-overlay article>div{position:relative;z-index:1;margin:.8rem;padding:1.15rem;border-radius:max(12px,calc(var(--radius) * .65));background:var(--card-copy-background);color:var(--card-copy-text,#fff);backdrop-filter:blur(var(--card-copy-blur,12px));-webkit-backdrop-filter:blur(var(--card-copy-blur,12px))}
+.feature-grid.is-overlay article>div .visual-button.is-ghost{color:inherit}
 .faq-block>h2,.stats-block>h2,.timeline-block>h2{margin-bottom:1.5rem}
 .faq-list{display:grid;gap:10px}
 .faq-list details{border:1px solid color-mix(in srgb,currentColor 14%,transparent);border-radius:max(12px,var(--radius));background:color-mix(in srgb,var(--background) 86%,#fff);text-align:left}
