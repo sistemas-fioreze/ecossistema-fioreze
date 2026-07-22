@@ -3,7 +3,7 @@ import { escapeHtml } from "../../core/errors.js";
 import { createCartStore, createOrderAttemptKey } from "./cart.js";
 import { filterCatalog, flattenCatalog, formatMoney, getCatalogItemMap, normalizeText } from "./catalog.js";
 import { describeServiceStatus, evaluateServiceStatus } from "./service-status.js";
-import { sanitizePublicAssetUrl } from "../../core/theme.js";
+import { applyBranding, sanitizePublicAssetUrl } from "../../core/theme.js";
 
 const MODULE_KEY = "room-service";
 let cleanupCurrentRender = () => {};
@@ -11,10 +11,19 @@ let cleanupCurrentRender = () => {};
 export async function render(container, context) {
   cleanupCurrentRender();
   await loadCss("/css/modules/room-service/room-service.css");
+  const embedded = context.presentation === "portal-page";
+  const requestedSlug = context.bootstrap?.slug || context.hotelSlug;
 
   const state = {
-    bootstrap: context.bootstrap,
-    slug: context.bootstrap.slug,
+    bootstrap: context.bootstrap || {
+      hotel_id: requestedSlug,
+      slug: requestedSlug,
+      name: "",
+      branding: {},
+      settings: {},
+      service_hours: {},
+    },
+    slug: requestedSlug,
     catalog: { categories: [] },
     rooms: [],
     itemMap: new Map(),
@@ -28,16 +37,26 @@ export async function render(container, context) {
     statusTimer: null,
   };
 
-  container.innerHTML = renderStaticShell();
+  container.innerHTML = renderStaticShell({ embedded });
   bindStaticActions(container, state);
-  renderHotelHeader(container, state);
+  if (context.bootstrap) renderHotelHeader(container, state);
   renderLoading(container, "Carregando cardápio...");
 
   try {
-    const [products, roomPayload] = await Promise.all([
-      apiGet(`/api/v1/public/hotels/${encodeURIComponent(state.slug)}/room-service/products`),
-      apiGet(`/api/v1/public/hotels/${encodeURIComponent(state.slug)}/room-service/rooms`),
+    const [bootstrap, products, roomPayload] = await Promise.all([
+      context.bootstrap
+        ? Promise.resolve(context.bootstrap)
+        : apiGet(`/api/v1/public/hotels/${encodeURIComponent(requestedSlug)}/bootstrap`),
+      apiGet(`/api/v1/public/hotels/${encodeURIComponent(requestedSlug)}/room-service/products`),
+      apiGet(`/api/v1/public/hotels/${encodeURIComponent(requestedSlug)}/room-service/rooms`),
     ]);
+    if (!bootstrap.modules?.some((module) => module.module_key === MODULE_KEY)) {
+      throw new Error("O Room Service não está disponível nesta unidade.");
+    }
+    state.bootstrap = bootstrap;
+    state.slug = bootstrap.slug;
+    applyBranding(bootstrap.branding);
+    renderHotelHeader(container, state);
     state.catalog = products;
     state.rooms = roomPayload.rooms || [];
     const items = flattenCatalog(products.categories);
@@ -62,23 +81,16 @@ export async function render(container, context) {
   };
 }
 
-function renderStaticShell() {
+function renderStaticShell({ embedded = false } = {}) {
   return `
-    <section class="rs-app" data-rs-app>
-      <section class="rs-loader" data-rs-loader aria-live="polite">
-        <div class="rs-logo-loader" data-hotel-logo-shell></div>
-        <p class="rs-kicker">Room Service</p>
-        <h2>Seja bem-vindo</h2>
-        <div class="rs-loader-dots" aria-hidden="true"><span></span><span></span><span></span></div>
-      </section>
-
-      <section class="rs-shell" data-rs-shell hidden>
-        <header class="rs-mobile-header">
+    <section class="rs-app${embedded ? " is-portal-page" : ""}" data-rs-app>
+      <section class="rs-shell" data-rs-shell>
+        ${embedded ? "" : `<header class="rs-mobile-header">
           <div>
             <p class="rs-kicker">Room Service</p>
             <h1 data-hotel-name></h1>
           </div>
-        </header>
+        </header>`}
 
         <div class="rs-layout">
           <aside class="rs-order-column">
@@ -145,7 +157,7 @@ function renderStaticShell() {
             </section>
           </aside>
 
-          <main class="rs-menu-column">
+          <section class="rs-menu-column">
             <section class="rs-search-panel" aria-label="Busca e categorias do cardápio">
               <label class="rs-search-field">
                 <span class="sr-only">Pesquisar no cardápio</span>
@@ -156,7 +168,7 @@ function renderStaticShell() {
             </section>
 
             <section class="rs-catalog" data-catalog aria-live="polite"></section>
-          </main>
+          </section>
         </div>
       </section>
 
@@ -359,11 +371,6 @@ function syncSubmitButton(container, state) {
 }
 
 function renderLoading(container, message) {
-  setText(container, "[data-rs-loader] h2", "Seja bem-vindo");
-  const shell = container.querySelector("[data-rs-shell]");
-  const loader = container.querySelector("[data-rs-loader]");
-  shell.hidden = true;
-  loader.hidden = false;
   const catalog = container.querySelector("[data-catalog]");
   if (catalog) {
     catalog.innerHTML = "";
@@ -372,24 +379,16 @@ function renderLoading(container, message) {
     card.textContent = message;
     catalog.append(card);
   }
-}
-
-function showLoadedShell(container) {
-  const loader = container.querySelector("[data-rs-loader]");
-  const shell = container.querySelector("[data-rs-shell]");
-  if (!shell.hidden) return;
-  shell.hidden = false;
-  window.requestAnimationFrame(() => {
-    shell.classList.add("is-visible");
-    loader.classList.add("is-leaving");
-  });
-  window.setTimeout(() => {
-    loader.hidden = true;
-  }, 700);
+  const button = container.querySelector("[data-submit-order]");
+  if (button) {
+    button.disabled = true;
+    button.setAttribute("aria-disabled", "true");
+    button.setAttribute("aria-label", message);
+    setText(container, "[data-submit-label]", "Carregando cardápio...");
+  }
 }
 
 function renderCatalogError(container, error) {
-  showLoadedShell(container);
   const catalog = container.querySelector("[data-catalog]");
   catalog.innerHTML = "";
   const card = document.createElement("div");
@@ -400,10 +399,16 @@ function renderCatalogError(container, error) {
   text.textContent = error.message || "Tente novamente em instantes.";
   card.append(title, text);
   catalog.append(card);
+  const button = container.querySelector("[data-submit-order]");
+  if (button) {
+    button.disabled = true;
+    button.setAttribute("aria-disabled", "true");
+    button.setAttribute("aria-label", "Pedidos indisponíveis");
+    setText(container, "[data-submit-label]", "Pedidos indisponíveis");
+  }
 }
 
 function renderCatalog(container, state) {
-  showLoadedShell(container);
   renderCategoryNavigation(container, state);
 
   const catalog = container.querySelector("[data-catalog]");

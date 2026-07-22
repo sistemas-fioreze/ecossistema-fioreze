@@ -114,6 +114,43 @@ test("modelos modernos incluem loja digital, campanha e agenda", () => {
   assert.ok(homeBlocks(events).some((block) => block.id === "agenda"));
 });
 
+test("pagina nativa de Room Service preserva isolamento, cabecalho do portal e contrato do editor", () => {
+  const document = createBlankVisualPortalDocument();
+  document.pages.push({
+    id: "room-service",
+    type: "room-service",
+    slug: "room-service",
+    name: "Room Service",
+    title: "Room Service",
+    show_in_navigation: true,
+    settings: structuredClone(document.pages[0].settings),
+    blocks: [],
+  });
+  const normalized = normalizeVisualPortalDocument(document);
+  const page = normalized.pages[1];
+  const html = renderVisualPortalPage({
+    portal: { title: "Portal", portal_slug: "estadia", hotel_name: "Hotel", hotel_slug: "hotel-ficticio", module_key: "guest-portal", locale: "pt-BR" },
+    document: normalized,
+    page,
+  });
+
+  assert.equal(page.type, "room-service");
+  assert.match(html, /data-visual-room-service/);
+  assert.match(html, /data-hotel-slug="hotel-ficticio"/);
+  assert.match(html, /visual-portal-room-service\.js/);
+  assert.match(html, /css\/modules\/room-service\/room-service\.css/);
+  assert.equal((html.match(/class="site-header/g) || []).length, 1);
+  assert.doesNotMatch(html, /class="rs-mobile-header"|data-rs-loader/);
+
+  const duplicated = structuredClone(document);
+  duplicated.pages.push({ ...structuredClone(duplicated.pages[1]), id: "room-service-dois", slug: "cardapio" });
+  assert.throws(() => normalizeVisualPortalDocument(duplicated), /somente uma página de Room Service/i);
+
+  const withBlocks = structuredClone(document);
+  withBlocks.pages[1].blocks.push(structuredClone(withBlocks.pages[0].blocks[0]));
+  assert.throws(() => normalizeVisualPortalDocument(withBlocks), /não aceita blocos personalizados/i);
+});
+
 test("documentos legados sao promovidos para site multipagina sem perder blocos", () => {
   const document = normalizeVisualPortalDocument({
     schema_version: 1,
@@ -427,6 +464,16 @@ test("CRUD visual salva versoes, valida isolamento e publica renderizacao segura
       visibility: { desktop: true, mobile: true },
     }],
   });
+  document.pages.push({
+    id: "room-service",
+    type: "room-service",
+    slug: "room-service",
+    name: "Room Service",
+    title: "Room Service",
+    show_in_navigation: true,
+    settings: structuredClone(document.pages[0].settings),
+    blocks: [],
+  });
   const updated = await updateAdminVisualPortal({
     request: jsonRequest("PATCH", { document, expected_revision: 1 }),
     env,
@@ -439,7 +486,7 @@ test("CRUD visual salva versoes, valida isolamento e publica renderizacao segura
   const versions = await listAdminVisualPortalVersions({ env, session: SESSION, portalId: created.portal.id });
   assert.equal(versions.versions.length, 2);
   const version = await getAdminVisualPortalVersion({ env, session: SESSION, portalId: created.portal.id, versionId: versions.versions[0].id });
-  assert.equal(version.version.document.pages.length, 2);
+  assert.equal(version.version.document.pages.length, 3);
 
   const published = await publishAdminVisualPortal({
     request: jsonRequest("POST", {}), env, session: SESSION, portalId: created.portal.id,
@@ -460,6 +507,13 @@ test("CRUD visual salva versoes, valida isolamento e publica renderizacao segura
   const servicesResponse = await serveVisualPortal({ env, params: { hotel_slug: "muller-fioreze", portal_slug: "experiencias", page_slug: "servicos" } });
   assert.equal(servicesResponse.status, 200);
   assert.match(await servicesResponse.text(), /Conteúdo fictício/);
+  const roomServicePageResponse = await serveVisualPortal({ env, params: { hotel_slug: "muller-fioreze", portal_slug: "experiencias", page_slug: "room-service" } });
+  const roomServicePageHtml = await roomServicePageResponse.text();
+  assert.equal(roomServicePageResponse.status, 200);
+  assert.match(roomServicePageResponse.headers.get("content-security-policy") || "", /connect-src 'self'/);
+  assert.match(roomServicePageResponse.headers.get("content-security-policy") || "", /style-src 'self' 'unsafe-inline'/);
+  assert.match(roomServicePageHtml, /data-visual-room-service/);
+  assert.match(roomServicePageHtml, /visual-portal-room-service\.js/);
   await assert.rejects(
     () => serveVisualPortal({ env, params: { hotel_slug: "muller-fioreze", portal_slug: "experiencias", page_slug: "inexistente" } }),
     (error) => error.status === 404,
@@ -621,6 +675,8 @@ test("Central integra construtor visual e Worker-first preserva a rota publica",
   assert.match(builder, /data-toggle-scope/);
   assert.match(builder, /role="switch"/);
   assert.match(builder, /data-add-page/);
+  assert.match(builder, /data-add-room-service-page/);
+  assert.match(builder, /Página conectada ao cardápio/);
   assert.match(builder, /data-preview-version/);
   assert.match(builder, /autosave_interval_seconds/);
   assert.match(builder, /data-header-field/);
@@ -646,9 +702,14 @@ test("Central integra construtor visual e Worker-first preserva a rota publica",
   assert.match(builder, /fitCanvas\(true\)/);
   assert.doesNotMatch(builder, /window\.(?:alert|confirm|prompt)\(/);
   const runtime = fs.readFileSync("public/js/modules/visual-portal-runtime.js", "utf8");
+  const roomServiceRuntime = fs.readFileSync("public/js/modules/visual-portal-room-service.js", "utf8");
+  const roomServiceModule = fs.readFileSync("public/js/modules/room-service/index.js", "utf8");
   assert.doesNotMatch(runtime, /beforeinstallprompt|serviceWorker|data-install-app/);
   assert.match(runtime, /data-mobile-menu-toggle/);
   assert.doesNotMatch(runtime, /window\.(?:alert|confirm|prompt)\(/);
+  assert.match(roomServiceRuntime, /presentation: "portal-page"/);
+  assert.match(roomServiceRuntime, /hotelSlug/);
+  assert.match(roomServiceModule, /bootstrap\.modules/);
   assert.match(builder, /\["faq", "Perguntas frequentes"/);
   assert.match(builder, /\["stats", "Indicadores"/);
   assert.match(builder, /\["timeline", "Linha do tempo"/);
