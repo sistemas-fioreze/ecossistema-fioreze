@@ -63,6 +63,7 @@ test("catalogo achata categorias e sanitiza imagens remotas", () => {
 test("shell do Room Service preserva a hierarquia exata do template sem dependencias legadas", () => {
   const shell = renderStaticShell();
   const css = fs.readFileSync(new URL("../public/css/modules/room-service/room-service.css", import.meta.url), "utf8");
+  const script = fs.readFileSync(new URL("../public/js/modules/room-service/index.js", import.meta.url), "utf8");
 
   assert.ok(shell.indexOf("rs-order-column") < shell.indexOf("rs-menu-column"));
   assert.match(shell, /data-rs-loader/);
@@ -74,6 +75,8 @@ test("shell do Room Service preserva a hierarquia exata do template sem dependen
   assert.match(css, /grid-template-columns:\s*380px minmax\(0, 1fr\)/);
   assert.match(css, /\.rs-product-card\s*\{[\s\S]*?min-height:\s*220px/);
   assert.match(css, /\.rs-product-media\s*\{[\s\S]*?position:\s*absolute/);
+  assert.match(script, /classList\.toggle\("active", state\.activeCategory === category\.id\)/);
+  assert.doesNotMatch(script, /IntersectionObserver/);
 });
 
 test("catalogo filtra por categoria e busca textual", () => {
