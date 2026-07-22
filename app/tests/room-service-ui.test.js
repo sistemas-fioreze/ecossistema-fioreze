@@ -68,6 +68,7 @@ test("shell do Room Service preserva a hierarquia exata do template sem dependen
   assert.ok(shell.indexOf("rs-order-column") < shell.indexOf("rs-menu-column"));
   assert.doesNotMatch(shell, /data-rs-loader|data-hotel-logo-shell/);
   assert.match(shell, /class="rs-mobile-header"/);
+  assert.match(shell, /data-hotel-icon/);
   assert.match(shell, /Resumo do Pedido/);
   assert.match(shell, /data-image-viewer/);
   assert.match(shell, /data-submit-overlay/);
@@ -75,6 +76,8 @@ test("shell do Room Service preserva a hierarquia exata do template sem dependen
   assert.match(css, /grid-template-columns:\s*380px minmax\(0, 1fr\)/);
   assert.match(css, /\.rs-product-card\s*\{[\s\S]*?min-height:\s*220px/);
   assert.match(css, /\.rs-product-media\s*\{[\s\S]*?position:\s*absolute/);
+  assert.match(css, /max\(18px, env\(safe-area-inset-left\)\)/);
+  assert.match(css, /\.rs-mobile-header-logo[\s\S]*?width:\s*42px/);
   assert.match(script, /classList\.toggle\("active", state\.activeCategory === category\.id\)/);
   assert.doesNotMatch(script, /IntersectionObserver/);
 });

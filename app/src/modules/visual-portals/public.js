@@ -43,7 +43,7 @@ export async function serveVisualPortal({ env, params, head = false }) {
   const page = getVisualPortalPage(document, params.page_slug || "");
   if (!page) throw notFoundError("Página não encontrada.");
   const media = await loadPublishedMedia(env, portal.hotel_id, document);
-  const headers = visualPortalHeaders({ allowApi: page.type === "room-service" });
+  const headers = visualPortalHeaders({ allowApi: page.type !== "standard", allowRemoteImages: page.type === "blog" });
   if (head) return new Response(null, { status: 200, headers });
   return new Response(renderVisualPortalPage({ portal, document, page, media }), { status: 200, headers });
 }
@@ -71,12 +71,16 @@ export function renderVisualPortalPage({ portal, document, page = getVisualPorta
   const homePath = portal.portal_slug ? `/${portal.hotel_slug}/${portal.portal_slug}` : "#conteudo";
   const context = { portal, document, homePath };
   const roomServicePage = page.type === "room-service";
+  const blogPage = page.type === "blog";
+  const systemPage = roomServicePage || blogPage;
   const blocks = roomServicePage
     ? renderRoomServicePage(portal)
-    : page.blocks.map((block) => renderBlock(block, media, context)).join("");
+    : blogPage
+      ? renderBlogPage(portal)
+      : page.blocks.map((block) => renderBlock(block, media, context)).join("");
   const headerLogo = media.get(settings.header.logo_media_asset_id)?.public_url || safeMediaPath(portal.logo_url);
   const favicon = media.get(settings.favicon_media_asset_id)?.public_url || safeMediaPath(portal.icon_url);
-  const pageBackground = renderPageBackground(pageSettings, media);
+  const pageBackground = systemPage ? "" : renderPageBackground(pageSettings, media);
   const pageTitle = page.slug ? `${page.title} | ${portal.title}` : portal.title;
   const header = renderSiteHeader({ portal, document, page, logo: headerLogo, context });
   return `<!doctype html>
@@ -89,19 +93,24 @@ export function renderVisualPortalPage({ portal, document, page = getVisualPorta
     ${favicon ? `<link rel="icon" href="${escapeAttr(favicon)}">` : ""}
     <script src="/js/modules/visual-portal-runtime.js" defer></script>
     ${roomServicePage ? '<link rel="stylesheet" href="/css/modules/room-service/room-service.css"><script type="module" src="/js/modules/visual-portal-room-service.js"></script>' : ""}
+    ${blogPage ? '<link rel="stylesheet" href="/css/modules/visual-portal-blog.css"><script type="module" src="/js/modules/visual-portal-blog.js"></script>' : ""}
     <style>${visualPortalCss(settings, pageSettings)}</style>
   </head>
   <body>
     <a class="skip-link" href="#conteudo">Ir para o conteúdo</a>
     ${pageBackground}
     ${header}
-    <main id="conteudo" class="visual-page${roomServicePage ? " is-room-service-page" : ""}" data-module="${escapeAttr(portal.module_key)}" data-page="${escapeAttr(page.id)}">${blocks || '<section class="empty-page"><h1>Conteúdo em preparação</h1></section>'}</main>
+    <main id="conteudo" class="visual-page${systemPage ? " is-system-page" : ""}${roomServicePage ? " is-room-service-page" : ""}${blogPage ? " is-blog-page" : ""}" data-module="${escapeAttr(portal.module_key)}" data-page="${escapeAttr(page.id)}">${blocks || '<section class="empty-page"><h1>Conteúdo em preparação</h1></section>'}</main>
   </body>
 </html>`;
 }
 
 function renderRoomServicePage(portal) {
   return `<section class="visual-room-service" data-visual-room-service data-hotel-slug="${escapeAttr(portal.hotel_slug)}" aria-label="Room Service"></section>`;
+}
+
+function renderBlogPage(portal) {
+  return `<section class="visual-blog" data-visual-blog data-hotel-slug="${escapeAttr(portal.hotel_slug)}" aria-label="Blog"><header class="visual-blog-heading"><span>Conteúdo Fioreze</span><h1>Blog</h1><p>Novidades, dicas e experiências para aproveitar sua estadia.</p></header><div class="visual-blog-loading" role="status"><span aria-hidden="true"></span><strong>Carregando publicações...</strong></div></section>`;
 }
 
 function renderBlock(block, media, context) {
@@ -240,6 +249,7 @@ function renderSiteHeader({ portal, document, page, logo, context }) {
     "site-header",
     `header-${header.style}`,
     `navigation-${header.desktop_navigation_alignment}`,
+    page.type !== "standard" ? "is-system-page" : "",
     header.position === "sticky" ? "is-sticky" : "",
     header.transparent ? "is-transparent" : "",
     header.blur ? "has-blur" : "",
@@ -249,7 +259,10 @@ function renderSiteHeader({ portal, document, page, logo, context }) {
     : "";
   const navigationId = `portal-navigation-${portal.portal_slug}`;
   const hasMobileNavigation = Boolean(navigation || header.cta_text);
-  const mobileNavigationStyle = `--header-bg:${escapeAttr(header.background_color)};--header-text:${escapeAttr(header.text_color)};--header-accent:${escapeAttr(header.accent_color)};--mobile-menu-bg:${escapeAttr(header.mobile_menu_background_color)};--mobile-menu-text:${escapeAttr(header.mobile_menu_text_color)}`;
+  const headerBackground = page.type !== "standard" ? "#ffffff" : header.background_color;
+  const headerText = page.type !== "standard" ? "#202124" : header.text_color;
+  const toggleBackground = contrastingBackdrop(headerText);
+  const mobileNavigationStyle = `--header-bg:${escapeAttr(headerBackground)};--header-text:${escapeAttr(headerText)};--header-accent:${escapeAttr(header.accent_color)};--mobile-menu-bg:${escapeAttr(header.mobile_menu_background_color)};--mobile-menu-text:${escapeAttr(header.mobile_menu_text_color)};--menu-toggle-bg:${escapeAttr(toggleBackground)}`;
   const mobileMenuToggle = hasMobileNavigation
     ? `<button class="mobile-menu-toggle" type="button" data-mobile-menu-toggle aria-controls="${escapeAttr(navigationId)}" aria-expanded="false" aria-label="Abrir menu"><span></span><span></span><span></span></button>`
     : "";
@@ -257,7 +270,7 @@ function renderSiteHeader({ portal, document, page, logo, context }) {
   const mobileNavigation = hasMobileNavigation
     ? `<button class="mobile-menu-backdrop" type="button" data-mobile-menu-close aria-label="Fechar menu" tabindex="-1"></button><aside class="mobile-navigation${header.mobile_menu_blur ? " has-menu-blur" : ""}" id="${escapeAttr(navigationId)}" aria-hidden="true" style="${mobileNavigationStyle}"><header>${mobileBrand}<button class="mobile-navigation-close" type="button" data-mobile-menu-close aria-label="Fechar menu"><span></span><span></span></button></header>${mobileNavigationLinks ? `<div class="mobile-navigation-section"><small>Navegação</small><nav aria-label="Navegação móvel do site">${mobileNavigationLinks}</nav></div>` : ""}<div class="mobile-navigation-actions">${buttonLink(header.cta_text, header.cta_url, "solid", context)}</div><footer><span></span><small>${escapeHtml(portal.title)}</small></footer></aside>`
     : "";
-  return `<header class="${classes}" style="--header-bg:${escapeAttr(header.background_color)};--header-text:${escapeAttr(header.text_color)};--header-accent:${escapeAttr(header.accent_color)}"><div class="header-inner">${brand}<nav class="desktop-navigation" aria-label="Navegação do site">${navigation}</nav><div class="header-actions">${buttonLink(header.cta_text, header.cta_url, "solid", context)}</div>${mobileMenuToggle}</div></header>${mobileNavigation}`;
+  return `<header class="${classes}" style="--header-bg:${escapeAttr(headerBackground)};--header-text:${escapeAttr(headerText)};--header-accent:${escapeAttr(header.accent_color)};--menu-toggle-bg:${escapeAttr(toggleBackground)}"><div class="header-inner">${brand}<nav class="desktop-navigation" aria-label="Navegação do site">${navigation}</nav><div class="header-actions">${buttonLink(header.cta_text, header.cta_url, "solid", context)}</div>${mobileMenuToggle}</div></header>${mobileNavigation}`;
 }
 
 function visualPortalCss(settings, pageSettings) {
@@ -277,6 +290,9 @@ a{color:inherit}
 .site-header.is-transparent{background:transparent}
 .site-header.has-blur{backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
 .site-header.has-blur:not(.is-transparent){background:color-mix(in srgb,var(--header-bg) 86%,transparent)}
+.site-header.is-system-page,.site-header.is-system-page.is-transparent,.site-header.is-system-page.header-minimal,.site-header.is-system-page.has-blur:not(.is-transparent){background:#fff;color:#202124}
+.site-header.is-system-page.header-floating{padding-top:12px}
+.site-header.is-system-page.header-floating .header-inner,.site-header.is-system-page.header-floating.is-transparent .header-inner{border-color:#e6e7e9;background:#fff;box-shadow:0 8px 24px rgba(18,24,33,.06)}
 .header-inner{display:grid;grid-template-columns:minmax(150px,1fr) auto minmax(150px,1fr);align-items:center;gap:24px;width:min(100%,1440px);min-height:52px;margin-inline:auto}
 .header-inner nav{display:flex;align-items:center;justify-content:center;gap:6px;min-width:0}
 .navigation-left .header-inner nav{justify-content:flex-start}
@@ -295,7 +311,7 @@ a{color:inherit}
 .brand strong{font-size:1.1rem}
 .mobile-menu-toggle,.mobile-menu-backdrop,.mobile-navigation{display:none}
 .visual-page{position:relative;z-index:1;--page-width:${widthValue(pageSettings.content_width)};--page-pad:${pageSettings.page_padding}px;--block-gap:${pageSettings.block_gap}px;display:grid;gap:var(--block-gap);min-height:calc(100vh - 76px)}
-.visual-page.is-room-service-page{display:block;background:#fff}
+.visual-page.is-system-page{display:block;background:#fff;color:#202124}
 .visual-room-service{min-height:calc(100vh - 76px);background:#fff}
 .visual-room-service-error{display:grid;min-height:360px;place-content:center;padding:32px;text-align:center}.visual-room-service-error h1{margin:0 0 8px;font-size:clamp(1.8rem,4vw,3rem)}.visual-room-service-error p{max-width:560px;margin:0;color:#6b7280}
 .visual-block{--align:var(--base-align,left);--width:var(--base-width,${widthValue(pageSettings.content_width)});--background:var(--base-background,transparent);--text:var(--base-text,inherit);--accent:var(--base-accent,${settings.primary_color});--padding-top:var(--base-padding-top,0px);--padding-bottom:var(--base-padding-bottom,0px);--padding-inline:var(--base-padding-inline,var(--page-pad));--gap:var(--base-gap,20px);--min-height:var(--base-min-height,0px);--radius:var(--base-radius,0px);--columns:var(--base-columns,3);--offset-x:var(--base-offset-x,0px);--offset-y:var(--base-offset-y,0px);margin:0;background:var(--background);color:var(--text);text-align:var(--align);min-height:var(--min-height);padding:var(--padding-top) var(--padding-inline) var(--padding-bottom);border-radius:var(--radius);transform:translate(var(--offset-x),var(--offset-y))}
@@ -380,10 +396,10 @@ a{color:inherit}
   .visual-quote blockquote{font-size:var(--desktop-heading-size,var(--base-heading-size,clamp(1.6rem,3.2vw,3.3rem)))}
 }
 @media (max-width:760px){
-  .site-header{min-height:64px;padding-inline:max(14px,env(safe-area-inset-left))}
+  .site-header{min-height:64px;padding-inline:max(18px,env(safe-area-inset-left))}
   .header-inner{grid-template-columns:minmax(0,1fr) auto;gap:10px}
   .desktop-navigation,.header-actions{display:none!important}
-  .mobile-menu-toggle{display:grid;width:44px;height:44px;place-content:center;gap:5px;padding:0;border:0;border-radius:0;background:transparent;color:var(--header-text);cursor:pointer}
+  .mobile-menu-toggle{display:grid;width:44px;height:44px;place-content:center;gap:5px;padding:0;border:1px solid color-mix(in srgb,var(--header-text) 18%,transparent);border-radius:50%;background:var(--menu-toggle-bg);color:var(--header-text);box-shadow:0 6px 18px rgba(0,0,0,.12);cursor:pointer;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
   .mobile-menu-toggle span{display:block;width:20px;height:2px;border-radius:2px;background:currentColor;transition:transform .22s ease,opacity .22s ease}
   .mobile-menu-backdrop{position:fixed;inset:0;z-index:30;display:block;border:0;background:rgba(11,13,17,.56);backdrop-filter:blur(4px);opacity:0;pointer-events:none;transition:opacity .28s ease}
   .mobile-navigation{position:fixed;top:0;right:0;bottom:0;z-index:31;display:flex;width:min(88vw,360px);flex-direction:column;padding:max(18px,env(safe-area-inset-top)) 18px max(18px,env(safe-area-inset-bottom));overflow-y:auto;background:var(--mobile-menu-bg);color:var(--mobile-menu-text);box-shadow:-28px 0 80px rgba(0,0,0,.3);transform:translateX(105%);visibility:hidden;transition:transform .3s cubic-bezier(.22,.85,.24,1),visibility 0s linear .3s}
@@ -497,7 +513,7 @@ function escapeCssUrl(value) {
   return String(value).replace(/["'()\\\n\r]/g, "");
 }
 
-function visualPortalHeaders({ allowApi = false } = {}) {
+function visualPortalHeaders({ allowApi = false, allowRemoteImages = false } = {}) {
   return {
     "content-type": "text/html; charset=utf-8",
     "cache-control": "public, max-age=60, stale-while-revalidate=300",
@@ -505,7 +521,7 @@ function visualPortalHeaders({ allowApi = false } = {}) {
       "default-src 'none'",
       "script-src 'self'",
       `style-src ${allowApi ? "'self' " : ""}'unsafe-inline'`,
-      "img-src 'self' data:",
+      `img-src 'self' data:${allowRemoteImages ? " https:" : ""}`,
       "media-src 'self'",
       "frame-src https:",
       "font-src 'self' data:",
@@ -518,6 +534,16 @@ function visualPortalHeaders({ allowApi = false } = {}) {
     "referrer-policy": "strict-origin-when-cross-origin",
     "x-content-type-options": "nosniff",
   };
+}
+
+function contrastingBackdrop(value) {
+  const color = String(value || "").trim();
+  const hex = color.match(/^#([0-9a-f]{6})/i)?.[1];
+  const rgb = hex
+    ? [hex.slice(0, 2), hex.slice(2, 4), hex.slice(4, 6)].map((part) => Number.parseInt(part, 16))
+    : (color.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i)?.slice(1, 4).map(Number) || [32, 33, 36]);
+  const luminance = (rgb[0] * 299 + rgb[1] * 587 + rgb[2] * 114) / 1000;
+  return luminance > 155 ? "rgba(24,27,31,.72)" : "rgba(255,255,255,.9)";
 }
 
 function escapeHtml(value) {

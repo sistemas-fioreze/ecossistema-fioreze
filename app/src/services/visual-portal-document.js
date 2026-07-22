@@ -23,7 +23,8 @@ const EMBED_MODES = new Set(["url", "html"]);
 const HEADER_STYLES = new Set(["standard", "centered", "floating", "minimal"]);
 const HEADER_POSITIONS = new Set(["static", "sticky"]);
 const NAVIGATION_ALIGNMENTS = new Set(["left", "center", "right"]);
-const PAGE_TYPES = new Set(["standard", "room-service"]);
+const PAGE_TYPES = new Set(["standard", "room-service", "blog"]);
+const SYSTEM_PAGE_TYPES = new Set(["room-service", "blog"]);
 const FEATURE_CARD_LAYOUTS = new Set(["stacked", "overlay"]);
 const BUTTON_ICONS = new Set(["", "arrow-right", "calendar", "map-pin", "phone", "shopping-bag", "sparkles"]);
 const COLOR_PATTERN = /^(#[0-9a-f]{6}(?:[0-9a-f]{2})?|rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\))$/i;
@@ -93,6 +94,7 @@ export function normalizeVisualPortalDocument(input) {
   if (!pages.some((page) => page.slug === "")) throw badRequest("O site precisa ter uma página inicial.");
   if (pages.filter((page) => page.slug === "").length !== 1) throw badRequest("O site deve ter somente uma página inicial.");
   if (pages.filter((page) => page.type === "room-service").length > 1) throw badRequest("O site pode ter somente uma página de Room Service.");
+  if (pages.filter((page) => page.type === "blog").length > 1) throw badRequest("O site pode ter somente uma página de Blog.");
 
   const document = { schema_version: VISUAL_PORTAL_SCHEMA_VERSION, settings, pages };
   assertDocumentSize(document, "O site normalizado excede o tamanho permitido.");
@@ -210,13 +212,7 @@ function guestPortalClassicTemplate(base) {
       block("hero", "hotel-capa", { eyebrow: "Nossa unidade", title: "Tudo para uma estadia memorável", text: "Apresente a história, a estrutura e os diferenciais do hotel.", button_text: "Como chegar", button_url: "page:como-chegar" }, { alignment: "center", min_height: 460, border_radius: 24 }),
       block("contact", "hotel-contato", { title: "Fale com a equipe", text: "Estamos à disposição durante toda a sua estadia.", address: "Endereço da unidade", phone: "", email: "", button_text: "Como chegar", button_url: "page:como-chegar" }, { border_radius: 24 }),
     ], pageSettings),
-    sitePage("blog", "blog", "Blog", [
-      block("heading", "blog-titulo", { title: "Blog Fioreze", text: "Novidades, dicas e conteúdos para aproveitar Gramado." }, { alignment: "center", padding_top: 72 }),
-      block("feature-grid", "blog-grade", { items: [
-        { title: "Descubra a cidade", text: "Publique roteiros, dicas e novidades.", button_text: "Ler artigo", button_url: "page:blog" },
-        { title: "Experiências Fioreze", text: "Conte histórias da unidade e da região.", button_text: "Ler artigo", button_url: "page:blog" },
-      ] }, { columns: 2, border_radius: 24 }),
-    ], pageSettings),
+    systemSitePage("blog", "blog", "Blog", pageSettings),
     sitePage("como-chegar", "como-chegar", "Como chegar", [
       block("heading", "mapa-titulo", { title: "Como chegar", text: "Consulte rotas e pontos de referência da unidade." }, { alignment: "center", padding_top: 72 }),
       block("embed", "mapa", { title: "Mapa da unidade", mode: "url", url: "", html: "", aspect_ratio: "16:9", allow_fullscreen: true }, { border_radius: 24 }),
@@ -237,6 +233,27 @@ function sitePage(id, slug, name, blocks, settings) {
   return { id, slug, name, title: name, show_in_navigation: true, settings, blocks };
 }
 
+function systemSitePage(id, slug, name, settings) {
+  return {
+    id,
+    type: id,
+    slug,
+    name,
+    title: name,
+    show_in_navigation: true,
+    settings: {
+      ...settings,
+      background_color: "#ffffff",
+      text_color: "#202124",
+      surface_color: "#f7f7f7",
+      background_media_asset_id: "",
+      background_overlay: 0,
+      background_fixed: false,
+    },
+    blocks: [],
+  };
+}
+
 function legacyPage(input, settings) {
   if (!Array.isArray(input.blocks)) throw badRequest("O portal precisa conter uma lista de blocos.");
   return { id: "inicio", slug: "", name: "Início", title: "Início", show_in_navigation: true, settings: pageSettingsFromDocument(settings), blocks: input.blocks };
@@ -249,9 +266,9 @@ function createPage(input, index, documentSettings) {
   const slug = input.slug == null ? (index === 0 ? "" : id) : String(input.slug).trim().toLowerCase();
   if (slug && (!isSafeIdentifier(slug) || slug.length > 80 || ["manifest.webmanifest", "sw.js"].includes(slug))) throw badRequest(`Endereço da página ${index + 1} inválido.`);
   const type = normalizeEnum(input.type, PAGE_TYPES, "standard");
-  if (type === "room-service" && !slug) throw badRequest("A página de Room Service precisa ter um endereço próprio.");
+  if (SYSTEM_PAGE_TYPES.has(type) && !slug) throw badRequest("A página conectada precisa ter um endereço próprio.");
   if (!Array.isArray(input.blocks)) throw badRequest(`A página ${index + 1} precisa conter uma lista de blocos.`);
-  if (type === "room-service" && input.blocks.length) throw badRequest("A página de Room Service usa o cardápio da unidade e não aceita blocos personalizados.");
+  if (SYSTEM_PAGE_TYPES.has(type) && input.blocks.length) throw badRequest("A página conectada usa dados da unidade e não aceita blocos personalizados.");
   const ids = new Set();
   const blocks = input.blocks.map((item, blockIndex) => {
     const normalized = normalizeBlock(item, blockIndex);

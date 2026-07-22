@@ -126,8 +126,16 @@ function stripHtml(value) {
     .replace(/&#(?:0*39|x0*27);/gi, "'")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
+    .replace(/&#(x?[0-9a-f]+);/gi, (_, rawCode) => decodeNumericEntity(rawCode))
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function decodeNumericEntity(rawCode) {
+  const hexadecimal = String(rawCode).toLowerCase().startsWith("x");
+  const codePoint = Number.parseInt(hexadecimal ? String(rawCode).slice(1) : rawCode, hexadecimal ? 16 : 10);
+  if (!Number.isInteger(codePoint) || codePoint < 32 || codePoint > 0x10ffff || (codePoint >= 0xd800 && codePoint <= 0xdfff)) return "";
+  return String.fromCodePoint(codePoint);
 }
 
 function safeBlogUrl(value) {
