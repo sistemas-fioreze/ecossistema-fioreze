@@ -164,7 +164,7 @@ test("cabecalho, cards e botoes aceitam alinhamento, transparencia e midia", () 
   homeBlocks(document).push({
     id: "servicos-overlay",
     type: "feature-grid",
-    content: { layout: "overlay", text_background_color: "#11111199", items: [{ title: "Spa", text: "Bem-estar", media_asset_id: "media_12345678" }] },
+    content: { layout: "overlay", text_background_color: "#11111199", text_color: "#f4ead7", text_background_blur: 18, items: [{ title: "Spa", text: "Bem-estar", media_asset_id: "media_12345678" }] },
     styles: { base: { border_radius: 32 }, desktop: {}, mobile: {} },
     visibility: { desktop: true, mobile: true },
   });
@@ -180,8 +180,27 @@ test("cabecalho, cards e botoes aceitam alinhamento, transparencia e midia", () 
   assert.doesNotMatch(html, /mobile-navigation has-menu-blur/);
   assert.match(html, /feature-grid is-overlay/);
   assert.match(html, /--card-copy-background:#11111199/);
+  assert.match(html, /--card-copy-text:#f4ead7/);
+  assert.match(html, /--card-copy-blur:18px/);
+  assert.match(html, /color:var\(--card-copy-text,#fff\)/);
+  assert.match(html, /blur\(var\(--card-copy-blur,12px\)\)/);
+  assert.equal(normalized.pages[0].blocks.at(-1).content.text_background_blur, 18);
   assert.match(html, /class="button-media"/);
   assert.deepEqual(collectVisualPortalMediaIds(normalized), ["media_12345678"]);
+});
+
+test("cards de servico legados recebem cor e desfoque compativeis", () => {
+  const document = createBlankVisualPortalDocument();
+  homeBlocks(document).push({
+    id: "servicos-legado",
+    type: "feature-grid",
+    content: { layout: "overlay", text_background_color: "#202124aa", items: [{ title: "Serviço", text: "Descrição" }] },
+    styles: { base: {}, desktop: {}, mobile: {} },
+    visibility: { desktop: true, mobile: true },
+  });
+  const content = normalizeVisualPortalDocument(document).pages[0].blocks.at(-1).content;
+  assert.equal(content.text_color, "#ffffff");
+  assert.equal(content.text_background_blur, 12);
 });
 
 test("slug personalizado altera a rota e os links internos sem mudar o id da pagina", () => {
@@ -614,6 +633,11 @@ test("Central integra construtor visual e Worker-first preserva a rota publica",
   assert.match(builder, /media-folders/);
   assert.match(builder, /event\.type === "input" && event\.target\.matches\("select"\)/);
   assert.match(builder, /data-color-control/);
+  assert.match(builder, /Cor do texto/);
+  assert.match(builder, /Desfoque do fundo/);
+  assert.match(builder, /--vp-card-copy-text/);
+  assert.match(builder, /--vp-card-copy-blur/);
+  assert.match(builder, /text_background_blur/);
   assert.match(builder, /data-add-action-button/);
   assert.match(builder, /desktop_navigation_alignment/);
   assert.match(builder, /data-reset-position/);

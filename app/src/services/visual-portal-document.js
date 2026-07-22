@@ -385,6 +385,8 @@ function normalizeBlockContent(type, input) {
   if (type === "feature-grid") return {
     layout: normalizeEnum(input.layout, FEATURE_CARD_LAYOUTS, "stacked"),
     text_background_color: normalizeColor(input.text_background_color || "#ffffffee", "fundo do texto dos cards"),
+    text_color: normalizeColor(input.text_color || "#ffffff", "cor do texto dos cards"),
+    text_background_blur: normalizeNumber(input.text_background_blur, 0, 30, 12),
     items: normalizeFeatureItems(input.items),
   };
   if (type === "faq") return { title: text(input.title, 180), items: normalizeFaqItems(input.items) };
