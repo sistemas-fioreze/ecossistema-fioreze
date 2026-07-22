@@ -3,6 +3,14 @@
 Data: 2026-07-05
 Branch: feature/migrate-muller-room-service-ui
 
+## Atualizacao do template oficial
+
+Em 2026-07-21, a experiencia publica de pedidos foi reconstruida para reproduzir fielmente o HTML visual fornecido como referencia, mantendo o codigo compartilhado e multi-hotel da plataforma. A hierarquia agora segue o template oficial: loader com logotipo, cabecalho compacto no mobile, formulario e resumo na coluna esquerda, busca e filtros acima do cardapio e cards de produto com miniatura opcional no canto superior.
+
+A reproducao visual nao importou dependencias ou integracoes do arquivo de referencia. Tailwind por CDN, fontes remotas, hospedagem externa de logotipo e endpoint legado foram descartados. Logo, tipografia e cores continuam vindo do bootstrap da unidade; categorias, tags, produtos, disponibilidade, precos, quartos e horarios continuam vindo das APIs do Worker.
+
+As imagens do cardapio agora aceitam somente caminhos publicos sanitizados da propria plataforma em `/assets/` ou `/media/`. Isso permite que produtos usem os arquivos autorizados da biblioteca R2 sem aceitar URLs externas.
+
 ## Escopo
 
 Esta etapa migrou a experiencia visual e funcional do Room Service Muller para o modulo compartilhado da nova plataforma, usando apenas ambiente local. O sistema legado foi usado somente como referencia historica sanitizada.
@@ -46,7 +54,7 @@ Foram preservados como referencia visual e funcional:
 - A Idempotency-Key e mantida durante a tentativa atual de envio.
 - O Worker bloqueia pedidos fora de `service_hours` com data/hora de teste injetavel fora de producao.
 - Produtos indisponiveis aparecem desabilitados e nao podem ser adicionados.
-- O drawer/painel do carrinho fecha com Escape e preserva foco visivel.
+- O formulario e o resumo permanecem visiveis no fluxo principal, como no template de referencia.
 
 ## Codigo antigo descartado
 
@@ -96,10 +104,10 @@ Nao foi copiado o HTML legado inteiro. Tambem nao foram reutilizadas as dependen
 - Fallback visual para itens sem imagem.
 - Mensagens de carregamento, erro, vazio, fechado e sucesso.
 - Modal de confirmacao.
-- Carrinho flutuante no mobile e painel lateral no desktop.
+- Formulario e resumo antes do cardapio no mobile, com painel sticky na coluna esquerda do desktop.
 - CSS baseado em custom properties do branding.
 - Dados vindos da API escapados via DOM APIs, sem `innerHTML` para conteudo dinamico sensivel.
-- Caminhos de midia aceitos somente quando locais em `/assets/`.
+- Caminhos de midia aceitos somente quando locais em `/assets/` ou `/media/`.
 
 ## Mudancas na API e Worker
 

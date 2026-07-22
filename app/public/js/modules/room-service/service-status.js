@@ -1,4 +1,4 @@
-const DAY_LABELS = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"];
+const DAY_LABELS = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
 const WEEKDAY_TO_INDEX = {
   Sun: 0,
   Mon: 1,
@@ -50,8 +50,8 @@ export function describeServiceStatus(status) {
       detail: status.mode === "forced_open"
         ? "A unidade liberou pedidos manualmente."
         : status.active_slot
-        ? `Pedidos ate ${status.active_slot.closes_at}.`
-        : "Pedidos disponiveis agora.",
+        ? `Pedidos até ${status.active_slot.closes_at}.`
+        : "Pedidos disponíveis agora.",
     };
   }
   return {
@@ -59,8 +59,8 @@ export function describeServiceStatus(status) {
     detail: status.mode === "forced_closed"
       ? "A unidade pausou novos pedidos temporariamente."
       : status.next_opening
-      ? `Proxima abertura: ${status.next_opening.label}.`
-      : "Pedidos indisponiveis no momento.",
+      ? `Próxima abertura: ${status.next_opening.label}.`
+      : "Pedidos indisponíveis no momento.",
   };
 }
 
@@ -86,8 +86,8 @@ export function clockToMinutes(value) {
 }
 
 function describeToday(slots) {
-  if (!slots.length) return "Hoje nao ha horario configurado para pedidos.";
-  return `Hoje: ${slots.map((slot) => `${slot.opens_at} as ${slot.closes_at}`).join(" e ")}.`;
+  if (!slots.length) return "Hoje não há horário configurado para pedidos.";
+  return `Hoje: ${slots.map((slot) => `${slot.opens_at} às ${slot.closes_at}`).join(" e ")}.`;
 }
 
 function findNextOpening(slots, currentDay, currentMinutes) {
@@ -100,7 +100,7 @@ function findNextOpening(slots, currentDay, currentMinutes) {
       const start = clockToMinutes(slot.opens_at);
       if (offset > 0 || currentMinutes < start) {
         const prefix = offset === 0 ? "hoje" : DAY_LABELS[day];
-        return { day_of_week: day, opens_at: slot.opens_at, label: `${prefix} as ${slot.opens_at}` };
+        return { day_of_week: day, opens_at: slot.opens_at, label: `${prefix} às ${slot.opens_at}` };
       }
     }
   }

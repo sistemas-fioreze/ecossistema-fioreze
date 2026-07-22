@@ -1,3 +1,5 @@
+import { sanitizePublicAssetUrl } from "../../core/theme.js";
+
 export function flattenCatalog(categories = []) {
   return categories.flatMap((category) =>
     (category.items || []).map((item) => ({
@@ -47,8 +49,5 @@ export function normalizeText(value) {
 }
 
 export function sanitizeMediaPath(value) {
-  const path = String(value || "").trim();
-  if (!path) return null;
-  if (path.startsWith("/assets/")) return path;
-  return null;
+  return sanitizePublicAssetUrl(value);
 }

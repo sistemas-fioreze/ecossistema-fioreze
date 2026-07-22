@@ -22,7 +22,10 @@ async function boot() {
   const moduleKey = enabledModules.has(requestedModule) ? requestedModule : "guest-portal";
 
   app.classList.toggle("guest-portal-root", moduleKey === "guest-portal");
-  document.title = `${bootstrap.short_name || bootstrap.name} | Portal do Hóspede`;
+  app.classList.toggle("room-service-root", moduleKey === "room-service");
+  document.title = moduleKey === "room-service"
+    ? `Room Service | ${bootstrap.short_name || bootstrap.name}`
+    : `${bootstrap.short_name || bootstrap.name} | Portal do Hóspede`;
 
   if (moduleKey === "guest-portal") {
     const module = await loadModule(moduleKey);
@@ -45,6 +48,7 @@ async function boot() {
 }
 
 function renderShell(bootstrap, moduleKey) {
+  const standaloneRoomService = moduleKey === "room-service";
   const logoUrl = sanitizePublicAssetUrl(bootstrap.branding?.horizontal_logo_url || bootstrap.branding?.logo_url);
   const logo = logoUrl
     ? `<img class="hotel-logo" src="${escapeHtml(logoUrl)}" alt="">`
@@ -58,8 +62,8 @@ function renderShell(bootstrap, moduleKey) {
     .join("");
 
   return `
-    <section class="portal-shell">
-      <header class="portal-header">
+    <section class="portal-shell${standaloneRoomService ? " room-service-portal-shell" : ""}">
+      ${standaloneRoomService ? "" : `<header class="portal-header">
         <div class="hotel-brand">
           ${logo}
           <div>
@@ -68,7 +72,7 @@ function renderShell(bootstrap, moduleKey) {
           </div>
         </div>
         <nav class="module-nav" data-module-nav aria-label="Modulos do hotel">${nav}</nav>
-      </header>
+      </header>`}
       <section class="module-view" data-module-view data-module-key="${escapeHtml(moduleKey)}">
         <div class="panel">Carregando modulo...</div>
       </section>

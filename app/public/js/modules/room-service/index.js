@@ -1,7 +1,7 @@
 import { apiGet, apiPost } from "../../core/api.js";
 import { escapeHtml } from "../../core/errors.js";
 import { createCartStore, createOrderAttemptKey } from "./cart.js";
-import { filterCatalog, flattenCatalog, formatMoney, getCatalogItemMap } from "./catalog.js";
+import { filterCatalog, flattenCatalog, formatMoney, getCatalogItemMap, normalizeText } from "./catalog.js";
 import { describeServiceStatus, evaluateServiceStatus } from "./service-status.js";
 import { sanitizePublicAssetUrl } from "../../core/theme.js";
 
@@ -32,7 +32,7 @@ export async function render(container, context) {
   container.innerHTML = renderStaticShell();
   bindStaticActions(container, state);
   renderHotelHeader(container, state);
-  renderLoading(container, "Carregando cardapio...");
+  renderLoading(container, "Carregando cardápio...");
 
   try {
     const [products, roomPayload] = await Promise.all([
@@ -76,99 +76,97 @@ function renderStaticShell() {
       </section>
 
       <section class="rs-shell" data-rs-shell hidden>
-        <header class="rs-hero">
-          <div class="rs-brand-block">
-            <div class="rs-logo-frame" data-hotel-logo></div>
-            <div class="rs-title-block">
-              <p class="rs-kicker">Room Service</p>
-              <h2 data-hotel-name></h2>
-              <p data-hotel-intro></p>
-            </div>
-          </div>
-          <div class="rs-status-card" aria-live="polite">
-            <span class="rs-status-pill" data-service-status-pill></span>
-            <strong data-service-status-label></strong>
-            <span data-service-status-detail></span>
-            <small data-service-hours></small>
+        <header class="rs-mobile-header">
+          <div>
+            <p class="rs-kicker">Room Service</p>
+            <h1 data-hotel-name></h1>
           </div>
         </header>
 
-        <div class="rs-service-note" data-service-note hidden></div>
-
         <div class="rs-layout">
+          <aside class="rs-order-column">
+            <div class="rs-intro-copy">
+              <p data-hotel-welcome></p>
+              <p data-hotel-guidance></p>
+              <p data-hotel-support></p>
+              <p data-service-hours></p>
+              <div class="rs-service-note" data-service-note hidden></div>
+            </div>
+
+            <section class="rs-cart-panel" data-cart-panel aria-label="Resumo do pedido">
+              <form class="rs-order-form" data-order-form>
+                <label class="rs-icon-field">
+                  <span class="sr-only">Nome</span>
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM5 21a7 7 0 0 1 14 0"/></svg>
+                  <input name="guest_name" autocomplete="name" maxlength="120" placeholder="Nome" required>
+                </label>
+                <label class="rs-icon-field">
+                  <span class="sr-only">Celular ou WhatsApp opcional</span>
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 5a2 2 0 0 1 2-2h3.28a1 1 0 0 1 .95.68l1.5 4.5a1 1 0 0 1-.5 1.2l-2.26 1.14a11 11 0 0 0 5.51 5.51l1.14-2.26a1 1 0 0 1 1.2-.5l4.5 1.5a1 1 0 0 1 .68.95V19a2 2 0 0 1-2 2h-1C9.72 21 3 14.28 3 6Z"/></svg>
+                  <input name="guest_phone" autocomplete="tel" inputmode="tel" maxlength="40" placeholder="Celular / WhatsApp (Opcional)">
+                </label>
+                <label class="rs-icon-field">
+                  <span class="sr-only">Número da acomodação</span>
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 21h18M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16M9 8h.01M15 8h.01M9 12h.01M15 12h.01M9 16h.01M15 16h.01"/></svg>
+                  <input name="room_code" list="rs-room-options" autocomplete="off" maxlength="40" placeholder="Número da acomodação" required>
+                  <datalist id="rs-room-options" data-room-options></datalist>
+                </label>
+                <label class="rs-icon-field rs-textarea-field">
+                  <span class="sr-only">Observação do pedido</span>
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M7 8h10M7 12h6M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H8l-4 4Z"/></svg>
+                  <textarea name="notes" rows="3" maxlength="500" placeholder="Observação do pedido (opcional)"></textarea>
+                </label>
+                <label class="rs-icon-field">
+                  <span class="sr-only">Local de entrega</span>
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                  <select name="delivery_location">
+                    <option value="Acomodação">Entrega na Acomodação</option>
+                    <option value="Recepção">Consumo na Recepção</option>
+                  </select>
+                </label>
+
+                <h2 class="rs-order-title">
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M16 11V7a4 4 0 0 0-8 0v4M5 9h14l1 12H4Z"/></svg>
+                  Resumo do Pedido
+                </h2>
+
+                <div class="rs-cart-items" data-cart-items></div>
+
+                <div class="rs-cart-summary">
+                  <div class="rs-cart-total-row">
+                    <strong>Total</strong>
+                    <span data-cart-count>0 itens</span>
+                  </div>
+                  <strong class="rs-cart-value" data-cart-total>${formatMoney(0, "BRL")}</strong>
+                  <button class="rs-primary-button" type="submit" data-submit-order>
+                    <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg>
+                    <span data-submit-label>Finalizar Pedido</span>
+                  </button>
+                  <p class="rs-form-status" data-form-status aria-live="polite" hidden></p>
+                </div>
+              </form>
+            </section>
+          </aside>
+
           <main class="rs-menu-column">
-            <section class="rs-search-panel" aria-label="Busca e categorias do cardapio">
+            <section class="rs-search-panel" aria-label="Busca e categorias do cardápio">
               <label class="rs-search-field">
-                <span class="sr-only">Pesquisar no cardapio</span>
+                <span class="sr-only">Pesquisar no cardápio</span>
                 <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m21 21-4.35-4.35m1.35-5.15a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"/></svg>
-                <input data-search type="search" autocomplete="off" placeholder="Pesquisar pratos, bebidas ou descricoes">
+                <input data-search type="search" autocomplete="off" placeholder="Pesquisar pratos, bebidas ou descrições...">
               </label>
-              <nav class="rs-category-nav" data-category-nav aria-label="Categorias do cardapio"></nav>
+              <nav class="rs-category-nav" data-category-nav aria-label="Categorias do cardápio"></nav>
             </section>
 
             <section class="rs-catalog" data-catalog aria-live="polite"></section>
           </main>
-
-          <aside class="rs-cart-panel" data-cart-panel aria-label="Resumo do pedido">
-            <div class="rs-cart-header">
-              <div>
-                <p class="rs-kicker">Seu pedido</p>
-                <h3>Resumo</h3>
-              </div>
-              <button class="rs-icon-button rs-cart-close" type="button" data-cart-close aria-label="Fechar pedido">
-                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
-              </button>
-            </div>
-
-            <div class="rs-cart-items" data-cart-items></div>
-
-            <div class="rs-cart-total">
-              <span data-cart-count>0 itens</span>
-              <strong data-cart-total>${formatMoney(0, "BRL")}</strong>
-            </div>
-
-            <form class="rs-order-form" data-order-form>
-              <label class="rs-field">
-                <span>Nome</span>
-                <input name="guest_name" autocomplete="name" maxlength="120" required>
-              </label>
-              <label class="rs-field">
-                <span>Celular / WhatsApp <em>(opcional)</em></span>
-                <input name="guest_phone" autocomplete="tel" inputmode="tel" maxlength="40">
-              </label>
-              <label class="rs-field">
-                <span>Acomodacao</span>
-                <select name="room_code" required>
-                  <option value="">Selecione sua acomodacao</option>
-                </select>
-              </label>
-              <label class="rs-field">
-                <span>Local de entrega</span>
-                <select name="delivery_location">
-                  <option value="Acomodacao">Entrega na acomodacao</option>
-                  <option value="Recepcao">Consumo na recepcao</option>
-                </select>
-              </label>
-              <label class="rs-field">
-                <span>Observacoes</span>
-                <textarea name="notes" rows="3" maxlength="500" placeholder="Alguma observacao para a equipe?"></textarea>
-              </label>
-              <button class="rs-primary-button" type="submit" data-submit-order>Finalizar pedido</button>
-              <p class="rs-form-status" data-form-status aria-live="polite" hidden></p>
-            </form>
-          </aside>
         </div>
       </section>
 
-      <button class="rs-mobile-cart" type="button" data-cart-open>
-        <span data-mobile-cart-count>0 itens</span>
-        <strong data-mobile-cart-total>${formatMoney(0, "BRL")}</strong>
-        <span>Ver pedido</span>
-      </button>
-
-      <div class="rs-backdrop" data-cart-backdrop hidden></div>
-
-      <div class="rs-toast" data-toast hidden role="status" aria-live="polite"></div>
+      <div class="rs-toast" data-toast hidden role="status" aria-live="polite">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg>
+        <span data-toast-text>Notificação</span>
+      </div>
 
       <section class="rs-modal" data-modal hidden role="dialog" aria-modal="true" aria-labelledby="rs-modal-title">
         <div class="rs-modal-card" data-modal-card>
@@ -178,6 +176,20 @@ function renderStaticShell() {
           <h3 id="rs-modal-title" data-modal-title></h3>
           <p data-modal-text></p>
           <button class="rs-primary-button" type="button" data-modal-close>OK</button>
+        </div>
+      </section>
+
+      <section class="rs-image-viewer" data-image-viewer hidden role="dialog" aria-modal="true" aria-label="Imagem ampliada">
+        <div>
+          <img data-viewer-image src="" alt="">
+          <button type="button" data-image-close aria-label="Fechar imagem"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+        </div>
+      </section>
+
+      <section class="rs-submit-overlay" data-submit-overlay hidden aria-live="polite">
+        <div>
+          <span aria-hidden="true"></span>
+          <strong>Enviando seu pedido...</strong>
         </div>
       </section>
     </section>
@@ -206,6 +218,12 @@ function bindStaticActions(container, state) {
       return;
     }
 
+    const imageButton = event.target.closest("[data-view-image]");
+    if (imageButton) {
+      openImageViewer(container, imageButton.dataset.viewImage, imageButton.dataset.imageAlt);
+      return;
+    }
+
     const categoryButton = event.target.closest("[data-category]");
     if (categoryButton) {
       state.activeCategory = categoryButton.dataset.category;
@@ -226,6 +244,11 @@ function bindStaticActions(container, state) {
 
     if (event.target.closest("[data-modal-close]")) {
       closeModal(container);
+      return;
+    }
+
+    if (event.target.closest("[data-image-close]") || event.target === container.querySelector("[data-image-viewer]")) {
+      closeImageViewer(container);
     }
   });
 
@@ -242,20 +265,21 @@ function bindStaticActions(container, state) {
 
   container.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
-    if (!container.querySelector("[data-modal]").hidden) closeModal(container);
+    if (!container.querySelector("[data-image-viewer]").hidden) closeImageViewer(container);
+    else if (!container.querySelector("[data-modal]").hidden) closeModal(container);
     else toggleCart(container, state, false);
   });
 }
 
 function renderHotelHeader(container, state) {
-  const logoUrl = sanitizeAssetPath(state.bootstrap.branding?.logo_url);
+  const logoUrl = sanitizeAssetPath(state.bootstrap.branding?.horizontal_logo_url || state.bootstrap.branding?.logo_url);
   const logoTargets = container.querySelectorAll("[data-hotel-logo], [data-hotel-logo-shell]");
   logoTargets.forEach((target) => {
     target.textContent = "";
     if (logoUrl) {
       const image = document.createElement("img");
       image.src = logoUrl;
-      image.alt = "";
+      image.alt = state.bootstrap.name || "Hotel";
       image.loading = "lazy";
       target.append(image);
     } else {
@@ -263,11 +287,10 @@ function renderHotelHeader(container, state) {
     }
   });
   setText(container, "[data-hotel-name]", state.bootstrap.name);
-  setText(
-    container,
-    "[data-hotel-intro]",
-    `Utilize este portal para solicitar itens do Room Service com comodidade. Em caso de duvidas, fale com a recepcao.`,
-  );
+  const settings = state.bootstrap.settings || {};
+  setText(container, "[data-hotel-welcome]", settings["room-service.welcome_text"] || `Seja bem-vindo ao Room Service digital do ${state.bootstrap.name}.`);
+  setText(container, "[data-hotel-guidance]", settings["room-service.guidance_text"] || "Utilize este portal para solicitar suas refeições com comodidade.");
+  setText(container, "[data-hotel-support]", settings["room-service.support_text"] || "Em caso de dúvidas, fale com a recepção.");
 }
 
 function updateServiceStatus(container, state, now = new Date()) {
@@ -280,8 +303,10 @@ function updateServiceStatus(container, state, now = new Date()) {
   });
   const description = describeServiceStatus(state.status);
   const pill = container.querySelector("[data-service-status-pill]");
-  pill.textContent = state.status.open ? "Aberto" : "Fechado";
-  pill.classList.toggle("closed", !state.status.open);
+  if (pill) {
+    pill.textContent = state.status.open ? "Aberto" : "Fechado";
+    pill.classList.toggle("closed", !state.status.open);
+  }
   setText(container, "[data-service-status-label]", description.label);
   setText(container, "[data-service-status-detail]", description.detail);
   setText(container, "[data-service-hours]", state.status.today_text);
@@ -291,20 +316,20 @@ function updateServiceStatus(container, state, now = new Date()) {
     note.textContent = "";
   } else {
     note.hidden = false;
-    note.textContent = `${description.detail} Voce ainda pode consultar o cardapio.`;
+    note.textContent = `${description.detail} Você ainda pode consultar o cardápio.`;
   }
   syncSubmitButton(container, state);
 }
 
 function renderRoomOptions(container, state) {
-  const select = container.querySelector('[name="room_code"]');
-  if (!select) return;
-  select.innerHTML = '<option value="">Selecione sua acomodacao</option>';
+  const list = container.querySelector("[data-room-options]");
+  if (!list) return;
+  list.replaceChildren();
   for (const room of state.rooms) {
     const option = document.createElement("option");
     option.value = room.code;
-    option.textContent = room.label ? `${room.code} - ${room.label}` : room.code;
-    select.append(option);
+    option.label = room.label ? `${room.code} - ${room.label}` : room.code;
+    list.append(option);
   }
 }
 
@@ -314,10 +339,12 @@ function syncSubmitButton(container, state) {
 
   const closed = !state.status?.open;
   const disabled = Boolean(state.isSubmitting || closed);
-  const label = state.isSubmitting ? "Enviando pedido..." : closed ? "Room Service fechado" : "Finalizar pedido";
+  const label = state.isSubmitting ? "Enviando pedido..." : closed ? "Room Service fechado" : "Finalizar Pedido";
 
   button.disabled = disabled;
-  button.textContent = label;
+  const labelTarget = button.querySelector?.("[data-submit-label]");
+  if (labelTarget) labelTarget.textContent = label;
+  else button.textContent = label;
   button.setAttribute("aria-disabled", String(disabled));
   button.classList.toggle("is-closed", closed && !state.isSubmitting);
   button.classList.toggle("is-submitting", Boolean(state.isSubmitting));
@@ -351,15 +378,28 @@ function renderLoading(container, message) {
   }
 }
 
+function showLoadedShell(container) {
+  const loader = container.querySelector("[data-rs-loader]");
+  const shell = container.querySelector("[data-rs-shell]");
+  if (!shell.hidden) return;
+  shell.hidden = false;
+  window.requestAnimationFrame(() => {
+    shell.classList.add("is-visible");
+    loader.classList.add("is-leaving");
+  });
+  window.setTimeout(() => {
+    loader.hidden = true;
+  }, 700);
+}
+
 function renderCatalogError(container, error) {
-  container.querySelector("[data-rs-loader]").hidden = true;
-  container.querySelector("[data-rs-shell]").hidden = false;
+  showLoadedShell(container);
   const catalog = container.querySelector("[data-catalog]");
   catalog.innerHTML = "";
   const card = document.createElement("div");
   card.className = "rs-state-card error";
   const title = document.createElement("h3");
-  title.textContent = "Nao foi possivel carregar o cardapio";
+  title.textContent = "Não foi possível carregar o cardápio";
   const text = document.createElement("p");
   text.textContent = error.message || "Tente novamente em instantes.";
   card.append(title, text);
@@ -367,8 +407,7 @@ function renderCatalogError(container, error) {
 }
 
 function renderCatalog(container, state) {
-  container.querySelector("[data-rs-loader]").hidden = true;
-  container.querySelector("[data-rs-shell]").hidden = false;
+  showLoadedShell(container);
   renderCategoryNavigation(container, state);
 
   const catalog = container.querySelector("[data-catalog]");
@@ -384,7 +423,7 @@ function renderCatalog(container, state) {
     const title = document.createElement("h3");
     title.textContent = "Nenhum item encontrado";
     const text = document.createElement("p");
-    text.textContent = "Tente outra busca ou escolha outra categoria.";
+    text.textContent = "Tente outra busca ou troque o filtro selecionado.";
     card.append(title, text);
     catalog.append(card);
     return;
@@ -402,6 +441,7 @@ function renderCatalog(container, state) {
 
     const grid = document.createElement("div");
     grid.className = "rs-product-grid";
+    grid.classList.toggle("is-drinks", normalizeText(category.name).includes("bebida"));
     category.items.forEach((item) => grid.append(renderProductCard(item, state)));
     section.append(grid);
     catalog.append(section);
@@ -428,16 +468,19 @@ function renderProductCard(item, state) {
   card.className = "rs-product-card";
   card.classList.toggle("unavailable", item.available === false);
 
-  const media = document.createElement("div");
-  media.className = "rs-product-media";
   if (item.image_url) {
+    const media = document.createElement("button");
+    media.type = "button";
+    media.className = "rs-product-media";
+    media.dataset.viewImage = item.image_url;
+    media.dataset.imageAlt = item.image_alt || item.name;
+    media.setAttribute("aria-label", `Ampliar imagem de ${item.name}`);
     const image = document.createElement("img");
     image.src = item.image_url;
     image.alt = item.image_alt || item.name;
     image.loading = "lazy";
     media.append(image);
-  } else {
-    media.textContent = (item.name || "R").slice(0, 1).toUpperCase();
+    card.append(media);
   }
 
   const content = document.createElement("div");
@@ -445,13 +488,13 @@ function renderProductCard(item, state) {
 
   const label = document.createElement("span");
   label.className = "rs-product-label";
-  label.textContent = item.available === false ? item.availability_label || "Indisponivel" : item.category_name || "Item";
+  label.textContent = item.available === false ? item.availability_label || "Indisponível" : item.tag || item.category_name || "Item";
 
   const title = document.createElement("h4");
   title.textContent = item.name;
 
   const description = document.createElement("p");
-  description.textContent = item.description || "Item do cardapio.";
+  description.textContent = item.description || "Item do cardápio.";
 
   const footer = document.createElement("div");
   footer.className = "rs-product-footer";
@@ -463,12 +506,12 @@ function renderProductCard(item, state) {
   button.dataset.addItem = item.id;
   button.disabled = item.available === false;
   button.innerHTML = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>${
-    item.available === false ? "Indisponivel" : "Adicionar"
+    item.available === false ? "Indisponível" : "Adicionar"
   }</span>`;
   footer.append(price, button);
 
   content.append(label, title, description, footer);
-  card.append(media, content);
+  card.append(content);
   return card;
 }
 
@@ -477,9 +520,8 @@ function addItem(container, state, itemId) {
     state.cart.add(itemId);
     renderCart(container, state);
     showToast(container, "Item adicionado ao pedido");
-    if (window.matchMedia("(max-width: 859px)").matches) toggleCart(container, state, true);
   } catch (error) {
-    showModal(container, "Item indisponivel", error.message);
+    showModal(container, "Item indisponível", error.message);
   }
 }
 
@@ -504,11 +546,11 @@ function renderCart(container, state) {
   const totalLabel = formatMoney(snapshot.total_cents, state.bootstrap.currency, state.bootstrap.locale);
   setText(container, "[data-cart-count]", countLabel);
   setText(container, "[data-cart-total]", totalLabel);
-  setText(container, "[data-mobile-cart-count]", countLabel);
-  setText(container, "[data-mobile-cart-total]", totalLabel);
   syncSubmitButton(container, state);
-  container.querySelector("[data-mobile-cart-count]").classList.add("pulse");
-  window.setTimeout(() => container.querySelector("[data-mobile-cart-count]")?.classList.remove("pulse"), 350);
+  const count = container.querySelector("[data-cart-count]");
+  count?.classList.remove("pulse");
+  window.requestAnimationFrame(() => count?.classList.add("pulse"));
+  window.setTimeout(() => count?.classList.remove("pulse"), 350);
 }
 
 function renderCartItem(item, state) {
@@ -528,7 +570,6 @@ function renderCartItem(item, state) {
     quantityButton(item.id, -1, "Diminuir"),
     quantityValue(item.quantity),
     quantityButton(item.id, 1, "Aumentar"),
-    removeButton(item.id),
   );
 
   row.append(info, controls);
@@ -552,16 +593,6 @@ function quantityValue(quantity) {
   return value;
 }
 
-function removeButton(itemId) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "rs-remove-button";
-  button.dataset.removeItem = itemId;
-  button.setAttribute("aria-label", "Remover item");
-  button.innerHTML = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 7h12M9 7V5h6v2m-7 3 1 9h6l1-9"/></svg>`;
-  return button;
-}
-
 async function submitOrder(container, state, form) {
   if (state.isSubmitting) return;
   updateServiceStatus(container, state);
@@ -580,12 +611,12 @@ async function submitOrder(container, state, form) {
   const guestName = String(data.get("guest_name") || "").trim();
   const roomCode = String(data.get("room_code") || "").trim();
   if (!guestName) {
-    showModal(container, "Campo obrigatorio", "Por gentileza, informe seu nome.");
+    showModal(container, "Campo obrigatório", "Por gentileza, informe seu nome.");
     form.elements.guest_name.focus();
     return;
   }
   if (!roomCode) {
-    showModal(container, "Acomodacao obrigatoria", "Por gentileza, informe sua acomodacao.");
+    showModal(container, "Acomodação obrigatória", "Por gentileza, informe sua acomodação.");
     form.elements.room_code.focus();
     return;
   }
@@ -593,6 +624,7 @@ async function submitOrder(container, state, form) {
   const status = container.querySelector("[data-form-status]");
   state.isSubmitting = true;
   syncSubmitButton(container, state);
+  container.querySelector("[data-submit-overlay]").hidden = false;
   status.hidden = false;
   status.classList.remove("error");
   status.textContent = "Enviando seu pedido...";
@@ -631,9 +663,10 @@ async function submitOrder(container, state, form) {
   } catch (error) {
     status.classList.add("error");
     status.textContent = error.message;
-    showModal(container, "Nao foi possivel enviar", error.message);
+    showModal(container, "Não foi possível enviar", error.message);
   } finally {
     state.isSubmitting = false;
+    container.querySelector("[data-submit-overlay]").hidden = true;
     updateServiceStatus(container, state);
   }
 }
@@ -650,15 +683,15 @@ function buildNotes(data) {
 }
 
 function toggleCart(container, state, open) {
-  state.cartOpen = open;
-  container.querySelector("[data-cart-panel]").classList.toggle("open", open);
-  container.querySelector("[data-cart-backdrop]").hidden = !open;
-  if (open) container.querySelector("[data-order-form] input")?.focus();
+  state.cartOpen = false;
+  container.querySelector("[data-cart-panel]")?.classList.remove("open");
+  const backdrop = container.querySelector("[data-cart-backdrop]");
+  if (backdrop) backdrop.hidden = true;
 }
 
 function showToast(container, message) {
   const toast = container.querySelector("[data-toast]");
-  toast.textContent = message;
+  setText(container, "[data-toast-text]", message);
   toast.hidden = false;
   window.clearTimeout(showToast.timer);
   showToast.timer = window.setTimeout(() => {
@@ -680,6 +713,25 @@ function showModal(container, title, text, { success = false } = {}) {
 
 function closeModal(container) {
   container.querySelector("[data-modal]").hidden = true;
+}
+
+function openImageViewer(container, source, alt) {
+  const safeSource = sanitizeAssetPath(source);
+  if (!safeSource) return;
+  const viewer = container.querySelector("[data-image-viewer]");
+  const image = container.querySelector("[data-viewer-image]");
+  image.src = safeSource;
+  image.alt = alt || "Imagem do item";
+  viewer.hidden = false;
+  container.querySelector("[data-image-close]").focus();
+}
+
+function closeImageViewer(container) {
+  const viewer = container.querySelector("[data-image-viewer]");
+  const image = container.querySelector("[data-viewer-image]");
+  viewer.hidden = true;
+  image.removeAttribute("src");
+  image.alt = "";
 }
 
 function setupCategoryObserver(container, state) {
