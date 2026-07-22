@@ -66,8 +66,8 @@ test("shell do Room Service preserva a hierarquia exata do template sem dependen
   const script = fs.readFileSync(new URL("../public/js/modules/room-service/index.js", import.meta.url), "utf8");
 
   assert.ok(shell.indexOf("rs-order-column") < shell.indexOf("rs-menu-column"));
-  assert.match(shell, /data-rs-loader/);
-  assert.match(shell, /data-hotel-logo-shell/);
+  assert.doesNotMatch(shell, /data-rs-loader|data-hotel-logo-shell/);
+  assert.match(shell, /class="rs-mobile-header"/);
   assert.match(shell, /Resumo do Pedido/);
   assert.match(shell, /data-image-viewer/);
   assert.match(shell, /data-submit-overlay/);
@@ -77,6 +77,14 @@ test("shell do Room Service preserva a hierarquia exata do template sem dependen
   assert.match(css, /\.rs-product-media\s*\{[\s\S]*?position:\s*absolute/);
   assert.match(script, /classList\.toggle\("active", state\.activeCategory === category\.id\)/);
   assert.doesNotMatch(script, /IntersectionObserver/);
+});
+
+test("Room Service incorporado usa o cabecalho do portal e abre sem tela de carregamento", () => {
+  const shell = renderStaticShell({ embedded: true });
+  assert.match(shell, /class="rs-app is-portal-page"/);
+  assert.doesNotMatch(shell, /rs-mobile-header|rs-loader|data-rs-loader/);
+  assert.match(shell, /data-catalog/);
+  assert.match(shell, /Resumo do Pedido/);
 });
 
 test("catalogo filtra por categoria e busca textual", () => {

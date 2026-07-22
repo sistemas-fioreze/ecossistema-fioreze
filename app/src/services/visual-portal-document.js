@@ -23,6 +23,7 @@ const EMBED_MODES = new Set(["url", "html"]);
 const HEADER_STYLES = new Set(["standard", "centered", "floating", "minimal"]);
 const HEADER_POSITIONS = new Set(["static", "sticky"]);
 const NAVIGATION_ALIGNMENTS = new Set(["left", "center", "right"]);
+const PAGE_TYPES = new Set(["standard", "room-service"]);
 const FEATURE_CARD_LAYOUTS = new Set(["stacked", "overlay"]);
 const BUTTON_ICONS = new Set(["", "arrow-right", "calendar", "map-pin", "phone", "shopping-bag", "sparkles"]);
 const COLOR_PATTERN = /^(#[0-9a-f]{6}(?:[0-9a-f]{2})?|rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\))$/i;
@@ -91,6 +92,7 @@ export function normalizeVisualPortalDocument(input) {
   if (totalBlocks > VISUAL_PORTAL_MAX_BLOCKS) throw badRequest("O site excede o limite total de blocos.");
   if (!pages.some((page) => page.slug === "")) throw badRequest("O site precisa ter uma página inicial.");
   if (pages.filter((page) => page.slug === "").length !== 1) throw badRequest("O site deve ter somente uma página inicial.");
+  if (pages.filter((page) => page.type === "room-service").length > 1) throw badRequest("O site pode ter somente uma página de Room Service.");
 
   const document = { schema_version: VISUAL_PORTAL_SCHEMA_VERSION, settings, pages };
   assertDocumentSize(document, "O site normalizado excede o tamanho permitido.");
@@ -246,7 +248,10 @@ function createPage(input, index, documentSettings) {
   if (!isSafeIdentifier(id) || id.length > 80) throw badRequest(`Identificador da página ${index + 1} inválido.`);
   const slug = input.slug == null ? (index === 0 ? "" : id) : String(input.slug).trim().toLowerCase();
   if (slug && (!isSafeIdentifier(slug) || slug.length > 80 || ["manifest.webmanifest", "sw.js"].includes(slug))) throw badRequest(`Endereço da página ${index + 1} inválido.`);
+  const type = normalizeEnum(input.type, PAGE_TYPES, "standard");
+  if (type === "room-service" && !slug) throw badRequest("A página de Room Service precisa ter um endereço próprio.");
   if (!Array.isArray(input.blocks)) throw badRequest(`A página ${index + 1} precisa conter uma lista de blocos.`);
+  if (type === "room-service" && input.blocks.length) throw badRequest("A página de Room Service usa o cardápio da unidade e não aceita blocos personalizados.");
   const ids = new Set();
   const blocks = input.blocks.map((item, blockIndex) => {
     const normalized = normalizeBlock(item, blockIndex);
@@ -256,6 +261,7 @@ function createPage(input, index, documentSettings) {
   });
   return {
     id,
+    type,
     slug,
     name: requiredText(input.name || input.title || (slug ? titleFromSlug(slug) : "Início"), 100, "nome da página"),
     title: requiredText(input.title || input.name || "Página", 180, "título da página"),

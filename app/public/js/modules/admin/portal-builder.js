@@ -219,14 +219,23 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     els.leftTabs.forEach((button) => button.setAttribute("aria-selected", String(button.dataset.builderTab === state.leftTab)));
     if (state.leftTab === "pages") {
       const page = activePage();
-      els.leftContent.innerHTML = `<div class="vp-panel-heading"><div><strong>Páginas</strong><span>${state.document.pages.length} de 20 páginas</span></div><button type="button" data-add-page title="Adicionar página">${icon("plus")}</button></div><div class="vp-pages">${state.document.pages.map((item) => `<article class="${item.id === state.activePageId ? "is-selected" : ""}"><button type="button" data-select-page="${escapeAttr(item.id)}"><span>${icon(item.slug ? "page" : "home")}</span><div><strong>${escapeHtml(item.name)}</strong><small>${item.slug ? `/${escapeHtml(item.slug)}` : "Página inicial"}${item.show_in_navigation ? " · no menu" : ""}</small></div></button><div><button type="button" data-duplicate-page="${escapeAttr(item.id)}" title="Duplicar página">${icon("copy")}</button><button type="button" data-delete-page="${escapeAttr(item.id)}" title="Excluir página" ${item.slug ? "" : "disabled"}>${icon("trash")}</button></div></article>`).join("")}</div>${page ? '<button type="button" class="vp-secondary-action" data-page-settings>Configurar página atual</button>' : ""}`;
+      const hasRoomService = state.document.pages.some((item) => item.type === "room-service");
+      els.leftContent.innerHTML = `<div class="vp-panel-heading"><div><strong>Páginas</strong><span>${state.document.pages.length} de 20 páginas</span></div><button type="button" data-add-page title="Adicionar página livre">${icon("plus")}</button></div><div class="vp-pages">${state.document.pages.map((item) => `<article class="${item.id === state.activePageId ? "is-selected" : ""}"><button type="button" data-select-page="${escapeAttr(item.id)}"><span>${icon(item.type === "room-service" ? "shopping-bag" : item.slug ? "page" : "home")}</span><div><strong>${escapeHtml(item.name)}</strong><small>${item.type === "room-service" ? "Página conectada ao cardápio" : item.slug ? `/${escapeHtml(item.slug)}` : "Página inicial"}${item.show_in_navigation ? " · no menu" : ""}</small></div></button><div>${item.type === "room-service" ? "" : `<button type="button" data-duplicate-page="${escapeAttr(item.id)}" title="Duplicar página">${icon("copy")}</button>`}<button type="button" data-delete-page="${escapeAttr(item.id)}" title="Excluir página" ${item.slug ? "" : "disabled"}>${icon("trash")}</button></div></article>`).join("")}</div>${hasRoomService ? "" : `<div class="vp-page-presets"><strong>Página pronta</strong><button type="button" data-add-room-service-page><span>${icon("shopping-bag")}</span><div><b>Room Service</b><small>Cardápio e pedidos da unidade</small></div>${icon("plus")}</button></div>`}${page ? '<button type="button" class="vp-secondary-action" data-page-settings>Configurar página atual</button>' : ""}`;
       return;
     }
     if (state.leftTab === "blocks") {
+      if (isRoomServicePage()) {
+        els.leftContent.innerHTML = `<div class="vp-system-page-panel">${icon("shopping-bag")}<strong>Room Service conectado</strong><p>Esta página usa automaticamente o cardápio, os horários e os quartos da unidade. O conteúdo é administrado pelo ERP Room Service.</p></div>`;
+        return;
+      }
       els.leftContent.innerHTML = `<div class="vp-library-search"><span>${icon("search")}</span><input type="search" data-block-search placeholder="Buscar bloco" aria-label="Buscar bloco"></div><div class="vp-block-library">${BLOCKS.map(([type, label, description, svg]) => `<button type="button" draggable="true" data-add-block="${type}" title="Arraste ou clique para adicionar"><span>${svg}</span><strong>${label}</strong><small>${description}</small></button>`).join("")}</div>`;
       return;
     }
     if (state.leftTab === "layers") {
+      if (isRoomServicePage()) {
+        els.leftContent.innerHTML = `<div class="vp-system-page-panel">${icon("layers")}<strong>Página gerenciada pelo sistema</strong><p>O cabeçalho pertence a este portal. O cardápio é carregado sem um segundo cabeçalho.</p></div>`;
+        return;
+      }
       const blocks = pageBlocks();
       els.leftContent.innerHTML = `<div class="vp-panel-heading"><div><strong>Camadas</strong><span>${blocks.length} blocos em ${escapeHtml(activePage()?.name || "Página")}</span></div></div><div class="vp-layers">${blocks.map((block, index) => `<button type="button" draggable="true" data-layer-id="${escapeAttr(block.id)}" class="${block.id === state.selectedId ? "is-selected" : ""}"><span class="vp-layer-drag">${icon("grip")}</span><span>${iconForBlock(block.type)}</span><strong>${escapeHtml(blockLabel(block, index))}</strong><small>${block.visibility.desktop ? "D" : ""}${block.visibility.mobile ? "M" : ""}</small></button>`).join("") || '<p class="vp-empty">A página ainda não tem blocos.</p>'}</div>`;
       return;
@@ -247,7 +256,14 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     els.stage.style.setProperty("--preview-width", `${frameWidth}px`);
     els.stage.style.setProperty("--preview-scale", state.zoom / 100);
     const site = state.document.settings;
-    els.canvas.innerHTML = `<div class="vp-preview-page ${settings.background_media_asset_id ? "has-page-media" : ""} ${state.editorMobileMenuOpen ? "is-editor-menu-open" : ""}" style="--vp-page-bg:${escapeAttr(settings.background_color)};--vp-page-text:${escapeAttr(settings.text_color)};--vp-page-primary:${escapeAttr(site.primary_color)};--vp-page-surface:${escapeAttr(settings.surface_color)};--vp-page-font:${escapeAttr(site.font_family)};--vp-page-gap:${Number(settings.block_gap)}px;--vp-page-padding:${Number(settings.page_padding)}px;--vp-page-overlay:${Number(settings.background_overlay || 0) / 100};--vp-page-media-position:${escapeAttr(settings.background_position || "center")};--vp-page-media-fit:${escapeAttr(settings.background_fit || "cover")}">${pageBackgroundPreview(settings)}<span class="vp-alignment-guide is-vertical" data-alignment-guide="x"></span>${renderEditorHeader()}<div class="vp-page-content">${page.blocks.map((block, index) => renderEditableBlock(block, index)).join("") || `<button type="button" class="vp-empty-canvas" data-add-block="hero">${icon("plus")}<strong>Adicione o primeiro bloco</strong><span>Comece por uma capa ou arraste qualquer elemento da biblioteca.</span></button>`}</div></div>`;
+    const pageContent = isRoomServicePage(page)
+      ? renderRoomServicePagePreview()
+      : page.blocks.map((block, index) => renderEditableBlock(block, index)).join("") || `<button type="button" class="vp-empty-canvas" data-add-block="hero">${icon("plus")}<strong>Adicione o primeiro bloco</strong><span>Comece por uma capa ou arraste qualquer elemento da biblioteca.</span></button>`;
+    els.canvas.innerHTML = `<div class="vp-preview-page ${settings.background_media_asset_id ? "has-page-media" : ""} ${state.editorMobileMenuOpen ? "is-editor-menu-open" : ""}" style="--vp-page-bg:${escapeAttr(settings.background_color)};--vp-page-text:${escapeAttr(settings.text_color)};--vp-page-primary:${escapeAttr(site.primary_color)};--vp-page-surface:${escapeAttr(settings.surface_color)};--vp-page-font:${escapeAttr(site.font_family)};--vp-page-gap:${Number(settings.block_gap)}px;--vp-page-padding:${Number(settings.page_padding)}px;--vp-page-overlay:${Number(settings.background_overlay || 0) / 100};--vp-page-media-position:${escapeAttr(settings.background_position || "center")};--vp-page-media-fit:${escapeAttr(settings.background_fit || "cover")}">${pageBackgroundPreview(settings)}<span class="vp-alignment-guide is-vertical" data-alignment-guide="x"></span>${renderEditorHeader()}<div class="vp-page-content">${pageContent}</div></div>`;
+  }
+
+  function renderRoomServicePagePreview() {
+    return `<section class="vp-room-service-preview" aria-label="Prévia do Room Service"><aside><div class="vp-rs-copy"><strong>Room Service</strong><span>Cardápio conectado à unidade</span></div><div class="vp-rs-field"></div><div class="vp-rs-field"></div><div class="vp-rs-field"></div><h2>Resumo do Pedido</h2><div class="vp-rs-empty">Seu carrinho está vazio</div><button type="button" tabindex="-1">Finalizar Pedido</button></aside><section><div class="vp-rs-search">Pesquisar pratos, bebidas ou descrições...</div><nav><span>Todos</span><span>Pratos</span><span>Bebidas</span></nav><h2>Cardápio da unidade</h2><div class="vp-rs-products">${["Prato em destaque", "Bebida", "Sobremesa", "Opção especial"].map((name) => `<article><small>ITEM</small><strong>${name}</strong><p>Informações atualizadas pelo ERP Room Service.</p><footer><b>R$ --,--</b><span>Adicionar</span></footer></article>`).join("")}</div></section></section>`;
   }
 
   function renderEditableBlock(block, index) {
@@ -305,7 +321,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
   function renderInspector() {
     const block = selectedBlock();
     els.inspectorTitle.textContent = block ? BLOCK_LABELS[block.type] : "Página";
-    els.inspectorSubtitle.textContent = block ? "Conteúdo e aparência do bloco" : "Identidade e espaçamento geral";
+    els.inspectorSubtitle.textContent = block ? "Conteúdo e aparência do bloco" : isRoomServicePage() ? "Endereço e navegação do Room Service" : "Identidade e espaçamento geral";
     if (!block) {
       els.inspectorBody.innerHTML = pageInspector();
       return;
@@ -318,7 +334,8 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     const page = activePage();
     const settings = page.settings;
     const slugPrefix = `/${state.portal.hotel_slug}/${state.portal.slug}/`;
-    return `<fieldset><legend>Página atual</legend><label><span>Nome</span><input data-page-field="name" value="${escapeAttr(page.name)}"></label><label><span>Slug da página</span><div class="vp-slug-field"><span title="Endereço base">${escapeHtml(page.slug ? slugPrefix : `/${state.portal.hotel_slug}/${state.portal.slug}`)}</span><input data-page-field="slug" value="${escapeAttr(page.slug)}" ${page.slug ? "" : "disabled"} aria-describedby="vp-page-slug-help"></div><small class="vp-field-help" id="vp-page-slug-help">${page.slug ? "Use letras, números e hífens. O endereço é atualizado ao sair do campo." : "A página inicial usa o endereço principal do site."}</small></label>${pageToggleField("Exibir no menu", "show_in_navigation", page.show_in_navigation)}</fieldset><fieldset><legend>Identidade do site</legend>${colorField("Cor principal", "primary_color", site.primary_color, "doc")}${colorField("Texto padrão", "text_color", site.text_color, "doc")}${colorField("Superfície padrão", "surface_color", site.surface_color, "doc")}<label><span>Tipografia</span><input data-doc-field="font_family" value="${escapeAttr(site.font_family)}"></label>${siteMediaField("Ícone da guia", "favicon_media_asset_id", site.favicon_media_asset_id, "image", "document")}</fieldset><fieldset><legend>Cabeçalho</legend>${headerToggleField("Exibir cabeçalho", "enabled", site.header.enabled)}${headerToggleField("Exibir logotipo", "show_logo", site.header.show_logo)}${headerToggleField("Exibir páginas no menu", "show_navigation", site.header.show_navigation)}${headerToggleField("Fundo transparente", "transparent", site.header.transparent)}${headerToggleField("Desfoque do cabeçalho", "blur", site.header.blur)}${siteMediaField("Logotipo do cabeçalho", "logo_media_asset_id", site.header.logo_media_asset_id, "image", "header")}<label><span>Estilo</span><select data-header-field="style">${options([["standard", "Padrão"], ["floating", "Flutuante"], ["centered", "Centralizado"], ["minimal", "Minimalista"]], site.header.style)}</select></label><label><span>Posição</span><select data-header-field="position">${options([["sticky", "Fixo ao rolar"], ["static", "No fluxo da página"]], site.header.position)}</select></label><label><span>Alinhamento no desktop</span><select data-header-field="desktop_navigation_alignment">${options([["left", "À esquerda"], ["center", "Centralizado"], ["right", "À direita"]], site.header.desktop_navigation_alignment)}</select></label>${headerColorField("Fundo", "background_color", site.header.background_color)}${headerColorField("Texto", "text_color", site.header.text_color)}${headerColorField("Destaque", "accent_color", site.header.accent_color)}<div class="vp-subsection"><strong>Menu móvel</strong>${headerToggleField("Desfoque do menu lateral", "mobile_menu_blur", site.header.mobile_menu_blur)}${headerColorField("Fundo do menu", "mobile_menu_background_color", site.header.mobile_menu_background_color)}${headerColorField("Texto do menu", "mobile_menu_text_color", site.header.mobile_menu_text_color)}</div>${textFieldForScope("Ação do cabeçalho", "cta_text", site.header.cta_text, "header")}${linkField("Destino da ação", "cta_url", site.header.cta_url, "header")}</fieldset><fieldset><legend>Fundo desta página</legend>${pageMediaField(settings.background_media_asset_id)}${pageColorField("Fundo", "background_color", settings.background_color)}${pageColorField("Texto", "text_color", settings.text_color)}${pageColorField("Superfície", "surface_color", settings.surface_color)}${pageRangeField("Escurecimento", "background_overlay", settings.background_overlay, 0, 90)}<label><span>Posição</span><select data-page-setting-field="background_position">${options([["center", "Centro"], ["top", "Topo"], ["bottom", "Rodapé"], ["left", "Esquerda"], ["right", "Direita"]], settings.background_position)}</select></label><label><span>Ajuste</span><select data-page-setting-field="background_fit">${options([["cover", "Preencher"], ["contain", "Conter"]], settings.background_fit)}</select></label>${pageSettingToggleField("Fixar durante a rolagem", "background_fixed", settings.background_fixed)}${settings.background_media_asset_id ? `<button type="button" class="vp-secondary-action" data-clear-page-media>${icon("trash")} Remover mídia de fundo</button>` : ""}</fieldset><fieldset><legend>Layout da página</legend><label><span>Largura do conteúdo</span><select data-page-setting-field="content_width">${options([["narrow", "Estreita"], ["content", "Padrão"], ["wide", "Ampla"], ["full", "Tela inteira"]], settings.content_width)}</select></label>${pageRangeField("Margem lateral", "page_padding", settings.page_padding, 0, 80)}${pageRangeField("Espaço entre blocos", "block_gap", settings.block_gap, 0, 80)}</fieldset><fieldset><legend>Salvamento automático</legend>${editorToggleField("Salvar automaticamente", "autosave_enabled", site.editor.autosave_enabled)}${editorRangeField("Intervalo em segundos", "autosave_interval_seconds", site.editor.autosave_interval_seconds, 15, 120)}</fieldset>`;
+    const systemNotice = isRoomServicePage(page) ? `<div class="vp-system-page-note">${icon("shopping-bag")}<div><strong>Conteúdo conectado ao ERP</strong><span>Este portal fornece o cabeçalho. Cardápio, horários, disponibilidade e quartos vêm da unidade selecionada.</span></div></div>` : "";
+    return `${systemNotice}<fieldset><legend>Página atual</legend><label><span>Nome</span><input data-page-field="name" value="${escapeAttr(page.name)}"></label><label><span>Slug da página</span><div class="vp-slug-field"><span title="Endereço base">${escapeHtml(page.slug ? slugPrefix : `/${state.portal.hotel_slug}/${state.portal.slug}`)}</span><input data-page-field="slug" value="${escapeAttr(page.slug)}" ${page.slug ? "" : "disabled"} aria-describedby="vp-page-slug-help"></div><small class="vp-field-help" id="vp-page-slug-help">${page.slug ? "Use letras, números e hífens. O endereço é atualizado ao sair do campo." : "A página inicial usa o endereço principal do site."}</small></label>${pageToggleField("Exibir no menu", "show_in_navigation", page.show_in_navigation)}</fieldset><fieldset><legend>Identidade do site</legend>${colorField("Cor principal", "primary_color", site.primary_color, "doc")}${colorField("Texto padrão", "text_color", site.text_color, "doc")}${colorField("Superfície padrão", "surface_color", site.surface_color, "doc")}<label><span>Tipografia</span><input data-doc-field="font_family" value="${escapeAttr(site.font_family)}"></label>${siteMediaField("Ícone da guia", "favicon_media_asset_id", site.favicon_media_asset_id, "image", "document")}</fieldset><fieldset><legend>Cabeçalho</legend>${headerToggleField("Exibir cabeçalho", "enabled", site.header.enabled)}${headerToggleField("Exibir logotipo", "show_logo", site.header.show_logo)}${headerToggleField("Exibir páginas no menu", "show_navigation", site.header.show_navigation)}${headerToggleField("Fundo transparente", "transparent", site.header.transparent)}${headerToggleField("Desfoque do cabeçalho", "blur", site.header.blur)}${siteMediaField("Logotipo do cabeçalho", "logo_media_asset_id", site.header.logo_media_asset_id, "image", "header")}<label><span>Estilo</span><select data-header-field="style">${options([["standard", "Padrão"], ["floating", "Flutuante"], ["centered", "Centralizado"], ["minimal", "Minimalista"]], site.header.style)}</select></label><label><span>Posição</span><select data-header-field="position">${options([["sticky", "Fixo ao rolar"], ["static", "No fluxo da página"]], site.header.position)}</select></label><label><span>Alinhamento no desktop</span><select data-header-field="desktop_navigation_alignment">${options([["left", "À esquerda"], ["center", "Centralizado"], ["right", "À direita"]], site.header.desktop_navigation_alignment)}</select></label>${headerColorField("Fundo", "background_color", site.header.background_color)}${headerColorField("Texto", "text_color", site.header.text_color)}${headerColorField("Destaque", "accent_color", site.header.accent_color)}<div class="vp-subsection"><strong>Menu móvel</strong>${headerToggleField("Desfoque do menu lateral", "mobile_menu_blur", site.header.mobile_menu_blur)}${headerColorField("Fundo do menu", "mobile_menu_background_color", site.header.mobile_menu_background_color)}${headerColorField("Texto do menu", "mobile_menu_text_color", site.header.mobile_menu_text_color)}</div>${textFieldForScope("Ação do cabeçalho", "cta_text", site.header.cta_text, "header")}${linkField("Destino da ação", "cta_url", site.header.cta_url, "header")}</fieldset><fieldset><legend>Fundo desta página</legend>${pageMediaField(settings.background_media_asset_id)}${pageColorField("Fundo", "background_color", settings.background_color)}${pageColorField("Texto", "text_color", settings.text_color)}${pageColorField("Superfície", "surface_color", settings.surface_color)}${pageRangeField("Escurecimento", "background_overlay", settings.background_overlay, 0, 90)}<label><span>Posição</span><select data-page-setting-field="background_position">${options([["center", "Centro"], ["top", "Topo"], ["bottom", "Rodapé"], ["left", "Esquerda"], ["right", "Direita"]], settings.background_position)}</select></label><label><span>Ajuste</span><select data-page-setting-field="background_fit">${options([["cover", "Preencher"], ["contain", "Conter"]], settings.background_fit)}</select></label>${pageSettingToggleField("Fixar durante a rolagem", "background_fixed", settings.background_fixed)}${settings.background_media_asset_id ? `<button type="button" class="vp-secondary-action" data-clear-page-media>${icon("trash")} Remover mídia de fundo</button>` : ""}</fieldset><fieldset><legend>Layout da página</legend><label><span>Largura do conteúdo</span><select data-page-setting-field="content_width">${options([["narrow", "Estreita"], ["content", "Padrão"], ["wide", "Ampla"], ["full", "Tela inteira"]], settings.content_width)}</select></label>${pageRangeField("Margem lateral", "page_padding", settings.page_padding, 0, 80)}${pageRangeField("Espaço entre blocos", "block_gap", settings.block_gap, 0, 80)}</fieldset><fieldset><legend>Salvamento automático</legend>${editorToggleField("Salvar automaticamente", "autosave_enabled", site.editor.autosave_enabled)}${editorRangeField("Intervalo em segundos", "autosave_interval_seconds", site.editor.autosave_interval_seconds, 15, 120)}</fieldset>`;
   }
 
   function blockContentInspector(block) {
@@ -483,6 +500,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     const selectPage = event.target.closest("[data-select-page]");
     if (selectPage) return switchPage(selectPage.dataset.selectPage);
     if (event.target.closest("[data-add-page]")) return addPage();
+    if (event.target.closest("[data-add-room-service-page]")) return addRoomServicePage();
     const duplicatePageButton = event.target.closest("[data-duplicate-page]");
     if (duplicatePageButton) return duplicatePage(duplicatePageButton.dataset.duplicatePage);
     const deletePageButton = event.target.closest("[data-delete-page]");
@@ -825,6 +843,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
   }
 
   function addBlock(type, index = pageBlocks().length) {
+    if (isRoomServicePage()) return announce("A página de Room Service é atualizada pelo ERP e não aceita blocos.", true);
     if (!BLOCK_LABELS[type]) return;
     const block = createBlock(type);
     pageBlocks().splice(Math.max(0, index), 0, block);
@@ -873,6 +892,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
 
   function pasteBlock() {
     if (!state.clipboardBlock) return;
+    if (isRoomServicePage()) return announce("A página de Room Service é atualizada pelo ERP e não aceita blocos.", true);
     const block = clone(state.clipboardBlock);
     block.id = uniqueBlockId(block.type);
     const index = selectedIndex();
@@ -1128,6 +1148,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     const slug = uniquePageSlug(slugify(values.slug || values.name));
     const page = {
       id: uniquePageId(slug || "pagina"),
+      type: "standard",
       slug,
       name: values.name.trim(),
       title: values.name.trim(),
@@ -1144,9 +1165,38 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     announce("Página criada.");
   }
 
+  function addRoomServicePage() {
+    const existing = state.document.pages.find((page) => page.type === "room-service");
+    if (existing) {
+      switchPage(existing.id);
+      announce("A página de Room Service já faz parte deste portal.");
+      return;
+    }
+    if (state.document.pages.length >= 20) return announce("O site já atingiu o limite de páginas.", true);
+    const slug = uniquePageSlug("room-service");
+    const page = {
+      id: uniquePageId("room-service"),
+      type: "room-service",
+      slug,
+      name: "Room Service",
+      title: "Room Service",
+      show_in_navigation: true,
+      settings: clone(activePage()?.settings || defaultPageSettings()),
+      blocks: [],
+    };
+    state.document.pages.push(page);
+    state.activePageId = page.id;
+    state.selectedId = null;
+    checkpoint();
+    renderAll();
+    scheduleAutosave();
+    announce("Página de Room Service adicionada.");
+  }
+
   function duplicatePage(pageId) {
     const source = state.document.pages.find((page) => page.id === pageId);
     if (!source || state.document.pages.length >= 20) return;
+    if (source.type === "room-service") return announce("O portal pode ter somente uma página de Room Service.", true);
     const copy = clone(source);
     copy.id = uniquePageId(`${source.id}-copia`);
     copy.slug = uniquePageSlug(`${source.slug || "inicio"}-copia`);
@@ -1421,6 +1471,10 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     return state.document?.pages?.find((page) => page.id === state.activePageId) || null;
   }
 
+  function isRoomServicePage(page = activePage()) {
+    return page?.type === "room-service";
+  }
+
   function pageBlocks() {
     return activePage()?.blocks || [];
   }
@@ -1518,7 +1572,9 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
       state.document = sourceDocument;
       state.activePageId = page.id;
       state.viewport = state.previewViewport;
-      blocks = page.blocks.map((block, index) => renderEditableBlock(block, index).replace(/draggable="true"/g, "").replace(/<div class="vp-block-toolbar">[\s\S]*?<\/div>/, "")).join("");
+      blocks = isRoomServicePage(page)
+        ? renderRoomServicePagePreview()
+        : page.blocks.map((block, index) => renderEditableBlock(block, index).replace(/draggable="true"/g, "").replace(/<div class="vp-block-toolbar">[\s\S]*?<\/div>/, "")).join("");
     } finally {
       state.viewport = previousViewport;
       state.document = previousDocument;

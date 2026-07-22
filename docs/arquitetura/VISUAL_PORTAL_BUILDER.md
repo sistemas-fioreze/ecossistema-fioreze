@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-O Construtor Visual permite criar portais e páginas profissionais na Central Administrativa sem duplicar aplicações por hotel. Ele é a superfície oficial para novos sites públicos, lojas digitais, campanhas, eventos e experiências futuras. `admin` e `room-service` permanecem fora desse editor porque possuem produtos e fluxos próprios.
+O Construtor Visual permite criar portais e páginas profissionais na Central Administrativa sem duplicar aplicações por hotel. Ele é a superfície oficial para novos sites públicos, lojas digitais, campanhas, eventos e experiências futuras. `admin` e a gestão operacional de `room-service` permanecem como produtos próprios, mas o cardápio público pode ser incluído como uma página nativa de qualquer portal da unidade.
 
 Os antigos tipos de conteúdo continuam preservados no banco para compatibilidade e histórico, mas não aparecem como produtos separados na navegação da Central. Novos projetos são criados no editor visual e recebem seu próprio endereço público. A configuração operacional do Room Service pertence exclusivamente ao ERP do hotel.
 
@@ -16,6 +16,7 @@ O construtor fica em **Central Administrativa > Criador de portais** e oferece:
 - controle por página para exibir ou ocultar seu botão na navegação;
 - navegação interna por seletor de páginas, sem exigir que a equipe digite URLs;
 - destino especial para o Room Service da unidade, resolvido pelo `hotel_slug`;
+- página pronta de Room Service, conectada ao catálogo, aos horários e aos quartos da unidade, sem iframe nem segundo cabeçalho;
 - alternância e pré-visualização separada para desktop e mobile;
 - biblioteca de blocos com inclusão por clique ou arrastar e soltar;
 - camadas reordenáveis por arrastar e soltar, botões de ordem ou painel de camadas;
@@ -62,7 +63,7 @@ As páginas internas usam o mesmo endereço canônico, com o slug da página no 
 https://portal.hoteisfioreze.com.br/:hotel_slug/:portal_slug/:page_slug
 ```
 
-O formato anterior `/portal/:hotel_slug/:portal_slug` redireciona permanentemente para o endereço canônico. No domínio oficial, o shell legado do Portal do Hóspede e as antigas páginas em `/portal-content/*` não são expostos: `/:hotel_slug` retorna 404, e qualquer segundo segmento só responde quando corresponde a um portal personalizado publicado. `/:hotel_slug/room-service` permanece reservado ao Room Service e continua fora do construtor.
+O formato anterior `/portal/:hotel_slug/:portal_slug` redireciona permanentemente para o endereço canônico. No domínio oficial, o shell legado do Portal do Hóspede e as antigas páginas em `/portal-content/*` não são expostos: `/:hotel_slug` retorna 404, e qualquer segundo segmento só responde quando corresponde a um portal personalizado publicado. `/:hotel_slug/room-service` permanece reservado à experiência independente. Dentro de um portal, uma página do tipo `room-service` usa `/:hotel_slug/:portal_slug/:page_slug` e herda o cabeçalho do próprio portal.
 
 ## Documento visual
 
@@ -90,6 +91,7 @@ O campo JSON usa `schema_version=2`. Documentos `schema_version=1` são promovid
   "pages": [
     {
       "id": "inicio",
+      "type": "standard",
       "slug": "",
       "name": "Início",
       "show_in_navigation": true,
@@ -104,7 +106,7 @@ O campo JSON usa `schema_version=2`. Documentos `schema_version=1` são promovid
 }
 ```
 
-Cada página possui identidade estável, slug único, visibilidade no menu, fundo e blocos próprios. Cada bloco possui `id`, `type`, `content`, `styles.base`, `styles.desktop`, `styles.mobile` e `visibility`. Os estilos por dispositivo incluem os deslocamentos `offset_x` e `offset_y`, usados pelo movimento livre sem misturar o layout desktop com o mobile. O Worker normaliza o documento antes de salvá-lo e novamente antes de servi-lo.
+Cada página possui identidade estável, `type`, slug único, visibilidade no menu, fundo e blocos próprios. O tipo padrão é `standard`. O tipo `room-service` é uma página de sistema sem blocos personalizados; existe no máximo uma por portal e carrega os dados públicos do hotel indicado pelo `hotel_slug`. Cada bloco comum possui `id`, `type`, `content`, `styles.base`, `styles.desktop`, `styles.mobile` e `visibility`. Os estilos por dispositivo incluem os deslocamentos `offset_x` e `offset_y`, usados pelo movimento livre sem misturar o layout desktop com o mobile. O Worker normaliza o documento antes de salvá-lo e novamente antes de servi-lo.
 
 No site publicado, a navegação desktop usa links diretos para os slugs configurados. Em telas móveis, as páginas visíveis são apresentadas em uma gaveta lateral aberta pelo botão de menu, com animação, fechamento por fundo, botão, link ou tecla `Escape`. Páginas ocultas continuam publicáveis e acessíveis pelo endereço, mas não aparecem no menu.
 
@@ -117,6 +119,7 @@ No site publicado, a navegação desktop usa links diretos para os slugs configu
 - incorporações aceitam apenas URLs HTTPS sem credenciais e rejeitam endereços locais ou privados;
 - incorporações HTML usam `srcdoc` em sandbox sem `allow-scripts`; incorporações HTTPS também não recebem `allow-same-origin`;
 - o portal usa CSP estrita e executa somente o runtime local responsável pela navegação móvel;
+- a página de Room Service libera `connect-src 'self'` somente para consultar as APIs públicas da própria origem;
 - APIs administrativas exigem sessão, permissão e acesso ao hotel;
 - mutações exigem origem válida e o header administrativo;
 - o editor usa `expected_revision` para impedir sobrescrita silenciosa;
