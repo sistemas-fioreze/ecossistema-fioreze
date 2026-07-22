@@ -18,7 +18,7 @@ test("blog oficial e reduzido a conteudo publico sanitizado", async () => {
         link: "https://blog.hoteisfioreze.com.br/novidade-ficticia/",
         date: "2026-07-17T12:00:00-03:00",
         title: { rendered: "Novidade &amp; lazer" },
-        excerpt: { rendered: "<p>Conteudo <strong>ficticio</strong>.</p>" },
+        excerpt: { rendered: "<p>Conteudo <strong>ficticio</strong>&#8230;</p>" },
         _embedded: { "wp:featuredmedia": [{ source_url: "https://blog.hoteisfioreze.com.br/media/ficticia.jpg" }] },
       }]), { headers: { "content-type": "application/json" } });
     },
@@ -32,7 +32,7 @@ test("blog oficial e reduzido a conteudo publico sanitizado", async () => {
     id: "42",
     slug: "novidade-ficticia",
     title: "Novidade & lazer",
-    excerpt: "Conteudo ficticio .",
+    excerpt: "Conteudo ficticio …",
     published_at: "2026-07-17T15:00:00.000Z",
     link: "https://blog.hoteisfioreze.com.br/novidade-ficticia/",
     image_url: "https://blog.hoteisfioreze.com.br/media/ficticia.jpg",

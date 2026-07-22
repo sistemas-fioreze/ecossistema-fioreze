@@ -220,20 +220,25 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     if (state.leftTab === "pages") {
       const page = activePage();
       const hasRoomService = state.document.pages.some((item) => item.type === "room-service");
-      els.leftContent.innerHTML = `<div class="vp-panel-heading"><div><strong>Páginas</strong><span>${state.document.pages.length} de 20 páginas</span></div><button type="button" data-add-page title="Adicionar página livre">${icon("plus")}</button></div><div class="vp-pages">${state.document.pages.map((item) => `<article class="${item.id === state.activePageId ? "is-selected" : ""}"><button type="button" data-select-page="${escapeAttr(item.id)}"><span>${icon(item.type === "room-service" ? "shopping-bag" : item.slug ? "page" : "home")}</span><div><strong>${escapeHtml(item.name)}</strong><small>${item.type === "room-service" ? "Página conectada ao cardápio" : item.slug ? `/${escapeHtml(item.slug)}` : "Página inicial"}${item.show_in_navigation ? " · no menu" : ""}</small></div></button><div>${item.type === "room-service" ? "" : `<button type="button" data-duplicate-page="${escapeAttr(item.id)}" title="Duplicar página">${icon("copy")}</button>`}<button type="button" data-delete-page="${escapeAttr(item.id)}" title="Excluir página" ${item.slug ? "" : "disabled"}>${icon("trash")}</button></div></article>`).join("")}</div>${hasRoomService ? "" : `<div class="vp-page-presets"><strong>Página pronta</strong><button type="button" data-add-room-service-page><span>${icon("shopping-bag")}</span><div><b>Room Service</b><small>Cardápio e pedidos da unidade</small></div>${icon("plus")}</button></div>`}${page ? '<button type="button" class="vp-secondary-action" data-page-settings>Configurar página atual</button>' : ""}`;
+      const hasBlog = state.document.pages.some((item) => item.type === "blog");
+      const presets = [
+        hasRoomService ? "" : `<button type="button" data-add-room-service-page><span>${icon("shopping-bag")}</span><div><b>Room Service</b><small>Cardápio e pedidos da unidade</small></div>${icon("plus")}</button>`,
+        hasBlog ? "" : `<button type="button" data-add-blog-page><span>${icon("page")}</span><div><b>Blog</b><small>Publicações oficiais do Blog Fioreze</small></div>${icon("plus")}</button>`,
+      ].join("");
+      els.leftContent.innerHTML = `<div class="vp-panel-heading"><div><strong>Páginas</strong><span>${state.document.pages.length} de 20 páginas</span></div><button type="button" data-add-page title="Adicionar página livre">${icon("plus")}</button></div><div class="vp-pages">${state.document.pages.map((item) => `<article class="${item.id === state.activePageId ? "is-selected" : ""}"><button type="button" data-select-page="${escapeAttr(item.id)}"><span>${icon(systemPageIcon(item))}</span><div><strong>${escapeHtml(item.name)}</strong><small>${systemPageDescription(item)}${item.show_in_navigation ? " · no menu" : ""}</small></div></button><div>${isSystemPage(item) ? "" : `<button type="button" data-duplicate-page="${escapeAttr(item.id)}" title="Duplicar página">${icon("copy")}</button>`}<button type="button" data-delete-page="${escapeAttr(item.id)}" title="Excluir página" ${item.slug ? "" : "disabled"}>${icon("trash")}</button></div></article>`).join("")}</div>${presets ? `<div class="vp-page-presets"><strong>Páginas prontas</strong>${presets}</div>` : ""}${page ? '<button type="button" class="vp-secondary-action" data-page-settings>Configurar página atual</button>' : ""}`;
       return;
     }
     if (state.leftTab === "blocks") {
-      if (isRoomServicePage()) {
-        els.leftContent.innerHTML = `<div class="vp-system-page-panel">${icon("shopping-bag")}<strong>Room Service conectado</strong><p>Esta página usa automaticamente o cardápio, os horários e os quartos da unidade. O conteúdo é administrado pelo ERP Room Service.</p></div>`;
+      if (isSystemPage()) {
+        els.leftContent.innerHTML = systemPagePanel();
         return;
       }
       els.leftContent.innerHTML = `<div class="vp-library-search"><span>${icon("search")}</span><input type="search" data-block-search placeholder="Buscar bloco" aria-label="Buscar bloco"></div><div class="vp-block-library">${BLOCKS.map(([type, label, description, svg]) => `<button type="button" draggable="true" data-add-block="${type}" title="Arraste ou clique para adicionar"><span>${svg}</span><strong>${label}</strong><small>${description}</small></button>`).join("")}</div>`;
       return;
     }
     if (state.leftTab === "layers") {
-      if (isRoomServicePage()) {
-        els.leftContent.innerHTML = `<div class="vp-system-page-panel">${icon("layers")}<strong>Página gerenciada pelo sistema</strong><p>O cabeçalho pertence a este portal. O cardápio é carregado sem um segundo cabeçalho.</p></div>`;
+      if (isSystemPage()) {
+        els.leftContent.innerHTML = `<div class="vp-system-page-panel">${icon("layers")}<strong>Página gerenciada pelo sistema</strong><p>O cabeçalho pertence a este portal. O conteúdo conectado é carregado sem um segundo cabeçalho.</p></div>`;
         return;
       }
       const blocks = pageBlocks();
@@ -258,12 +263,20 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     const site = state.document.settings;
     const pageContent = isRoomServicePage(page)
       ? renderRoomServicePagePreview()
-      : page.blocks.map((block, index) => renderEditableBlock(block, index)).join("") || `<button type="button" class="vp-empty-canvas" data-add-block="hero">${icon("plus")}<strong>Adicione o primeiro bloco</strong><span>Comece por uma capa ou arraste qualquer elemento da biblioteca.</span></button>`;
-    els.canvas.innerHTML = `<div class="vp-preview-page ${settings.background_media_asset_id ? "has-page-media" : ""} ${state.editorMobileMenuOpen ? "is-editor-menu-open" : ""}" style="--vp-page-bg:${escapeAttr(settings.background_color)};--vp-page-text:${escapeAttr(settings.text_color)};--vp-page-primary:${escapeAttr(site.primary_color)};--vp-page-surface:${escapeAttr(settings.surface_color)};--vp-page-font:${escapeAttr(site.font_family)};--vp-page-gap:${Number(settings.block_gap)}px;--vp-page-padding:${Number(settings.page_padding)}px;--vp-page-overlay:${Number(settings.background_overlay || 0) / 100};--vp-page-media-position:${escapeAttr(settings.background_position || "center")};--vp-page-media-fit:${escapeAttr(settings.background_fit || "cover")}">${pageBackgroundPreview(settings)}<span class="vp-alignment-guide is-vertical" data-alignment-guide="x"></span>${renderEditorHeader()}<div class="vp-page-content">${pageContent}</div></div>`;
+      : isBlogPage(page)
+        ? renderBlogPagePreview()
+        : page.blocks.map((block, index) => renderEditableBlock(block, index)).join("") || `<button type="button" class="vp-empty-canvas" data-add-block="hero">${icon("plus")}<strong>Adicione o primeiro bloco</strong><span>Comece por uma capa ou arraste qualquer elemento da biblioteca.</span></button>`;
+    const systemPage = isSystemPage(page);
+    els.canvas.innerHTML = `<div class="vp-preview-page ${systemPage ? "is-system-page" : ""} ${!systemPage && settings.background_media_asset_id ? "has-page-media" : ""} ${state.editorMobileMenuOpen ? "is-editor-menu-open" : ""}" style="--vp-page-bg:${escapeAttr(systemPage ? "#ffffff" : settings.background_color)};--vp-page-text:${escapeAttr(systemPage ? "#202124" : settings.text_color)};--vp-page-primary:${escapeAttr(site.primary_color)};--vp-page-surface:${escapeAttr(settings.surface_color)};--vp-page-font:${escapeAttr(site.font_family)};--vp-page-gap:${Number(settings.block_gap)}px;--vp-page-padding:${Number(settings.page_padding)}px;--vp-page-overlay:${Number(settings.background_overlay || 0) / 100};--vp-page-media-position:${escapeAttr(settings.background_position || "center")};--vp-page-media-fit:${escapeAttr(settings.background_fit || "cover")}">${systemPage ? "" : pageBackgroundPreview(settings)}<span class="vp-alignment-guide is-vertical" data-alignment-guide="x"></span>${renderEditorHeader()}<div class="vp-page-content">${pageContent}</div></div>`;
   }
 
   function renderRoomServicePagePreview() {
     return `<section class="vp-room-service-preview" aria-label="Prévia do Room Service"><aside><div class="vp-rs-copy"><strong>Room Service</strong><span>Cardápio conectado à unidade</span></div><div class="vp-rs-field"></div><div class="vp-rs-field"></div><div class="vp-rs-field"></div><h2>Resumo do Pedido</h2><div class="vp-rs-empty">Seu carrinho está vazio</div><button type="button" tabindex="-1">Finalizar Pedido</button></aside><section><div class="vp-rs-search">Pesquisar pratos, bebidas ou descrições...</div><nav><span>Todos</span><span>Pratos</span><span>Bebidas</span></nav><h2>Cardápio da unidade</h2><div class="vp-rs-products">${["Prato em destaque", "Bebida", "Sobremesa", "Opção especial"].map((name) => `<article><small>ITEM</small><strong>${name}</strong><p>Informações atualizadas pelo ERP Room Service.</p><footer><b>R$ --,--</b><span>Adicionar</span></footer></article>`).join("")}</div></section></section>`;
+  }
+
+  function renderBlogPagePreview() {
+    const cards = ["Experiência em Gramado", "Novidades da unidade", "Roteiros e dicas"];
+    return `<section class="vp-blog-preview"><header><small>CONTEÚDO FIOREZE</small><h1>Blog</h1><p>Novidades, dicas e experiências para aproveitar sua estadia.</p></header><div>${cards.map((title, index) => `<article class="${index === 0 ? "is-featured" : ""}"><span>${icon("image")}</span><section><small>${index === 0 ? "BLOG FIOREZE" : "CONTEÚDO RECENTE"}</small><h2>${title}</h2><p>As publicações são carregadas automaticamente pelo feed oficial.</p><footer>Ler artigo</footer></section></article>`).join("")}</div></section>`;
   }
 
   function renderEditableBlock(block, index) {
@@ -313,15 +326,18 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     const pages = header.show_navigation ? state.document.pages.filter((page) => page.show_in_navigation) : [];
     const nav = pages.map((page) => `<button type="button" data-editor-page-link="${escapeAttr(page.id)}" class="${page.id === state.activePageId ? "is-current" : ""}">${escapeHtml(page.name)}</button>`).join("");
     const brand = header.show_logo ? `<div class="vp-editor-brand">${logo ? `<img src="${escapeAttr(logo.public_url)}" alt="">` : `<strong>${escapeHtml(state.portal.hotel_name)}</strong>`}</div>` : "";
-    const mobileMenuToggle = pages.length ? `<button type="button" class="vp-editor-menu-toggle" data-editor-menu-toggle aria-expanded="${state.editorMobileMenuOpen}" title="Abrir páginas">${icon("menu")}</button>` : "";
+    const systemPage = isSystemPage();
+    const headerBackground = systemPage ? "#ffffff" : header.background_color;
+    const headerText = systemPage ? "#202124" : header.text_color;
+    const mobileMenuToggle = pages.length ? `<button type="button" class="vp-editor-menu-toggle" data-editor-menu-toggle aria-expanded="${state.editorMobileMenuOpen}" title="Abrir páginas" style="--vp-menu-toggle-bg:${escapeAttr(contrastingBackdrop(headerText))}">${icon("menu")}</button>` : "";
     const mobileMenu = pages.length ? `<button type="button" class="vp-editor-menu-backdrop" data-editor-menu-close aria-label="Fechar menu" tabindex="-1"></button><aside class="vp-editor-mobile-menu ${header.mobile_menu_blur ? "has-blur" : ""}" aria-hidden="${!state.editorMobileMenuOpen}" style="--vp-mobile-menu-bg:${escapeAttr(header.mobile_menu_background_color)};--vp-mobile-menu-text:${escapeAttr(header.mobile_menu_text_color)}"><header><strong>Páginas</strong><button type="button" data-editor-menu-close title="Fechar">${icon("close")}</button></header><nav>${nav}</nav>${header.cta_text ? `<span class="vp-editor-header-cta">${escapeHtml(header.cta_text)}</span>` : ""}</aside>` : "";
-    return `<div class="${editorHeaderClasses(header)} navigation-${escapeAttr(header.desktop_navigation_alignment || "center")}" style="--vp-header-bg:${escapeAttr(header.background_color)};--vp-header-text:${escapeAttr(header.text_color)};--vp-header-accent:${escapeAttr(header.accent_color)}">${brand}<nav class="vp-editor-desktop-nav">${nav}</nav>${header.cta_text ? `<span class="vp-editor-header-cta">${escapeHtml(header.cta_text)}</span>` : ""}${mobileMenuToggle}</div>${mobileMenu}`;
+    return `<div class="${editorHeaderClasses(header, activePage())} navigation-${escapeAttr(header.desktop_navigation_alignment || "center")}" style="--vp-header-bg:${escapeAttr(headerBackground)};--vp-header-text:${escapeAttr(headerText)};--vp-header-accent:${escapeAttr(header.accent_color)}">${brand}<nav class="vp-editor-desktop-nav">${nav}</nav>${header.cta_text ? `<span class="vp-editor-header-cta">${escapeHtml(header.cta_text)}</span>` : ""}${mobileMenuToggle}</div>${mobileMenu}`;
   }
 
   function renderInspector() {
     const block = selectedBlock();
     els.inspectorTitle.textContent = block ? BLOCK_LABELS[block.type] : "Página";
-    els.inspectorSubtitle.textContent = block ? "Conteúdo e aparência do bloco" : isRoomServicePage() ? "Endereço e navegação do Room Service" : "Identidade e espaçamento geral";
+    els.inspectorSubtitle.textContent = block ? "Conteúdo e aparência do bloco" : isSystemPage() ? `Endereço e navegação do ${activePage().name}` : "Identidade e espaçamento geral";
     if (!block) {
       els.inspectorBody.innerHTML = pageInspector();
       return;
@@ -334,8 +350,11 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     const page = activePage();
     const settings = page.settings;
     const slugPrefix = `/${state.portal.hotel_slug}/${state.portal.slug}/`;
-    const systemNotice = isRoomServicePage(page) ? `<div class="vp-system-page-note">${icon("shopping-bag")}<div><strong>Conteúdo conectado ao ERP</strong><span>Este portal fornece o cabeçalho. Cardápio, horários, disponibilidade e quartos vêm da unidade selecionada.</span></div></div>` : "";
-    return `${systemNotice}<fieldset><legend>Página atual</legend><label><span>Nome</span><input data-page-field="name" value="${escapeAttr(page.name)}"></label><label><span>Slug da página</span><div class="vp-slug-field"><span title="Endereço base">${escapeHtml(page.slug ? slugPrefix : `/${state.portal.hotel_slug}/${state.portal.slug}`)}</span><input data-page-field="slug" value="${escapeAttr(page.slug)}" ${page.slug ? "" : "disabled"} aria-describedby="vp-page-slug-help"></div><small class="vp-field-help" id="vp-page-slug-help">${page.slug ? "Use letras, números e hífens. O endereço é atualizado ao sair do campo." : "A página inicial usa o endereço principal do site."}</small></label>${pageToggleField("Exibir no menu", "show_in_navigation", page.show_in_navigation)}</fieldset><fieldset><legend>Identidade do site</legend>${colorField("Cor principal", "primary_color", site.primary_color, "doc")}${colorField("Texto padrão", "text_color", site.text_color, "doc")}${colorField("Superfície padrão", "surface_color", site.surface_color, "doc")}<label><span>Tipografia</span><input data-doc-field="font_family" value="${escapeAttr(site.font_family)}"></label>${siteMediaField("Ícone da guia", "favicon_media_asset_id", site.favicon_media_asset_id, "image", "document")}</fieldset><fieldset><legend>Cabeçalho</legend>${headerToggleField("Exibir cabeçalho", "enabled", site.header.enabled)}${headerToggleField("Exibir logotipo", "show_logo", site.header.show_logo)}${headerToggleField("Exibir páginas no menu", "show_navigation", site.header.show_navigation)}${headerToggleField("Fundo transparente", "transparent", site.header.transparent)}${headerToggleField("Desfoque do cabeçalho", "blur", site.header.blur)}${siteMediaField("Logotipo do cabeçalho", "logo_media_asset_id", site.header.logo_media_asset_id, "image", "header")}<label><span>Estilo</span><select data-header-field="style">${options([["standard", "Padrão"], ["floating", "Flutuante"], ["centered", "Centralizado"], ["minimal", "Minimalista"]], site.header.style)}</select></label><label><span>Posição</span><select data-header-field="position">${options([["sticky", "Fixo ao rolar"], ["static", "No fluxo da página"]], site.header.position)}</select></label><label><span>Alinhamento no desktop</span><select data-header-field="desktop_navigation_alignment">${options([["left", "À esquerda"], ["center", "Centralizado"], ["right", "À direita"]], site.header.desktop_navigation_alignment)}</select></label>${headerColorField("Fundo", "background_color", site.header.background_color)}${headerColorField("Texto", "text_color", site.header.text_color)}${headerColorField("Destaque", "accent_color", site.header.accent_color)}<div class="vp-subsection"><strong>Menu móvel</strong>${headerToggleField("Desfoque do menu lateral", "mobile_menu_blur", site.header.mobile_menu_blur)}${headerColorField("Fundo do menu", "mobile_menu_background_color", site.header.mobile_menu_background_color)}${headerColorField("Texto do menu", "mobile_menu_text_color", site.header.mobile_menu_text_color)}</div>${textFieldForScope("Ação do cabeçalho", "cta_text", site.header.cta_text, "header")}${linkField("Destino da ação", "cta_url", site.header.cta_url, "header")}</fieldset><fieldset><legend>Fundo desta página</legend>${pageMediaField(settings.background_media_asset_id)}${pageColorField("Fundo", "background_color", settings.background_color)}${pageColorField("Texto", "text_color", settings.text_color)}${pageColorField("Superfície", "surface_color", settings.surface_color)}${pageRangeField("Escurecimento", "background_overlay", settings.background_overlay, 0, 90)}<label><span>Posição</span><select data-page-setting-field="background_position">${options([["center", "Centro"], ["top", "Topo"], ["bottom", "Rodapé"], ["left", "Esquerda"], ["right", "Direita"]], settings.background_position)}</select></label><label><span>Ajuste</span><select data-page-setting-field="background_fit">${options([["cover", "Preencher"], ["contain", "Conter"]], settings.background_fit)}</select></label>${pageSettingToggleField("Fixar durante a rolagem", "background_fixed", settings.background_fixed)}${settings.background_media_asset_id ? `<button type="button" class="vp-secondary-action" data-clear-page-media>${icon("trash")} Remover mídia de fundo</button>` : ""}</fieldset><fieldset><legend>Layout da página</legend><label><span>Largura do conteúdo</span><select data-page-setting-field="content_width">${options([["narrow", "Estreita"], ["content", "Padrão"], ["wide", "Ampla"], ["full", "Tela inteira"]], settings.content_width)}</select></label>${pageRangeField("Margem lateral", "page_padding", settings.page_padding, 0, 80)}${pageRangeField("Espaço entre blocos", "block_gap", settings.block_gap, 0, 80)}</fieldset><fieldset><legend>Salvamento automático</legend>${editorToggleField("Salvar automaticamente", "autosave_enabled", site.editor.autosave_enabled)}${editorRangeField("Intervalo em segundos", "autosave_interval_seconds", site.editor.autosave_interval_seconds, 15, 120)}</fieldset>`;
+    const systemNotice = isSystemPage(page) ? systemPageNotice(page) : "";
+    const pageBackgroundFields = isSystemPage(page)
+      ? `<fieldset><legend>Fundo desta página</legend><p class="vp-field-help">Esta página conectada usa fundo branco para manter o cardápio e o conteúdo legíveis.</p></fieldset>`
+      : `<fieldset><legend>Fundo desta página</legend>${pageMediaField(settings.background_media_asset_id)}${pageColorField("Fundo", "background_color", settings.background_color)}${pageColorField("Texto", "text_color", settings.text_color)}${pageColorField("Superfície", "surface_color", settings.surface_color)}${pageRangeField("Escurecimento", "background_overlay", settings.background_overlay, 0, 90)}<label><span>Posição</span><select data-page-setting-field="background_position">${options([["center", "Centro"], ["top", "Topo"], ["bottom", "Rodapé"], ["left", "Esquerda"], ["right", "Direita"]], settings.background_position)}</select></label><label><span>Ajuste</span><select data-page-setting-field="background_fit">${options([["cover", "Preencher"], ["contain", "Conter"]], settings.background_fit)}</select></label>${pageSettingToggleField("Fixar durante a rolagem", "background_fixed", settings.background_fixed)}${settings.background_media_asset_id ? `<button type="button" class="vp-secondary-action" data-clear-page-media>${icon("trash")} Remover mídia de fundo</button>` : ""}</fieldset>`;
+    return `${systemNotice}<fieldset><legend>Página atual</legend><label><span>Nome</span><input data-page-field="name" value="${escapeAttr(page.name)}"></label><label><span>Slug da página</span><div class="vp-slug-field"><span title="Endereço base">${escapeHtml(page.slug ? slugPrefix : `/${state.portal.hotel_slug}/${state.portal.slug}`)}</span><input data-page-field="slug" value="${escapeAttr(page.slug)}" ${page.slug ? "" : "disabled"} aria-describedby="vp-page-slug-help"></div><small class="vp-field-help" id="vp-page-slug-help">${page.slug ? "Use letras, números e hífens. O endereço é atualizado ao sair do campo." : "A página inicial usa o endereço principal do site."}</small></label>${pageToggleField("Exibir no menu", "show_in_navigation", page.show_in_navigation)}</fieldset><fieldset><legend>Identidade do site</legend>${colorField("Cor principal", "primary_color", site.primary_color, "doc")}${colorField("Texto padrão", "text_color", site.text_color, "doc")}${colorField("Superfície padrão", "surface_color", site.surface_color, "doc")}<label><span>Tipografia</span><input data-doc-field="font_family" value="${escapeAttr(site.font_family)}"></label>${siteMediaField("Ícone da guia", "favicon_media_asset_id", site.favicon_media_asset_id, "image", "document")}</fieldset><fieldset><legend>Cabeçalho</legend>${headerToggleField("Exibir cabeçalho", "enabled", site.header.enabled)}${headerToggleField("Exibir logotipo", "show_logo", site.header.show_logo)}${headerToggleField("Exibir páginas no menu", "show_navigation", site.header.show_navigation)}${headerToggleField("Fundo transparente", "transparent", site.header.transparent)}${headerToggleField("Desfoque do cabeçalho", "blur", site.header.blur)}${siteMediaField("Logotipo do cabeçalho", "logo_media_asset_id", site.header.logo_media_asset_id, "image", "header")}<label><span>Estilo</span><select data-header-field="style">${options([["standard", "Padrão"], ["floating", "Flutuante"], ["centered", "Centralizado"], ["minimal", "Minimalista"]], site.header.style)}</select></label><label><span>Posição</span><select data-header-field="position">${options([["sticky", "Fixo ao rolar"], ["static", "No fluxo da página"]], site.header.position)}</select></label><label><span>Alinhamento no desktop</span><select data-header-field="desktop_navigation_alignment">${options([["left", "À esquerda"], ["center", "Centralizado"], ["right", "À direita"]], site.header.desktop_navigation_alignment)}</select></label>${headerColorField("Fundo", "background_color", site.header.background_color)}${headerColorField("Texto", "text_color", site.header.text_color)}${headerColorField("Destaque", "accent_color", site.header.accent_color)}<div class="vp-subsection"><strong>Menu móvel</strong>${headerToggleField("Desfoque do menu lateral", "mobile_menu_blur", site.header.mobile_menu_blur)}${headerColorField("Fundo do menu", "mobile_menu_background_color", site.header.mobile_menu_background_color)}${headerColorField("Texto do menu", "mobile_menu_text_color", site.header.mobile_menu_text_color)}</div>${textFieldForScope("Ação do cabeçalho", "cta_text", site.header.cta_text, "header")}${linkField("Destino da ação", "cta_url", site.header.cta_url, "header")}</fieldset>${pageBackgroundFields}<fieldset><legend>Layout da página</legend><label><span>Largura do conteúdo</span><select data-page-setting-field="content_width">${options([["narrow", "Estreita"], ["content", "Padrão"], ["wide", "Ampla"], ["full", "Tela inteira"]], settings.content_width)}</select></label>${pageRangeField("Margem lateral", "page_padding", settings.page_padding, 0, 80)}${pageRangeField("Espaço entre blocos", "block_gap", settings.block_gap, 0, 80)}</fieldset><fieldset><legend>Salvamento automático</legend>${editorToggleField("Salvar automaticamente", "autosave_enabled", site.editor.autosave_enabled)}${editorRangeField("Intervalo em segundos", "autosave_interval_seconds", site.editor.autosave_interval_seconds, 15, 120)}</fieldset>`;
   }
 
   function blockContentInspector(block) {
@@ -501,6 +520,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     if (selectPage) return switchPage(selectPage.dataset.selectPage);
     if (event.target.closest("[data-add-page]")) return addPage();
     if (event.target.closest("[data-add-room-service-page]")) return addRoomServicePage();
+    if (event.target.closest("[data-add-blog-page]")) return addBlogPage();
     const duplicatePageButton = event.target.closest("[data-duplicate-page]");
     if (duplicatePageButton) return duplicatePage(duplicatePageButton.dataset.duplicatePage);
     const deletePageButton = event.target.closest("[data-delete-page]");
@@ -1181,7 +1201,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
       name: "Room Service",
       title: "Room Service",
       show_in_navigation: true,
-      settings: clone(activePage()?.settings || defaultPageSettings()),
+      settings: systemPageSettings(),
       blocks: [],
     };
     state.document.pages.push(page);
@@ -1193,10 +1213,49 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     announce("Página de Room Service adicionada.");
   }
 
+  function addBlogPage() {
+    const existing = state.document.pages.find((page) => page.type === "blog");
+    if (existing) {
+      switchPage(existing.id);
+      announce("A página de Blog já faz parte deste portal.");
+      return;
+    }
+    if (state.document.pages.length >= 20) return announce("O site já atingiu o limite de páginas.", true);
+    const page = {
+      id: uniquePageId("blog"),
+      type: "blog",
+      slug: uniquePageSlug("blog"),
+      name: "Blog",
+      title: "Blog",
+      show_in_navigation: true,
+      settings: systemPageSettings(),
+      blocks: [],
+    };
+    state.document.pages.push(page);
+    state.activePageId = page.id;
+    state.selectedId = null;
+    checkpoint();
+    renderAll();
+    scheduleAutosave();
+    announce("Página de Blog adicionada.");
+  }
+
+  function systemPageSettings() {
+    return {
+      ...clone(activePage()?.settings || defaultPageSettings()),
+      background_color: "#ffffff",
+      text_color: "#202124",
+      surface_color: "#f7f7f7",
+      background_media_asset_id: "",
+      background_overlay: 0,
+      background_fixed: false,
+    };
+  }
+
   function duplicatePage(pageId) {
     const source = state.document.pages.find((page) => page.id === pageId);
     if (!source || state.document.pages.length >= 20) return;
-    if (source.type === "room-service") return announce("O portal pode ter somente uma página de Room Service.", true);
+    if (isSystemPage(source)) return announce("Páginas conectadas não podem ser duplicadas.", true);
     const copy = clone(source);
     copy.id = uniquePageId(`${source.id}-copia`);
     copy.slug = uniquePageSlug(`${source.slug || "inicio"}-copia`);
@@ -1475,6 +1534,35 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     return page?.type === "room-service";
   }
 
+  function isBlogPage(page = activePage()) {
+    return page?.type === "blog";
+  }
+
+  function isSystemPage(page = activePage()) {
+    return ["room-service", "blog"].includes(page?.type);
+  }
+
+  function systemPageIcon(page) {
+    if (page?.type === "room-service") return "shopping-bag";
+    return page?.slug ? "page" : "home";
+  }
+
+  function systemPageDescription(page) {
+    if (page?.type === "room-service") return "Página conectada ao cardápio";
+    if (page?.type === "blog") return "Página conectada ao Blog Fioreze";
+    return page?.slug ? `/${escapeHtml(page.slug)}` : "Página inicial";
+  }
+
+  function systemPagePanel(page = activePage()) {
+    if (page?.type === "blog") return `<div class="vp-system-page-panel">${icon("page")}<strong>Blog conectado</strong><p>Esta página carrega as publicações oficiais do Blog Fioreze para a unidade selecionada.</p></div>`;
+    return `<div class="vp-system-page-panel">${icon("shopping-bag")}<strong>Room Service conectado</strong><p>Esta página usa automaticamente o cardápio, os horários e os quartos da unidade. O conteúdo é administrado pelo ERP Room Service.</p></div>`;
+  }
+
+  function systemPageNotice(page) {
+    if (page?.type === "blog") return `<div class="vp-system-page-note">${icon("page")}<div><strong>Conteúdo conectado ao Blog Fioreze</strong><span>Este portal fornece o cabeçalho. As publicações são carregadas pelo feed oficial configurado para a unidade.</span></div></div>`;
+    return `<div class="vp-system-page-note">${icon("shopping-bag")}<div><strong>Conteúdo conectado ao ERP</strong><span>Este portal fornece o cabeçalho. Cardápio, horários, disponibilidade e quartos vêm da unidade selecionada.</span></div></div>`;
+  }
+
   function pageBlocks() {
     return activePage()?.blocks || [];
   }
@@ -1545,13 +1633,17 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     if (!header.enabled) return "";
     const logo = mediaById(header.logo_media_asset_id);
     const pages = header.show_navigation ? documentValue.pages.filter((item) => item.show_in_navigation) : [];
-    return `<div class="${editorHeaderClasses(header)} navigation-${escapeAttr(header.desktop_navigation_alignment || "center")}" style="--vp-header-bg:${escapeAttr(header.background_color)};--vp-header-text:${escapeAttr(header.text_color)};--vp-header-accent:${escapeAttr(header.accent_color)}">${header.show_logo ? `<div class="vp-editor-brand">${logo ? `<img src="${escapeAttr(logo.public_url)}" alt="">` : `<strong>${escapeHtml(state.portal.hotel_name)}</strong>`}</div>` : ""}<nav>${pages.map((item) => `<button type="button" data-preview-page="${escapeAttr(item.id)}" class="${item.id === page.id ? "is-current" : ""}">${escapeHtml(item.name)}</button>`).join("")}</nav>${header.cta_text ? `<span class="vp-editor-header-cta">${escapeHtml(header.cta_text)}</span>` : ""}</div>`;
+    const systemPage = isSystemPage(page);
+    const headerBackground = systemPage ? "#ffffff" : header.background_color;
+    const headerText = systemPage ? "#202124" : header.text_color;
+    return `<div class="${editorHeaderClasses(header, page)} navigation-${escapeAttr(header.desktop_navigation_alignment || "center")}" style="--vp-header-bg:${escapeAttr(headerBackground)};--vp-header-text:${escapeAttr(headerText)};--vp-header-accent:${escapeAttr(header.accent_color)}">${header.show_logo ? `<div class="vp-editor-brand">${logo ? `<img src="${escapeAttr(logo.public_url)}" alt="">` : `<strong>${escapeHtml(state.portal.hotel_name)}</strong>`}</div>` : ""}<nav>${pages.map((item) => `<button type="button" data-preview-page="${escapeAttr(item.id)}" class="${item.id === page.id ? "is-current" : ""}">${escapeHtml(item.name)}</button>`).join("")}</nav>${header.cta_text ? `<span class="vp-editor-header-cta">${escapeHtml(header.cta_text)}</span>` : ""}</div>`;
   }
 
-  function editorHeaderClasses(header) {
+  function editorHeaderClasses(header, page = activePage()) {
     return [
       "vp-editor-site-header",
       `header-${header.style}`,
+      isSystemPage(page) ? "is-system-page" : "",
       header.position === "sticky" ? "is-sticky" : "",
       header.transparent ? "is-transparent" : "",
       header.blur ? "has-blur" : "",
@@ -1574,13 +1666,18 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
       state.viewport = state.previewViewport;
       blocks = isRoomServicePage(page)
         ? renderRoomServicePagePreview()
-        : page.blocks.map((block, index) => renderEditableBlock(block, index).replace(/draggable="true"/g, "").replace(/<div class="vp-block-toolbar">[\s\S]*?<\/div>/, "")).join("");
+        : isBlogPage(page)
+          ? renderBlogPagePreview()
+          : page.blocks.map((block, index) => renderEditableBlock(block, index).replace(/draggable="true"/g, "").replace(/<div class="vp-block-toolbar">[\s\S]*?<\/div>/, "")).join("");
     } finally {
       state.viewport = previousViewport;
       state.document = previousDocument;
       state.activePageId = previousPageId;
     }
-    return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;background:${settings.background_color};color:${settings.text_color};font-family:${siteSettings.font_family}}${builderPreviewCss()}</style><link rel="stylesheet" href="/css/modules/admin/portal-builder.css"></head><body><main class="vp-preview-page ${settings.background_media_asset_id ? "has-page-media" : ""}" style="--vp-page-bg:${settings.background_color};--vp-page-text:${settings.text_color};--vp-page-primary:${siteSettings.primary_color};--vp-page-surface:${settings.surface_color};--vp-page-font:${siteSettings.font_family};--vp-page-gap:${settings.block_gap}px;--vp-page-padding:${settings.page_padding}px;--vp-page-overlay:${Number(settings.background_overlay || 0) / 100};--vp-page-media-position:${settings.background_position || "center"};--vp-page-media-fit:${settings.background_fit || "cover"}">${pageBackgroundPreview(settings)}${previewHeaderHtml(sourceDocument, page)}<div class="vp-page-content">${blocks}</div></main><script>document.addEventListener("click",event=>{const target=event.target.closest("[data-preview-page]");if(!target)return;event.preventDefault();parent.postMessage({type:"fioreze-visual-preview-page",pageId:target.dataset.previewPage},"*")});<\/script></body></html>`;
+    const systemPage = isSystemPage(page);
+    const pageBackground = systemPage ? "#ffffff" : settings.background_color;
+    const pageText = systemPage ? "#202124" : settings.text_color;
+    return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;background:${pageBackground};color:${pageText};font-family:${siteSettings.font_family}}${builderPreviewCss()}</style><link rel="stylesheet" href="/css/modules/admin/portal-builder.css"></head><body><main class="vp-preview-page ${systemPage ? "is-system-page" : ""} ${!systemPage && settings.background_media_asset_id ? "has-page-media" : ""}" style="--vp-page-bg:${pageBackground};--vp-page-text:${pageText};--vp-page-primary:${siteSettings.primary_color};--vp-page-surface:${settings.surface_color};--vp-page-font:${siteSettings.font_family};--vp-page-gap:${settings.block_gap}px;--vp-page-padding:${settings.page_padding}px;--vp-page-overlay:${Number(settings.background_overlay || 0) / 100};--vp-page-media-position:${settings.background_position || "center"};--vp-page-media-fit:${settings.background_fit || "cover"}">${systemPage ? "" : pageBackgroundPreview(settings)}${previewHeaderHtml(sourceDocument, page)}<div class="vp-page-content">${blocks}</div></main><script>document.addEventListener("click",event=>{const target=event.target.closest("[data-preview-page]");if(!target)return;event.preventDefault();parent.postMessage({type:"fioreze-visual-preview-page",pageId:target.dataset.previewPage},"*")});<\/script></body></html>`;
   }
 }
 
@@ -1723,6 +1820,16 @@ function blockLabel(block, index) { return block.content?.title || block.content
 function iconForBlock(type) { return BLOCKS.find(([key]) => key === type)?.[3] || icon("grid"); }
 function uniqueBlockId(type) { return `${type}-${crypto.randomUUID().slice(0, 8)}`; }
 function slugify(value) { return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 70); }
+function contrastingBackdrop(value) {
+  const color = String(value || "").trim();
+  const hex = color.match(/^#([0-9a-f]{6})/i)?.[1];
+  const rgb = hex
+    ? [hex.slice(0, 2), hex.slice(2, 4), hex.slice(4, 6)].map((part) => Number.parseInt(part, 16))
+    : (color.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i)?.slice(1, 4).map(Number) || [32, 33, 36]);
+  return (rgb[0] * 299 + rgb[1] * 587 + rgb[2] * 114) / 1000 > 155
+    ? "rgba(24,27,31,.72)"
+    : "rgba(255,255,255,.9)";
+}
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 function escapeCssUrl(value) { return String(value || "").replace(/["'()\\\n\r]/g, ""); }
 function formatVersionDate(value) { const date = new Date(value); return Number.isNaN(date.getTime()) ? "data indisponível" : new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(date); }

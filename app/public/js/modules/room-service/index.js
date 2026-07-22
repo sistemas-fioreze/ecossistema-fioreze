@@ -86,6 +86,7 @@ function renderStaticShell({ embedded = false } = {}) {
     <section class="rs-app${embedded ? " is-portal-page" : ""}" data-rs-app>
       <section class="rs-shell" data-rs-shell>
         ${embedded ? "" : `<header class="rs-mobile-header">
+          <span class="rs-mobile-header-logo" data-hotel-icon aria-hidden="true"></span>
           <div>
             <p class="rs-kicker">Room Service</p>
             <h1 data-hotel-name></h1>
@@ -280,25 +281,34 @@ function bindStaticActions(container, state) {
 }
 
 function renderHotelHeader(container, state) {
-  const logoUrl = sanitizeAssetPath(state.bootstrap.branding?.horizontal_logo_url || state.bootstrap.branding?.logo_url);
+  const branding = state.bootstrap.branding || {};
+  const logoUrl = sanitizeAssetPath(branding.horizontal_logo_url || branding.logo_url);
+  const iconUrl = sanitizeAssetPath(branding.icon_url || logoUrl);
   const logoTargets = container.querySelectorAll("[data-hotel-logo], [data-hotel-logo-shell]");
   logoTargets.forEach((target) => {
-    target.textContent = "";
-    if (logoUrl) {
-      const image = document.createElement("img");
-      image.src = logoUrl;
-      image.alt = state.bootstrap.name || "Hotel";
-      image.loading = "lazy";
-      target.append(image);
-    } else {
-      target.setAttribute("aria-hidden", "true");
-    }
+    renderLogo(target, logoUrl, state.bootstrap.name, "lazy");
   });
+  container.querySelectorAll("[data-hotel-icon]").forEach((target) => renderLogo(target, iconUrl, state.bootstrap.name, "eager"));
   setText(container, "[data-hotel-name]", state.bootstrap.name);
   const settings = state.bootstrap.settings || {};
   setText(container, "[data-hotel-welcome]", settings["room-service.welcome_text"] || `Seja bem-vindo ao Room Service digital do ${state.bootstrap.name}.`);
   setText(container, "[data-hotel-guidance]", settings["room-service.guidance_text"] || "Utilize este portal para solicitar suas refeições com comodidade.");
   setText(container, "[data-hotel-support]", settings["room-service.support_text"] || "Em caso de dúvidas, fale com a recepção.");
+}
+
+function renderLogo(target, url, hotelName, loading) {
+  target.textContent = "";
+  if (!url) {
+    target.hidden = true;
+    return;
+  }
+  target.hidden = false;
+  const image = document.createElement("img");
+  image.src = url;
+  image.alt = hotelName || "Hotel";
+  image.loading = loading;
+  image.decoding = "async";
+  target.append(image);
 }
 
 function updateServiceStatus(container, state, now = new Date()) {
