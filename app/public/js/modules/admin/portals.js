@@ -229,8 +229,10 @@ let dedicatedNavigation = [];
 let eventMediaAssets = [];
 const visualPortalBuilder = createVisualPortalBuilder({
   onSaved() {
-    loadPortalContent();
+    if (!isCreatorRoute()) loadPortalContent();
   },
+  onClosed: leaveCreatorRoute,
+  onPageChange: syncCreatorRoute,
 });
 
 const auth = createAdminAuthView({
@@ -362,6 +364,7 @@ window.addEventListener("fioreze:admin-refresh", (event) => {
 });
 
 function refreshCurrentPortalRoute() {
+  if (isCreatorRoute()) return renderCreatorRoute(currentSession);
   if (isMediaRoute()) return loadMediaLibrary();
   if (isLinksRoute()) return loadShortLinks();
   if (isEventsRoute()) return loadEventsManager();
@@ -378,6 +381,10 @@ function renderPortals(session) {
   els.portalsContent.hidden = !allowed;
   if (!allowed) return;
   renderNav(session);
+  if (isCreatorRoute()) {
+    renderCreatorRoute(session);
+    return;
+  }
   if (isUnitsRoute()) {
     renderUnitsRoute();
     return;
@@ -2473,7 +2480,7 @@ function handleContentClick(event) {
   if (action.dataset.contentAction === "sections") return openSectionsEditor(action.dataset.id);
   const item = (currentContent[contentType] || []).find((entry) => entry.id === action.dataset.id);
   if (!item) return;
-  if (action.dataset.contentAction === "builder") return visualPortalBuilder.open(item.id);
+  if (action.dataset.contentAction === "builder") return openCreatorRoute(item.id);
   if (action.dataset.contentAction === "create-link") return createShortLinkFromCustomPage(item);
   if (action.dataset.contentAction === "duplicate-visual") return duplicateVisualPortal(item);
   if (action.dataset.contentAction === "archive-visual") return archiveVisualPortal(item);
@@ -2484,7 +2491,7 @@ function handleContentClick(event) {
 
 async function openContentEditor(item = null) {
   if (contentType === "visual_portals") {
-    if (item) return visualPortalBuilder.open(item.id);
+    if (item) return openCreatorRoute(item.id);
     openVisualPortalCreator();
     return;
   }
@@ -2556,8 +2563,7 @@ async function openVisualPortalCreator() {
         form.querySelector(".admin-dialog-message").textContent = "Criando portal...";
         const created = await adminApi("/api/v1/admin/visual-portals", { method: "POST", body });
         closePortalsDialog();
-        await loadPortalContent();
-        await visualPortalBuilder.open(created.data.portal.id);
+        openCreatorRoute(created.data.portal.id);
       } catch (error) {
         form.querySelector(".admin-dialog-message").textContent = error.message || "Não foi possível criar o portal.";
       }
@@ -2586,8 +2592,7 @@ function duplicateVisualPortal(item) {
       const payload = await adminApi(`/api/v1/admin/visual-portals/${encodeURIComponent(item.id)}/duplicate`, { method: "POST", body });
       closePortalsDialog();
       els.contentHotel.value = body.hotel_id;
-      await loadPortalContent();
-      await visualPortalBuilder.open(payload.data.portal.id);
+      openCreatorRoute(payload.data.portal.id);
     } catch (error) {
       form.querySelector(".admin-dialog-message").textContent = error.message || "Não foi possível duplicar o portal.";
     }
@@ -3057,6 +3062,49 @@ function navigateSoft(path) {
   window.history.pushState({}, "", path);
 }
 
+function openCreatorRoute(portalId, pageId = "") {
+  window.location.assign(creatorRouteUrl(portalId, pageId));
+}
+
+function renderCreatorRoute(session) {
+  if (!session || !canAccessContent(session)) {
+    showPortalSection(null);
+    els.portalsDenied.hidden = false;
+    return;
+  }
+  const params = new URLSearchParams(window.location.search);
+  const portalId = params.get("portal") || "";
+  if (!portalId) {
+    window.location.replace("/admin/portais/conteudos/");
+    return;
+  }
+  showPortalSection(null);
+  setHeading("Criador de portais", "Edite o portal e suas páginas em uma área de trabalho persistente.");
+  document.title = "Criador de Portais Fioreze";
+  return visualPortalBuilder.open(portalId, { pageId: params.get("page") || "" });
+}
+
+function syncCreatorRoute({ portalId, pageId }) {
+  if (!isCreatorRoute() || !portalId) return;
+  const next = creatorRouteUrl(portalId, pageId);
+  const current = `${window.location.pathname}${window.location.search}`;
+  if (current !== next) window.history.replaceState({}, "", next);
+}
+
+function leaveCreatorRoute({ hotelId } = {}) {
+  if (!isCreatorRoute()) return;
+  const target = new URL("/admin/portais/conteudos/", window.location.origin);
+  if (hotelId) target.searchParams.set("hotel_id", hotelId);
+  window.location.assign(`${target.pathname}${target.search}`);
+}
+
+function creatorRouteUrl(portalId, pageId = "") {
+  const target = new URL("/admin/creator/", window.location.origin);
+  target.searchParams.set("portal", portalId);
+  if (pageId) target.searchParams.set("page", pageId);
+  return `${target.pathname}${target.search}`;
+}
+
 function renderTabTransition(render) {
   const dashboard = document.querySelector('[data-view="dashboard"]');
   dashboard?.dispatchEvent(new CustomEvent("fioreze:admin-content-loading", { detail: { loading: true } }));
@@ -3068,6 +3116,10 @@ function renderTabTransition(render) {
 
 function isMediaRoute() {
   return window.location.pathname.startsWith("/admin/portais/media/");
+}
+
+function isCreatorRoute() {
+  return window.location.pathname.startsWith("/admin/creator/");
 }
 
 function isLinksRoute() {

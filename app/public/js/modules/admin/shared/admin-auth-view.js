@@ -6,6 +6,7 @@ import {
   canAccessPortals,
   canAccessUnits,
 } from "./admin-session.js";
+import { installAdminSelectPicker } from "./admin-select-picker.js";
 
 const ADMIN_LOGO_URL = "/assets/shared/fioreze-central-logo.jpg";
 const ADMIN_PALETTES = [
@@ -65,6 +66,7 @@ const HELP_CONTENT = {
 export function createAdminAuthView({ onAuthenticated, onLoggedOut = () => {} }) {
   document.body.dataset.adminShell = "erp";
   document.body.dataset.adminPalette = "fioreze";
+  installAdminSelectPicker();
   const els = {
     app: document.getElementById("adminApp"),
     loginView: document.querySelector('[data-view="login"]'),

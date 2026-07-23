@@ -8,7 +8,9 @@ Os antigos tipos de conteúdo continuam preservados no banco para compatibilidad
 
 ## Experiência administrativa
 
-O construtor fica em **Central Administrativa > Criador de portais** e oferece:
+O construtor fica em **Central Administrativa > Criador de portais**. A lista permanece em `/admin/portais/conteudos/` e a área de edição usa `/admin/creator/?portal=<portal_id>&page=<page_id>`. Portal e página ativos ficam no endereço para que uma atualização do navegador retome o mesmo trabalho após validar novamente a sessão administrativa.
+
+O construtor oferece:
 
 - canvas em tela cheia;
 - criação, duplicação, exclusão e edição de páginas dentro do mesmo site;

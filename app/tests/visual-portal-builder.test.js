@@ -823,6 +823,10 @@ test("Central integra construtor visual e Worker-first preserva a rota publica",
   assert.doesNotMatch(html, /data-unit-tab="(?:modules|navigation)"/);
   assert.match(html, /portal-builder\.css/);
   assert.match(portals, /createVisualPortalBuilder/);
+  assert.match(portals, /\/admin\/creator\//);
+  assert.match(portals, /searchParams\.set\("portal"/);
+  assert.match(portals, /searchParams\.set\("page"/);
+  assert.match(builder, /onPageChange/);
   assert.match(builder, /application\/x-fioreze-block-type/);
   assert.match(builder, /data-viewport="desktop"/);
   assert.match(builder, /data-viewport="mobile"/);

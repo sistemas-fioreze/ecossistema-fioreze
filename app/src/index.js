@@ -166,6 +166,7 @@ function isDirectAsset(pathname) {
 function resolveAdminAssetPath(pathname) {
   const routes = [
     { canonical: "/erp/room-service/", assetPath: "/erp/room-service/" },
+    { canonical: "/admin/creator/", assetPath: "/admin/portais/" },
     { canonical: "/admin/portais/unidades/", assetPath: "/admin/portais/" },
     { canonical: "/admin/portais/media/", assetPath: "/admin/portais/" },
     { canonical: "/admin/portais/links/", assetPath: "/admin/portais/" },

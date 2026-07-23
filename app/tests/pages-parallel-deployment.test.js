@@ -69,6 +69,10 @@ test("build Pages gera _worker.js avancado e copia assets sem alteracao", async 
   assert.equal(admin.status, 200);
   assert.equal(await admin.text(), "asset:/admin/portais/");
 
+  const creator = await pagesWorker.fetch(new Request("https://pages.example/admin/creator/?portal=portal_demo&page=inicio"), env, ctx);
+  assert.equal(creator.status, 200);
+  assert.equal(await creator.text(), "asset:/admin/portais/");
+
   const directAsset = await pagesWorker.fetch(new Request("https://pages.example/css/core/reset.css"), env, ctx);
   assert.equal(await directAsset.text(), "asset:/css/core/reset.css");
 });

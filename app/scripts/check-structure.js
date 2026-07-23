@@ -12,6 +12,7 @@ const required = [
   "public/erp/room-service/index.html",
   "public/js/modules/admin/shared/admin-api.js",
   "public/js/modules/admin/shared/admin-auth-view.js",
+  "public/js/modules/admin/shared/admin-select-picker.js",
   "public/js/modules/admin/shared/admin-session.js",
   "public/js/modules/admin/admin.js",
   "public/js/modules/admin/room-service.js",
