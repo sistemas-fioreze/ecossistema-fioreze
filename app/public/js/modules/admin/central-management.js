@@ -118,12 +118,13 @@ function setManagerBusy(element, busy) {
 
 function renderUserRow(user) {
   const actions = [];
+  const isMaster = Number(user.number || 0) === 1;
   if (user.id !== state.session?.user?.id) actions.push(actionButton("Enviar mensagem", "message-user", user.id, "mail"));
-  if (hasPermission(state.session, PERMISSIONS.usersUpdate)) actions.push(actionButton("Editar", "edit-user", user.id, "edit"));
-  if (user.status === "active" && hasPermission(state.session, PERMISSIONS.usersDisable)) {
+  if (!isMaster && hasPermission(state.session, PERMISSIONS.usersUpdate)) actions.push(actionButton("Editar", "edit-user", user.id, "edit"));
+  if (!isMaster && user.status === "active" && hasPermission(state.session, PERMISSIONS.usersDisable)) {
     actions.push(actionButton("Desativar", "disable-user", user.id, "pause"));
   }
-  if (user.status !== "active" && hasPermission(state.session, PERMISSIONS.usersUpdate)) {
+  if (!isMaster && user.status !== "active" && hasPermission(state.session, PERMISSIONS.usersUpdate)) {
     actions.push(actionButton("Ativar", "activate-user", user.id, "play"));
   }
   if (hasPermission(state.session, PERMISSIONS.usersPasswordReset)) {
@@ -132,14 +133,14 @@ function renderUserRow(user) {
   if (hasPermission(state.session, PERMISSIONS.usersSessionsRevoke)) {
     actions.push(actionButton("Encerrar sessões", "revoke-user", user.id, "logout"));
   }
-  if (hasPermission(state.session, PERMISSIONS.usersDisable) && user.id !== state.session?.user?.id) {
+  if (!isMaster && hasPermission(state.session, PERMISSIONS.usersDisable) && user.id !== state.session?.user?.id) {
     actions.push(actionButton("Remover usuário", "remove-user", user.id, "trash", "danger"));
   }
   return `
     <article class="admin-data-row admin-management-row">
       <span class="admin-avatar">${escapeHtml(initials(user.display_name))}</span>
       <div class="admin-row-copy">
-        <strong>Usuário nº ${escapeHtml(user.number || "-")} · ${escapeHtml(user.display_name)}</strong>
+        <strong>Usuário nº ${escapeHtml(user.number || "-")} · ${escapeHtml(user.display_name)} ${isMaster ? '<span class="admin-master-badge">Administrador mestre</span>' : ""}</strong>
         <span>${escapeHtml(user.email)}</span>
         <small>${escapeHtml(user.roles.map((role) => role.name).join(", ") || "Sem perfil")} · ${escapeHtml(user.hotels.map((hotel) => hotel.short_name).join(", ") || "Sem unidade")}</small>
       </div>
@@ -150,13 +151,13 @@ function renderUserRow(user) {
 }
 
 function renderRoleRow(role) {
-  const edit = hasPermission(state.session, PERMISSIONS.rolesUpdate) || hasPermission(state.session, PERMISSIONS.rolesPermissions);
-  const removable = hasPermission(state.session, PERMISSIONS.rolesUpdate);
+  const edit = !role.protected && (hasPermission(state.session, PERMISSIONS.rolesUpdate) || hasPermission(state.session, PERMISSIONS.rolesPermissions));
+  const removable = !role.protected && hasPermission(state.session, PERMISSIONS.rolesUpdate);
   return `
     <article class="admin-data-row admin-management-row">
       <span class="admin-role-icon">${icon("shield")}</span>
       <div class="admin-row-copy">
-        <strong>Perfil nº ${escapeHtml(role.number || "-")} · ${escapeHtml(role.name)}</strong>
+        <strong>Perfil nº ${escapeHtml(role.number || "-")} · ${escapeHtml(role.name)} ${role.protected ? '<span class="admin-master-badge">Protegido</span>' : ""}</strong>
         <span>${escapeHtml(role.description || "Perfil administrativo")}</span>
         <small>${role.permissions.length} ${role.permissions.length === 1 ? "permissão" : "permissões"} · ${Number(role.user_count || 0)} ${Number(role.user_count || 0) === 1 ? "usuário" : "usuários"}</small>
       </div>

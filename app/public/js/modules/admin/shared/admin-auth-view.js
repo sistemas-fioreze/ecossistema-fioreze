@@ -260,7 +260,6 @@ function enhanceAdminExperience(session) {
           <button class="admin-shell-toggle admin-shell-toggle-sidebar" type="button" data-admin-shell-toggle aria-label="Recolher menu" title="Recolher menu">${icon("menu")}</button>
           <a class="admin-brand-lockup" href="/admin/" aria-label="Ir para o início da Central Administrativa">
             <span class="admin-brand-wordmark"><img src="${ADMIN_LOGO_URL}" alt="Fioreze Hotéis" loading="eager" decoding="async"></span>
-            <span class="admin-brand-copy"><strong>Central</strong><small>Administrativa</small></span>
           </a>
         </div>
         ${renderGlobalNav(session, section)}
@@ -292,8 +291,8 @@ function enhanceAdminExperience(session) {
     const sessionBox = topbar.querySelector(".admin-session-box");
     const controls = `
       <div class="admin-command-search" data-admin-search>
-        <label>${icon("search")}<input type="search" placeholder="Pesquisar no sistema..." aria-label="Pesquisar no sistema" autocomplete="off"><kbd>Ctrl K</kbd></label>
-        <div class="admin-command-results" data-admin-search-results hidden></div>
+        <label>${icon("search")}<input type="search" placeholder="Pesquisar no sistema..." aria-label="Pesquisar no sistema" aria-haspopup="listbox" aria-expanded="false" autocomplete="off"><kbd>Ctrl K</kbd></label>
+        <div class="admin-command-results" data-admin-search-results role="listbox" hidden></div>
       </div>
       <button class="admin-icon-button" type="button" data-admin-refresh aria-label="Atualizar esta tela" title="Atualizar">${icon("refresh")}</button>
       <a class="admin-icon-button admin-mail-button" href="/admin/mensagens/" aria-label="Abrir mensagens" title="Mensagens">${icon("mail")}<span data-admin-unread hidden></span></a>
@@ -413,24 +412,35 @@ function installAdminSearch(dashboard) {
   const input = root?.querySelector("input");
   const results = root?.querySelector("[data-admin-search-results]");
   if (!root || !input || !results) return;
+  let activeIndex = -1;
 
   input.addEventListener("input", renderResults);
   input.addEventListener("focus", renderResults);
   input.addEventListener("keydown", (event) => {
+    const options = [...results.querySelectorAll("a")];
+    if ((event.key === "ArrowDown" || event.key === "ArrowUp") && options.length) {
+      event.preventDefault();
+      activeIndex =
+        event.key === "ArrowDown"
+          ? (activeIndex + 1) % options.length
+          : (activeIndex - 1 + options.length) % options.length;
+      synchronizeActiveOption(options);
+      return;
+    }
     if (event.key === "Enter") {
-      const first = results.querySelector("a");
-      if (first) {
+      const selected = options[activeIndex] || options[0];
+      if (selected) {
         event.preventDefault();
-        window.location.assign(first.href);
+        window.location.assign(selected.href);
       }
     }
     if (event.key === "Escape") {
-      results.hidden = true;
+      closeResults();
       input.blur();
     }
   });
   document.addEventListener("click", (event) => {
-    if (!event.target.closest("[data-admin-search]")) results.hidden = true;
+    if (!event.target.closest("[data-admin-search]")) closeResults();
   });
   document.addEventListener("keydown", (event) => {
     if ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase("pt-BR") === "k") {
@@ -441,20 +451,41 @@ function installAdminSearch(dashboard) {
 
   function renderResults() {
     const query = input.value.trim().toLocaleLowerCase("pt-BR");
-    if (!query) {
-      results.hidden = true;
-      results.innerHTML = "";
-      return;
-    }
     const items = [...dashboard.querySelectorAll(".admin-global-nav a")].map((link) => ({
       href: link.getAttribute("href"),
       label: link.textContent.trim(),
+      meta: link.closest(".admin-nav-group")?.querySelector(":scope > p")?.textContent.trim() || "Central Administrativa",
     }));
-    const matches = items.filter((item) => item.label.toLocaleLowerCase("pt-BR").includes(query)).slice(0, 6);
+    const matches = items
+      .filter((item) => !query || `${item.label} ${item.meta}`.toLocaleLowerCase("pt-BR").includes(query))
+      .slice(0, 8);
     results.innerHTML = matches.length
-      ? matches.map((item) => `<a href="${escapeAttr(item.href)}">${icon("search")}<span>${escapeHtml(item.label)}</span></a>`).join("")
+      ? matches
+          .map(
+            (item, index) =>
+              `<a href="${escapeAttr(item.href)}" role="option" aria-selected="false" data-search-index="${index}">${icon("search")}<span><strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.meta)}</small></span></a>`,
+          )
+          .join("")
       : '<p>Nenhuma área encontrada.</p>';
+    activeIndex = matches.length ? 0 : -1;
+    synchronizeActiveOption([...results.querySelectorAll("a")]);
     results.hidden = false;
+    input.setAttribute("aria-expanded", "true");
+  }
+
+  function synchronizeActiveOption(options) {
+    options.forEach((option, index) => {
+      const active = index === activeIndex;
+      option.classList.toggle("is-active", active);
+      option.setAttribute("aria-selected", String(active));
+    });
+    options[activeIndex]?.scrollIntoView({ block: "nearest" });
+  }
+
+  function closeResults() {
+    results.hidden = true;
+    input.setAttribute("aria-expanded", "false");
+    activeIndex = -1;
   }
 }
 

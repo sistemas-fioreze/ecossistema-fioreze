@@ -139,6 +139,47 @@ test("mensagens bloqueiam ausência de sessão, autoenvio e destinatário isolad
   assert.equal(env.__data.adminMessages.length, 0);
 });
 
+test("mensagens podem ser marcadas como nao lidas, arquivadas e restauradas", async () => {
+  const { json, env } = createWorkerTestContext();
+  env.__data.adminHotelAccess.push({
+    user_id: AURORA_USER_ID,
+    hotel_id: "muller-fioreze",
+    access_level: "manager",
+  });
+  const senderCookie = await createSessionCookie(env);
+  const recipientCookie = await createSessionCookie(env, AURORA_USER_ID);
+  const sent = await json(
+    "/api/v1/admin/messages",
+    withCookie(senderCookie, adminJson("POST", {
+      recipient_user_id: AURORA_USER_ID,
+      subject: "Fluxo da caixa de entrada",
+      body: "Conteúdo fictício para validar organização.",
+    })),
+  );
+  const messageId = sent.body.data.message.id;
+
+  await json(`/api/v1/admin/messages/${messageId}/read`, withCookie(recipientCookie, adminJson("PATCH", {})));
+  const unread = await json(`/api/v1/admin/messages/${messageId}/unread`, withCookie(recipientCookie, adminJson("PATCH", {})));
+  const archived = await json(`/api/v1/admin/messages/${messageId}/archive`, withCookie(recipientCookie, adminJson("PATCH", {})));
+  const inbox = await json("/api/v1/admin/messages?box=inbox", withCookie(recipientCookie));
+  const archiveBox = await json("/api/v1/admin/messages?box=archived", withCookie(recipientCookie));
+  const restored = await json(`/api/v1/admin/messages/${messageId}/restore`, withCookie(recipientCookie, adminJson("PATCH", {})));
+  const restoredInbox = await json("/api/v1/admin/messages?box=inbox", withCookie(recipientCookie));
+
+  assert.equal(unread.response.status, 200);
+  assert.equal(unread.body.data.read_at, null);
+  assert.equal(archived.response.status, 200);
+  assert.equal(inbox.body.data.messages.length, 0);
+  assert.equal(archiveBox.body.data.messages.length, 1);
+  assert.equal(archiveBox.body.data.messages[0].archived, true);
+  assert.equal(restored.response.status, 200);
+  assert.equal(restoredInbox.body.data.messages.length, 1);
+  assert.deepEqual(
+    env.__data.adminAuditLog.slice(-4).map((entry) => entry.action),
+    ["admin-message.read", "admin-message.unread", "admin-message.archive", "admin-message.restore"],
+  );
+});
+
 test("shell inclui mensagens, sessao sem cache, identidade fixa e mídia compacta com ação de mover", () => {
   const html = fs.readFileSync("public/admin/index.html", "utf8");
   const authView = fs.readFileSync("public/js/modules/admin/shared/admin-auth-view.js", "utf8");

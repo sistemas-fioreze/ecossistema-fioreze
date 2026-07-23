@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
 import { createWorkerTestContext } from "./helpers/worker.js";
-import { ADMIN_ORIGIN, createSessionCookie, withCookie } from "./helpers/admin-session.js";
+import { ADMIN_ORIGIN, AURORA_USER_ID, createSessionCookie, withCookie } from "./helpers/admin-session.js";
 
 const ADMIN_HEADERS = {
   "content-type": "application/json",
@@ -13,7 +13,7 @@ const ADMIN_HEADERS = {
 
 test("usuarios administrativos listam dados seguros sem hash ou token", async () => {
   const { json, env } = createWorkerTestContext();
-  const cookie = await createSessionCookie(env);
+  const cookie = await createSessionCookie(env, AURORA_USER_ID);
 
   const { response, body } = await json("/api/v1/admin/users", withCookie(cookie));
 
@@ -28,7 +28,7 @@ test("usuarios administrativos exigem permissao especifica", async () => {
   env.__data.adminRolePermissions = env.__data.adminRolePermissions.filter(
     (entry) => !env.__data.adminPermissions.find((permission) => permission.id === entry.permission_id)?.permission_key.startsWith("admin.users."),
   );
-  const cookie = await createSessionCookie(env);
+  const cookie = await createSessionCookie(env, AURORA_USER_ID);
 
   const { response, body } = await json("/api/v1/admin/users", withCookie(cookie));
 
@@ -61,7 +61,7 @@ test("criacao de usuario gera senha temporaria uma vez e audita sem segredo", as
 
 test("criacao de usuario bloqueia email duplicado e unidade fora do acesso", async () => {
   const { json, env } = createWorkerTestContext();
-  const cookie = await createSessionCookie(env);
+  const cookie = await createSessionCookie(env, AURORA_USER_ID);
 
   const duplicate = await json(
     "/api/v1/admin/users",
@@ -69,7 +69,7 @@ test("criacao de usuario bloqueia email duplicado e unidade fora do acesso", asy
       display_name: "Duplicado",
       email: "admin-demo@example.invalid",
       role_ids: ["role-demo-manager"],
-      hotel_ids: ["muller-fioreze"],
+      hotel_ids: ["aurora-demo"],
     })),
   );
   const otherHotel = await json(
@@ -78,7 +78,7 @@ test("criacao de usuario bloqueia email duplicado e unidade fora do acesso", asy
       display_name: "Outro Hotel",
       email: "outro-hotel@example.invalid",
       role_ids: ["role-demo-manager"],
-      hotel_ids: ["aurora-demo"],
+      hotel_ids: ["muller-fioreze"],
     })),
   );
 
@@ -159,6 +159,53 @@ test("remocao bloqueia a propria conta e preserva administrador efetivo", async 
   assert.equal(env.__data.adminUsers.find((user) => user.id === "user-demo-admin").status, "active");
 });
 
+test("administrador mestre nao pode ser desativado, removido ou perder perfis e unidades", async () => {
+  const { json, env } = createWorkerTestContext();
+  const cookie = await createSessionCookie(env, AURORA_USER_ID);
+
+  const disabled = await json("/api/v1/admin/users/user-demo-admin/disable", withCookie(cookie, adminJson("POST", {})));
+  const removed = await json("/api/v1/admin/users/user-demo-admin", withCookie(cookie, adminJson("DELETE", {})));
+  const reassigned = await json(
+    "/api/v1/admin/users/user-demo-admin",
+    withCookie(cookie, adminJson("PATCH", {
+      display_name: "Administrador mestre",
+      email: "admin-demo@example.invalid",
+      role_ids: [],
+      hotel_ids: ["aurora-demo"],
+    })),
+  );
+
+  assert.equal(disabled.response.status, 409);
+  assert.equal(removed.response.status, 409);
+  assert.equal(reassigned.response.status, 409);
+  assert.equal(env.__data.adminUsers.find((user) => user.user_number === 1).status, "active");
+  assert.deepEqual(
+    env.__data.adminUserRoles.filter((entry) => entry.user_id === "user-demo-admin").map((entry) => entry.role_id).sort(),
+    ["role-demo-manager", "role-erp-master"],
+  );
+});
+
+test("administrador mestre recebe todas as unidades e permissoes independentemente dos vinculos", async () => {
+  const { json, env } = createWorkerTestContext();
+  env.__data.adminUserRoles = env.__data.adminUserRoles.filter((entry) => entry.user_id !== "user-demo-admin");
+  env.__data.adminHotelAccess = env.__data.adminHotelAccess.filter((entry) => entry.user_id !== "user-demo-admin");
+  const cookie = await createSessionCookie(env);
+
+  const { response, body } = await json("/api/v1/admin/session", withCookie(cookie));
+
+  assert.equal(response.status, 200);
+  assert.equal(body.data.user.number, 1);
+  assert.equal(body.data.user.is_master, true);
+  assert.deepEqual(
+    body.data.hotels.map((hotel) => hotel.hotel_id).sort(),
+    env.__data.hotels.filter((hotel) => hotel.status === "active" && hotel.archived_at == null).map((hotel) => hotel.id).sort(),
+  );
+  assert.deepEqual(
+    body.data.permissions.sort(),
+    env.__data.adminPermissions.map((permission) => permission.permission_key).sort(),
+  );
+});
+
 test("perfis e permissoes sao listados com rotulos humanos", async () => {
   const { json, env } = createWorkerTestContext();
   const cookie = await createSessionCookie(env);
@@ -194,6 +241,19 @@ test("perfil sem usuarios pode ser removido, mas perfil protegido ou em uso nao"
   assert.equal(protectedRole.response.status, 409);
   assert.equal(inUse.response.status, 409);
   assert.ok(env.__data.adminRoles.some((entry) => entry.id === "role-em-uso"));
+});
+
+test("perfil associado ao administrador mestre nao pode perder permissoes", async () => {
+  const { json, env } = createWorkerTestContext();
+  const cookie = await createSessionCookie(env);
+
+  const result = await json(
+    "/api/v1/admin/roles/role-demo-manager/permissions",
+    withCookie(cookie, adminJson("PATCH", { permission_keys: [] })),
+  );
+
+  assert.equal(result.response.status, 409);
+  assert.equal(env.__data.adminRolePermissions.some((entry) => entry.role_id === "role-demo-manager"), true);
 });
 
 test("alteracao da propria senha valida politica, troca hash e revoga sessao atual", async () => {

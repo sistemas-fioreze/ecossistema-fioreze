@@ -179,7 +179,8 @@ test("logout autenticado rejeita origin diferente", async () => {
 });
 
 test("listagem de pedidos respeita hoteis permitidos", async () => {
-  const { json } = createWorkerTestContext();
+  const { json, env } = createWorkerTestContext();
+  demoteMasterForIsolationTest(env);
   await createOrder(json, "/api/v1/public/hotels/muller-fioreze/room-service/orders", MULLER_ORDER);
   await createOrder(json, "/api/v1/public/hotels/aurora-demo/room-service/orders", AURORA_ORDER);
   const cookie = cookieFrom((await loginAdmin(json)).response);
@@ -192,7 +193,8 @@ test("listagem de pedidos respeita hoteis permitidos", async () => {
 });
 
 test("bloqueia filtro administrativo para outro hotel", async () => {
-  const { json } = createWorkerTestContext();
+  const { json, env } = createWorkerTestContext();
+  demoteMasterForIsolationTest(env);
   const cookie = cookieFrom((await loginAdmin(json)).response);
   const { response, body } = await json("/api/v1/admin/orders?hotel_id=aurora-demo", withCookie(cookie));
 
@@ -437,7 +439,8 @@ test("mudanca de status registra auditoria administrativa", async () => {
 });
 
 test("usuario sem acesso nao abre detalhes de outro hotel", async () => {
-  const { json } = createWorkerTestContext();
+  const { json, env } = createWorkerTestContext();
+  demoteMasterForIsolationTest(env);
   const created = await createOrder(json, "/api/v1/public/hotels/aurora-demo/room-service/orders", AURORA_ORDER);
   const cookie = cookieFrom((await loginAdmin(json)).response);
 
@@ -448,7 +451,8 @@ test("usuario sem acesso nao abre detalhes de outro hotel", async () => {
 });
 
 test("usuario sem acesso nao altera status de outro hotel", async () => {
-  const { json } = createWorkerTestContext();
+  const { json, env } = createWorkerTestContext();
+  demoteMasterForIsolationTest(env);
   const created = await createOrder(json, "/api/v1/public/hotels/aurora-demo/room-service/orders", AURORA_ORDER);
   const cookie = cookieFrom((await loginAdmin(json)).response);
 
@@ -519,6 +523,10 @@ test("ERP Room Service oficial carrega login e shell proprio", async () => {
 
 async function loginAdmin(json, email = ADMIN_EMAIL, password = ADMIN_PASSWORD, headers = {}) {
   return json("/api/v1/admin/login", adminPost({ email, password }, headers));
+}
+
+function demoteMasterForIsolationTest(env) {
+  env.__data.adminUsers.find((user) => user.id === "user-demo-admin").user_number = 99;
 }
 
 async function createOrder(json, path, payload) {

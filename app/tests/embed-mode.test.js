@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
 import vm from "node:vm";
-import { ADMIN_ORIGIN, createSessionCookie, withCookie } from "./helpers/admin-session.js";
+import { ADMIN_ORIGIN, AURORA_USER_ID, createSessionCookie, withCookie } from "./helpers/admin-session.js";
 import { createWorkerTestContext } from "./helpers/worker.js";
 
 const EMBED_PERMISSIONS = ["portals.embed.read", "portals.embed.update"];
@@ -282,20 +282,20 @@ test("admin bloqueia habilitacao sem modulo publico ativo", async () => {
 
 test("admin embed exige sessao, permissao de leitura e escrita, header de mutacao e acesso ao hotel", async () => {
   const { json, env } = createWorkerTestContext();
-  const cookie = await createSessionCookie(env);
+  const cookie = await createSessionCookie(env, AURORA_USER_ID);
   const noSession = await json("/api/v1/admin/hotels/muller-fioreze/embed");
-  const noPermission = await json("/api/v1/admin/hotels/muller-fioreze/embed", withCookie(cookie));
+  const noPermission = await json("/api/v1/admin/hotels/aurora-demo/embed", withCookie(cookie));
   grantPermissions(env, ["portals.embed.update"]);
   const updateWithoutRead = await json(
-    "/api/v1/admin/hotels/muller-fioreze/embed",
+    "/api/v1/admin/hotels/aurora-demo/embed",
     withCookie(cookie, adminJson("PATCH", { enabled: false })),
   );
   grantPermissions(env);
   const noHeader = await json(
-    "/api/v1/admin/hotels/muller-fioreze/embed",
+    "/api/v1/admin/hotels/aurora-demo/embed",
     withCookie(cookie, { method: "PATCH", headers: { "content-type": "application/json" }, body: "{}" }),
   );
-  const otherHotel = await json("/api/v1/admin/hotels/aurora-demo/embed", withCookie(cookie));
+  const otherHotel = await json("/api/v1/admin/hotels/muller-fioreze/embed", withCookie(cookie));
 
   assert.equal(noSession.response.status, 401);
   assert.equal(noPermission.response.status, 401);

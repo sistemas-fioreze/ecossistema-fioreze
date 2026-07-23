@@ -35,6 +35,7 @@ const AVATAR_TYPES = {
   "image/avif": { extension: "avif" },
 };
 const ACTIVE_STATUS = new Set(["active", "disabled"]);
+const MASTER_ADMIN_USER_NUMBER = 1;
 const PROTECTED_ROLE_KEYS = new Set(["demo-manager", "erp-master"]);
 const ROLE_GROUPS = [
   ["room-service.", "Pedidos"],
@@ -171,6 +172,7 @@ export async function updateAdminUser({ request, env, session, userId }) {
   await assertEmailAvailable(env, email, userId);
   await assertRolesExist(env, roleIds);
   await assertHotelsExist(env, hotelIds);
+  await assertMasterAssignmentsPreserved(env, current, roleIds, hotelIds);
   await assertNoLockoutOnRoleChange(env, userId, roleIds);
 
   const statements = [
@@ -214,6 +216,7 @@ export async function setAdminUserStatus({ request, env, session, userId, status
   if (userId === session.user.id && status === "disabled") throw conflict("Você não pode desativar a própria conta.");
   const current = await getUserBase(env, userId);
   if (!current) throw notFoundError("Usuário administrativo não encontrado.");
+  assertMasterUserMutable(current, status === "disabled" ? "desativado" : "alterado");
   if (status === "disabled") await assertNotLastEffectiveAdmin(env, userId);
   const now = requestNow({ request, env });
   await batch(env, [
@@ -284,6 +287,7 @@ export async function archiveAdminUser({ request, env, session, userId }) {
   if (userId === session.user.id) throw conflict("Você não pode remover a própria conta.");
   const current = await getUserBase(env, userId);
   if (!current) throw notFoundError("Usuário administrativo não encontrado.");
+  assertMasterUserMutable(current, "removido");
   if (current.status === "archived") return { user_id: userId, removed: false };
   await assertNotLastEffectiveAdmin(env, userId);
   const now = requestNow({ request, env });
@@ -316,9 +320,11 @@ export async function listAdminRoles({ env, session }) {
     env,
     `SELECT r.id, r.role_number, r.role_key, r.name, r.description,
             COUNT(DISTINCT ur.user_id) AS user_count,
+            MAX(CASE WHEN master_user.user_number = 1 THEN 1 ELSE 0 END) AS master_assigned,
             GROUP_CONCAT(DISTINCT p.permission_key) AS permissions_text
        FROM admin_roles r
        LEFT JOIN admin_user_roles ur ON ur.role_id = r.id
+       LEFT JOIN admin_users master_user ON master_user.id = ur.user_id
        LEFT JOIN admin_role_permissions rp ON rp.role_id = r.id
        LEFT JOIN admin_permissions p ON p.id = rp.permission_id
       GROUP BY r.id
@@ -398,6 +404,7 @@ export async function updateAdminRolePermissions({ request, env, session, roleId
   const permissionKeys = requireArray(payload.permission_keys || [], "permissões", { min: 0, max: 200 });
   for (const key of permissionKeys) requireString(key, "permissão", { max: 160 });
   await assertRoleExists(env, roleId);
+  await assertRoleNotAssignedToMaster(env, roleId);
   await assertPermissionsExist(env, permissionKeys);
   await assertNoLockoutOnRolePermissionChange(env, roleId, permissionKeys);
   const now = requestNow({ request, env });
@@ -431,6 +438,7 @@ export async function deleteAdminRole({ request, env, session, roleId }) {
   assertAdminMutationAllowed({ request });
   const role = await first(env, `SELECT id, role_key, name FROM admin_roles WHERE id = ? LIMIT 1`, [roleId]);
   if (!role) throw notFoundError("Perfil não encontrado.");
+  await assertRoleNotAssignedToMaster(env, roleId);
   if (PROTECTED_ROLE_KEYS.has(role.role_key)) throw conflict("Este perfil administrativo é protegido.");
   const usage = await first(env, `SELECT COUNT(*) AS user_count FROM admin_user_roles WHERE role_id = ?`, [roleId]);
   if (Number(usage?.user_count || 0) > 0) throw conflict("Remova este perfil dos usuários antes de excluí-lo.");
@@ -756,6 +764,7 @@ function formatRoleRow(row) {
     name: row.name,
     description: row.description || "",
     user_count: Number(row.user_count || 0),
+    protected: Number(row.master_assigned || 0) === 1,
     permissions: permissionKeys.map((permission_key) => ({
       permission_key,
       label: humanPermissionLabel(permission_key),
@@ -810,6 +819,42 @@ async function assertHotelsExist(env, hotelIds) {
     const hotel = await first(env, `SELECT id FROM hotels WHERE id = ? AND archived_at IS NULL LIMIT 1`, [hotelId]);
     if (!hotel) throw badRequest("Unidade informada não existe.");
   }
+}
+
+async function assertMasterAssignmentsPreserved(env, user, roleIds, hotelIds) {
+  if (Number(user?.user_number || 0) !== MASTER_ADMIN_USER_NUMBER) return;
+  const currentRoles = await all(env, `SELECT role_id FROM admin_user_roles WHERE user_id = ? ORDER BY role_id`, [user.id]);
+  const currentHotels = await all(env, `SELECT hotel_id FROM admin_hotel_access WHERE user_id = ? ORDER BY hotel_id`, [user.id]);
+  if (!sameIdentifiers(roleIds, currentRoles.map((row) => row.role_id))) {
+    throw conflict("Os perfis do administrador mestre não podem ser removidos ou alterados.");
+  }
+  if (!sameIdentifiers(hotelIds, currentHotels.map((row) => row.hotel_id))) {
+    throw conflict("Os acessos do administrador mestre não podem ser removidos ou alterados.");
+  }
+}
+
+async function assertRoleNotAssignedToMaster(env, roleId) {
+  const assigned = await first(
+    env,
+    `SELECT ur.role_id
+       FROM admin_user_roles ur
+       JOIN admin_users u ON u.id = ur.user_id
+      WHERE ur.role_id = ?
+        AND u.user_number = 1
+      LIMIT 1`,
+    [roleId],
+  );
+  if (assigned) throw conflict("Este perfil pertence ao administrador mestre e deve permanecer protegido.");
+}
+
+function assertMasterUserMutable(user, action) {
+  if (Number(user?.user_number || 0) === MASTER_ADMIN_USER_NUMBER) {
+    throw conflict(`O administrador mestre não pode ser ${action}.`);
+  }
+}
+
+function sameIdentifiers(left, right) {
+  return [...new Set(left)].sort().join("\n") === [...new Set(right)].sort().join("\n");
 }
 
 async function assertNoLockoutOnRoleChange(env, userId, roleIds) {

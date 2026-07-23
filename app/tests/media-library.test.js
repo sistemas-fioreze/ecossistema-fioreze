@@ -156,16 +156,17 @@ test("upload rejeita MIME falso, magic bytes invalidos, SVG, arquivo vazio e arq
 
 test("upload rejeita hotel sem acesso e usuario sem permissao", async () => {
   const withoutPermission = createWorkerTestContext();
-  const cookieWithoutPermission = await createSessionCookie(withoutPermission.env);
+  const cookieWithoutPermission = await createSessionCookie(withoutPermission.env, AURORA_USER_ID);
   const deniedByPermission = await uploadImage(withoutPermission.json, cookieWithoutPermission, {
+    hotel_id: "aurora-demo",
     file: imageFile(jpegBytes(), "foto.jpg", "image/jpeg"),
   });
 
   const { json, env } = createWorkerTestContext();
   grantMediaPermissions(env);
-  const cookie = await createSessionCookie(env);
+  const cookie = await createSessionCookie(env, AURORA_USER_ID);
   const deniedByHotel = await uploadImage(json, cookie, {
-    hotel_id: "aurora-demo",
+    hotel_id: "muller-fioreze",
     file: imageFile(jpegBytes(), "foto.jpg", "image/jpeg"),
   });
 

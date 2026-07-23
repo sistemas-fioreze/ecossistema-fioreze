@@ -5,7 +5,7 @@ import { requestNow } from "../../core/time.js";
 import { optionalString, readJson, requireString } from "../../core/validation.js";
 import { assertAdminMutationAllowed } from "../../services/admin-auth.js";
 
-const BOXES = new Set(["inbox", "sent"]);
+const BOXES = new Set(["inbox", "sent", "archived"]);
 
 export async function listAdminMessageRecipients({ env, session }) {
   const users = await all(
@@ -33,6 +33,25 @@ export async function listAdminMessageRecipients({ env, session }) {
 export async function listAdminMessages({ env, session, url }) {
   const box = optionalString(url.searchParams.get("box"), "box", { max: 20 }) || "inbox";
   if (!BOXES.has(box)) throw badRequest("Caixa de mensagens inválida.");
+  if (box === "archived") {
+    const rows = await all(
+      env,
+      `SELECT m.id, m.subject, m.body, m.created_at, m.read_at,
+              CASE WHEN m.sender_user_id = ? THEN 'sent' ELSE 'inbox' END AS direction,
+              CASE WHEN m.sender_user_id = ? THEN recipient.user_number ELSE sender.user_number END AS counterpart_number,
+              CASE WHEN m.sender_user_id = ? THEN recipient.display_name ELSE sender.display_name END AS counterpart_name,
+              CASE WHEN m.sender_user_id = ? THEN recipient.email ELSE sender.email END AS counterpart_email
+         FROM admin_messages m
+         JOIN admin_users sender ON sender.id = m.sender_user_id
+         JOIN admin_users recipient ON recipient.id = m.recipient_user_id
+        WHERE (m.sender_user_id = ? AND m.archived_by_sender_at IS NOT NULL)
+           OR (m.recipient_user_id = ? AND m.archived_by_recipient_at IS NOT NULL)
+        ORDER BY m.created_at DESC, m.id DESC
+        LIMIT 200`,
+      [session.user.id, session.user.id, session.user.id, session.user.id, session.user.id, session.user.id],
+    );
+    return { box, messages: rows.map((row) => formatMessage(row, row.direction || "inbox", true)) };
+  }
   const ownerColumn = box === "sent" ? "m.sender_user_id" : "m.recipient_user_id";
   const archivedColumn = box === "sent" ? "m.archived_by_sender_at" : "m.archived_by_recipient_at";
   const counterpartJoin = box === "sent" ? "recipient.id = m.recipient_user_id" : "sender.id = m.sender_user_id";
@@ -118,6 +137,73 @@ export async function markAdminMessageRead({ request, env, session, messageId })
   return { message_id: messageId, read_at: now, changed: true };
 }
 
+export async function markAdminMessageUnread({ request, env, session, messageId }) {
+  assertAdminMutationAllowed({ request });
+  const message = await loadOwnedMessage(env, session.user.id, messageId);
+  if (message.recipient_user_id !== session.user.id) {
+    throw forbidden("Somente mensagens recebidas podem ser marcadas como não lidas.");
+  }
+  if (!message.read_at) return { message_id: messageId, read_at: null, changed: false };
+  const now = requestNow({ request, env });
+  await batch(env, [
+    statement(
+      env,
+      `UPDATE admin_messages
+          SET read_at = NULL
+        WHERE id = ? AND recipient_user_id = ? AND read_at IS NOT NULL`,
+      [messageId, session.user.id],
+    ),
+    auditStatement(env, {
+      actorUserId: session.user.id,
+      action: "admin-message.unread",
+      entityId: messageId,
+      metadata: {},
+      createdAt: now,
+    }),
+  ]);
+  return { message_id: messageId, read_at: null, changed: true };
+}
+
+export async function archiveAdminMessage({ request, env, session, messageId }) {
+  assertAdminMutationAllowed({ request });
+  const message = await loadOwnedMessage(env, session.user.id, messageId);
+  const sender = message.sender_user_id === session.user.id;
+  const column = sender ? "archived_by_sender_at" : "archived_by_recipient_at";
+  if (message[column]) return { message_id: messageId, archived: true, changed: false };
+  const now = requestNow({ request, env });
+  await batch(env, [
+    statement(env, `UPDATE admin_messages SET ${column} = ? WHERE id = ? AND ${column} IS NULL`, [now, messageId]),
+    auditStatement(env, {
+      actorUserId: session.user.id,
+      action: "admin-message.archive",
+      entityId: messageId,
+      metadata: { box: sender ? "sent" : "inbox" },
+      createdAt: now,
+    }),
+  ]);
+  return { message_id: messageId, archived: true, changed: true };
+}
+
+export async function restoreAdminMessage({ request, env, session, messageId }) {
+  assertAdminMutationAllowed({ request });
+  const message = await loadOwnedMessage(env, session.user.id, messageId);
+  const sender = message.sender_user_id === session.user.id;
+  const column = sender ? "archived_by_sender_at" : "archived_by_recipient_at";
+  if (!message[column]) return { message_id: messageId, archived: false, changed: false };
+  const now = requestNow({ request, env });
+  await batch(env, [
+    statement(env, `UPDATE admin_messages SET ${column} = NULL WHERE id = ? AND ${column} IS NOT NULL`, [messageId]),
+    auditStatement(env, {
+      actorUserId: session.user.id,
+      action: "admin-message.restore",
+      entityId: messageId,
+      metadata: { box: sender ? "sent" : "inbox" },
+      createdAt: now,
+    }),
+  ]);
+  return { message_id: messageId, archived: false, changed: true };
+}
+
 async function assertRecipientAllowed(env, senderUserId, recipientUserId) {
   const recipient = await first(
     env,
@@ -144,6 +230,23 @@ async function assertRecipientAllowed(env, senderUserId, recipientUserId) {
   if (!recipient) throw notFoundError("Destinatário não encontrado entre os usuários disponíveis.");
 }
 
+async function loadOwnedMessage(env, userId, messageId) {
+  const message = await first(
+    env,
+    `SELECT id, sender_user_id, recipient_user_id, read_at,
+            archived_by_sender_at, archived_by_recipient_at
+       FROM admin_messages
+      WHERE id = ?
+      LIMIT 1`,
+    [messageId],
+  );
+  if (!message) throw notFoundError("Mensagem não encontrada.");
+  if (message.sender_user_id !== userId && message.recipient_user_id !== userId) {
+    throw forbidden("Esta mensagem não pertence à sua caixa.");
+  }
+  return message;
+}
+
 function formatRecipient(row) {
   return {
     id: row.id,
@@ -153,7 +256,7 @@ function formatRecipient(row) {
   };
 }
 
-function formatMessage(row, box) {
+function formatMessage(row, box, archived = false) {
   return {
     id: row.id,
     subject: row.subject,
@@ -161,6 +264,7 @@ function formatMessage(row, box) {
     created_at: row.created_at,
     read_at: row.read_at || null,
     box,
+    archived,
     counterpart: {
       number: Number(row.counterpart_number || 0) || null,
       display_name: row.counterpart_name,

@@ -7,6 +7,8 @@ const state = {
   messages: [],
   recipients: [],
   selectedId: null,
+  selectedIds: new Set(),
+  query: "",
   pendingRecipientId: new URLSearchParams(window.location.search).get("to") || "",
 };
 
@@ -17,6 +19,12 @@ const els = {
   list: document.getElementById("messagesList"),
   detail: document.getElementById("messageDetail"),
   unread: document.getElementById("messagesUnreadCount"),
+  search: document.getElementById("messagesSearch"),
+  selectAll: document.getElementById("messagesSelectAll"),
+  refresh: document.getElementById("messagesRefresh"),
+  archive: document.getElementById("messagesArchive"),
+  markRead: document.getElementById("messagesMarkRead"),
+  markUnread: document.getElementById("messagesMarkUnread"),
   dialog: document.getElementById("adminEditorDialog"),
   dialogTitle: document.getElementById("adminDialogTitle"),
   dialogBody: document.getElementById("adminDialogBody"),
@@ -32,11 +40,14 @@ export async function renderMessagesManager() {
       state.recipients.length ? Promise.resolve(null) : adminApi("/api/v1/admin/messages/recipients"),
     ]);
     state.messages = messagesPayload.data.messages || [];
+    state.selectedIds = new Set([...state.selectedIds].filter((id) => state.messages.some((message) => message.id === id)));
+    if (state.selectedId && !state.messages.some((message) => message.id === state.selectedId)) {
+      state.selectedId = null;
+      renderEmptyDetail();
+    }
     if (recipientsPayload) state.recipients = recipientsPayload.data.recipients || [];
     renderList();
-    els.status.textContent = state.messages.length
-      ? `${state.messages.length} mensagem(ns) na caixa.`
-      : "Nenhuma mensagem nesta caixa.";
+    updateStatus();
     if (state.pendingRecipientId && state.recipients.some((recipient) => recipient.id === state.pendingRecipientId)) {
       const recipientId = state.pendingRecipientId;
       state.pendingRecipientId = "";
@@ -58,17 +69,41 @@ function initialize() {
     if (!button || button.dataset.messageBox === state.box) return;
     state.box = button.dataset.messageBox;
     state.selectedId = null;
+    state.selectedIds.clear();
     for (const item of els.manager.querySelectorAll("[data-message-box]")) {
       item.setAttribute("aria-pressed", String(item === button));
     }
-    els.detail.innerHTML = '<div class="admin-empty">Selecione uma mensagem para visualizar.</div>';
+    renderEmptyDetail();
     void renderMessagesManager();
   });
   els.list?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-message-id]");
     if (button) void openMessage(button.dataset.messageId);
   });
+  els.list?.addEventListener("change", (event) => {
+    const checkbox = event.target.closest("[data-message-select]");
+    if (!checkbox) return;
+    if (checkbox.checked) state.selectedIds.add(checkbox.value);
+    else state.selectedIds.delete(checkbox.value);
+    renderList();
+  });
   els.compose?.addEventListener("click", openComposer);
+  els.search?.addEventListener("input", () => {
+    state.query = els.search.value.trim().toLocaleLowerCase("pt-BR");
+    renderList();
+    updateStatus();
+  });
+  els.selectAll?.addEventListener("change", () => {
+    const visible = filteredMessages();
+    if (els.selectAll.checked) visible.forEach((message) => state.selectedIds.add(message.id));
+    else visible.forEach((message) => state.selectedIds.delete(message.id));
+    renderList();
+  });
+  els.refresh?.addEventListener("click", () => void renderMessagesManager());
+  els.archive?.addEventListener("click", () => void runBulkAction(state.box === "archived" ? "restore" : "archive"));
+  els.markRead?.addEventListener("click", () => void runBulkAction("read"));
+  els.markUnread?.addEventListener("click", () => void runBulkAction("unread"));
+  els.detail?.addEventListener("click", handleDetailAction);
   els.dialog?.querySelector("[data-dialog-close]")?.addEventListener("click", closeDialog);
 }
 
@@ -76,24 +111,34 @@ function renderList() {
   const unreadCount = state.box === "inbox" ? state.messages.filter((message) => !message.read_at).length : 0;
   els.unread.hidden = unreadCount === 0;
   els.unread.textContent = unreadCount ? String(unreadCount) : "";
-  els.list.innerHTML = state.messages.length
-    ? state.messages.map(renderMessageRow).join("")
-    : '<div class="admin-empty">Nenhuma mensagem nesta caixa.</div>';
+  const messages = filteredMessages();
+  els.list.innerHTML = messages.length
+    ? messages.map(renderMessageRow).join("")
+    : `<div class="admin-empty">${state.query ? "Nenhuma mensagem corresponde à busca." : "Nenhuma mensagem nesta caixa."}</div>`;
+  const selectedVisible = messages.filter((message) => state.selectedIds.has(message.id)).length;
+  els.selectAll.checked = messages.length > 0 && selectedVisible === messages.length;
+  els.selectAll.indeterminate = selectedVisible > 0 && selectedVisible < messages.length;
+  syncToolbar();
 }
 
 function renderMessageRow(message) {
-  const unread = state.box === "inbox" && !message.read_at;
+  const incoming = state.box === "inbox" || (state.box === "archived" && message.box === "inbox");
+  const unread = incoming && !message.read_at;
   return `
-    <button class="admin-message-row${unread ? " is-unread" : ""}${state.selectedId === message.id ? " is-selected" : ""}"
-      type="button" data-message-id="${escapeAttr(message.id)}">
-      <span class="admin-avatar" aria-hidden="true">${escapeHtml(initials(message.counterpart.display_name))}</span>
-      <span>
-        <strong>${escapeHtml(message.counterpart.display_name)}</strong>
-        <b>${escapeHtml(message.subject)}</b>
-        <small>${escapeHtml(message.body)}</small>
-      </span>
-      <time datetime="${escapeAttr(message.created_at)}">${escapeHtml(formatDate(message.created_at))}</time>
-    </button>`;
+    <article class="admin-message-row${unread ? " is-unread" : ""}${state.selectedId === message.id ? " is-selected" : ""}">
+      <label class="admin-message-check" title="Selecionar mensagem">
+        <input type="checkbox" data-message-select value="${escapeAttr(message.id)}" ${state.selectedIds.has(message.id) ? "checked" : ""} aria-label="Selecionar ${escapeAttr(message.subject)}">
+      </label>
+      <button type="button" data-message-id="${escapeAttr(message.id)}">
+        <span class="admin-avatar" aria-hidden="true">${escapeHtml(initials(message.counterpart.display_name))}</span>
+        <span class="admin-message-row-copy">
+          <strong>${escapeHtml(message.counterpart.display_name)}</strong>
+          <b>${escapeHtml(message.subject)}</b>
+          <small>${escapeHtml(message.body)}</small>
+        </span>
+        <time datetime="${escapeAttr(message.created_at)}">${escapeHtml(formatDate(message.created_at))}</time>
+      </button>
+    </article>`;
 }
 
 async function openMessage(messageId) {
@@ -112,16 +157,119 @@ async function openMessage(messageId) {
     }
   }
   renderList();
+  const incoming = state.box === "inbox" || (state.box === "archived" && message.box === "inbox");
   els.detail.innerHTML = `
     <header>
-      <p class="eyebrow">${state.box === "inbox" ? "De" : "Para"} ${escapeHtml(message.counterpart.display_name)}</p>
-      <h3>${escapeHtml(message.subject)}</h3>
-      <span>Usuário nº ${escapeHtml(message.counterpart.number || "-")} · ${escapeHtml(message.counterpart.email)}</span>
-      <time datetime="${escapeAttr(message.created_at)}">${escapeHtml(formatDateTime(message.created_at))}</time>
+      <div class="admin-message-detail-actions">
+        <button type="button" data-message-detail-action="back">Voltar</button>
+        ${incoming ? '<button type="button" data-message-detail-action="reply">Responder</button>' : ""}
+        ${incoming && message.read_at ? '<button type="button" data-message-detail-action="unread">Marcar como não lida</button>' : ""}
+        <button type="button" data-message-detail-action="${state.box === "archived" ? "restore" : "archive"}">${state.box === "archived" ? "Restaurar" : "Arquivar"}</button>
+      </div>
+      <div>
+        <p class="eyebrow">${incoming ? "De" : "Para"} ${escapeHtml(message.counterpart.display_name)}</p>
+        <h3>${escapeHtml(message.subject)}</h3>
+        <span>Usuário nº ${escapeHtml(message.counterpart.number || "-")} · ${escapeHtml(message.counterpart.email)}</span>
+        <time datetime="${escapeAttr(message.created_at)}">${escapeHtml(formatDateTime(message.created_at))}</time>
+      </div>
     </header>
-    <div class="admin-message-body">${escapeHtml(message.body).replaceAll("\n", "<br>")}</div>
-    ${state.box === "inbox" ? '<button class="admin-secondary-button" type="button" data-reply-message>Responder</button>' : ""}`;
-  els.detail.querySelector("[data-reply-message]")?.addEventListener("click", () => openComposer(message));
+    <div class="admin-message-body">${escapeHtml(message.body).replaceAll("\n", "<br>")}</div>`;
+  els.manager?.classList.add("is-reading-message");
+}
+
+async function handleDetailAction(event) {
+  const button = event.target.closest("[data-message-detail-action]");
+  if (!button) return;
+  const message = state.messages.find((item) => item.id === state.selectedId);
+  if (!message) return;
+  const action = button.dataset.messageDetailAction;
+  if (action === "back") {
+    state.selectedId = null;
+    renderEmptyDetail();
+    renderList();
+    return;
+  }
+  if (action === "reply") {
+    openComposer(message);
+    return;
+  }
+  button.disabled = true;
+  try {
+    await mutateMessage(message.id, action);
+    state.selectedId = null;
+    renderEmptyDetail();
+    await renderMessagesManager();
+  } catch (error) {
+    els.status.textContent = error.message || "Não foi possível atualizar a mensagem.";
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function runBulkAction(action) {
+  const ids = [...state.selectedIds];
+  if (!ids.length) return;
+  setToolbarDisabled(true);
+  els.status.textContent = "Atualizando mensagens...";
+  try {
+    await Promise.all(ids.map((id) => mutateMessage(id, action)));
+    state.selectedIds.clear();
+    state.selectedId = null;
+    renderEmptyDetail();
+    await renderMessagesManager();
+  } catch (error) {
+    els.status.textContent = error.message || "Não foi possível atualizar as mensagens selecionadas.";
+  } finally {
+    setToolbarDisabled(false);
+  }
+}
+
+function mutateMessage(messageId, action) {
+  return adminApi(`/api/v1/admin/messages/${encodeURIComponent(messageId)}/${action}`, {
+    method: "PATCH",
+    body: {},
+  });
+}
+
+function filteredMessages() {
+  if (!state.query) return state.messages;
+  return state.messages.filter((message) =>
+    [message.counterpart.display_name, message.counterpart.email, message.subject, message.body]
+      .join(" ")
+      .toLocaleLowerCase("pt-BR")
+      .includes(state.query),
+  );
+}
+
+function syncToolbar() {
+  const selected = state.selectedIds.size;
+  const incomingBox = state.box === "inbox";
+  els.archive.textContent = state.box === "archived" ? "Restaurar" : "Arquivar";
+  els.archive.disabled = selected === 0;
+  els.markRead.disabled = selected === 0 || !incomingBox;
+  els.markUnread.disabled = selected === 0 || !incomingBox;
+}
+
+function setToolbarDisabled(disabled) {
+  for (const button of [els.refresh, els.archive, els.markRead, els.markUnread]) {
+    if (button) button.disabled = disabled || (button !== els.refresh && state.selectedIds.size === 0);
+  }
+}
+
+function updateStatus() {
+  const visible = filteredMessages().length;
+  if (!state.messages.length) {
+    els.status.textContent = "Nenhuma mensagem nesta caixa.";
+    return;
+  }
+  els.status.textContent = state.query
+    ? `${visible} ${visible === 1 ? "resultado encontrado" : "resultados encontrados"}.`
+    : `${state.messages.length} ${state.messages.length === 1 ? "mensagem" : "mensagens"}.`;
+}
+
+function renderEmptyDetail() {
+  els.detail.innerHTML = '<div class="admin-empty">Selecione uma mensagem para visualizar.</div>';
+  els.manager?.classList.remove("is-reading-message");
 }
 
 function openComposer(replyTo = null, selectedRecipientId = "") {

@@ -115,17 +115,33 @@
           <div class="admin-panel-heading">
             <div>
               <p class="eyebrow">Comunicação</p>
-              <h2>Mensagens</h2>
-              <p class="admin-muted">Converse com a equipe diretamente pela Central.</p>
+              <h2>Caixa de mensagens</h2>
+              <p class="admin-muted">Organize conversas e acompanhe a comunicação da equipe.</p>
             </div>
-            <button id="composeMessageButton" class="admin-primary-button" type="button">Nova mensagem</button>
           </div>
           <div class="admin-messages-layout">
             <aside class="admin-message-boxes" aria-label="Caixas de mensagens">
-              <button type="button" data-message-box="inbox" aria-pressed="true">Recebidas <span id="messagesUnreadCount" hidden></span></button>
-              <button type="button" data-message-box="sent" aria-pressed="false">Enviadas</button>
+              <button id="composeMessageButton" class="admin-message-compose" type="button">Escrever</button>
+              <nav>
+                <button type="button" data-message-box="inbox" aria-pressed="true">Entrada <span id="messagesUnreadCount" hidden></span></button>
+                <button type="button" data-message-box="sent" aria-pressed="false">Enviadas</button>
+                <button type="button" data-message-box="archived" aria-pressed="false">Arquivadas</button>
+              </nav>
             </aside>
             <div class="admin-message-list-panel">
+              <div class="admin-message-toolbar">
+                <label class="admin-message-select-all" title="Selecionar todas">
+                  <input id="messagesSelectAll" type="checkbox" aria-label="Selecionar todas as mensagens">
+                </label>
+                <button id="messagesRefresh" type="button">Atualizar</button>
+                <button id="messagesArchive" type="button" disabled>Arquivar</button>
+                <button id="messagesMarkRead" type="button" disabled>Marcar como lida</button>
+                <button id="messagesMarkUnread" type="button" disabled>Marcar como não lida</button>
+                <label class="admin-message-search">
+                  <span class="sr-only">Pesquisar mensagens</span>
+                  <input id="messagesSearch" type="search" placeholder="Pesquisar mensagens" autocomplete="off">
+                </label>
+              </div>
               <p id="messagesStatus" class="admin-muted" role="status" aria-live="polite"></p>
               <div id="messagesList" class="admin-message-list"></div>
             </div>

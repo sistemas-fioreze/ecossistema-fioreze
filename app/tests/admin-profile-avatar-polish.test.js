@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
 import { createWorkerTestContext } from "./helpers/worker.js";
-import { ADMIN_ORIGIN, createSessionCookie, withCookie } from "./helpers/admin-session.js";
+import { ADMIN_ORIGIN, AURORA_USER_ID, createSessionCookie, withCookie } from "./helpers/admin-session.js";
 
 const MUTATION_HEADERS = {
   "x-fioreze-admin-action": "erp-admin",
@@ -62,9 +62,9 @@ test("avatar de outro usuario exige permissao de leitura de usuarios", async () 
   env.__data.adminRolePermissions = env.__data.adminRolePermissions.filter(
     (entry) => !env.__data.adminPermissions.find((permission) => permission.id === entry.permission_id)?.permission_key.startsWith("admin.users."),
   );
-  const cookie = await createSessionCookie(env);
+  const cookie = await createSessionCookie(env, AURORA_USER_ID);
 
-  const response = await fetch("/api/v1/admin/users/user-aurora-admin/avatar", withCookie(cookie));
+  const response = await fetch("/api/v1/admin/users/user-demo-admin/avatar", withCookie(cookie));
 
   assert.equal(response.status, 401);
 });
