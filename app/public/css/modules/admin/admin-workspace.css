@@ -1,0 +1,1913 @@
+/*
+ * Fioreze Administrative Workspace
+ *
+ * This layer intentionally sits above the historical admin styles. It only
+ * applies to the unified Central and leaves the Room Service ERP untouched.
+ */
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] {
+  --workspace-ink: #1c2522;
+  --workspace-muted: #69736f;
+  --workspace-faint: #8c9691;
+  --workspace-canvas: #f3f5f2;
+  --workspace-surface: #ffffff;
+  --workspace-soft: #edf1ed;
+  --workspace-line: #dce2dd;
+  --workspace-line-strong: #cbd3cd;
+  --workspace-sidebar: #18312c;
+  --workspace-sidebar-soft: #25453e;
+  --workspace-sidebar-text: #e9f0ed;
+  --workspace-sidebar-muted: #aebfba;
+  --workspace-positive: #2d7d65;
+  --workspace-warning: #b6852f;
+  --workspace-danger: #b54a4a;
+  --workspace-shadow: 0 12px 30px rgba(28, 37, 34, 0.07);
+  --workspace-shadow-high: 0 24px 60px rgba(28, 37, 34, 0.16);
+  color: var(--workspace-ink);
+  background: var(--workspace-canvas);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+    button,
+    input,
+    select,
+    textarea,
+    a,
+    [role="button"]
+  ) {
+  letter-spacing: 0;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(button, a, input, select, textarea):focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--admin-primary) 24%, transparent);
+  outline-offset: 2px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-shell {
+  width: 100%;
+  min-width: 0;
+  height: 100dvh;
+  padding: 0;
+  overflow: hidden;
+  background: var(--workspace-canvas);
+}
+
+/* Authentication */
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-login {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding:
+    max(32px, env(safe-area-inset-top))
+    max(22px, env(safe-area-inset-right))
+    max(32px, env(safe-area-inset-bottom))
+    max(22px, env(safe-area-inset-left));
+  background:
+    linear-gradient(90deg, var(--admin-primary) 0 7px, transparent 7px),
+    #fff;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-login[hidden] {
+  display: none;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card {
+  width: min(410px, 100%);
+  display: grid;
+  gap: 18px;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card .brand-mark {
+  width: 228px;
+  height: 72px;
+  margin: 0 0 18px;
+  border: 0;
+  border-radius: 0;
+  background: transparent url("/assets/shared/fioreze-central-logo.jpg") center / contain no-repeat;
+  box-shadow: none;
+  animation: none;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card .eyebrow {
+  margin: 0;
+  color: var(--admin-primary);
+  font-size: 0.7rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card h1 {
+  margin: -8px 0 8px;
+  color: var(--workspace-ink);
+  font-size: clamp(1.75rem, 4vw, 2.35rem);
+  font-weight: 760;
+  line-height: 1.08;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card label {
+  display: grid;
+  gap: 7px;
+  color: var(--workspace-ink);
+  font-size: 0.78rem;
+  font-weight: 720;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card input {
+  width: 100%;
+  min-height: 50px;
+  border: 1px solid var(--workspace-line-strong);
+  border-radius: 7px;
+  padding: 0 14px;
+  background: #fff;
+  color: var(--workspace-ink);
+  font: inherit;
+  font-size: 0.94rem;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card input:focus {
+  border-color: var(--admin-primary);
+  outline: 0;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--admin-primary) 12%, transparent);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card .admin-primary-button {
+  min-height: 50px;
+  margin-top: 4px;
+  border-radius: 7px;
+  font-size: 0.9rem;
+}
+
+/* Workspace shell */
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-dashboard {
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  display: grid;
+  grid-template-columns: 272px minmax(0, 1fr);
+  grid-template-rows: 76px minmax(0, 1fr);
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: var(--workspace-canvas);
+  transition: grid-template-columns 0.22s ease;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-dashboard.is-sidebar-compact {
+  grid-template-columns: 76px minmax(0, 1fr);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-dashboard > :not(
+    .admin-global-sidebar,
+    .admin-mobile-backdrop,
+    .admin-help-drawer
+  ) {
+  grid-column: 2;
+  width: auto;
+  min-width: 0;
+  margin: 0;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-global-sidebar {
+  position: relative;
+  inset: auto;
+  z-index: 80;
+  grid-column: 1;
+  grid-row: 1 / -1;
+  width: auto;
+  height: 100dvh;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  padding: 18px 14px 22px;
+  background: var(--workspace-sidebar);
+  color: var(--workspace-sidebar-text);
+  box-shadow: none;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-sidebar-head {
+  min-height: 54px;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 0 4px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-brand-lockup {
+  min-width: 0;
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: 94px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  color: #fff;
+  text-decoration: none;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-brand-wordmark {
+  min-width: 0;
+  display: block;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #fff;
+  opacity: 1;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-brand-wordmark img {
+  width: 94px;
+  height: 42px;
+  display: block;
+  object-fit: contain;
+  object-position: center;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-brand-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-brand-copy strong,
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-brand-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-brand-copy strong {
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-brand-copy small {
+  color: var(--workspace-sidebar-muted);
+  font-size: 0.6rem;
+  font-weight: 650;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-shell-toggle-sidebar {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  min-height: 34px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0;
+  background: transparent;
+  color: var(--workspace-sidebar-text);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-shell-toggle-sidebar:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-global-nav {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 20px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0 2px 18px;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-nav-group {
+  display: grid;
+  gap: 6px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-nav-group > p {
+  margin: 0;
+  padding: 0 11px;
+  color: var(--workspace-sidebar-muted);
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-nav-group > div {
+  display: grid;
+  gap: 3px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-global-nav a,
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-global-nav .admin-nav-group > div > span {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 7px;
+  padding: 0 11px;
+  background: transparent;
+  color: var(--workspace-sidebar-muted);
+  font-size: 0.78rem;
+  font-weight: 720;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 0.16s ease, color 0.16s ease;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-global-nav a:hover {
+  transform: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-global-nav a[aria-current="page"] {
+  position: relative;
+  background: color-mix(in srgb, var(--admin-primary) 78%, #fff 22%);
+  color: #fff;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-global-nav a[aria-current="page"]::before {
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--admin-accent);
+  content: "";
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-global-nav a[aria-current="page"] :where(.admin-svg-icon, span) {
+  color: #fff;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-global-nav .admin-svg-icon {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 19px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-global-nav a > span,
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-global-nav .admin-nav-group > div > span > span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .is-sidebar-compact .admin-global-sidebar {
+  align-items: stretch;
+  padding-inline: 10px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .is-sidebar-compact .admin-sidebar-head {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  padding: 0;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .is-sidebar-compact :where(
+    .admin-brand-lockup,
+    .admin-brand-wordmark,
+    .admin-brand-copy,
+    .admin-nav-group > p,
+    .admin-global-nav a > span,
+    .admin-global-nav .admin-nav-group > div > span > span
+  ) {
+  display: none;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .is-sidebar-compact .admin-global-nav {
+  width: 100%;
+  gap: 14px;
+  justify-items: center;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .is-sidebar-compact .admin-nav-group,
+body[data-admin-design="workspace"][data-admin-shell="erp"] .is-sidebar-compact .admin-nav-group > div {
+  width: 100%;
+  justify-items: center;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .is-sidebar-compact .admin-global-nav a,
+body[data-admin-design="workspace"][data-admin-shell="erp"] .is-sidebar-compact .admin-global-nav .admin-nav-group > div > span {
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+  gap: 0;
+  padding: 0;
+}
+
+/* Top bar */
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-dashboard > .admin-topbar,
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-portal-layout .admin-topbar {
+  position: relative;
+  z-index: 70;
+  grid-column: 2;
+  grid-row: 1;
+  width: auto;
+  height: 76px;
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow: visible;
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid var(--workspace-line);
+  border-radius: 0;
+  padding: 10px 24px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: none;
+  backdrop-filter: blur(18px);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-shell-toggle-mobile {
+  display: none;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-topbar-copy {
+  min-width: 190px;
+  display: grid;
+  gap: 3px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-topbar-copy > .eyebrow {
+  display: none;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-page-kicker {
+  margin: 0;
+  color: var(--workspace-faint);
+  font-size: 0.58rem;
+  font-weight: 820;
+  line-height: 1;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-topbar-copy h1 {
+  max-width: 390px;
+  margin: 0;
+  overflow: hidden;
+  color: var(--workspace-ink);
+  font-size: 1.06rem;
+  font-weight: 790;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-topbar-copy > .admin-muted {
+  display: none;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-command-search {
+  position: relative;
+  width: min(440px, 34vw);
+  min-width: 230px;
+  margin-left: auto;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-command-search label {
+  height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--workspace-line);
+  border-radius: 7px;
+  padding: 0 12px;
+  background: var(--workspace-canvas);
+  color: var(--workspace-faint);
+  transition: border-color 0.16s ease, background-color 0.16s ease;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-command-search label:focus-within {
+  border-color: color-mix(in srgb, var(--admin-primary) 55%, var(--workspace-line));
+  background: #fff;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-command-search input {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  border: 0;
+  outline: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--workspace-ink);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-command-search kbd {
+  flex: 0 0 auto;
+  border: 1px solid var(--workspace-line);
+  border-radius: 5px;
+  padding: 3px 6px;
+  background: #fff;
+  color: var(--workspace-faint);
+  font: inherit;
+  font-size: 0.58rem;
+  font-weight: 750;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-command-results {
+  position: absolute;
+  inset: calc(100% + 8px) 0 auto;
+  z-index: 150;
+  display: grid;
+  gap: 3px;
+  border: 1px solid var(--workspace-line);
+  border-radius: 8px;
+  padding: 7px;
+  background: #fff;
+  box-shadow: var(--workspace-shadow-high);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-command-results[hidden] {
+  display: none;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-command-results :where(a, p) {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  border-radius: 6px;
+  padding: 0 10px;
+  color: var(--workspace-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-command-results a:hover {
+  background: var(--admin-primary-soft);
+  color: var(--admin-primary);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(.admin-icon-button, .admin-shell-toggle-mobile) {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  min-height: 42px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--workspace-line);
+  border-radius: 7px;
+  padding: 0;
+  background: #fff;
+  color: var(--workspace-muted);
+  box-shadow: none;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(.admin-icon-button, .admin-shell-toggle-mobile):hover {
+  border-color: color-mix(in srgb, var(--admin-primary) 35%, var(--workspace-line));
+  background: var(--admin-primary-soft);
+  color: var(--admin-primary);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-session-box.admin-session-control {
+  position: relative;
+  min-height: 0;
+  display: block;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-session-trigger {
+  height: 42px;
+  max-width: 235px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  border: 1px solid var(--workspace-line);
+  border-radius: 7px;
+  padding: 3px 10px 3px 4px;
+  background: #fff;
+  color: var(--workspace-ink);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-session-trigger:hover,
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-session-control.is-open .admin-session-trigger {
+  border-color: color-mix(in srgb, var(--admin-primary) 40%, var(--workspace-line));
+  background: #fff;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-session-trigger .admin-avatar {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border-radius: 6px;
+  background: var(--admin-primary);
+  color: #fff;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-session-copy {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-session-copy small {
+  color: var(--workspace-faint);
+  font-size: 0.52rem;
+  font-weight: 760;
+  letter-spacing: 0.08em;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-session-copy strong {
+  max-width: 140px;
+  color: var(--workspace-ink);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-session-menu {
+  position: absolute;
+  top: calc(100% + 9px);
+  right: 0;
+  z-index: 160;
+  width: min(320px, calc(100vw - 28px));
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--workspace-line);
+  border-radius: 8px;
+  padding: 9px;
+  background: #fff;
+  box-shadow: var(--workspace-shadow-high);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-session-menu[hidden] {
+  display: none;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-session-menu > p,
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-palette-picker {
+  border-color: var(--workspace-line);
+}
+
+/* Main surfaces */
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-dashboard > :where(
+    .admin-home-dashboard,
+    .admin-launcher-grid,
+    .admin-management-panel,
+    .admin-access-denied
+  ),
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-portals-surface,
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-portal-layout > .admin-portal-main > .admin-access-denied {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  border: 0;
+  border-radius: 0;
+  padding: 28px clamp(20px, 3vw, 42px) 44px;
+  background: var(--workspace-canvas);
+  box-shadow: none;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-dashboard > :where(
+    .admin-home-dashboard,
+    .admin-launcher-grid,
+    .admin-management-panel,
+    .admin-access-denied
+  )[hidden],
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-portals-surface[hidden] {
+  display: none;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-portal-layout {
+  display: contents;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-portal-sidebar {
+  display: none;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-portal-main {
+  display: contents;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-portals-surface > section:not([hidden]),
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-portals-surface > div:not([hidden]),
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-management-panel:not([hidden]) {
+  animation: workspace-enter 0.22s ease both;
+}
+
+@keyframes workspace-enter {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+    .admin-panel-heading,
+    .admin-events-heading,
+    .admin-links-heading,
+    .admin-settings-heading,
+    .admin-media-heading,
+    .admin-sticky-heading
+  ) {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 0 0 22px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+    .admin-panel-heading,
+    .admin-events-heading,
+    .admin-links-heading,
+    .admin-settings-heading,
+    .admin-media-heading
+  ) h2 {
+  margin: 3px 0 0;
+  color: var(--workspace-ink);
+  font-size: clamp(1.55rem, 2.4vw, 2.15rem);
+  font-weight: 760;
+  line-height: 1.1;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+    .admin-panel-heading,
+    .admin-events-heading,
+    .admin-links-heading,
+    .admin-settings-heading,
+    .admin-media-heading
+  ) p {
+  max-width: 760px;
+  margin: 7px 0 0;
+  color: var(--workspace-muted);
+  line-height: 1.5;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(.eyebrow, .admin-section-kicker) {
+  color: var(--admin-primary);
+  font-size: 0.62rem;
+  font-weight: 830;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-breadcrumbs {
+  margin: 0 0 8px;
+  color: var(--workspace-faint);
+  font-size: 0.72rem;
+  font-weight: 680;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-breadcrumbs a {
+  color: var(--admin-primary);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-muted {
+  color: var(--workspace-muted);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+    .admin-primary-button,
+    .admin-drive-button,
+    .admin-toolbar-actions button,
+    .admin-filters > button,
+    .admin-inline-actions button,
+    .admin-dialog-actions button,
+    .admin-row-actions button,
+    .admin-secondary-link
+  ) {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--workspace-line-strong);
+  border-radius: 7px;
+  padding: 0 14px;
+  background: #fff;
+  color: var(--workspace-ink);
+  box-shadow: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 760;
+  text-decoration: none;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+    .admin-primary-button,
+    .admin-dialog-actions button[type="submit"]
+  ) {
+  border-color: var(--admin-primary);
+  background: var(--admin-primary);
+  color: #fff;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+    .admin-primary-button,
+    .admin-dialog-actions button[type="submit"]
+  ):hover {
+  border-color: var(--admin-primary-hover);
+  background: var(--admin-primary-hover);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+    .admin-toolbar-actions button,
+    .admin-filters > button,
+    .admin-inline-actions button,
+    .admin-row-actions button,
+    .admin-secondary-link
+  ):hover {
+  border-color: color-mix(in srgb, var(--admin-primary) 35%, var(--workspace-line));
+  background: var(--admin-primary-soft);
+  color: var(--admin-primary);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+    .admin-row-actions button.danger,
+    button.danger
+  ) {
+  border-color: color-mix(in srgb, var(--workspace-danger) 30%, var(--workspace-line));
+  color: var(--workspace-danger);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+    .admin-row-actions button.danger,
+    button.danger
+  ):hover {
+  border-color: var(--workspace-danger);
+  background: color-mix(in srgb, var(--workspace-danger) 8%, #fff);
+  color: var(--workspace-danger);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+    input:not([type="checkbox"], [type="radio"], [type="color"], [type="range"], [type="file"]),
+    select,
+    textarea
+  ) {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  border: 1px solid var(--workspace-line-strong);
+  border-radius: 7px;
+  padding: 9px 12px;
+  background: #fff;
+  color: var(--workspace-ink);
+  font: inherit;
+  font-size: 0.82rem;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+    input:not([type="checkbox"], [type="radio"], [type="color"], [type="range"], [type="file"]),
+    select,
+    textarea
+  ):focus {
+  border-color: var(--admin-primary);
+  outline: 0;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--admin-primary) 12%, transparent);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+    .admin-field,
+    .admin-form-grid > label,
+    .admin-filters > label,
+    .admin-unit-form label,
+    .admin-media-upload label
+  ) {
+  color: var(--workspace-muted);
+  font-size: 0.74rem;
+  font-weight: 720;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+    .admin-filters,
+    .admin-management-filters,
+    .admin-content-filters,
+    .admin-media-filters,
+    .admin-short-links-filters,
+    .admin-events-filters
+  ) {
+  display: grid;
+  align-items: end;
+  gap: 12px;
+  margin: 0 0 20px;
+  border: 1px solid var(--workspace-line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #fff;
+  box-shadow: none;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(.admin-tabs, .admin-segmented, .admin-message-boxes) {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(.admin-tabs, .admin-segmented) {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 0;
+  border-bottom: 1px solid var(--workspace-line);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(.admin-tabs, .admin-segmented) button {
+  position: relative;
+  min-height: 42px;
+  border: 0;
+  border-radius: 0;
+  padding: 0 1px;
+  background: transparent;
+  color: var(--workspace-muted);
+  box-shadow: none;
+  font-size: 0.76rem;
+  font-weight: 730;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(.admin-tabs, .admin-segmented) button[aria-selected="true"] {
+  background: transparent;
+  color: var(--admin-primary);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(.admin-tabs, .admin-segmented) button[aria-selected="true"]::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: var(--admin-primary);
+  content: "";
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-tab-panel {
+  border: 0;
+  border-radius: 0;
+  padding: 22px 0 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Home */
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-dashboard {
+  display: grid;
+  align-content: start;
+  gap: 22px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-dashboard[hidden] {
+  display: none;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-kpis article {
+  min-width: 0;
+  min-height: 126px;
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--workspace-line);
+  border-radius: 8px;
+  padding: 18px;
+  background: #fff;
+  box-shadow: var(--workspace-shadow);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-kpis article:nth-child(2) {
+  border-top-color: color-mix(in srgb, var(--admin-accent) 55%, var(--workspace-line));
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-kpis article:nth-child(3) {
+  border-top-color: color-mix(in srgb, var(--workspace-positive) 55%, var(--workspace-line));
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-kpis article:nth-child(4) {
+  border-top-color: color-mix(in srgb, #4677a8 55%, var(--workspace-line));
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-kpi-icon,
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-action-icon {
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: var(--admin-primary-soft);
+  color: var(--admin-primary);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-kpi-icon {
+  width: 46px;
+  height: 46px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-kpi-icon svg {
+  width: 21px;
+  height: 21px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-kpis article > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-kpis small,
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-kpis span {
+  color: var(--workspace-muted);
+  font-size: 0.7rem;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-kpis strong {
+  color: var(--workspace-ink);
+  font-size: 1.85rem;
+  font-weight: 760;
+  line-height: 1;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.75fr);
+  gap: 14px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+    .admin-home-chart-card,
+    .admin-home-units-card,
+    .admin-home-actions
+  ) {
+  border: 1px solid var(--workspace-line);
+  border-radius: 8px;
+  padding: 20px;
+  background: #fff;
+  box-shadow: var(--workspace-shadow);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+    .admin-home-chart-card,
+    .admin-home-units-card,
+    .admin-home-actions
+  ) > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 18px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+    .admin-home-chart-card,
+    .admin-home-units-card,
+    .admin-home-actions
+  ) > header span {
+  color: var(--admin-primary);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+    .admin-home-chart-card,
+    .admin-home-units-card,
+    .admin-home-actions
+  ) h2 {
+  margin: 4px 0 0;
+  color: var(--workspace-ink);
+  font-size: 1rem;
+  font-weight: 760;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-bars {
+  min-height: 230px;
+  display: grid;
+  align-content: center;
+  gap: 18px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-bar-row {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  color: var(--workspace-muted);
+  font-size: 0.72rem;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-bar-track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--workspace-soft);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-bar-track i {
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--admin-primary), var(--admin-accent));
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-hotel-list {
+  display: grid;
+  gap: 8px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-hotel-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 8px;
+  align-items: center;
+  gap: 11px;
+  border: 1px solid var(--workspace-line);
+  border-radius: 7px;
+  padding: 11px;
+  background: var(--workspace-canvas);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-hotel-avatar {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: var(--workspace-sidebar);
+  color: #fff;
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 780;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-hotel-row > div {
+  min-width: 0;
+  display: grid;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-hotel-row strong {
+  overflow: hidden;
+  color: var(--workspace-ink);
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-hotel-row div span {
+  color: var(--workspace-muted);
+  font-size: 0.68rem;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-hotel-row > i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--workspace-positive);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-action-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-action-grid a {
+  min-width: 0;
+  min-height: 108px;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--workspace-line);
+  border-radius: 8px;
+  padding: 16px;
+  background: var(--workspace-canvas);
+  color: var(--workspace-ink);
+  text-decoration: none;
+  transition: border-color 0.16s ease, background-color 0.16s ease, transform 0.16s ease;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-action-grid a:hover {
+  border-color: color-mix(in srgb, var(--admin-primary) 36%, var(--workspace-line));
+  background: #fff;
+  transform: translateY(-2px);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-action-icon {
+  width: 40px;
+  height: 40px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-action-grid a > div {
+  min-width: 0;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-action-grid strong,
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-action-grid small {
+  display: block;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-action-grid strong {
+  color: var(--workspace-ink);
+  font-size: 0.78rem;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-action-grid small {
+  margin-top: 4px;
+  color: var(--workspace-muted);
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+/* Cards, rows and settings */
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+    .admin-feature-grid,
+    .admin-module-grid,
+    .admin-settings-grid
+  ) {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+    .admin-system-card,
+    .admin-module-card,
+    .admin-settings-card,
+    .admin-preview-card,
+    .admin-info-box
+  ) {
+  border: 1px solid var(--workspace-line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: var(--workspace-shadow);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+    .admin-system-card,
+    .admin-module-card,
+    .admin-settings-card
+  ):hover {
+  border-color: color-mix(in srgb, var(--admin-primary) 35%, var(--workspace-line));
+  transform: translateY(-2px);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+    .admin-table-stack,
+    .admin-units-list,
+    .admin-events-list,
+    .admin-short-links-list
+  ) {
+  display: grid;
+  gap: 8px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+    .admin-data-row,
+    .admin-management-row,
+    .admin-content-row,
+    .admin-audit-row,
+    .admin-unit-row,
+    .admin-short-link-row
+  ) {
+  border: 1px solid var(--workspace-line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: none;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+    .admin-data-row,
+    .admin-management-row,
+    .admin-content-row,
+    .admin-audit-row,
+    .admin-unit-row,
+    .admin-short-link-row
+  ):hover {
+  border-color: color-mix(in srgb, var(--admin-primary) 28%, var(--workspace-line));
+  background: #fff;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-status-chip,
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-status {
+  width: fit-content;
+  min-height: 26px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+  padding: 0 9px;
+  background: var(--workspace-soft);
+  color: var(--workspace-muted);
+  font-size: 0.64rem;
+  font-weight: 760;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+    .admin-status-chip[data-status="active"],
+    .admin-status[data-status="active"],
+    .admin-status-chip[data-status="published"]
+  ) {
+  background: color-mix(in srgb, var(--workspace-positive) 12%, #fff);
+  color: var(--workspace-positive);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-empty {
+  min-height: 120px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--workspace-line-strong);
+  border-radius: 8px;
+  padding: 22px;
+  background: transparent;
+  color: var(--workspace-muted);
+  text-align: center;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-account-card,
+body[data-admin-design="workspace"][data-admin-shell="erp"] #accountManager > form {
+  border: 1px solid var(--workspace-line);
+  border-radius: 8px;
+  padding: 18px;
+  background: #fff;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] #accountManager {
+  align-content: start;
+  gap: 14px;
+}
+
+/* Messages */
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-messages-layout {
+  min-height: 560px;
+  display: grid;
+  grid-template-columns: 150px minmax(250px, 0.75fr) minmax(320px, 1.25fr);
+  overflow: hidden;
+  border: 1px solid var(--workspace-line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  border: 0;
+  border-right: 1px solid var(--workspace-line);
+  border-radius: 0;
+  padding: 12px;
+  background: var(--workspace-canvas);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes button {
+  min-height: 40px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 10px;
+  background: transparent;
+  color: var(--workspace-muted);
+  font-size: 0.74rem;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes button[aria-pressed="true"] {
+  background: var(--admin-primary-soft);
+  color: var(--admin-primary);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes button[aria-pressed="true"]::after {
+  display: none;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-list-panel {
+  border-right: 1px solid var(--workspace-line);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-row {
+  border-color: var(--workspace-line);
+  background: #fff;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-row.is-selected {
+  background: var(--admin-primary-soft);
+}
+
+/* Media and links */
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-media-storage-card,
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-media-drive-sidebar,
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-short-links-summary article,
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-short-links-editor {
+  border: 1px solid var(--workspace-line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: none;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-media-toolbar {
+  border-color: var(--workspace-line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-media-dropzone {
+  border-color: var(--workspace-line-strong);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--admin-primary-soft) 40%, #fff);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-media-grid {
+  gap: 12px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-media-card {
+  border: 1px solid var(--workspace-line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: none;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-media-card:hover {
+  border-color: color-mix(in srgb, var(--admin-primary) 38%, var(--workspace-line));
+  box-shadow: var(--workspace-shadow);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-short-links-summary {
+  gap: 10px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-short-links-summary article {
+  min-height: 90px;
+  padding: 16px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-link-card {
+  border: 1px solid var(--workspace-line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-qr-preview {
+  border-color: var(--workspace-line);
+}
+
+/* Dialogs */
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-editor-dialog {
+  border: 0;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: var(--workspace-shadow-high);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-editor-dialog::backdrop {
+  background: rgba(19, 31, 27, 0.48);
+  backdrop-filter: blur(3px);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-dialog-shell {
+  border: 0;
+  border-radius: 8px;
+  background: #fff;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-dialog-shell > header {
+  border-bottom: 1px solid var(--workspace-line);
+  background: #fff;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-help-drawer {
+  border: 0;
+  border-left: 1px solid var(--workspace-line);
+  border-radius: 0;
+  background: #fff;
+  box-shadow: var(--workspace-shadow-high);
+}
+
+/* Responsive workspace */
+
+@media (max-width: 1180px) {
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-dashboard {
+    grid-template-columns: 232px minmax(0, 1fr);
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-brand-lockup {
+    grid-template-columns: minmax(0, 120px);
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-brand-copy {
+    display: none;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-brand-wordmark img {
+    width: 120px;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-action-grid,
+  body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+      .admin-feature-grid,
+      .admin-module-grid,
+      .admin-settings-grid
+    ) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 980px) {
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-dashboard,
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-dashboard.is-sidebar-compact {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 68px minmax(0, 1fr);
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-dashboard > :not(
+      .admin-global-sidebar,
+      .admin-mobile-backdrop,
+      .admin-help-drawer
+    ) {
+    grid-column: 1;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-global-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 300;
+    width: min(310px, calc(100vw - 42px));
+    height: 100dvh;
+    padding:
+      max(16px, env(safe-area-inset-top))
+      14px
+      max(20px, env(safe-area-inset-bottom));
+    transform: translateX(-104%);
+    transition: transform 0.22s ease;
+    box-shadow: 24px 0 60px rgba(15, 29, 25, 0.28);
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-dashboard.is-menu-open .admin-global-sidebar {
+    transform: translateX(0);
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-mobile-backdrop:not([hidden]) {
+    position: fixed;
+    inset: 0;
+    z-index: 290;
+    display: block;
+    background: rgba(16, 26, 23, 0.45);
+    backdrop-filter: blur(3px);
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-dashboard > .admin-topbar,
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-portal-layout .admin-topbar {
+    grid-column: 1;
+    grid-row: 1;
+    height: 68px;
+    min-height: 68px;
+    padding:
+      max(8px, env(safe-area-inset-top))
+      max(12px, env(safe-area-inset-right))
+      8px
+      max(12px, env(safe-area-inset-left));
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-shell-toggle-mobile {
+    display: inline-grid;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-dashboard > :where(
+      .admin-home-dashboard,
+      .admin-launcher-grid,
+      .admin-management-panel,
+      .admin-access-denied
+    ),
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-portals-surface {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-command-search {
+    display: none;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-topbar-copy {
+    margin-right: auto;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-messages-layout {
+    grid-template-columns: 130px minmax(230px, 0.8fr) minmax(290px, 1.2fr);
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 720px) {
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-dashboard,
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-dashboard.is-sidebar-compact {
+    grid-template-rows: calc(64px + env(safe-area-inset-top)) minmax(0, 1fr);
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-dashboard > .admin-topbar,
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-portal-layout .admin-topbar {
+    height: calc(64px + env(safe-area-inset-top));
+    min-height: calc(64px + env(safe-area-inset-top));
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) repeat(3, 42px);
+    gap: 5px;
+    padding:
+      calc(7px + env(safe-area-inset-top))
+      max(9px, env(safe-area-inset-right))
+      7px
+      max(9px, env(safe-area-inset-left));
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-topbar-copy {
+    min-width: 0;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-page-kicker {
+    display: none;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-topbar-copy h1 {
+    max-width: none;
+    font-size: 0.9rem;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-topbar > [data-admin-refresh] {
+    grid-column: 3;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-topbar > .admin-mail-button {
+    grid-column: 4;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-topbar > [data-admin-help-open] {
+    display: none;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-topbar > .admin-session-box {
+    grid-column: 5;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-session-trigger {
+    width: 42px;
+    min-width: 42px;
+    padding: 4px;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-session-trigger .admin-session-copy,
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-session-trigger > .admin-svg-icon {
+    display: none;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-dashboard > :where(
+      .admin-home-dashboard,
+      .admin-launcher-grid,
+      .admin-management-panel,
+      .admin-access-denied
+    ),
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-portals-surface,
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-portal-layout > .admin-portal-main > .admin-access-denied {
+    padding:
+      18px
+      max(14px, env(safe-area-inset-right))
+      max(34px, env(safe-area-inset-bottom))
+      max(14px, env(safe-area-inset-left));
+    scrollbar-gutter: auto;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+      .admin-panel-heading,
+      .admin-events-heading,
+      .admin-links-heading,
+      .admin-settings-heading,
+      .admin-media-heading,
+      .admin-sticky-heading
+    ) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+      .admin-panel-heading,
+      .admin-events-heading,
+      .admin-links-heading,
+      .admin-settings-heading,
+      .admin-media-heading
+    ) h2 {
+    font-size: 1.55rem;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+      .admin-panel-heading,
+      .admin-events-heading,
+      .admin-links-heading,
+      .admin-media-heading
+    ) .admin-primary-button {
+    width: 100%;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-kpis,
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-action-grid,
+  body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+      .admin-feature-grid,
+      .admin-module-grid,
+      .admin-settings-grid
+    ) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-kpis {
+    gap: 9px;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-kpis article {
+    min-height: 96px;
+    grid-template-columns: 42px minmax(0, 1fr);
+    padding: 14px;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-kpi-icon {
+    width: 42px;
+    height: 42px;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-grid {
+    gap: 10px;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+      .admin-home-chart-card,
+      .admin-home-units-card,
+      .admin-home-actions
+    ) {
+    padding: 16px;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-bars {
+    min-height: 190px;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-bar-row {
+    grid-template-columns: 112px minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+      .admin-filters,
+      .admin-management-filters,
+      .admin-content-filters,
+      .admin-media-filters,
+      .admin-short-links-filters,
+      .admin-events-filters,
+      .admin-form-grid
+    ) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] :where(.admin-tabs, .admin-segmented) {
+    width: calc(100% + 28px);
+    margin-inline: -14px;
+    overflow-x: auto;
+    padding-inline: 14px;
+    scrollbar-width: none;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] :where(.admin-tabs, .admin-segmented)::-webkit-scrollbar {
+    display: none;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] :where(.admin-tabs, .admin-segmented) button {
+    flex: 0 0 auto;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-messages-layout {
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border: 0;
+    border-bottom: 1px solid var(--workspace-line);
+    padding: 0 0 10px;
+    background: transparent;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-list-panel {
+    min-height: 260px;
+    overflow: visible;
+    border: 1px solid var(--workspace-line);
+    border-radius: 8px;
+    background: #fff;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-detail {
+    min-height: 220px;
+    margin-top: 10px;
+    border: 1px solid var(--workspace-line);
+    border-radius: 8px;
+    background: #fff;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-row-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: stretch;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-row-actions button {
+    width: 100%;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-editor-dialog {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    margin: 0;
+    border-radius: 0;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-dialog-shell {
+    min-height: 100%;
+    border-radius: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-admin-design="workspace"][data-admin-shell="erp"] *,
+  body[data-admin-design="workspace"][data-admin-shell="erp"] *::before,
+  body[data-admin-design="workspace"][data-admin-shell="erp"] *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

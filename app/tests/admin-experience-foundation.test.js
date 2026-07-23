@@ -58,6 +58,31 @@ test("CSS administrativo contem drawer mobile, ajuda e reduced motion", () => {
   assert.doesNotMatch(shell, /data-admin-content-loader|Carregando área/);
 });
 
+test("novo workspace visual permanece isolado da Central e responsivo", () => {
+  const home = fs.readFileSync("public/admin/index.html", "utf8");
+  const portals = fs.readFileSync("public/admin/portais/index.html", "utf8");
+  const roomService = fs.readFileSync("public/admin/room-service/index.html", "utf8");
+  const shell = fs.readFileSync("public/js/modules/admin/shared/admin-auth-view.js", "utf8");
+  const css = fs.readFileSync("public/css/modules/admin/admin-workspace.css", "utf8");
+
+  for (const html of [home, portals]) {
+    assert.match(html, /admin-workspace\.css/);
+    assert.match(html, /data-admin-design="workspace"/);
+  }
+  assert.doesNotMatch(roomService, /admin-workspace\.css|data-admin-design="workspace"/);
+  assert.match(css, /--workspace-sidebar: #18312c/);
+  assert.match(css, /grid-template-columns: 272px minmax\(0, 1fr\)/);
+  assert.match(css, /admin-nav-group/);
+  assert.match(css, /@media \(max-width: 980px\)/);
+  assert.match(css, /prefers-reduced-motion: reduce/);
+  assert.match(shell, /admin-brand-copy/);
+  assert.match(shell, /Visão geral/);
+  assert.match(shell, /Experiências/);
+  assert.match(shell, /Colaboração/);
+  assert.match(shell, /Administração/);
+  assert.match(shell, /syncAdminShellContext/);
+});
+
 test("Central Administrativa usa a linguagem visual do ERP sem modulos de fachada", () => {
   const home = fs.readFileSync("public/admin/index.html", "utf8");
   const portals = fs.readFileSync("public/admin/portais/index.html", "utf8");
