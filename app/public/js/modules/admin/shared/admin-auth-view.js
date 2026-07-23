@@ -280,6 +280,7 @@ function enhanceAdminExperience(session) {
           <button class="admin-shell-toggle admin-shell-toggle-sidebar" type="button" data-admin-shell-toggle aria-label="Recolher menu" title="Recolher menu">${icon("menu")}</button>
           <a class="admin-brand-lockup" href="/admin/" aria-label="Ir para o início da Central Administrativa">
             <span class="admin-brand-wordmark"><img src="${ADMIN_LOGO_URL}" alt="Fioreze Hotéis" loading="eager" decoding="async"></span>
+            <span class="admin-brand-copy"><strong>Central</strong><small>Administrativa</small></span>
           </a>
         </div>
         ${renderGlobalNav(session, section)}
@@ -544,23 +545,41 @@ async function updateMessageBadge(dashboard) {
 
 function renderGlobalNav(session, section) {
   const items = [
-    ["home", "Início", "/admin/", "home", true],
-    ["portals", "Portais", "/admin/portais/", "portal", canAccessPortals(session)],
-    ["portals", "Unidades", "/admin/portais/unidades/", "units", canAccessUnits(session)],
-    ["portals", "Mídia", "/admin/portais/media/", "image", canAccessMediaLibrary(session)],
-    ["portals", "Links", "/admin/portais/links/", "link", canAccessLinks(session)],
-    ["messages", "Mensagens", "/admin/mensagens/", "mail", true],
-    ["settings", "Configurações", "/admin/configuracoes/", "settings", true],
+    ["home", "Início", "/admin/", "home", true, "Visão geral"],
+    ["portals", "Portais", "/admin/portais/", "portal", canAccessPortals(session), "Experiências"],
+    ["portals", "Unidades", "/admin/portais/unidades/", "units", canAccessUnits(session), "Experiências"],
+    ["portals", "Mídia", "/admin/portais/media/", "image", canAccessMediaLibrary(session), "Experiências"],
+    ["portals", "Links e QR Codes", "/admin/portais/links/", "link", canAccessLinks(session), "Experiências"],
+    ["messages", "Mensagens", "/admin/mensagens/", "mail", true, "Colaboração"],
+    ["settings", "Configurações", "/admin/configuracoes/", "settings", true, "Administração"],
   ];
   const activeHref = items
     .filter(([, , href, , enabled]) => enabled && isActive(href, section))
     .map(([, , href]) => href)
     .sort((left, right) => right.length - left.length)[0];
-  return `<nav class="admin-global-nav">${items
-    .map(([area, label, href, iconName, enabled]) =>
-      enabled
-        ? `<a href="${href}" ${href === activeHref ? 'aria-current="page"' : ""}>${icon(iconName)}<span>${label}</span></a>`
-        : `<span aria-disabled="true">${icon(iconName)}<span>${label}</span></span>`,
+  const groups = [];
+  for (const item of items) {
+    const groupLabel = item[5];
+    let group = groups.find(([label]) => label === groupLabel);
+    if (!group) {
+      group = [groupLabel, []];
+      groups.push(group);
+    }
+    group[1].push(item);
+  }
+  return `<nav class="admin-global-nav" aria-label="Áreas administrativas">${groups
+    .map(
+      ([groupLabel, groupItems]) => `
+        <div class="admin-nav-group">
+          <p>${escapeHtml(groupLabel)}</p>
+          <div>${groupItems
+            .map(([, label, href, iconName, enabled]) =>
+              enabled
+                ? `<a href="${href}" ${href === activeHref ? 'aria-current="page"' : ""}>${icon(iconName)}<span>${label}</span></a>`
+                : `<span aria-disabled="true">${icon(iconName)}<span>${label}</span></span>`,
+            )
+            .join("")}</div>
+        </div>`,
     )
     .join("")}</nav>`;
 }
@@ -578,6 +597,27 @@ export function syncAdminNavigationActiveState(root = document) {
     if (link === active) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
   }
+  syncAdminShellContext(root);
+}
+
+function syncAdminShellContext(root) {
+  const section = document.body.dataset.adminSection || "home";
+  const help = HELP_CONTENT[section] || {
+    title: "Ajuda desta página",
+    body: "Encontre aqui orientações simples para esta área.",
+    examples: [],
+  };
+  for (const kicker of root.querySelectorAll(".admin-page-kicker")) {
+    kicker.textContent = adminArea(section);
+  }
+  const drawer = root.querySelector("[data-admin-help]");
+  if (!drawer) return;
+  const title = drawer.querySelector(":scope > div > strong");
+  const body = drawer.querySelector(":scope > p");
+  const examples = drawer.querySelector(":scope > ul");
+  if (title) title.textContent = help.title;
+  if (body) body.textContent = help.body;
+  if (examples) examples.innerHTML = help.examples.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
 }
 
 function isActive(href, section) {

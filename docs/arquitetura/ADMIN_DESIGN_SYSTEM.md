@@ -7,7 +7,7 @@ O Ecossistema Fioreze possui dois produtos administrativos compartilhados:
 - `/admin/`: Central Administrativa para unidades, portais, equipe e governanca;
 - `/erp/room-service/`: ERP operacional do Room Service.
 
-A Central e o ERP usam a mesma linguagem visual, mas mantem navegacao, usuarios e responsabilidades proprias. A rota antiga `/admin/room-service/*` permanece como redirecionamento de compatibilidade para o ERP oficial.
+A Central e o ERP usam a mesma linguagem visual, mas mantem navegacao, usuarios e responsabilidades proprias. A Central aplica seu workspace por `data-admin-design="workspace"` e pela folha `admin-workspace.css`; o ERP operacional fica fora desse escopo. A rota antiga `/admin/room-service/*` permanece como redirecionamento de compatibilidade para o ERP oficial.
 
 ## Identidade
 
@@ -17,13 +17,25 @@ A cor institucional permanece como paleta inicial. O menu da sessao permite que 
 
 ## Tokens
 
-- Fundo neutro `#F7F5F2`;
+- Fundo neutro `#F3F5F2`;
 - Superficie branca `#FFFFFF`;
 - Destaque institucional `#513B2D`;
+- Navegacao estrutural verde escuro `#18312C`;
 - Sucesso verde, atencao dourada e erro vermelho;
 - Bordas discretas e cantos de ate 8px;
 - Icones SVG locais, sem CDN;
 - Movimento curto, respeitando `prefers-reduced-motion`.
+
+## Workspace da Central
+
+- Sidebar de `272px` no desktop e `76px` quando recolhida;
+- Drawer de ate `310px` no mobile, com fundo de contexto;
+- Topbar de `76px` no desktop e `64px` no mobile;
+- Navegacao agrupada em Visao geral, Experiencias, Colaboracao e Administracao;
+- Uma unica area ativa por rota, inclusive durante navegacao sem recarregar a pagina;
+- Conteudo com rolagem independente, sem overflow horizontal;
+- Dashboard operacional com indicadores, visao de acesso, unidades e atalhos;
+- Filtros, listas, formularios, estados vazios e dialogos com a mesma hierarquia visual.
 
 ## Componentes Compartilhados
 
