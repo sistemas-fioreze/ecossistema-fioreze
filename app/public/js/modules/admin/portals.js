@@ -363,6 +363,8 @@ creatorDesktopMedia.addEventListener("change", () => {
 });
 
 auth.boot();
+document.addEventListener("click", handlePortalNavigation);
+window.addEventListener("popstate", handlePortalHistory);
 
 window.addEventListener("fioreze:admin-refresh", (event) => {
   if (!currentSession) return;
@@ -380,6 +382,60 @@ function refreshCurrentPortalRoute() {
   if (isAuditRoute()) return loadAudit();
   if (isUnitsRoute()) return currentUnit?.hotel_id ? openExistingUnit(currentUnit.hotel_id) : loadUnits();
   return renderHome(currentSession);
+}
+
+function handlePortalNavigation(event) {
+  const link = event.target.closest('a[href^="/admin/portais/"]');
+  if (
+    !link ||
+    !currentSession ||
+    event.defaultPrevented ||
+    event.button !== 0 ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey ||
+    link.target ||
+    link.hasAttribute("download")
+  ) {
+    return;
+  }
+  const target = new URL(link.href, window.location.origin);
+  if (target.origin !== window.location.origin || !isPortalsShellPath(target.pathname)) return;
+  event.preventDefault();
+  navigatePortalRoute(`${target.pathname}${target.search}${target.hash}`);
+}
+
+function handlePortalHistory() {
+  if (!currentSession || (!isPortalsShellPath(window.location.pathname) && !isCreatorRoute())) return;
+  visualPortalBuilder.dismiss();
+  closeShortLinkEditor();
+  closePortalsDialog();
+  renderPortals(currentSession);
+  scrollPortalSurfaceToTop();
+}
+
+function navigatePortalRoute(path) {
+  const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  if (current === path) return;
+  visualPortalBuilder.dismiss();
+  closeShortLinkEditor();
+  closePortalsDialog();
+  window.history.pushState({}, "", path);
+  renderPortals(currentSession);
+  scrollPortalSurfaceToTop();
+}
+
+function scrollPortalSurfaceToTop() {
+  document.querySelector(".admin-portals-surface")?.scrollTo({ top: 0, behavior: "auto" });
+  const dashboard = document.querySelector('[data-view="dashboard"]');
+  dashboard?.classList.remove("is-menu-open");
+  const backdrop = dashboard?.querySelector("[data-admin-backdrop]");
+  if (backdrop) backdrop.hidden = true;
+}
+
+function isPortalsShellPath(pathname) {
+  return pathname === "/admin/portais" || pathname.startsWith("/admin/portais/");
 }
 
 function renderPortals(session) {
@@ -446,10 +502,15 @@ function renderNav(session) {
   els.portalsNav.innerHTML = items
     .map(([label, href, enabled]) =>
       enabled
-        ? `<a href="${href}" ${window.location.pathname.startsWith(href) ? 'aria-current="page"' : ""}>${label}</a>`
+        ? `<a href="${href}" ${portalNavIsCurrent(href) ? 'aria-current="page"' : ""}>${label}</a>`
         : `<span aria-disabled="true">${label}</span>`,
     )
     .join("");
+}
+
+function portalNavIsCurrent(href) {
+  if (href === "/admin/portais/") return window.location.pathname === href;
+  return window.location.pathname.startsWith(href);
 }
 
 function renderHome(session) {
@@ -504,8 +565,7 @@ function showUnitsList() {
 
 async function loadUnits() {
   if (!canAccessUnits(currentSession)) return;
-  els.unitsMessage.textContent = "Carregando unidades...";
-  els.unitsList.innerHTML = "";
+  setSectionBusy(els.unitsManager, true);
   const params = new URLSearchParams({ sort: "name" });
   if (els.unitSearch.value.trim()) params.set("q", els.unitSearch.value.trim());
   if (els.unitStatus.value) params.set("status", els.unitStatus.value);
@@ -516,6 +576,8 @@ async function loadUnits() {
     renderUnitsList();
   } catch (error) {
     els.unitsMessage.textContent = error.message || "Não foi possível carregar unidades.";
+  } finally {
+    setSectionBusy(els.unitsManager, false);
   }
 }
 
@@ -577,7 +639,7 @@ function openNewUnit() {
 async function openExistingUnit(hotelId) {
   els.unitsListView.hidden = true;
   els.unitEditorView.hidden = false;
-  els.unitEditorTitle.textContent = "Carregando unidade...";
+  setSectionBusy(els.unitsManager, true);
   try {
     const [hotel, embed] = await Promise.all([
       adminApi(`/api/v1/admin/hotels/${encodeURIComponent(hotelId)}`),
@@ -593,6 +655,8 @@ async function openExistingUnit(hotelId) {
     renderUnitEditor();
   } catch (error) {
     els.unitEditorForm.innerHTML = `<div class="admin-empty">${escapeHtml(error.message || "Unidade indisponível.")}</div>`;
+  } finally {
+    setSectionBusy(els.unitsManager, false);
   }
 }
 
@@ -1116,8 +1180,7 @@ function populateShortLinksHotelSelect(session) {
 
 async function loadShortLinks() {
   if (!currentSession || !canAccessLinks(currentSession) || !els.shortLinksHotel.value) return;
-  els.shortLinksMessage.textContent = "Carregando links...";
-  els.shortLinksList.innerHTML = "";
+  setSectionBusy(els.shortLinksManager, true);
   const params = new URLSearchParams({
     hotel_id: els.shortLinksHotel.value,
     sort: els.shortLinksSort.value || "created",
@@ -1138,6 +1201,8 @@ async function loadShortLinks() {
     els.shortLinksSummary.innerHTML = "";
     els.shortLinksList.innerHTML = "";
     els.shortLinksMessage.textContent = error.message || "Não foi possível carregar os links.";
+  } finally {
+    setSectionBusy(els.shortLinksManager, false);
   }
 }
 
@@ -1175,7 +1240,7 @@ function renderShortLinkRow(link) {
         <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.2 1.2"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.2-1.2"/></svg>
       </span>
       <div class="admin-link-card-copy">
-        <div><strong>${escapeHtml(link.internal_name)}</strong><span class="admin-status" data-status="${escapeAttr(link.status)}">${escapeHtml(shortLinkStatus(link.status))}</span><span class="admin-link-access-badge" data-access="${escapeAttr(link.access_level)}">${canManage ? "Criado por você" : "Compartilhado com você"}</span></div>
+        <div class="admin-link-card-heading"><strong>${escapeHtml(link.internal_name)}</strong><span class="admin-status" data-status="${escapeAttr(link.status)}">${escapeHtml(shortLinkStatus(link.status))}</span><span class="admin-link-access-badge" data-access="${escapeAttr(link.access_level)}">${canManage ? "Criado por você" : "Compartilhado com você"}</span></div>
         <a href="${escapeAttr(link.public_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(link.public_url)}</a>
         <small>Destino: ${escapeHtml(link.destination_summary || link.destination_scheme)}</small>
       </div>
@@ -1184,21 +1249,36 @@ function renderShortLinkRow(link) {
         <span>${link.last_clicked_at ? `Último acesso ${escapeHtml(formatDate(link.last_clicked_at, link.hotel_timezone))}` : "Ainda sem acessos"}</span>
         <small>${escapeHtml(link.hotel_name || link.hotel_id)}</small>
       </div>
-      <div class="admin-row-actions">
-        <button type="button" data-link-action="edit" data-link-id="${escapeAttr(link.id)}">${canManage ? "Abrir" : "Visualizar"}</button>
-        <button type="button" data-link-action="copy" data-link-id="${escapeAttr(link.id)}">Copiar</button>
-        <button type="button" data-link-action="qr" data-link-id="${escapeAttr(link.id)}">QR Code</button>
-        ${canUpdate ? `<button type="button" data-link-action="share" data-link-id="${escapeAttr(link.id)}">Compartilhar</button>` : ""}
-        ${canUpdate ? `<button type="button" data-link-action="toggle" data-link-id="${escapeAttr(link.id)}">${link.status === "active" ? "Pausar" : "Reativar"}</button>` : ""}
-        ${canArchive ? `<button class="danger" type="button" data-link-action="archive" data-link-id="${escapeAttr(link.id)}">Arquivar</button>` : ""}
-        ${canDelete ? `<button class="danger" type="button" data-link-action="delete" data-link-id="${escapeAttr(link.id)}">Excluir</button>` : ""}
+      <div class="admin-row-actions admin-link-card-actions">
+        ${shortLinkActionButton("edit", link.id, canManage ? "Abrir" : "Visualizar")}
+        ${shortLinkActionButton("copy", link.id, "Copiar")}
+        ${shortLinkActionButton("qr", link.id, "QR Code")}
+        ${canUpdate ? shortLinkActionButton("share", link.id, "Compartilhar") : ""}
+        ${canUpdate ? shortLinkActionButton("toggle", link.id, link.status === "active" ? "Pausar" : "Reativar", link.status === "active" ? "pause" : "play") : ""}
+        ${canArchive ? shortLinkActionButton("archive", link.id, "Arquivar", "archive", true) : ""}
+        ${canDelete ? shortLinkActionButton("delete", link.id, "Excluir", "delete", true) : ""}
       </div>
     </article>
   `;
 }
 
+function shortLinkActionButton(action, linkId, label, icon = action, danger = false) {
+  const paths = {
+    edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13 7 4 4"/>',
+    copy: '<rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>',
+    qr: '<path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM15 14h2v2h-2zM18 14h2v4h-2zM14 18h4v2h-4z"/>',
+    share: '<circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="m8.2 10.8 7.6-4.5M8.2 13.2l7.6 4.5"/>',
+    pause: '<path d="M8 5v14M16 5v14"/>',
+    play: '<path d="m8 5 11 7-11 7z"/>',
+    archive: '<path d="M4 7h16v13H4zM3 4h18v3H3zM9 11h6"/>',
+    delete: '<path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/>',
+  };
+  return `<button class="${danger ? "danger" : ""}" type="button" data-link-action="${escapeAttr(action)}" data-link-id="${escapeAttr(linkId)}"><svg aria-hidden="true" viewBox="0 0 24 24">${paths[icon] || paths.edit}</svg><span>${escapeHtml(label)}</span></button>`;
+}
+
 function openShortLinkEditor(link = null, defaults = {}) {
   currentShortLink = link;
+  document.documentElement.classList.add("short-link-editor-open");
   els.shortLinksEditor.hidden = false;
   const canManage = !link || link.can_manage === true;
   els.shortLinksEditorTitle.textContent = link ? (canManage ? "Editar link personalizado" : "Detalhes do link compartilhado") : "Novo link personalizado";
@@ -1223,10 +1303,12 @@ function openShortLinkEditor(link = null, defaults = {}) {
   updateShortLinkPreview();
   if (link && hasPermission(currentSession, PORTALS_LINKS_ANALYTICS_PERMISSION)) loadShortLinkAnalytics(link.id);
   if (link && canManage && hasPermission(currentSession, PORTALS_LINKS_UPDATE_PERMISSION)) loadShortLinkShares(link.id);
+  window.requestAnimationFrame(() => els.shortLinksEditor.scrollTo({ top: 0, behavior: "auto" }));
 }
 
 function closeShortLinkEditor() {
   currentShortLink = null;
+  document.documentElement.classList.remove("short-link-editor-open");
   els.shortLinksEditor.hidden = true;
   els.shortLinksForm.reset();
   els.shortLinksPreview.textContent = "";
@@ -1506,7 +1588,7 @@ function populateHotelSelect(session) {
 async function loadMediaLibrary() {
   if (!currentSession || !canAccessMediaLibrary(currentSession) || !els.mediaHotel.value) return;
   els.mediaError.textContent = "";
-  els.mediaGrid.innerHTML = '<div class="admin-empty">Carregando arquivos...</div>';
+  setSectionBusy(els.mediaLibrary, true);
   const params = new URLSearchParams({
     hotel_id: els.mediaHotel.value,
     status: els.mediaStatus.value,
@@ -1535,6 +1617,8 @@ async function loadMediaLibrary() {
     currentFolders = [];
     els.mediaGrid.innerHTML = "";
     els.mediaError.textContent = error.message || "Não foi possível carregar a biblioteca.";
+  } finally {
+    setSectionBusy(els.mediaLibrary, false);
   }
 }
 
@@ -2329,8 +2413,7 @@ function renderEventsManager(session) {
 async function loadEventsManager() {
   const hotelId = els.eventsHotel.value;
   if (!hotelId) return;
-  els.eventsMessage.textContent = "Carregando eventos...";
-  els.eventsList.innerHTML = "";
+  setSectionBusy(els.eventsManager, true);
   try {
     const payload = await adminApi(`/api/v1/admin/portal/content?hotel_id=${encodeURIComponent(hotelId)}`);
     currentEvents = payload.data.events || [];
@@ -2340,6 +2423,8 @@ async function loadEventsManager() {
     currentEvents = [];
     els.eventsSummary.innerHTML = "";
     els.eventsMessage.textContent = error.message || "Não foi possível carregar os eventos.";
+  } finally {
+    setSectionBusy(els.eventsManager, false);
   }
 }
 
@@ -2485,7 +2570,7 @@ function renderContentManager(session) {
 
 async function loadPortalContent() {
   if (!els.contentHotel.value) return;
-  els.contentMessage.textContent = "Carregando conteúdos...";
+  setSectionBusy(els.contentManager, true);
   try {
     const hotelId = encodeURIComponent(els.contentHotel.value);
     const visualPortalsPayload = await adminApi(`/api/v1/admin/visual-portals?hotel_id=${hotelId}`);
@@ -2493,6 +2578,8 @@ async function loadPortalContent() {
     renderContentList();
   } catch (error) {
     els.contentMessage.textContent = error.message || "Não foi possível carregar os conteúdos.";
+  } finally {
+    setSectionBusy(els.contentManager, false);
   }
 }
 
@@ -2861,7 +2948,7 @@ function renderAreasManager(session) {
 
 async function loadDedicatedAreas() {
   if (!els.areasHotel.value) return;
-  els.areasMessage.textContent = "Carregando áreas...";
+  setSectionBusy(els.areasManager, true);
   try {
     const payload = await adminApi(`/api/v1/admin/hotels/${encodeURIComponent(els.areasHotel.value)}/modules`);
     dedicatedModules = payload.data.modules || [];
@@ -2870,6 +2957,8 @@ async function loadDedicatedAreas() {
     els.areasList.innerHTML = dedicatedModules.map(renderAreaCard).join("");
   } catch (error) {
     els.areasMessage.textContent = error.message || "Não foi possível carregar as áreas.";
+  } finally {
+    setSectionBusy(els.areasManager, false);
   }
 }
 
@@ -2950,7 +3039,7 @@ function renderNavigationManager(session) {
 
 async function loadDedicatedNavigation() {
   if (!els.navigationHotel.value) return;
-  els.navigationMessage.textContent = "Carregando navegação...";
+  setSectionBusy(els.navigationManager, true);
   try {
     const [navigation, modules] = await Promise.all([
       adminApi(`/api/v1/admin/hotels/${encodeURIComponent(els.navigationHotel.value)}/navigation`),
@@ -2962,6 +3051,8 @@ async function loadDedicatedNavigation() {
     els.navigationList.innerHTML = dedicatedNavigation.map((item) => `<article class="admin-data-row admin-content-row"><span class="admin-role-icon">${featureSvg("navigation")}</span><div class="admin-row-copy"><strong>${escapeHtml(item.label)}</strong><span>${escapeHtml(item.path)}</span><small>${escapeHtml(item.module_key)} · ordem ${Number(item.sort_order || 0)}</small></div><span class="admin-status-chip" data-status="${item.enabled ? "active" : "disabled"}">${item.enabled ? "Visível" : "Oculto"}</span><div class="admin-row-actions"><button type="button" data-navigation-action="edit" data-id="${escapeAttr(item.id)}">Editar</button><button type="button" data-navigation-action="archive" data-id="${escapeAttr(item.id)}">Ocultar</button></div></article>`).join("") || '<p class="admin-empty">Nenhum item de navegação cadastrado.</p>';
   } catch (error) {
     els.navigationMessage.textContent = error.message || "Não foi possível carregar a navegação.";
+  } finally {
+    setSectionBusy(els.navigationManager, false);
   }
 }
 
@@ -3021,7 +3112,7 @@ async function loadAudit() {
   const params = new URLSearchParams({ limit: "150" });
   if (els.auditHotel.value) params.set("hotel_id", els.auditHotel.value);
   if (els.auditAction.value.trim()) params.set("action", els.auditAction.value.trim());
-  els.auditMessage.textContent = "Carregando auditoria...";
+  setSectionBusy(els.auditManager, true);
   try {
     const payload = await adminApi(`/api/v1/admin/audit?${params}`);
     const entries = payload.data.entries || [];
@@ -3029,7 +3120,15 @@ async function loadAudit() {
     els.auditList.innerHTML = entries.map((entry) => `<article class="admin-data-row admin-audit-row"><span class="admin-role-icon">${featureSvg("history")}</span><div class="admin-row-copy"><strong>${escapeHtml(auditActionLabel(entry.action))}</strong><span>${escapeHtml(entry.actor_name)} · ${escapeHtml(entry.hotel_id || "Administração geral")}</span><small>${escapeHtml(entry.entity_type || "registro")} · ${escapeHtml(formatDate(entry.created_at))}</small></div><code>${escapeHtml(entry.action)}</code></article>`).join("") || '<p class="admin-empty">Nenhuma alteração encontrada.</p>';
   } catch (error) {
     els.auditMessage.textContent = error.message || "Não foi possível carregar a auditoria.";
+  } finally {
+    setSectionBusy(els.auditManager, false);
   }
+}
+
+function setSectionBusy(section, busy) {
+  if (!section) return;
+  section.toggleAttribute("aria-busy", busy);
+  section.classList.toggle("is-refreshing", busy);
 }
 
 function showPortalSection(active) {
@@ -3178,12 +3277,7 @@ function creatorRouteUrl(portalId, pageId = "") {
 }
 
 function renderTabTransition(render) {
-  const dashboard = document.querySelector('[data-view="dashboard"]');
-  dashboard?.dispatchEvent(new CustomEvent("fioreze:admin-content-loading", { detail: { loading: true } }));
-  window.setTimeout(() => {
-    render();
-    dashboard?.dispatchEvent(new CustomEvent("fioreze:admin-content-loading", { detail: { loading: false } }));
-  }, 120);
+  render();
 }
 
 function isMediaRoute() {

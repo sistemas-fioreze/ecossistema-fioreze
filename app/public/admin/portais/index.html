@@ -186,8 +186,8 @@
               <label>
                 <span>Ordenar</span>
                 <select id="shortLinksSort" name="sort">
-                  <option value="created">Criacao</option>
-                  <option value="updated">Atualizacao</option>
+                  <option value="created">Criação</option>
+                  <option value="updated">Atualização</option>
                   <option value="clicks">Cliques</option>
                 </select>
               </label>
@@ -195,11 +195,11 @@
                 <span>Busca</span>
                 <input id="shortLinksSearch" name="q" type="search" placeholder="nome interno, slug ou notas">
               </label>
-              <button type="submit">Filtrar</button>
+              <button class="admin-links-filter-button" type="submit">Filtrar</button>
             </form>
 
             <p id="shortLinksMessage" class="admin-muted" role="status" aria-live="polite"></p>
-            <div id="shortLinksSummary" class="admin-short-links-summary"></div>
+            <div id="shortLinksSummary" class="admin-short-links-summary" aria-label="Resumo dos links"></div>
 
             <div id="shortLinksEditor" class="admin-short-links-editor admin-link-workspace" hidden>
               <div class="admin-panel-heading">
@@ -207,7 +207,7 @@
                   <h3 id="shortLinksEditorTitle">Novo link personalizado</h3>
                   <p class="admin-muted">O slug não muda depois da criação. Altere o destino para reapontar campanhas futuras.</p>
                 </div>
-                <button id="cancelShortLinkButton" type="button">Fechar</button>
+                <button id="cancelShortLinkButton" class="admin-link-editor-close" type="button">Fechar</button>
               </div>
               <form id="shortLinksForm" class="admin-short-links-form admin-link-editor-form">
                 <input name="hotel_id" type="hidden">

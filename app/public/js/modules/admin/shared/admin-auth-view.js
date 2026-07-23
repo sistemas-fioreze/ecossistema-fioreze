@@ -156,7 +156,6 @@ export function createAdminAuthView({ onAuthenticated, onLoggedOut = () => {} })
     showView("dashboard");
     enhanceAdminExperience(session);
     synchronizeAdminExperience(session);
-    setDashboardLoading(false);
     await onAuthenticated(session);
   }
 
@@ -208,13 +207,6 @@ export function createAdminAuthView({ onAuthenticated, onLoggedOut = () => {} })
     if (turnstileEnabled && turnstileWidgetId !== null && window.turnstile?.reset) {
       window.turnstile.reset(turnstileWidgetId);
     }
-  }
-
-  function setDashboardLoading(loading) {
-    els.dashboardView.dispatchEvent(new CustomEvent("fioreze:admin-content-loading", {
-      bubbles: true,
-      detail: { loading },
-    }));
   }
 
   function showView(view) {
@@ -293,9 +285,6 @@ function enhanceAdminExperience(session) {
         ${renderGlobalNav(session, section)}
       </aside>
       <div class="admin-mobile-backdrop" data-admin-backdrop hidden></div>
-      <div class="admin-content-loader" data-admin-content-loader hidden aria-live="polite" aria-busy="true">
-        <div><span class="admin-modern-spinner" aria-hidden="true"></span><strong>Carregando área...</strong></div>
-      </div>
       <aside class="admin-help-drawer" data-admin-help hidden aria-label="Ajuda desta página">
         <div>
           <strong>${escapeHtml(HELP_CONTENT[section]?.title || "Ajuda desta página")}</strong>
@@ -354,11 +343,6 @@ function enhanceAdminExperience(session) {
     if (paletteButton) void savePalettePreference(paletteButton.dataset.adminPalette, session, sessionBox);
     if (!event.target.closest(".admin-session-box")) setSessionOpen(false);
   });
-  dashboard.addEventListener("click", (event) => {
-    const link = event.target.closest('a[href^="/admin/"]');
-    if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    if (new URL(link.href, window.location.origin).pathname !== window.location.pathname) setContentLoading(true);
-  });
   dashboard.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       setMenuOpen(false);
@@ -366,10 +350,6 @@ function enhanceAdminExperience(session) {
       setSessionOpen(false);
     }
   });
-  dashboard.addEventListener("fioreze:admin-content-loading", (event) => {
-    setContentLoading(Boolean(event.detail?.loading));
-  });
-
   function setMenuOpen(open) {
     dashboard.classList.toggle("is-menu-open", open);
     const backdrop = dashboard.querySelector("[data-admin-backdrop]");
@@ -407,13 +387,11 @@ function enhanceAdminExperience(session) {
   }
 
   function requestContentRefresh() {
-    setContentLoading(true);
     let finished = false;
     const complete = () => {
       if (finished) return;
       finished = true;
       window.clearTimeout(fallbackTimer);
-      setContentLoading(false);
     };
     const fallbackTimer = window.setTimeout(complete, 12000);
     const refreshEvent = new CustomEvent("fioreze:admin-refresh", {
@@ -423,13 +401,6 @@ function enhanceAdminExperience(session) {
     });
     dashboard.dispatchEvent(refreshEvent);
     if (!refreshEvent.defaultPrevented) window.location.reload();
-  }
-
-  function setContentLoading(loading) {
-    const loader = dashboard.querySelector("[data-admin-content-loader]");
-    if (!loader) return;
-    loader.hidden = !loading;
-    loader.setAttribute("aria-busy", String(loading));
   }
 }
 
