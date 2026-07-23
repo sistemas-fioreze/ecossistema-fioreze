@@ -24,7 +24,8 @@ const els = {
 
 export async function renderMessagesManager() {
   initialize();
-  els.status.textContent = "Carregando mensagens...";
+  state.pendingRecipientId ||= new URLSearchParams(window.location.search).get("to") || "";
+  els.manager?.setAttribute("aria-busy", "true");
   try {
     const [messagesPayload, recipientsPayload] = await Promise.all([
       adminApi(`/api/v1/admin/messages?box=${state.box}`),
@@ -44,6 +45,8 @@ export async function renderMessagesManager() {
   } catch (error) {
     els.status.textContent = error.message || "Não foi possível carregar as mensagens.";
     els.list.innerHTML = "";
+  } finally {
+    els.manager?.removeAttribute("aria-busy");
   }
 }
 

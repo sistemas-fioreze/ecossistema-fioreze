@@ -1078,7 +1078,7 @@ export function createVisualPortalBuilder({
 
   async function loadMediaBrowser() {
     if (!state.mediaBrowseHotelId) return;
-    renderMediaMessage("Carregando arquivos...");
+    els.mediaDialog.setAttribute("aria-busy", "true");
     const folderParams = new URLSearchParams({ hotel_id: state.mediaBrowseHotelId });
     if (state.mediaFolderId) folderParams.set("parent_id", state.mediaFolderId);
     const mediaParams = new URLSearchParams({
@@ -1099,6 +1099,8 @@ export function createVisualPortalBuilder({
       renderMediaBrowser();
     } catch (error) {
       renderMediaMessage(error.message || "Não foi possível carregar os arquivos.", true);
+    } finally {
+      els.mediaDialog.removeAttribute("aria-busy");
     }
   }
 

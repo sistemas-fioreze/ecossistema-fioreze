@@ -49,7 +49,7 @@ export async function renderRolesManager(session) {
   state.session = session;
   initialize();
   els.addRoleButton.hidden = !hasPermission(session, PERMISSIONS.rolesCreate);
-  els.rolesSummary.textContent = "Carregando perfis...";
+  setManagerBusy(els.rolesList, true);
   try {
     const [rolesPayload, permissionsPayload] = await Promise.all([
       adminApi("/api/v1/admin/roles"),
@@ -61,6 +61,8 @@ export async function renderRolesManager(session) {
     els.rolesList.innerHTML = state.roles.map(renderRoleRow).join("") || empty("Nenhum perfil cadastrado.");
   } catch (error) {
     els.rolesSummary.textContent = error.message || "Não foi possível carregar os perfis.";
+  } finally {
+    setManagerBusy(els.rolesList, false);
   }
 }
 
@@ -94,7 +96,7 @@ async function loadUserDependencies() {
 }
 
 async function loadUsers() {
-  els.usersSummary.textContent = "Carregando usuários...";
+  setManagerBusy(els.usersList, true);
   const params = new URLSearchParams();
   if (els.usersSearch?.value.trim()) params.set("q", els.usersSearch.value.trim());
   if (els.usersStatus?.value) params.set("status", els.usersStatus.value);
@@ -105,7 +107,13 @@ async function loadUsers() {
     els.usersList.innerHTML = state.users.map(renderUserRow).join("") || empty("Nenhum usuário encontrado.");
   } catch (error) {
     els.usersSummary.textContent = error.message || "Não foi possível carregar os usuários.";
+  } finally {
+    setManagerBusy(els.usersList, false);
   }
+}
+
+function setManagerBusy(element, busy) {
+  element?.closest(".admin-management-panel")?.toggleAttribute("aria-busy", busy);
 }
 
 function renderUserRow(user) {
@@ -164,7 +172,8 @@ async function handleUserAction(event) {
   if (!user) return;
   const action = button.dataset.adminAction;
   if (action === "message-user") {
-    window.location.assign(`/admin/mensagens/?to=${encodeURIComponent(user.id)}`);
+    window.history.pushState({}, "", `/admin/mensagens/?to=${encodeURIComponent(user.id)}`);
+    window.dispatchEvent(new PopStateEvent("popstate"));
     return;
   }
   if (action === "edit-user") return openUserEditor(user);

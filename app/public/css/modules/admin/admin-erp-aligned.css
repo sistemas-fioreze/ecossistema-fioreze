@@ -3174,14 +3174,17 @@ body[data-admin-shell="erp"] .admin-link-share-list small {
 }
 
 /* Instant navigation keeps controls quiet while authenticated data refreshes. */
-body[data-admin-shell="erp"] .admin-tabs {
+body[data-admin-shell="erp"] :where(.admin-tabs, .admin-segmented, .admin-message-boxes) {
   align-items: center;
   gap: 6px 18px;
   border: 0;
+  border-radius: 0;
+  padding: 0;
   background: transparent;
+  box-shadow: none;
 }
 
-body[data-admin-shell="erp"] .admin-tabs button {
+body[data-admin-shell="erp"] :where(.admin-tabs, .admin-segmented, .admin-message-boxes) button {
   position: relative;
   border: 0;
   border-radius: 0;
@@ -3191,18 +3194,26 @@ body[data-admin-shell="erp"] .admin-tabs button {
   box-shadow: none;
 }
 
-body[data-admin-shell="erp"] .admin-tabs button:hover {
+body[data-admin-shell="erp"] :where(.admin-tabs, .admin-segmented, .admin-message-boxes) button:hover {
   background: transparent;
   color: var(--admin-text);
 }
 
-body[data-admin-shell="erp"] .admin-tabs button[aria-selected="true"] {
+body[data-admin-shell="erp"] :where(
+    .admin-tabs button[aria-selected="true"],
+    .admin-segmented button[aria-selected="true"],
+    .admin-message-boxes button[aria-pressed="true"]
+  ) {
   border: 0;
   background: transparent;
   color: var(--admin-primary);
 }
 
-body[data-admin-shell="erp"] .admin-tabs button[aria-selected="true"]::after {
+body[data-admin-shell="erp"] :where(
+    .admin-tabs button[aria-selected="true"],
+    .admin-segmented button[aria-selected="true"],
+    .admin-message-boxes button[aria-pressed="true"]
+  )::after {
   position: absolute;
   right: 0;
   bottom: -2px;
@@ -3226,6 +3237,15 @@ body[data-admin-shell="erp"] .admin-link-card-actions button {
   align-items: center;
   justify-content: center;
   gap: 6px;
+}
+
+body[data-admin-shell="erp"] .admin-link-card-actions button span {
+  display: inline;
+  min-width: 0;
+  height: auto;
+  overflow-wrap: anywhere;
+  background: transparent;
+  color: inherit;
 }
 
 body[data-admin-shell="erp"] .admin-link-card-actions button svg {

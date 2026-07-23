@@ -65,7 +65,7 @@ async function startDashboard() {
 
 async function loadOrders() {
   els.dashboardError.textContent = "";
-  els.ordersList.innerHTML = '<div class="admin-empty">Carregando pedidos...</div>';
+  els.ordersList.setAttribute("aria-busy", "true");
   const params = new URLSearchParams();
   if (els.hotelFilter.value) params.set("hotel_id", els.hotelFilter.value);
   if (els.statusFilter.value) params.set("status", els.statusFilter.value);
@@ -83,12 +83,14 @@ async function loadOrders() {
   } catch (error) {
     els.ordersList.innerHTML = '<div class="admin-empty">Não foi possível carregar pedidos.</div>';
     els.dashboardError.textContent = error.message || "Erro ao carregar pedidos.";
+  } finally {
+    els.ordersList.removeAttribute("aria-busy");
   }
 }
 
 async function loadOrderDetail(orderId) {
   state.selectedOrderId = orderId;
-  els.orderDetail.innerHTML = '<div class="admin-detail-empty">Carregando detalhes...</div>';
+  els.orderDetail.setAttribute("aria-busy", "true");
   renderOrders();
   try {
     const payload = await adminApi(`/api/v1/admin/orders/${encodeURIComponent(orderId)}`);
@@ -96,6 +98,8 @@ async function loadOrderDetail(orderId) {
     renderOrderDetail();
   } catch (error) {
     els.orderDetail.innerHTML = `<div class="admin-detail-empty">${escapeHtml(error.message || "Pedido não encontrado.")}</div>`;
+  } finally {
+    els.orderDetail.removeAttribute("aria-busy");
   }
 }
 
