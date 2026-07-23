@@ -48,12 +48,14 @@ test("design system administrativo documenta identidade e modulos ativos", () =>
 
 test("CSS administrativo contem drawer mobile, ajuda e reduced motion", () => {
   const css = `${fs.readFileSync("public/css/modules/admin/admin.css", "utf8")}\n${fs.readFileSync("public/css/modules/admin/admin-erp-aligned.css", "utf8")}`;
+  const shell = fs.readFileSync("public/js/modules/admin/shared/admin-auth-view.js", "utf8");
   assert.match(css, /admin-global-sidebar/);
   assert.match(css, /admin-mobile-menu/);
   assert.match(css, /admin-help-drawer/);
   assert.match(css, /prefers-reduced-motion/);
-  assert.match(css, /admin-content-loader[\s\S]*backdrop-filter: blur\(3px\)/);
   assert.ok((css.match(/backdrop-filter:/g) || []).length >= 3);
+  assert.doesNotMatch(css, /admin-content-loader/);
+  assert.doesNotMatch(shell, /data-admin-content-loader|Carregando área/);
 });
 
 test("Central Administrativa usa a linguagem visual do ERP sem modulos de fachada", () => {
@@ -100,6 +102,28 @@ test("interface de links diferencia propriedade e compartilhamento", () => {
   assert.match(source, /Compartilhado com você/);
   assert.match(source, /\/shares/);
   assert.match(source, /data-share-revoke/);
+});
+
+test("Central de Portais navega sem overlay e Links possui layout mobile dedicado", () => {
+  const source = fs.readFileSync("public/js/modules/admin/portals.js", "utf8");
+  const shell = fs.readFileSync("public/js/modules/admin/shared/admin-auth-view.js", "utf8");
+  const css = fs.readFileSync("public/css/modules/admin/admin-erp-aligned.css", "utf8");
+
+  assert.match(source, /handlePortalNavigation/);
+  assert.match(source, /window\.history\.pushState/);
+  assert.match(source, /window\.addEventListener\("popstate"/);
+  assert.match(source, /function renderTabTransition\(render\) \{\s*render\(\);\s*\}/);
+  assert.doesNotMatch(source, /Carregando links|Carregando eventos|Carregando conteúdos|Carregando unidades/);
+  assert.doesNotMatch(shell, /setContentLoading|fioreze:admin-content-loading/);
+  assert.match(css, /html\.short-link-editor-open/);
+  assert.match(css, /\.admin-short-links-editor[\s\S]*position: fixed/);
+  assert.match(css, /\.admin-link-card-actions[\s\S]*grid-template-columns: repeat\(2/);
+});
+
+test("abas administrativas usam conteúdo solto sem caixa ou fundo", () => {
+  const css = fs.readFileSync("public/css/modules/admin/admin-erp-aligned.css", "utf8");
+  assert.match(css, /body\[data-admin-shell="erp"\] \.admin-tabs button \{[\s\S]*border: 0[\s\S]*background: transparent/);
+  assert.match(css, /body\[data-admin-shell="erp"\] \.admin-tab-panel \{[\s\S]*border: 0[\s\S]*background: transparent/);
 });
 
 test("textos visiveis da Central preservam acentuacao em portugues", () => {
