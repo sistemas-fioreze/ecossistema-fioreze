@@ -62,6 +62,19 @@ test("GET /admin/portais/ entrega a Central de Portais", async () => {
   assert.equal(response.headers.has("location"), false);
 });
 
+test("GET /admin/creator/ entrega o construtor e preserva a query no redirect canonico", async () => {
+  const { fetch } = createWorkerTestContext();
+  const redirect = await fetch("/admin/creator?portal=portal_demo&page=inicio", { redirect: "manual" });
+  const shell = await fetch("/admin/creator/?portal=portal_demo&page=inicio", { redirect: "manual" });
+
+  assert.equal(redirect.status, 308);
+  assert.equal(new URL(redirect.headers.get("location")).pathname, "/admin/creator/");
+  assert.equal(new URL(redirect.headers.get("location")).search, "?portal=portal_demo&page=inicio");
+  assert.equal(shell.status, 200);
+  assert.match(await shell.text(), /Central de Portais Fioreze/);
+  assert.equal(shell.headers.has("location"), false);
+});
+
 test("rotas administrativas sem barra final redirecionam para caminho canonico", async () => {
   const { fetch } = createWorkerTestContext();
   const roomService = await fetch("/admin/room-service?x=1", { redirect: "manual" });
@@ -156,6 +169,7 @@ test("assets administrativos carregam fora do roteamento estatico de shells", as
     ["/js/modules/admin/admin.js", /javascript/],
     ["/js/modules/room-service-erp/app.js", /javascript/],
     ["/js/modules/admin/portals.js", /javascript/],
+    ["/js/modules/admin/shared/admin-select-picker.js", /javascript/],
     ["/css/modules/admin/admin.css", /text\/css/],
     ["/css/modules/admin/admin-erp-aligned.css", /text\/css/],
     ["/css/modules/room-service-erp/shell.css", /text\/css/],

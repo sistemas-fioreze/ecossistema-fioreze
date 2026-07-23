@@ -33,7 +33,11 @@ const BLOCKS = [
 const BLOCK_LABELS = Object.fromEntries(BLOCKS.map(([key, label]) => [key, label]));
 const HISTORY_LIMIT = 50;
 
-export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
+export function createVisualPortalBuilder({
+  onSaved = () => {},
+  onClosed = () => {},
+  onPageChange = () => {},
+} = {}) {
   const root = createBuilderRoot();
   const state = {
     portal: null,
@@ -70,6 +74,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     previewVersionId: "",
     previewPageId: "",
     editorMobileMenuOpen: false,
+    navigationKey: "",
   };
   const els = mapElements(root);
 
@@ -89,7 +94,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
   window.addEventListener("message", handlePreviewMessage);
 
   return {
-    async open(portalId) {
+    async open(portalId, { pageId = "" } = {}) {
       root.hidden = false;
       document.documentElement.classList.add("visual-builder-open");
       setBusy(true, "Abrindo o construtor...");
@@ -97,12 +102,15 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
         const payload = await adminApi(`/api/v1/admin/visual-portals/${encodeURIComponent(portalId)}`);
         state.portal = payload.data.portal;
         state.document = clone(state.portal.document);
-        state.activePageId = state.document.pages[0]?.id || null;
+        state.activePageId = state.document.pages.some((page) => page.id === pageId)
+          ? pageId
+          : state.document.pages[0]?.id || null;
         state.original = stableJson(state.document);
         state.selectedId = activePage()?.blocks[0]?.id || null;
         state.history = [clone(state.document)];
         state.historyIndex = 0;
         state.leftTab = "blocks";
+        state.navigationKey = "";
         await Promise.all([loadMedia(), loadEvents(), loadTemplates(), loadVersions()]);
         renderAll();
         scheduleAutosave();
@@ -118,7 +126,12 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
 
   async function close() {
     if (isDirty() && !await requestConfirmation({ title: "Sair sem salvar?", message: "As alterações feitas desde o último salvamento serão perdidas.", confirmLabel: "Sair sem salvar", danger: true })) return;
+    const closedPortal = state.portal;
     forceClose();
+    onClosed({
+      portalId: closedPortal?.id || "",
+      hotelId: closedPortal?.hotel_id || "",
+    });
   }
 
   function forceClose() {
@@ -128,6 +141,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     state.portal = null;
     state.document = null;
     state.activePageId = null;
+    state.navigationKey = "";
   }
 
   async function loadMedia() {
@@ -224,6 +238,19 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     renderCanvas();
     renderInspector();
     renderSaveState();
+    notifyPageChange();
+  }
+
+  function notifyPageChange() {
+    if (!state.portal || !state.activePageId) return;
+    const key = `${state.portal.id}:${state.activePageId}`;
+    if (state.navigationKey === key) return;
+    state.navigationKey = key;
+    onPageChange({
+      portalId: state.portal.id,
+      pageId: state.activePageId,
+      hotelId: state.portal.hotel_id,
+    });
   }
 
   function renderLeftPanel() {
