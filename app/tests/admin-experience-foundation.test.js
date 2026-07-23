@@ -30,8 +30,8 @@ test("shell administrativo compartilhado possui navegacao, avatar, ajuda e SVG l
   assert.match(source, /canAccessPortals/);
   assert.match(source, /<svg class="admin-svg-icon"/);
   assert.match(source, /fioreze-central-logo\.jpg/);
-  assert.match(source, /\/api\/v1\/admin\/me\/preferences/);
-  assert.match(source, /data-admin-palette/);
+  assert.doesNotMatch(source, /\/api\/v1\/admin\/me\/preferences/);
+  assert.doesNotMatch(source, /data-admin-palette|ADMIN_PALETTES|savePalettePreference/);
   assert.doesNotMatch(source, /Abra Pedidos|Ajuda de Pedidos|\/admin\/room-service/);
   assert.match(source, /https:\/\/challenges\.cloudflare\.com\/turnstile\/v0\/api\.js\?render=explicit/);
   assert.doesNotMatch(sourceWithoutTurnstile, /https:\/\/|cdn|lucide|fontawesome/i);
@@ -70,7 +70,8 @@ test("novo workspace visual permanece isolado da Central e responsivo", () => {
     assert.match(html, /data-admin-design="workspace"/);
   }
   assert.doesNotMatch(roomService, /admin-workspace\.css|data-admin-design="workspace"/);
-  assert.match(css, /--workspace-sidebar: #18312c/);
+  assert.match(css, /--workspace-sidebar: #ffffff/);
+  assert.match(css, /border-right: 1px solid var\(--workspace-line\)/);
   assert.match(css, /grid-template-columns: 272px minmax\(0, 1fr\)/);
   assert.match(css, /admin-nav-group/);
   assert.match(css, /@media \(max-width: 980px\)/);
@@ -238,20 +239,38 @@ test("login usa marca estática e valida sessão sem tela intermediária", () =>
   const home = fs.readFileSync("public/admin/index.html", "utf8");
   const portals = fs.readFileSync("public/admin/portais/index.html", "utf8");
   const roomService = fs.readFileSync("public/admin/room-service/index.html", "utf8");
-  const css = fs.readFileSync("public/css/modules/admin/admin-erp-aligned.css", "utf8");
+  const css = fs.readFileSync("public/css/modules/admin/admin-workspace.css", "utf8");
 
   for (const html of [home, portals, roomService]) {
     assert.match(html, /data-view="loading" aria-label="Verificando sessão administrativa"/);
     assert.doesNotMatch(html, /admin-loading-card|admin-modern-spinner|Preparando a Central|Verificando sessao local/);
   }
   for (const html of [home, portals]) {
-    assert.match(html, /data-admin-palette="fioreze"/);
+    assert.doesNotMatch(html, /data-admin-palette/);
     assert.match(html, /rel="preload" as="image" href="\/assets\/shared\/fioreze-central-logo\.jpg"/);
   }
   assert.match(css, /admin-access-card \.brand-mark[\s\S]*animation: none/);
   assert.match(css, /admin-login[\s\S]*background: #fff/);
   assert.match(css, /admin-access-card \.brand-mark[\s\S]*border: 0/);
   assert.match(css, /admin-access-card \.brand-mark[\s\S]*background: transparent url/);
+  assert.match(css, /admin-access-card input:-webkit-autofill/);
+  assert.match(css, /admin-access-card \.admin-primary-button \{[\s\S]*width: 100%/);
+});
+
+test("Central usa identidade fixa sem seletor pessoal de cores", () => {
+  const home = fs.readFileSync("public/admin/index.html", "utf8");
+  const portals = fs.readFileSync("public/admin/portais/index.html", "utf8");
+  const shell = fs.readFileSync("public/js/modules/admin/shared/admin-auth-view.js", "utf8");
+  const routes = fs.readFileSync("src/modules/admin/routes.js", "utf8");
+  const css = fs.readFileSync("public/css/modules/admin/admin-workspace.css", "utf8");
+  const doc = fs.readFileSync("../docs/arquitetura/ADMIN_DESIGN_SYSTEM.md", "utf8");
+
+  assert.doesNotMatch(`${home}\n${portals}\n${shell}`, /data-admin-palette|admin-palette-picker|ADMIN_PALETTES/);
+  assert.doesNotMatch(routes, /admin\/me\/preferences|\.\/preferences\.js/);
+  assert.match(css, /--workspace-sidebar: #ffffff/);
+  assert.match(css, /\.is-sidebar-compact :where\([\s\S]*display: none !important/);
+  assert.match(doc, /identidade institucional fixa/);
+  assert.doesNotMatch(doc, /Seletor pessoal de paleta|escolha uma paleta propria/);
 });
 
 test("Central mobile remove o Criador da lateral e reserva o editor para desktop", () => {

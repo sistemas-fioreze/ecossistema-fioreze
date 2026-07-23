@@ -31,9 +31,8 @@ O schema inicial e versionado por migrations em `app/migrations/`.
 - `admin_hotel_access`;
 - `admin_sessions`;
 - `admin_audit_log`.
-- `admin_user_preferences`.
 
-`admin_user_preferences` pertence a `admin_users` e guarda somente configuracoes pessoais nao sensiveis do shell, como a paleta de cores.
+`admin_user_preferences` permanece apenas como tabela historica de compatibilidade da migration `0017`; a Central nao oferece mais paletas pessoais nem expoe API para alterar aparencia.
 
 ## Portal Do Hospede
 
@@ -84,7 +83,7 @@ Pedidos guardam `hotel_id`, `module_key`, origem, acomodacao quando aplicavel, v
 - `media_assets.module_key` referencia `modules.module_key` e usa `ON DELETE SET NULL`, porque o asset pode continuar existindo como metadado compartilhado mesmo se deixar de pertencer a um modulo.
 - `media_assets.folder_id` referencia `media_folders.id` e usa `ON DELETE SET NULL`.
 - `media_folders.hotel_id` referencia `hotels.id`; `media_folders.parent_id` referencia outra pasta e a aplicacao impede ciclos e mistura de hoteis.
-- `admin_user_preferences.user_id` referencia `admin_users.id` com `ON DELETE CASCADE`.
+- A tabela historica `admin_user_preferences` referencia `admin_users.id` com `ON DELETE CASCADE`, mas nao participa do runtime atual.
 - `catalog_items` pertence a `hotels`, `catalogs`, `categories` e `modules`.
 - `orders` pertence a `hotels`, `modules` e opcionalmente `rooms`.
 - `order_items` pertence a `orders` e preserva snapshot de nome e preco.

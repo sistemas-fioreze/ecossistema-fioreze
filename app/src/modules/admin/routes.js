@@ -25,7 +25,6 @@ import {
   listAdminMediaFolders,
   updateAdminMediaFolder,
 } from "./media-folders.js";
-import { getAdminPreferences, updateAdminPreferences } from "./preferences.js";
 import {
   createAdminMessage,
   listAdminMessageRecipients,
@@ -223,16 +222,6 @@ export function registerAdminRoutes(router) {
   router.get("/api/v1/admin/me", async ({ request, env }) => {
     const session = await requireAuthentication({ request, env });
     return ok(await getAdminMe({ env, session }));
-  });
-
-  router.get("/api/v1/admin/me/preferences", async ({ request, env }) => {
-    const session = await requireAuthentication({ request, env });
-    return ok(await getAdminPreferences({ env, session }));
-  });
-
-  router.patch("/api/v1/admin/me/preferences", async ({ request, env }) => {
-    const session = await requireAuthentication({ request, env });
-    return ok(await updateAdminPreferences({ request, env, session }));
   });
 
   router.post("/api/v1/admin/me/password", async ({ request, env }) => {

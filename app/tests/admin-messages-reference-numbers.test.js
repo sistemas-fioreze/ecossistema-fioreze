@@ -139,17 +139,18 @@ test("mensagens bloqueiam ausência de sessão, autoenvio e destinatário isolad
   assert.equal(env.__data.adminMessages.length, 0);
 });
 
-test("shell inclui mensagens, sessao sem cache, paletas ampliadas e mídia compacta com ação de mover", () => {
+test("shell inclui mensagens, sessao sem cache, identidade fixa e mídia compacta com ação de mover", () => {
   const html = fs.readFileSync("public/admin/index.html", "utf8");
   const authView = fs.readFileSync("public/js/modules/admin/shared/admin-auth-view.js", "utf8");
   const portals = fs.readFileSync("public/js/modules/admin/portals.js", "utf8");
   const css = fs.readFileSync("public/css/modules/admin/admin.css", "utf8");
   const alignedCss = fs.readFileSync("public/css/modules/admin/admin-erp-aligned.css", "utf8");
+  const workspaceCss = fs.readFileSync("public/css/modules/admin/admin-workspace.css", "utf8");
 
   assert.match(html, /id="messagesManager"/);
   assert.doesNotMatch(authView, /sessionStorage|fioreze-admin-shell-cache/);
-  assert.match(authView, /burgundy/);
-  assert.match(authView, /sunset/);
+  assert.doesNotMatch(authView, /ADMIN_PALETTES|data-admin-palette|burgundy|sunset/);
+  assert.match(workspaceCss, /--workspace-sidebar: #ffffff/);
   assert.match(portals, /data-media-action="move"/);
   assert.match(portals, /mediaMoveDialog/);
   assert.match(css, /repeat\(auto-fill, minmax\(142px, 174px\)\)/);

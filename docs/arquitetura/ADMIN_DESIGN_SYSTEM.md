@@ -13,14 +13,14 @@ A Central e o ERP usam a mesma linguagem visual, mas mantem navegacao, usuarios 
 
 O shell usa a marca oficial FIOREZE em `/assets/shared/fioreze-central-logo.jpg`, superficies brancas e fundo neutro. O arquivo e uma copia versionada e sanitizada da midia de desenvolvimento aprovada `media_7449a1c9-2575-447d-a782-7b206b186985`. A URL relativa preserva a identidade no Worker local e publicado sem depender de CDN, sessao ou registro D1.
 
-A cor institucional permanece como paleta inicial. O menu da sessao permite que cada usuario escolha uma paleta propria entre `fioreze`, `terracotta`, `forest`, `ocean` e `graphite`. A escolha fica vinculada ao `admin_users.id` no D1, e nao ao navegador ou a unidade selecionada.
+A Central usa uma identidade institucional fixa. A navegacao branca, o destaque marrom e o acento dourado permanecem iguais para todos os usuarios, evitando variacoes que prejudiquem contraste, consistencia e suporte.
 
 ## Tokens
 
 - Fundo neutro `#F3F5F2`;
 - Superficie branca `#FFFFFF`;
 - Destaque institucional `#513B2D`;
-- Navegacao estrutural verde escuro `#18312C`;
+- Navegacao estrutural branca `#FFFFFF`;
 - Sucesso verde, atencao dourada e erro vermelho;
 - Bordas discretas e cantos de ate 8px;
 - Icones SVG locais, sem CDN;
@@ -46,7 +46,6 @@ A cor institucional permanece como paleta inicial. O menu da sessao permite que 
 - Navegacao baseada em permissoes;
 - Ajuda contextual;
 - Dialogos de edicao;
-- Seletor pessoal de paleta;
 - Marca estatica no login e carregamento moderno;
 - Atualizacao manual por tela com carregamento limitado a area de conteudo;
 - Areas de conteudo com rolagem vertical independente do shell;
