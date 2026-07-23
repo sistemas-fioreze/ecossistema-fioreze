@@ -36,9 +36,16 @@ function request(body) {
   });
 }
 
+function readRequest(path = "/api/v1/admin/portal/content?hotel_id=muller-fioreze") {
+  return new Request(`https://local.test${path}`, {
+    headers: { "x-fioreze-test-now": NOW },
+  });
+}
+
 test("conteudos administrativos sao isolados por hotel", async () => {
   const env = createEnv();
   const result = await listPortalContent({
+    request: readRequest(),
     env,
     session: session(),
     url: new URL("https://local.test/api/v1/admin/portal/content?hotel_id=muller-fioreze"),
@@ -50,12 +57,54 @@ test("conteudos administrativos sao isolados por hotel", async () => {
   assert.equal(result.information.length, 1);
   await assert.rejects(
     () => listPortalContent({
+      request: readRequest("/api/v1/admin/portal/content?hotel_id=aurora-demo"),
       env,
       session: session(),
       url: new URL("https://local.test/api/v1/admin/portal/content?hotel_id=aurora-demo"),
     }),
     (error) => error?.code === "unauthorized",
   );
+});
+
+test("evento encerrado aparece arquivado na administracao imediatamente", async () => {
+  const env = createEnv();
+  env.__data.events.push({
+    id: "event-expired",
+    hotel_id: "muller-fioreze",
+    title: "Evento encerrado",
+    starts_at: "2026-07-13T12:00:00.000Z",
+    ends_at: "2026-07-13T14:59:59.000Z",
+    timezone: "America/Sao_Paulo",
+    status: "published",
+    tags_json: "[]",
+    created_at: NOW,
+    updated_at: NOW,
+  });
+  const result = await listPortalContent({
+    request: readRequest(),
+    env,
+    session: session(),
+    url: new URL("https://local.test/api/v1/admin/portal/content?hotel_id=muller-fioreze"),
+  });
+  assert.equal(result.events[0].status, "archived");
+});
+
+test("novo evento ja encerrado e persistido como arquivado", async () => {
+  const env = createEnv();
+  const result = await createPortalEvent({
+    request: request({
+      hotel_id: "muller-fioreze",
+      title: "Evento encerrado",
+      starts_at: "2026-07-13T10:00:00.000Z",
+      ends_at: "2026-07-13T14:00:00.000Z",
+      timezone: "America/Sao_Paulo",
+      status: "published",
+    }),
+    env,
+    session: session(),
+  });
+  assert.equal(result.event.status, "archived");
+  assert.equal(env.__data.events[0].status, "archived");
 });
 
 test("pagina e secao sao criadas atomicamente com auditoria", async () => {
@@ -222,7 +271,16 @@ class ContentStatement {
       return { results: data.pages.filter((row) => row.hotel_id === hotelId).map((row) => ({ ...row, section_count: data.sections.filter((section) => section.page_id === row.id).length })) };
     }
     if (this.sql.includes("FROM events") && (this.sql.includes("WHERE hotel_id = ?") || this.sql.includes("WHERE e.hotel_id = ?"))) {
-      return { results: data.events.filter((row) => row.hotel_id === this.params[0]).map((row) => withEventMedia(row, data.mediaAssets)) };
+      const now = this.sql.includes("CASE") ? this.params[0] : null;
+      const hotelId = this.sql.includes("CASE") ? this.params[1] : this.params[0];
+      return {
+        results: data.events
+          .filter((row) => row.hotel_id === hotelId)
+          .map((row) => withEventMedia({
+            ...row,
+            status: row.status === "published" && row.ends_at && row.ends_at <= now ? "archived" : row.status,
+          }, data.mediaAssets)),
+      };
     }
     if (this.sql.includes("FROM hotel_information") && this.sql.includes("WHERE hotel_id = ?")) return { results: data.information.filter((row) => row.hotel_id === this.params[0]) };
     if (this.sql.includes("FROM portal_sections") && this.sql.includes("WHERE page_id = ?")) return { results: data.sections.filter((row) => row.page_id === this.params[0] && row.hotel_id === this.params[1]) };

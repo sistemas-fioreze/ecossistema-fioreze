@@ -25,6 +25,11 @@ if (config.workers_dev !== true) {
   process.exit(1);
 }
 
+if (JSON.stringify(config.triggers?.crons) !== JSON.stringify(["*/15 * * * *"])) {
+  console.error("O ciclo automatico de eventos deve executar a cada 15 minutos.");
+  process.exit(1);
+}
+
 if (d1.binding !== "DB") {
   console.error("D1 binding deve ser DB.");
   process.exit(1);

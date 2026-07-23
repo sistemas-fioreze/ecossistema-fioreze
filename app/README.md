@@ -260,7 +260,7 @@ A migration `0021_guest_portal_reference_features.sql` associa eventos a imagens
 
 O Portal do Hospede usa um unico shell para todas as unidades. Identidade, localizacao, eventos, modulos e capas de servicos sao resolvidos pelo `hotel_id`; nenhuma imagem ou cor do Muller fica fixa no codigo compartilhado. A capa da unidade aceita imagem ou video da Biblioteca de Midia; no mobile ela aparece somente na guia Inicio e e removida ao trocar de area. O movimento respeita a preferencia de reducao de animacoes do navegador. A previsao publica usa Gramado como localidade padrao para todas as unidades, por meio do Open-Meteo consultado pelo Worker. O blog e consultado pelo Worker no feed oficial permitido e devolvido ao navegador em um formato reduzido e sanitizado. Falhas desses servicos externos nao impedem a abertura do portal.
 
-Na Central Administrativa, a identidade da unidade usa um seletor visual da Biblioteca de Midia. Logos e imagens sociais aceitam imagens; a capa do portal aceita imagem ou video. A area **Conteudos > Eventos** permite escolher uma imagem ativa e, em **Areas**, cada modulo pode receber uma capa propria usada nos botoes publicos de servico. O feed do blog e configurado nos dados gerais da unidade e permanece restrito ao endpoint oficial autorizado.
+Na Central Administrativa, a identidade da unidade usa um seletor visual da Biblioteca de Midia. Logos e imagens sociais aceitam imagens; a capa do portal aceita imagem ou video. Identidade, eventos e capas de servicos permitem enviar um novo arquivo diretamente no seletor, respeitando permissao e isolamento por unidade. O Criador de Portais permanece acessivel pela area de portais, mas a superficie de edicao abre somente em telas desktop. O feed do blog e configurado nos dados gerais da unidade e permanece restrito ao endpoint oficial autorizado.
 
 A migration `0018_admin_messages_and_reference_numbers.sql` adiciona:
 
@@ -481,6 +481,8 @@ Em **Conteúdos > Construtor**, a Central oferece um editor visual compartilhado
 O shell publico do Portal do Hospede e unico para todos os hoteis. Ele reproduz a composicao visual da referencia aprovada com identidade dinamica por unidade: carregamento com logo horizontal, cabecalho responsivo, navegacao inferior no mobile, servicos ilustrados, evento em destaque, lista e calendario de eventos, detalhe editorial, informacoes do hotel, clima e blog. Cores, tipografia, logos, modulos, imagens e conteudos continuam vindo do bootstrap e das APIs do hotel selecionado; nenhum HTML ou dado do Muller fica fixo no shell compartilhado.
 
 A migration `0022_guest_portal_event_details.sql` amplia `events` de forma aditiva com descricao completa, local, categoria e tags. A migration `0023_guest_portal_event_actions.sql` acrescenta um botao editorial opcional por evento, formado por texto e URL HTTPS validados em conjunto. Esses campos sustentam a visualizacao editorial de eventos e podem ser administrados pela Central de Portais. As migrations nao cadastram nem alteram eventos existentes.
+
+Eventos publicados com termino vencido sao ocultados imediatamente das APIs publicas. Um agendador do Worker, executado a cada quinze minutos, persiste o status `archived`; criacoes e edicoes ja vencidas tambem sao gravadas como arquivadas. O ciclo usa a tabela atual e nao requer migration.
 
 A Central tambem possui gestao completa de usuarios, senhas temporarias, sessoes, perfis e permissoes. Segredos temporarios sao exibidos uma unica vez e nunca sao gravados na auditoria.
 

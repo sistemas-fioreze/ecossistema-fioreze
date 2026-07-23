@@ -11,6 +11,7 @@ import { redirectShortLink } from "./modules/short-links/public.js";
 import { extractCustomDomainSlug, isShortLinkCustomDomainRequest } from "./modules/short-links/shared.js";
 import { serveCustomPortalPage } from "./modules/portal-pages/public.js";
 import { serveVisualPortal } from "./modules/visual-portals/public.js";
+import { archiveExpiredPortalEvents } from "./services/portal-event-lifecycle.js";
 import {
   isLegacyGuestPortalPath,
   isVisualPortalPublicHost,
@@ -246,5 +247,9 @@ export default {
         },
       );
     }
+  },
+  async scheduled(controller, env, ctx) {
+    const now = new Date(controller?.scheduledTime || Date.now()).toISOString();
+    ctx.waitUntil(archiveExpiredPortalEvents(env, { now }));
   },
 };

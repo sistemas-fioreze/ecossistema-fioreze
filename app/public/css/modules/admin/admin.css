@@ -19,6 +19,10 @@
   place-items: center;
 }
 
+.admin-login {
+  background: #fff;
+}
+
 .admin-access-card {
   width: min(440px, 100%);
   display: grid;
@@ -44,7 +48,14 @@
 }
 
 .admin-access-card .brand-mark {
+  width: 230px;
+  height: 92px;
   justify-self: center;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  background: transparent url("/assets/shared/fioreze-central-logo.jpg") center / contain no-repeat;
+  box-shadow: none;
 }
 
 .admin-access-card h1 {
