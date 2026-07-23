@@ -119,6 +119,15 @@ const els = {
   shortLinkSharesList: document.getElementById("shortLinkSharesList"),
   addShortLinkButton: document.getElementById("addShortLinkButton"),
   cancelShortLinkButton: document.getElementById("cancelShortLinkButton"),
+  eventsManager: document.getElementById("eventsManager"),
+  eventsFilters: document.getElementById("eventsFilters"),
+  eventsHotel: document.getElementById("eventsHotel"),
+  eventsStatus: document.getElementById("eventsStatus"),
+  eventsSearch: document.getElementById("eventsSearch"),
+  eventsSummary: document.getElementById("eventsSummary"),
+  eventsMessage: document.getElementById("eventsMessage"),
+  eventsList: document.getElementById("eventsList"),
+  addEventButton: document.getElementById("addEventButton"),
   contentManager: document.getElementById("contentManager"),
   contentHotel: document.getElementById("contentHotel"),
   contentMessage: document.getElementById("contentMessage"),
@@ -148,6 +157,7 @@ const portalCards = [
   ["unidades", "Unidades", "Cadastre hotéis, identidade visual e informações institucionais.", "/admin/portais/unidades/"],
   ["media", "Biblioteca de mídia", "Gerencie imagens, vídeos e pastas dos portais e módulos.", "/admin/portais/media/"],
   ["links", "Links e QR Codes", "Crie endereços curtos, QR Codes e acompanhe acessos.", "/admin/portais/links/"],
+  ["eventos", "Eventos", "Planeje a agenda e publique experiências em cada unidade.", "/admin/portais/eventos/"],
   ["conteudos", "Criador de portais", "Monte páginas desktop e mobile com blocos, templates e mídia.", "/admin/portais/conteudos/"],
 ];
 const mediaFields = ["logo_url", "horizontal_logo_url", "icon_url", "favicon_url", "cover_image_url", "social_image_url"];
@@ -209,6 +219,7 @@ let currentUnit = null;
 let currentModules = [];
 let currentNavigation = [];
 let currentEmbed = null;
+let currentEvents = [];
 let activeUnitTab = "general";
 let dirty = false;
 let contentType = "visual_portals";
@@ -235,6 +246,7 @@ const auth = createAdminAuthView({
     currentShortLinkPublicBase = "";
     currentUnits = [];
     currentUnit = null;
+    currentEvents = [];
   },
 });
 
@@ -288,6 +300,15 @@ els.shortLinksList.addEventListener("click", handleShortLinkAction);
 els.copyShortLinkQrButton.addEventListener("click", copyCurrentShortLinkUrl);
 els.shortLinkSharingForm.addEventListener("submit", shareCurrentShortLink);
 els.shortLinkSharesList.addEventListener("click", revokeCurrentShortLinkShare);
+els.eventsFilters.addEventListener("submit", (event) => {
+  event.preventDefault();
+  renderEventsList();
+});
+els.eventsHotel.addEventListener("change", loadEventsManager);
+els.eventsStatus.addEventListener("change", renderEventsList);
+els.eventsSearch.addEventListener("input", debounce(renderEventsList, 250));
+els.addEventButton.addEventListener("click", () => openEventEditor());
+els.eventsList.addEventListener("click", handleEventAction);
 
 els.unitFilters.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -343,6 +364,7 @@ window.addEventListener("fioreze:admin-refresh", (event) => {
 function refreshCurrentPortalRoute() {
   if (isMediaRoute()) return loadMediaLibrary();
   if (isLinksRoute()) return loadShortLinks();
+  if (isEventsRoute()) return loadEventsManager();
   if (isContentRoute()) return loadPortalContent();
   if (isAreasRoute() || isNavigationRoute()) return renderContentManager(currentSession);
   if (isAuditRoute()) return loadAudit();
@@ -366,6 +388,10 @@ function renderPortals(session) {
   }
   if (isLinksRoute()) {
     renderShortLinksManager(session);
+    return;
+  }
+  if (isEventsRoute()) {
+    renderEventsManager(session);
     return;
   }
   if (isContentRoute()) {
@@ -401,6 +427,7 @@ function renderNav(session) {
     ["Unidades", "/admin/portais/unidades/", canAccessUnits(session)],
     ["Biblioteca", "/admin/portais/media/", canAccessMediaLibrary(session)],
     ["Links", "/admin/portais/links/", canAccessLinks(session)],
+    ["Eventos", "/admin/portais/eventos/", canAccessContent(session)],
     ["Criador", "/admin/portais/conteudos/", canAccessContent(session)],
   ];
   els.portalsNav.innerHTML = items
@@ -423,6 +450,7 @@ function renderPortalCard(session, key, title, body, href) {
     (key === "unidades" && canAccessUnits(session)) ||
     (key === "media" && canAccessMediaLibrary(session)) ||
     (key === "links" && canAccessLinks(session)) ||
+    (key === "eventos" && canAccessContent(session)) ||
     (key === "conteudos" && canAccessContent(session)) ||
     (key === "auditoria" && canAccessAudit(session));
   const tag = !enabled ? "article" : "a";
@@ -2215,6 +2243,167 @@ function updatePreview() {
   if (!els.previewLogo.hidden) els.previewLogo.src = logo;
 }
 
+function renderEventsManager(session) {
+  const allowed = canAccessContent(session);
+  setHeading("Eventos", "Planeje e publique a agenda de cada unidade.");
+  showPortalSection(allowed ? els.eventsManager : null);
+  els.portalsDenied.hidden = allowed;
+  if (!allowed) return;
+  const selectedHotel = els.eventsHotel.value;
+  populateAuthorizedHotels(els.eventsHotel, session);
+  if (selectedHotel && [...els.eventsHotel.options].some((option) => option.value === selectedHotel)) {
+    els.eventsHotel.value = selectedHotel;
+  }
+  loadEventsManager();
+}
+
+async function loadEventsManager() {
+  const hotelId = els.eventsHotel.value;
+  if (!hotelId) return;
+  els.eventsMessage.textContent = "Carregando eventos...";
+  els.eventsList.innerHTML = "";
+  try {
+    const payload = await adminApi(`/api/v1/admin/portal/content?hotel_id=${encodeURIComponent(hotelId)}`);
+    currentEvents = payload.data.events || [];
+    els.eventsMessage.textContent = "";
+    renderEventsList();
+  } catch (error) {
+    currentEvents = [];
+    els.eventsSummary.innerHTML = "";
+    els.eventsMessage.textContent = error.message || "Não foi possível carregar os eventos.";
+  }
+}
+
+function renderEventsList() {
+  const query = normalizeSearch(els.eventsSearch.value);
+  const status = els.eventsStatus.value;
+  const rows = currentEvents.filter((event) => {
+    if (status && event.status !== status) return false;
+    if (!query) return true;
+    return [event.title, event.summary, event.location, event.category, ...(event.tags || [])]
+      .some((value) => normalizeSearch(value).includes(query));
+  });
+  const published = currentEvents.filter((event) => event.status === "published").length;
+  const upcoming = currentEvents.filter((event) => event.status === "published" && Date.parse(event.ends_at || event.starts_at) >= Date.now()).length;
+  els.eventsSummary.innerHTML = `
+    <article><strong>${currentEvents.length}</strong><span>eventos cadastrados</span></article>
+    <article><strong>${published}</strong><span>publicados</span></article>
+    <article><strong>${upcoming}</strong><span>na programação</span></article>`;
+  els.eventsMessage.textContent = `${rows.length} evento(s) encontrado(s).`;
+  els.eventsList.innerHTML = rows.map(renderEventManagerCard).join("") || `
+    <div class="admin-events-empty">
+      ${featureSvg("event")}
+      <strong>Nenhum evento encontrado</strong>
+      <span>Cadastre uma experiência ou ajuste os filtros desta lista.</span>
+    </div>`;
+}
+
+function renderEventManagerCard(event) {
+  const date = eventDateParts(event.starts_at, event.timezone);
+  const period = formatEventManagerPeriod(event);
+  const image = event.image_url
+    ? `<img src="${escapeAttr(event.image_url)}" alt="${escapeAttr(event.image_alt || "")}" loading="lazy">`
+    : `<span class="admin-event-placeholder">${featureSvg("event")}</span>`;
+  return `
+    <article class="admin-event-card" data-event-id="${escapeAttr(event.id)}">
+      <div class="admin-event-card-media">${image}<span class="admin-status-chip" data-status="${escapeAttr(event.status)}">${contentStatus(event.status)}</span></div>
+      <div class="admin-event-card-body">
+        <time datetime="${escapeAttr(event.starts_at)}"><strong>${escapeHtml(date.day)}</strong><span>${escapeHtml(date.month)}</span></time>
+        <div>
+          <small>${escapeHtml(event.category || "Evento")}</small>
+          <h3>${escapeHtml(event.title)}</h3>
+          <p>${escapeHtml(event.summary || "Sem descrição curta.")}</p>
+          <dl>
+            <div>${featureSvg("calendar")}<span>${escapeHtml(period)}</span></div>
+            ${event.location ? `<div>${featureSvg("pin")}<span>${escapeHtml(event.location)}</span></div>` : ""}
+            ${event.action_url ? `<div>${featureSvg("external")}<span>Botão de ação configurado</span></div>` : ""}
+          </dl>
+        </div>
+      </div>
+      <footer>
+        <button type="button" data-event-action="edit" data-event-id="${escapeAttr(event.id)}">${featureSvg("edit")} Editar evento</button>
+      </footer>
+    </article>`;
+}
+
+function handleEventAction(event) {
+  const button = event.target.closest("[data-event-action]");
+  if (!button) return;
+  const item = currentEvents.find((entry) => entry.id === button.dataset.eventId);
+  if (item && button.dataset.eventAction === "edit") openEventEditor(item);
+}
+
+async function openEventEditor(item = null) {
+  const hotelId = els.eventsHotel.value;
+  els.dialogTitle.textContent = item ? "Editar evento" : "Novo evento";
+  els.dialogBody.innerHTML = '<p class="admin-muted">Preparando o evento...</p>';
+  openPortalsDialog();
+  eventMediaAssets = await loadEventMediaAssets(hotelId);
+  const timezone = item?.timezone || hotelTimezone(hotelId);
+  els.dialogBody.innerHTML = contentForm("event", `
+    <div class="admin-event-form-intro">
+      <span>${featureSvg("event")}</span>
+      <div><strong>${item ? "Atualize a experiência" : "Crie uma nova experiência"}</strong><small>A programação publicada aparece automaticamente nos portais desta unidade.</small></div>
+    </div>
+    ${dialogField("Título do evento", "title", item?.title, "text", true)}
+    ${dialogTextarea("Descrição curta", "summary", item?.summary, true)}
+    ${dialogTextarea("Descrição completa", "content", item?.content)}
+    <div class="admin-form-grid">${dialogField("Local do evento", "location", item?.location, "text")}${dialogField("Categoria", "category", item?.category || "Evento", "text")}</div>
+    ${dialogField("Etiquetas", "tags", (item?.tags || []).join(", "), "text")}
+    ${renderEventMediaPicker(item?.media_asset_id)}
+    <fieldset class="admin-event-schedule">
+      <legend>Data e horário</legend>
+      <div class="admin-event-schedule-grid">
+        ${dialogField("Data de início", "start_date", eventDateInput(item?.starts_at, timezone), "date", true)}
+        ${dialogField("Horário de início", "start_time", eventTimeInput(item?.starts_at, timezone), "time", true)}
+        ${dialogField("Data de término", "end_date", eventDateInput(item?.ends_at, timezone), "date")}
+        ${dialogField("Horário de término", "end_time", eventTimeInput(item?.ends_at, timezone), "time")}
+      </div>
+      <small>O término é opcional. Quando informado, preencha data e horário.</small>
+    </fieldset>
+    <fieldset class="admin-event-action-fields">
+      <legend>Botão de ação opcional</legend>
+      <p>Use para inscrições, reservas ou outras páginas externas.</p>
+      <div class="admin-form-grid">${dialogField("Texto do botão", "action_text", item?.action_text, "text")}${dialogField("Endereço HTTPS", "action_url", item?.action_url, "url")}</div>
+    </fieldset>
+    <div class="admin-form-grid">
+      ${dialogSelect("Status", "status", item?.status || "draft", [["draft", "Rascunho"], ["published", "Publicado"], ["cancelled", "Cancelado"], ["archived", "Arquivado"]])}
+      <label><span>Fuso horário</span><input name="timezone" value="${escapeAttr(timezone)}" readonly></label>
+    </div>`);
+  bindDialogForm((event) => saveManagedEvent(event, item));
+}
+
+async function saveManagedEvent(event, item) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const data = new FormData(form);
+  const message = form.querySelector(".admin-dialog-message");
+  const body = Object.fromEntries(data.entries());
+  if (Boolean(body.end_date) !== Boolean(body.end_time)) {
+    message.textContent = "Informe a data e o horário de término, ou deixe os dois campos vazios.";
+    return;
+  }
+  try {
+    body.hotel_id = els.eventsHotel.value;
+    body.starts_at = zonedDateTimeToIso(body.start_date, body.start_time, body.timezone);
+    body.ends_at = body.end_date ? zonedDateTimeToIso(body.end_date, body.end_time, body.timezone) : "";
+    body.tags = String(body.tags || "").split(",").map((tag) => tag.trim()).filter(Boolean);
+    delete body.start_date;
+    delete body.start_time;
+    delete body.end_date;
+    delete body.end_time;
+    message.textContent = "Salvando evento...";
+    await adminApi(item ? `/api/v1/admin/portal/events/${encodeURIComponent(item.id)}` : "/api/v1/admin/portal/events", {
+      method: item ? "PATCH" : "POST",
+      body,
+    });
+    closePortalsDialog();
+    await loadEventsManager();
+  } catch (error) {
+    message.textContent = error.message || "Não foi possível salvar o evento.";
+  }
+}
+
 function renderContentManager(session) {
   const allowed = canAccessContent(session);
   setHeading("Criador de portais", "Crie, personalize e publique experiências digitais para cada unidade.");
@@ -2490,9 +2679,9 @@ async function saveContent(event, item) {
   }
 }
 
-async function loadEventMediaAssets() {
+async function loadEventMediaAssets(hotelId = els.contentHotel.value) {
   try {
-    const params = new URLSearchParams({ hotel_id: els.contentHotel.value, status: "active" });
+    const params = new URLSearchParams({ hotel_id: hotelId, status: "active" });
     const payload = await adminApi(`/api/v1/admin/media?${params.toString()}`);
     return (payload.data.assets || []).filter((asset) => String(asset.mime_type || "").startsWith("image/"));
   } catch {
@@ -2776,7 +2965,7 @@ async function loadAudit() {
 }
 
 function showPortalSection(active) {
-  for (const section of [els.portalsHome, els.unitsManager, els.shortLinksManager, els.mediaLibrary, els.contentManager, els.areasManager, els.navigationManager, els.auditManager]) {
+  for (const section of [els.portalsHome, els.unitsManager, els.shortLinksManager, els.mediaLibrary, els.eventsManager, els.contentManager, els.areasManager, els.navigationManager, els.auditManager]) {
     section.hidden = section !== active;
   }
 }
@@ -2851,6 +3040,10 @@ function featureSvg(type) {
   const paths = {
     page: '<path d="M6 3h9l3 3v15H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/>',
     event: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/>',
+    calendar: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/>',
+    pin: '<path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/>',
+    external: '<path d="M14 5h5v5M19 5l-9 9"/><path d="M19 14v5H5V5h5"/>',
+    edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13 7 4 4"/>',
     info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>',
     navigation: '<circle cx="12" cy="12" r="9"/><path d="m15 9-2 6-6 2 2-6z"/>',
     history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>',
@@ -2879,6 +3072,10 @@ function isMediaRoute() {
 
 function isLinksRoute() {
   return window.location.pathname.startsWith("/admin/portais/links/");
+}
+
+function isEventsRoute() {
+  return window.location.pathname.startsWith("/admin/portais/eventos/");
 }
 
 function isUnitsRoute() {
@@ -2920,6 +3117,7 @@ function featureIcon(key) {
     unidades: '<path d="M5 20V8l7-4 7 4v12"/><path d="M9 20v-6h6v6"/>',
     media: '<path d="M5 5h14v14H5z"/><path d="m7 16 4-4 3 3 2-2 3 3"/><circle cx="9" cy="9" r="1"/>',
     links: '<path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/>',
+    eventos: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/><path d="M8 14h3M8 17h6"/>',
     conteudos: '<path d="M6 3h9l3 3v15H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/>',
     modulos: '<rect x="4" y="4" width="6" height="6"/><rect x="14" y="4" width="6" height="6"/><rect x="4" y="14" width="6" height="6"/><rect x="14" y="14" width="6" height="6"/>',
     navegacao: '<circle cx="12" cy="12" r="9"/><path d="m15 9-2 6-6 2 2-6z"/>',
@@ -2945,6 +3143,81 @@ function formatBytes(value) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function normalizeSearch(value) {
+  return String(value || "")
+    .trim()
+    .toLocaleLowerCase("pt-BR")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function eventDateParts(value, timezone = "America/Sao_Paulo") {
+  const date = new Date(value || "");
+  if (Number.isNaN(date.getTime())) return { day: "--", month: "---" };
+  const parts = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", timeZone: timezone }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return { day: values.day || "--", month: String(values.month || "---").replace(".", "").toUpperCase() };
+}
+
+function formatEventManagerPeriod(event) {
+  const timezone = event.timezone || "America/Sao_Paulo";
+  const start = new Date(event.starts_at || "");
+  if (Number.isNaN(start.getTime())) return "Data a confirmar";
+  const date = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "long", year: "numeric", timeZone: timezone }).format(start);
+  const startTime = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: timezone }).format(start);
+  const end = new Date(event.ends_at || "");
+  if (Number.isNaN(end.getTime())) return `${date}, às ${startTime}`;
+  const endDate = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "long", year: "numeric", timeZone: timezone }).format(end);
+  const endTime = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: timezone }).format(end);
+  return date === endDate ? `${date}, das ${startTime} às ${endTime}` : `${date}, ${startTime} até ${endDate}, ${endTime}`;
+}
+
+function eventDateInput(value, timezone) {
+  return zonedInputParts(value, timezone).date;
+}
+
+function eventTimeInput(value, timezone) {
+  return zonedInputParts(value, timezone).time;
+}
+
+function zonedInputParts(value, timezone) {
+  const date = new Date(value || "");
+  if (Number.isNaN(date.getTime())) return { date: "", time: "" };
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone: timezone,
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return { date: `${values.year}-${values.month}-${values.day}`, time: `${values.hour}:${values.minute}` };
+}
+
+function zonedDateTimeToIso(dateValue, timeValue, timezone) {
+  const match = `${dateValue}T${timeValue}`.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+  if (!match) return "";
+  const desired = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]), Number(match[4]), Number(match[5]));
+  let epoch = desired;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+      timeZone: timezone,
+    }).formatToParts(new Date(epoch));
+    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    const observed = Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day), Number(values.hour), Number(values.minute));
+    epoch += desired - observed;
+  }
+  return new Date(epoch).toISOString();
 }
 
 function toLocalDateTime(value) {

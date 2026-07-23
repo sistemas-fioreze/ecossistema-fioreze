@@ -114,6 +114,7 @@ test("configuracoes reune as areas de equipe sem criar outro shell", async () =>
 test("todos os modulos da Central de Portais entregam o shell funcional", async () => {
   const { fetch } = createWorkerTestContext();
   for (const path of [
+    "/admin/portais/eventos/",
     "/admin/portais/conteudos/",
     "/admin/portais/areas/",
     "/admin/portais/navegacao/",

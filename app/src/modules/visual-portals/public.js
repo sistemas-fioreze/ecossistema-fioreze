@@ -43,7 +43,8 @@ export async function serveVisualPortal({ env, params, head = false }) {
   const page = getVisualPortalPage(document, params.page_slug || "");
   if (!page) throw notFoundError("Página não encontrada.");
   const media = await loadPublishedMedia(env, portal.hotel_id, document);
-  const headers = visualPortalHeaders({ allowApi: page.type !== "standard", allowRemoteImages: page.type === "blog" });
+  const usesEvents = page.type === "events" || page.blocks.some((block) => block.type === "event-highlight");
+  const headers = visualPortalHeaders({ allowApi: page.type !== "standard" || usesEvents, allowRemoteImages: page.type === "blog" });
   if (head) return new Response(null, { status: 200, headers });
   return new Response(renderVisualPortalPage({ portal, document, page, media }), { status: 200, headers });
 }
@@ -72,11 +73,15 @@ export function renderVisualPortalPage({ portal, document, page = getVisualPorta
   const context = { portal, document, homePath };
   const roomServicePage = page.type === "room-service";
   const blogPage = page.type === "blog";
-  const systemPage = roomServicePage || blogPage;
+  const eventsPage = page.type === "events";
+  const usesEvents = eventsPage || page.blocks.some((block) => block.type === "event-highlight");
+  const systemPage = roomServicePage || blogPage || eventsPage;
   const blocks = roomServicePage
     ? renderRoomServicePage(portal)
     : blogPage
       ? renderBlogPage(portal)
+      : eventsPage
+        ? renderEventsPage(portal)
       : page.blocks.map((block) => renderBlock(block, media, context)).join("");
   const headerLogo = media.get(settings.header.logo_media_asset_id)?.public_url || safeMediaPath(portal.logo_url);
   const favicon = media.get(settings.favicon_media_asset_id)?.public_url || safeMediaPath(portal.icon_url);
@@ -94,13 +99,14 @@ export function renderVisualPortalPage({ portal, document, page = getVisualPorta
     <script src="/js/modules/visual-portal-runtime.js" defer></script>
     ${roomServicePage ? '<link rel="stylesheet" href="/css/modules/room-service/room-service.css"><script type="module" src="/js/modules/visual-portal-room-service.js"></script>' : ""}
     ${blogPage ? '<link rel="stylesheet" href="/css/modules/visual-portal-blog.css"><script type="module" src="/js/modules/visual-portal-blog.js"></script>' : ""}
+    ${usesEvents ? '<link rel="stylesheet" href="/css/modules/visual-portal-events.css"><script type="module" src="/js/modules/visual-portal-events.js"></script>' : ""}
     <style>${visualPortalCss(settings, pageSettings)}</style>
   </head>
   <body>
     <a class="skip-link" href="#conteudo">Ir para o conteúdo</a>
     ${pageBackground}
     ${header}
-    <main id="conteudo" class="visual-page${systemPage ? " is-system-page" : ""}${roomServicePage ? " is-room-service-page" : ""}${blogPage ? " is-blog-page" : ""}" data-module="${escapeAttr(portal.module_key)}" data-page="${escapeAttr(page.id)}">${blocks || '<section class="empty-page"><h1>Conteúdo em preparação</h1></section>'}</main>
+    <main id="conteudo" class="visual-page${systemPage ? " is-system-page" : ""}${roomServicePage ? " is-room-service-page" : ""}${blogPage ? " is-blog-page" : ""}${eventsPage ? " is-events-page" : ""}" data-module="${escapeAttr(portal.module_key)}" data-page="${escapeAttr(page.id)}">${blocks || '<section class="empty-page"><h1>Conteúdo em preparação</h1></section>'}</main>
   </body>
 </html>`;
 }
@@ -111,6 +117,10 @@ function renderRoomServicePage(portal) {
 
 function renderBlogPage(portal) {
   return `<section class="visual-blog" data-visual-blog data-hotel-slug="${escapeAttr(portal.hotel_slug)}" aria-label="Blog"><header class="visual-blog-heading"><span>Conteúdo Fioreze</span><h1>Blog</h1><p>Novidades, dicas e experiências para aproveitar sua estadia.</p></header><div class="visual-blog-loading" role="status"><span aria-hidden="true"></span><strong>Carregando publicações...</strong></div></section>`;
+}
+
+function renderEventsPage(portal) {
+  return `<section class="visual-events" data-visual-events data-hotel-slug="${escapeAttr(portal.hotel_slug)}" data-hotel-name="${escapeAttr(portal.hotel_short_name || portal.hotel_name)}" data-timezone="${escapeAttr(portal.timezone || "America/Sao_Paulo")}" style="--events-primary:${escapeAttr(portal.primary_color || "#513b2d")};--events-accent:${escapeAttr(portal.accent_color || "#c1a94c")}" aria-label="Eventos"><div class="visual-events-loading" role="status"><span aria-hidden="true"></span><strong>Carregando eventos...</strong></div></section>`;
 }
 
 function renderBlock(block, media, context) {
@@ -179,6 +189,9 @@ function renderBlock(block, media, context) {
     const asset = media.get(content.media_asset_id);
     const background = asset && String(asset.mime_type).startsWith("image/") ? ` style="background-image:linear-gradient(rgba(0,0,0,${content.overlay / 100}),rgba(0,0,0,${content.overlay / 100})),url('${escapeCssUrl(asset.public_url)}')"` : "";
     return `<section ${attributes}><div class="block-inner cta-banner"${background}><div>${content.eyebrow ? `<p class="eyebrow">${escapeHtml(content.eyebrow)}</p>` : ""}<h2>${escapeHtml(content.title)}</h2>${paragraphs(content.text)}${renderActionButtons(content.buttons, media, context)}</div></div></section>`;
+  }
+  if (block.type === "event-highlight") {
+    return `<section ${attributes}><div class="block-inner"><div class="visual-event-highlight" data-visual-event-highlight data-hotel-slug="${escapeAttr(context.portal.hotel_slug)}" data-event-id="${escapeAttr(content.event_id)}" data-label="${escapeAttr(content.label)}" data-button-text="${escapeAttr(content.button_text)}" data-show-summary="${String(content.show_summary)}" data-show-date="${String(content.show_date)}" style="--events-primary:${escapeAttr(context.portal.primary_color || "#513b2d")};--events-accent:${escapeAttr(context.portal.accent_color || "#c1a94c")}"><div class="visual-events-loading" role="status"><span aria-hidden="true"></span><strong>Carregando destaque...</strong></div></div></div></section>`;
   }
   if (block.type === "quote") return `<figure ${attributes}><div class="block-inner"><blockquote>${escapeHtml(content.quote)}</blockquote>${content.author ? `<figcaption>${escapeHtml(content.author)}</figcaption>` : ""}</div></figure>`;
   if (block.type === "contact") return `<section ${attributes}><div class="block-inner contact-panel"><h2>${escapeHtml(content.title)}</h2>${paragraphs(content.text)}<address>${content.address ? `<span>${escapeHtml(content.address)}</span>` : ""}${content.phone ? `<a href="tel:${escapeAttr(content.phone.replace(/[^+\d]/g, ""))}">${escapeHtml(content.phone)}</a>` : ""}${content.email ? `<a href="mailto:${escapeAttr(content.email)}">${escapeHtml(content.email)}</a>` : ""}</address>${buttonLink(content.button_text, content.button_url, "solid", context)}</div></section>`;
