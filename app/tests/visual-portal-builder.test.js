@@ -201,6 +201,99 @@ test("pagina nativa de Blog usa o feed oficial, o cabecalho branco e um unico co
   assert.throws(() => normalizeVisualPortalDocument(duplicated), /somente uma página de Blog/i);
 });
 
+test("pagina nativa de Eventos preserva o visual legado e um unico contrato por portal", () => {
+  const document = createBlankVisualPortalDocument();
+  document.pages[0].settings.background_media_asset_id = "media_12345678";
+  document.pages.push({
+    id: "events",
+    type: "events",
+    slug: "eventos",
+    name: "Eventos",
+    title: "Eventos",
+    show_in_navigation: true,
+    settings: structuredClone(document.pages[0].settings),
+    blocks: [],
+  });
+  const normalized = normalizeVisualPortalDocument(document);
+  const page = normalized.pages[1];
+  const media = new Map([["media_12345678", { public_url: "/media/media_12345678", mime_type: "video/mp4" }]]);
+  const html = renderVisualPortalPage({
+    portal: {
+      title: "Portal",
+      portal_slug: "estadia",
+      hotel_name: "Hotel fictício",
+      hotel_short_name: "Hotel",
+      hotel_slug: "hotel-ficticio",
+      module_key: "guest-portal",
+      locale: "pt-BR",
+      timezone: "America/Sao_Paulo",
+      primary_color: "#513b2d",
+      accent_color: "#c1a94c",
+    },
+    document: normalized,
+    page,
+    media,
+  });
+
+  assert.equal(page.type, "events");
+  assert.match(html, /data-visual-events/);
+  assert.match(html, /data-hotel-slug="hotel-ficticio"/);
+  assert.match(html, /data-timezone="America\/Sao_Paulo"/);
+  assert.match(html, /visual-portal-events\.js/);
+  assert.match(html, /css\/modules\/visual-portal-events\.css/);
+  assert.match(html, /site-header[^"\n]*is-system-page/);
+  assert.doesNotMatch(html, /class="page-background/);
+  assert.equal((html.match(/class="site-header/g) || []).length, 1);
+
+  const duplicated = structuredClone(document);
+  duplicated.pages.push({ ...structuredClone(duplicated.pages[1]), id: "events-dois", slug: "programacao" });
+  assert.throws(() => normalizeVisualPortalDocument(duplicated), /somente uma página de Eventos/i);
+
+  const withBlocks = structuredClone(document);
+  withBlocks.pages[1].blocks.push(structuredClone(withBlocks.pages[0].blocks[0]));
+  assert.throws(() => normalizeVisualPortalDocument(withBlocks), /não aceita blocos personalizados/i);
+});
+
+test("bloco Evento em destaque usa a agenda publica sem fixar conteudo no portal", () => {
+  const document = createBlankVisualPortalDocument();
+  homeBlocks(document).push({
+    id: "evento-principal",
+    type: "event-highlight",
+    content: {
+      event_id: "event-ficticio",
+      label: "Próxima experiência",
+      button_text: "Ver programação",
+      show_summary: true,
+      show_date: true,
+    },
+    styles: { base: { border_radius: 24 }, desktop: {}, mobile: {} },
+    visibility: { desktop: true, mobile: true },
+  });
+  const normalized = normalizeVisualPortalDocument(document);
+  const block = homeBlocks(normalized).at(-1);
+  const html = renderVisualPortalPage({
+    portal: {
+      title: "Portal",
+      portal_slug: "estadia",
+      hotel_name: "Hotel fictício",
+      hotel_slug: "hotel-ficticio",
+      module_key: "guest-portal",
+      locale: "pt-BR",
+      primary_color: "#513b2d",
+      accent_color: "#c1a94c",
+    },
+    document: normalized,
+  });
+
+  assert.equal(block.content.event_id, "event-ficticio");
+  assert.equal(block.content.label, "Próxima experiência");
+  assert.match(html, /data-visual-event-highlight/);
+  assert.match(html, /data-event-id="event-ficticio"/);
+  assert.match(html, /data-button-text="Ver programação"/);
+  assert.match(html, /visual-portal-events\.js/);
+  assert.match(html, /css\/modules\/visual-portal-events\.css/);
+});
+
 test("documentos legados sao promovidos para site multipagina sem perder blocos", () => {
   const document = normalizeVisualPortalDocument({
     schema_version: 1,
@@ -744,8 +837,10 @@ test("Central integra construtor visual e Worker-first preserva a rota publica",
   assert.match(builder, /data-add-page/);
   assert.match(builder, /data-add-room-service-page/);
   assert.match(builder, /data-add-blog-page/);
+  assert.match(builder, /data-add-events-page/);
   assert.match(builder, /Página conectada ao cardápio/);
   assert.match(builder, /Página conectada ao Blog Fioreze/);
+  assert.match(builder, /Página conectada à agenda/);
   assert.match(builder, /data-preview-version/);
   assert.match(builder, /autosave_interval_seconds/);
   assert.match(builder, /data-header-field/);
@@ -773,6 +868,8 @@ test("Central integra construtor visual e Worker-first preserva a rota publica",
   const runtime = fs.readFileSync("public/js/modules/visual-portal-runtime.js", "utf8");
   const roomServiceRuntime = fs.readFileSync("public/js/modules/visual-portal-room-service.js", "utf8");
   const blogRuntime = fs.readFileSync("public/js/modules/visual-portal-blog.js", "utf8");
+  const eventsRuntime = fs.readFileSync("public/js/modules/visual-portal-events.js", "utf8");
+  const eventsCss = fs.readFileSync("public/css/modules/visual-portal-events.css", "utf8");
   const roomServiceModule = fs.readFileSync("public/js/modules/room-service/index.js", "utf8");
   assert.doesNotMatch(runtime, /beforeinstallprompt|serviceWorker|data-install-app/);
   assert.match(runtime, /data-mobile-menu-toggle/);
@@ -781,6 +878,11 @@ test("Central integra construtor visual e Worker-first preserva a rota publica",
   assert.match(roomServiceRuntime, /hotelSlug/);
   assert.match(blogRuntime, /portal\/blog/);
   assert.match(blogRuntime, /blog\.hoteisfioreze\.com\.br/);
+  assert.match(eventsRuntime, /portal\/events/);
+  assert.match(eventsRuntime, /visual-events-calendar/);
+  assert.match(eventsRuntime, /visual-event-dialog/);
+  assert.match(eventsCss, /\.visual-event-card/);
+  assert.match(eventsCss, /\.visual-event-dialog/);
   assert.match(roomServiceModule, /bootstrap\.modules/);
   assert.match(builder, /\["faq", "Perguntas frequentes"/);
   assert.match(builder, /\["stats", "Indicadores"/);
@@ -788,6 +890,11 @@ test("Central integra construtor visual e Worker-first preserva a rota publica",
   assert.match(builder, /\["testimonials", "Depoimentos"/);
   assert.match(builder, /\["icon-list", "Lista com ícones"/);
   assert.match(builder, /\["cta-banner", "Chamada destacada"/);
+  assert.match(builder, /\["event-highlight", "Evento em destaque"/);
+  assert.match(html, /id="eventsManager"/);
+  assert.match(portals, /Data de início/);
+  assert.match(portals, /Descrição completa/);
+  assert.match(portals, /Botão de ação opcional/);
   assert.match(portals, /Unidade de destino/);
   assert.match(css, /grid-template-columns:\s*286px minmax\(0, 1fr\) 318px/);
   assert.match(css, /\.vp-live-preview\[data-viewport="mobile"\]/);

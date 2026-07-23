@@ -18,6 +18,7 @@ O construtor fica em **Central Administrativa > Criador de portais** e oferece:
 - destino especial para o Room Service da unidade, resolvido pelo `hotel_slug`;
 - página pronta de Room Service, conectada ao catálogo, aos horários e aos quartos da unidade, sem iframe nem segundo cabeçalho;
 - página pronta de Blog, conectada ao feed público oficial e adaptada à identidade e ao cabeçalho do portal;
+- página pronta de Eventos, conectada à agenda publicada da unidade, com lista, filtros, consulta por período da estadia, calendário e detalhe editorial;
 - alternância e pré-visualização separada para desktop e mobile;
 - biblioteca de blocos com inclusão por clique ou arrastar e soltar;
 - camadas reordenáveis por arrastar e soltar, botões de ordem ou painel de camadas;
@@ -26,7 +27,7 @@ O construtor fica em **Central Administrativa > Criador de portais** e oferece:
 - tipografia, espaçamento, colunas, cores, largura e visibilidade ajustáveis separadamente para desktop e mobile;
 - imagens e vídeos da Biblioteca de Mídia, com navegação por unidade autorizada e pasta, upload dentro do próprio seletor e cópia segura para a unidade do portal;
 - favicon e cabeçalho opcional com logotipo, menu, cores, transparência total, desfoque e ação principal;
-- capa com até quatro ações, títulos, textos, botões, imagens, vídeos, galeria, cards de serviço, depoimentos, lista com ícones, chamada em destaque, perguntas frequentes, indicadores, linha do tempo, citação, contato, incorporações, divisor e espaçador;
+- capa com até quatro ações, títulos, textos, botões, imagens, vídeos, galeria, cards de serviço, evento em destaque, depoimentos, lista com ícones, chamada em destaque, perguntas frequentes, indicadores, linha do tempo, citação, contato, incorporações, divisor e espaçador;
 - transparência nos seletores de cor, cantos aplicados diretamente ao componente e guia central durante o movimento livre;
 - cards de serviço empilhados ou sobre a imagem, com controle independente de cor, transparência e desfoque do fundo, além da cor do texto;
 - navegação desktop alinhada à esquerda ou ao centro e gaveta mobile com cores e desfoque configuráveis;
@@ -107,11 +108,11 @@ O campo JSON usa `schema_version=2`. Documentos `schema_version=1` são promovid
 }
 ```
 
-Cada página possui identidade estável, `type`, slug único, visibilidade no menu, fundo e blocos próprios. O tipo padrão é `standard`. Os tipos `room-service` e `blog` são páginas de sistema sem blocos personalizados; existe no máximo uma de cada por portal e ambas carregam dados públicos do hotel indicado pelo `hotel_slug`. Cada bloco comum possui `id`, `type`, `content`, `styles.base`, `styles.desktop`, `styles.mobile` e `visibility`. Os estilos por dispositivo incluem os deslocamentos `offset_x` e `offset_y`, usados pelo movimento livre sem misturar o layout desktop com o mobile. O Worker normaliza o documento antes de salvá-lo e novamente antes de servi-lo.
+Cada página possui identidade estável, `type`, slug único, visibilidade no menu, fundo e blocos próprios. O tipo padrão é `standard`. Os tipos `room-service`, `blog` e `events` são páginas de sistema sem blocos personalizados; existe no máximo uma de cada por portal e todas carregam dados públicos do hotel indicado pelo `hotel_slug`. Cada bloco comum possui `id`, `type`, `content`, `styles.base`, `styles.desktop`, `styles.mobile` e `visibility`. O bloco `event-highlight` guarda somente a referência opcional de um evento e suas preferências de apresentação; título, período, imagem e descrições continuam vindo da agenda da unidade. Os estilos por dispositivo incluem os deslocamentos `offset_x` e `offset_y`, usados pelo movimento livre sem misturar o layout desktop com o mobile. O Worker normaliza o documento antes de salvá-lo e novamente antes de servi-lo.
 
 No site publicado, a navegação desktop usa links diretos para os slugs configurados. Em telas móveis, as páginas visíveis são apresentadas em uma gaveta lateral aberta pelo botão de menu, com animação, fechamento por fundo, botão, link ou tecla `Escape`. O botão recebe contraste automático conforme a cor do cabeçalho. Páginas ocultas continuam publicáveis e acessíveis pelo endereço, mas não aparecem no menu.
 
-Páginas conectadas (`room-service` e `blog`) usam fundo e cabeçalho brancos para não herdar a imagem ou o vídeo da página inicial. Elas mantêm a navegação do portal, não renderizam um segundo cabeçalho e não aceitam blocos personalizados. A página independente do Room Service continua disponível em `/:hotel_slug/room-service` e usa a logo reduzida cadastrada na identidade da unidade.
+Páginas conectadas (`room-service`, `blog` e `events`) usam fundo e cabeçalho brancos para não herdar a imagem ou o vídeo da página inicial. Elas mantêm a navegação do portal, não renderizam um segundo cabeçalho e não aceitam blocos personalizados. A página independente do Room Service continua disponível em `/:hotel_slug/room-service` e usa a logo reduzida cadastrada na identidade da unidade.
 
 ## Segurança
 
@@ -124,6 +125,7 @@ Páginas conectadas (`room-service` e `blog`) usam fundo e cabeçalho brancos pa
 - o portal usa CSP estrita e executa somente o runtime local responsável pela navegação móvel;
 - a página de Room Service libera `connect-src 'self'` somente para consultar as APIs públicas da própria origem;
 - a página de Blog consulta somente a API pública da própria origem; links são limitados ao domínio oficial do Blog Fioreze e imagens externas são aceitas apenas como mídia;
+- a página e o bloco de Eventos consultam somente a API pública da própria origem, isolada pelo `hotel_slug`; o CTA é aceito apenas quando possui URL HTTPS validada pelo backend;
 - APIs administrativas exigem sessão, permissão e acesso ao hotel;
 - mutações exigem origem válida e o header administrativo;
 - o editor usa `expected_revision` para impedir sobrescrita silenciosa;
@@ -133,7 +135,7 @@ Páginas conectadas (`room-service` e `blog`) usam fundo e cabeçalho brancos pa
 
 ## Templates
 
-Existem pontos de partida internos para o Portal do Hóspede Fioreze, hospitalidade, loja digital, campanha, eventos, página de serviço e página em branco. O modelo do Portal do Hóspede entrega Início, Serviços, Eventos, Hotel, Blog e Como chegar, com navegação e destinos internos já conectados. Nesse modelo, Blog já nasce como página conectada ao feed oficial. Os modelos permanecem integralmente editáveis. Um usuário autorizado pode salvar o site completo como modelo da unidade e aplicá-lo em outro portal. Um modelo guarda apenas o documento visual e referências de mídia; não copia usuários, configurações privadas ou dados operacionais. A duplicação entre unidades cria novas mídias no destino e troca as referências no documento clonado, evitando dependência das permissões da unidade de origem.
+Existem pontos de partida internos para o Portal do Hóspede Fioreze, hospitalidade, loja digital, campanha, eventos, página de serviço e página em branco. O modelo do Portal do Hóspede entrega Início, Serviços, Eventos, Hotel, Blog e Como chegar, com navegação e destinos internos já conectados. Nesse modelo, Blog e Eventos já nascem como páginas conectadas às fontes oficiais da unidade. Os modelos permanecem integralmente editáveis. Um usuário autorizado pode salvar o site completo como modelo da unidade e aplicá-lo em outro portal. Um modelo guarda apenas o documento visual e referências de mídia; não copia usuários, configurações privadas ou dados operacionais. A duplicação entre unidades cria novas mídias no destino e troca as referências no documento clonado, evitando dependência das permissões da unidade de origem.
 
 ## Links personalizados
 

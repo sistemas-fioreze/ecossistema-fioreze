@@ -10,7 +10,7 @@ export const VISUAL_PORTAL_MAX_BYTES = 250000;
 export const VISUAL_PORTAL_BLOCK_TYPES = new Set([
   "hero", "heading", "text", "button", "image", "video", "embed",
   "gallery", "feature-grid", "faq", "stats", "timeline", "quote", "contact",
-  "testimonials", "icon-list", "cta-banner", "divider", "spacer",
+  "testimonials", "icon-list", "cta-banner", "event-highlight", "divider", "spacer",
 ]);
 
 const ALIGNMENTS = new Set(["left", "center", "right"]);
@@ -23,8 +23,8 @@ const EMBED_MODES = new Set(["url", "html"]);
 const HEADER_STYLES = new Set(["standard", "centered", "floating", "minimal"]);
 const HEADER_POSITIONS = new Set(["static", "sticky"]);
 const NAVIGATION_ALIGNMENTS = new Set(["left", "center", "right"]);
-const PAGE_TYPES = new Set(["standard", "room-service", "blog"]);
-const SYSTEM_PAGE_TYPES = new Set(["room-service", "blog"]);
+const PAGE_TYPES = new Set(["standard", "room-service", "blog", "events"]);
+const SYSTEM_PAGE_TYPES = new Set(["room-service", "blog", "events"]);
 const FEATURE_CARD_LAYOUTS = new Set(["stacked", "overlay"]);
 const BUTTON_ICONS = new Set(["", "arrow-right", "calendar", "map-pin", "phone", "shopping-bag", "sparkles"]);
 const COLOR_PATTERN = /^(#[0-9a-f]{6}(?:[0-9a-f]{2})?|rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\))$/i;
@@ -95,6 +95,7 @@ export function normalizeVisualPortalDocument(input) {
   if (pages.filter((page) => page.slug === "").length !== 1) throw badRequest("O site deve ter somente uma página inicial.");
   if (pages.filter((page) => page.type === "room-service").length > 1) throw badRequest("O site pode ter somente uma página de Room Service.");
   if (pages.filter((page) => page.type === "blog").length > 1) throw badRequest("O site pode ter somente uma página de Blog.");
+  if (pages.filter((page) => page.type === "events").length > 1) throw badRequest("O site pode ter somente uma página de Eventos.");
 
   const document = { schema_version: VISUAL_PORTAL_SCHEMA_VERSION, settings, pages };
   assertDocumentSize(document, "O site normalizado excede o tamanho permitido.");
@@ -189,7 +190,7 @@ function guestPortalClassicTemplate(base) {
         block("heading", "titulo-servicos", { title: "Serviços do hotel", text: "Escolha o que deseja acessar durante a sua estadia." }, { alignment: "center" }),
         block("feature-grid", "atalhos", { items: [
           { title: "Gastronomia", text: "Cardápios e experiências selecionadas.", button_text: "Ver serviços", button_url: "page:servicos" },
-          { title: "Eventos", text: "Programação e novidades da unidade.", button_text: "Ver agenda", button_url: "page:eventos" },
+          { title: "Eventos", text: "Programação e novidades da unidade.", button_text: "Ver agenda", button_url: "page:events" },
           { title: "Como chegar", text: "Rotas, localização e orientações.", button_text: "Abrir mapa", button_url: "page:como-chegar" },
         ] }, { columns: 3, border_radius: 24 }),
       ],
@@ -201,13 +202,7 @@ function guestPortalClassicTemplate(base) {
         { title: "Experiências", text: "Descubra as opções disponíveis na unidade.", button_text: "Conhecer", button_url: "page:hotel" },
       ] }, { columns: 2, border_radius: 24 }),
     ], pageSettings),
-    sitePage("eventos", "eventos", "Eventos", [
-      block("heading", "eventos-titulo", { title: "Eventos", text: "Experiências, avisos e novidades durante a sua estadia." }, { alignment: "center", padding_top: 72 }),
-      block("feature-grid", "eventos-grade", { items: [
-        { title: "Programação especial", text: "Adicione aqui os eventos e seus detalhes.", button_text: "Saiba mais", button_url: "page:eventos" },
-        { title: "Novidades", text: "Divulgue atrações e experiências da temporada.", button_text: "Conhecer", button_url: "page:eventos" },
-      ] }, { columns: 2, border_radius: 24 }),
-    ], pageSettings),
+    systemSitePage("events", "eventos", "Eventos", pageSettings),
     sitePage("hotel", "hotel", "Hotel", [
       block("hero", "hotel-capa", { eyebrow: "Nossa unidade", title: "Tudo para uma estadia memorável", text: "Apresente a história, a estrutura e os diferenciais do hotel.", button_text: "Como chegar", button_url: "page:como-chegar" }, { alignment: "center", min_height: 460, border_radius: 24 }),
       block("contact", "hotel-contato", { title: "Fale com a equipe", text: "Estamos à disposição durante toda a sua estadia.", address: "Endereço da unidade", phone: "", email: "", button_text: "Como chegar", button_url: "page:como-chegar" }, { border_radius: 24 }),
@@ -425,6 +420,13 @@ function normalizeBlockContent(type, input) {
     overlay: normalizeNumber(input.overlay, 0, 90, 35),
     buttons: normalizeActionButtons(input.buttons, 4),
   };
+  if (type === "event-highlight") return {
+    event_id: optionalSafeIdentifier(input.event_id, "evento"),
+    label: text(input.label, 80) || "Evento em destaque",
+    button_text: text(input.button_text, 80) || "Ver evento",
+    show_summary: input.show_summary !== false,
+    show_date: input.show_date !== false,
+  };
   if (type === "quote") return { quote: text(input.quote, 1800), author: text(input.author, 160) };
   if (type === "contact") return { title: text(input.title, 180), text: text(input.text, 1200), phone: phone(input.phone), email: email(input.email), address: text(input.address, 500), button_text: text(input.button_text, 80), button_url: safeUrl(input.button_url) };
   if (type === "divider") return { label: text(input.label, 100) };
@@ -539,6 +541,13 @@ function safeUrl(value) {
   if (normalized.startsWith("/") && !normalized.startsWith("//")) return normalized;
   if (/^(https:\/\/|mailto:|tel:)/i.test(normalized)) return normalized;
   throw badRequest("Um endereço de link do portal não é permitido.");
+}
+
+function optionalSafeIdentifier(value, label) {
+  const normalized = text(value, 100);
+  if (!normalized) return "";
+  if (!isSafeIdentifier(normalized)) throw badRequest(`O identificador de ${label} é inválido.`);
+  return normalized;
 }
 
 function safeEmbedUrl(value) {

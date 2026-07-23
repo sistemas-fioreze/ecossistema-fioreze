@@ -412,6 +412,46 @@
             </dialog>
           </section>
 
+          <section id="eventsManager" class="admin-events-manager" hidden>
+            <div class="admin-panel-heading admin-events-heading">
+              <div>
+                <span class="admin-section-kicker">Agenda da unidade</span>
+                <h2>Eventos</h2>
+                <p class="admin-muted">Organize a programação exibida nos portais e mantenha cada experiência atualizada.</p>
+              </div>
+              <button id="addEventButton" class="admin-primary-button" type="button">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+                Novo evento
+              </button>
+            </div>
+
+            <form id="eventsFilters" class="admin-filters admin-events-filters">
+              <label>
+                <span>Unidade</span>
+                <select id="eventsHotel" name="hotel_id" required></select>
+              </label>
+              <label>
+                <span>Status</span>
+                <select id="eventsStatus" name="status">
+                  <option value="">Todos</option>
+                  <option value="published">Publicados</option>
+                  <option value="draft">Rascunhos</option>
+                  <option value="cancelled">Cancelados</option>
+                  <option value="archived">Arquivados</option>
+                </select>
+              </label>
+              <label class="admin-events-search">
+                <span>Buscar</span>
+                <input id="eventsSearch" name="q" type="search" placeholder="Título, categoria ou local">
+              </label>
+              <button type="submit">Filtrar</button>
+            </form>
+
+            <div id="eventsSummary" class="admin-events-summary" aria-live="polite"></div>
+            <p id="eventsMessage" class="admin-muted" role="status" aria-live="polite"></p>
+            <div id="eventsList" class="admin-events-list"></div>
+          </section>
+
           <section id="contentManager" class="admin-content-manager" hidden>
             <div class="admin-panel-heading">
               <div><h2>Criador de portais</h2><p class="admin-muted">Crie experiências digitais responsivas a partir de modelos profissionais.</p></div>

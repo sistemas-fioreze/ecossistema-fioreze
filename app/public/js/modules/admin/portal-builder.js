@@ -23,6 +23,7 @@ const BLOCKS = [
   ["testimonials", "Depoimentos", "Relatos com foto e identificação", icon("quote")],
   ["icon-list", "Lista com ícones", "Benefícios, facilidades ou atalhos", icon("list")],
   ["cta-banner", "Chamada destacada", "Faixa visual com mídia e botões", icon("megaphone")],
+  ["event-highlight", "Evento em destaque", "Evento conectado à agenda da unidade", icon("calendar")],
   ["quote", "Citação", "Depoimento ou frase em destaque", icon("quote")],
   ["contact", "Contato", "Endereço, telefone e chamada", icon("contact")],
   ["divider", "Divisor", "Separação entre seções", icon("divider")],
@@ -45,6 +46,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     leftTab: "blocks",
     zoom: 82,
     media: [],
+    events: [],
     mediaBrowserAssets: [],
     mediaHotels: [],
     mediaFolders: [],
@@ -101,7 +103,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
         state.history = [clone(state.document)];
         state.historyIndex = 0;
         state.leftTab = "blocks";
-        await Promise.all([loadMedia(), loadTemplates(), loadVersions()]);
+        await Promise.all([loadMedia(), loadEvents(), loadTemplates(), loadVersions()]);
         renderAll();
         scheduleAutosave();
         requestAnimationFrame(() => fitCanvas(true));
@@ -135,6 +137,15 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
       state.media = payload.data.assets || [];
     } catch {
       state.media = [];
+    }
+  }
+
+  async function loadEvents() {
+    try {
+      const payload = await adminApi(`/api/v1/admin/portal/content?hotel_id=${encodeURIComponent(state.portal.hotel_id)}`);
+      state.events = payload.data.events || [];
+    } catch {
+      state.events = [];
     }
   }
 
@@ -221,9 +232,11 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
       const page = activePage();
       const hasRoomService = state.document.pages.some((item) => item.type === "room-service");
       const hasBlog = state.document.pages.some((item) => item.type === "blog");
+      const hasEvents = state.document.pages.some((item) => item.type === "events");
       const presets = [
         hasRoomService ? "" : `<button type="button" data-add-room-service-page><span>${icon("shopping-bag")}</span><div><b>Room Service</b><small>Cardápio e pedidos da unidade</small></div>${icon("plus")}</button>`,
         hasBlog ? "" : `<button type="button" data-add-blog-page><span>${icon("page")}</span><div><b>Blog</b><small>Publicações oficiais do Blog Fioreze</small></div>${icon("plus")}</button>`,
+        hasEvents ? "" : `<button type="button" data-add-events-page><span>${icon("calendar")}</span><div><b>Eventos</b><small>Agenda conectada à unidade</small></div>${icon("plus")}</button>`,
       ].join("");
       els.leftContent.innerHTML = `<div class="vp-panel-heading"><div><strong>Páginas</strong><span>${state.document.pages.length} de 20 páginas</span></div><button type="button" data-add-page title="Adicionar página livre">${icon("plus")}</button></div><div class="vp-pages">${state.document.pages.map((item) => `<article class="${item.id === state.activePageId ? "is-selected" : ""}"><button type="button" data-select-page="${escapeAttr(item.id)}"><span>${icon(systemPageIcon(item))}</span><div><strong>${escapeHtml(item.name)}</strong><small>${systemPageDescription(item)}${item.show_in_navigation ? " · no menu" : ""}</small></div></button><div>${isSystemPage(item) ? "" : `<button type="button" data-duplicate-page="${escapeAttr(item.id)}" title="Duplicar página">${icon("copy")}</button>`}<button type="button" data-delete-page="${escapeAttr(item.id)}" title="Excluir página" ${item.slug ? "" : "disabled"}>${icon("trash")}</button></div></article>`).join("")}</div>${presets ? `<div class="vp-page-presets"><strong>Páginas prontas</strong>${presets}</div>` : ""}${page ? '<button type="button" class="vp-secondary-action" data-page-settings>Configurar página atual</button>' : ""}`;
       return;
@@ -265,6 +278,8 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
       ? renderRoomServicePagePreview()
       : isBlogPage(page)
         ? renderBlogPagePreview()
+        : isEventsPage(page)
+          ? renderEventsPagePreview()
         : page.blocks.map((block, index) => renderEditableBlock(block, index)).join("") || `<button type="button" class="vp-empty-canvas" data-add-block="hero">${icon("plus")}<strong>Adicione o primeiro bloco</strong><span>Comece por uma capa ou arraste qualquer elemento da biblioteca.</span></button>`;
     const systemPage = isSystemPage(page);
     els.canvas.innerHTML = `<div class="vp-preview-page ${systemPage ? "is-system-page" : ""} ${!systemPage && settings.background_media_asset_id ? "has-page-media" : ""} ${state.editorMobileMenuOpen ? "is-editor-menu-open" : ""}" style="--vp-page-bg:${escapeAttr(systemPage ? "#ffffff" : settings.background_color)};--vp-page-text:${escapeAttr(systemPage ? "#202124" : settings.text_color)};--vp-page-primary:${escapeAttr(site.primary_color)};--vp-page-surface:${escapeAttr(settings.surface_color)};--vp-page-font:${escapeAttr(site.font_family)};--vp-page-gap:${Number(settings.block_gap)}px;--vp-page-padding:${Number(settings.page_padding)}px;--vp-page-overlay:${Number(settings.background_overlay || 0) / 100};--vp-page-media-position:${escapeAttr(settings.background_position || "center")};--vp-page-media-fit:${escapeAttr(settings.background_fit || "cover")}">${systemPage ? "" : pageBackgroundPreview(settings)}<span class="vp-alignment-guide is-vertical" data-alignment-guide="x"></span>${renderEditorHeader()}<div class="vp-page-content">${pageContent}</div></div>`;
@@ -277,6 +292,16 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
   function renderBlogPagePreview() {
     const cards = ["Experiência em Gramado", "Novidades da unidade", "Roteiros e dicas"];
     return `<section class="vp-blog-preview"><header><small>CONTEÚDO FIOREZE</small><h1>Blog</h1><p>Novidades, dicas e experiências para aproveitar sua estadia.</p></header><div>${cards.map((title, index) => `<article class="${index === 0 ? "is-featured" : ""}"><span>${icon("image")}</span><section><small>${index === 0 ? "BLOG FIOREZE" : "CONTEÚDO RECENTE"}</small><h2>${title}</h2><p>As publicações são carregadas automaticamente pelo feed oficial.</p><footer>Ler artigo</footer></section></article>`).join("")}</div></section>`;
+  }
+
+  function renderEventsPagePreview() {
+    const events = state.events.filter((event) => event.status === "published").slice(0, 4);
+    return `<section class="vp-events-preview"><header>${icon("calendar")}<div><h1>Eventos</h1><p>Experiências, avisos e novidades durante a sua estadia.</p></div></header><nav><span class="is-active">${icon("list")} Lista</span><span>${icon("calendar")} Calendário</span></nav><div>${events.map((event) => renderEventPreviewCard(event)).join("") || '<article class="vp-event-preview-empty">Os eventos publicados da unidade aparecerão aqui.</article>'}</div></section>`;
+  }
+
+  function renderEventPreviewCard(event) {
+    const media = state.media.find((asset) => asset.id === event.media_asset_id);
+    return `<article class="vp-event-preview-card">${media ? `<img src="${escapeAttr(media.public_url)}" alt="">` : `<span>${icon("calendar")}</span>`}<section><small>EVENTO · ${escapeHtml(previewEventDate(event.starts_at))}</small><h2>${escapeHtml(event.title)}</h2><p>${escapeHtml(event.summary || "Descrição do evento")}</p><footer>${escapeHtml(event.category || "Evento")}<b>Abrir</b></footer></section></article>`;
   }
 
   function renderEditableBlock(block, index) {
@@ -313,6 +338,12 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     if (block.type === "testimonials") return `<div class="vp-preview-inner">${content.title ? `<h2>${escapeHtml(content.title)}</h2>` : ""}<div class="vp-preview-testimonials">${content.items.map((item) => `<figure>${mediaThumbnail(item.media_asset_id)}<blockquote>${escapeHtml(item.quote || "Novo depoimento")}</blockquote><figcaption><strong>${escapeHtml(item.author || "Cliente")}</strong><span>${escapeHtml(item.role || "")}</span></figcaption></figure>`).join("")}</div></div>`;
     if (block.type === "icon-list") return `<div class="vp-preview-inner">${content.title ? `<h2>${escapeHtml(content.title)}</h2>` : ""}<div class="vp-preview-icon-list">${content.items.map((item) => `<article>${previewPortalIcon(item.icon)}<div><h3>${escapeHtml(item.title || "Novo item")}</h3>${previewParagraphs(item.text)}</div></article>`).join("")}</div></div>`;
     if (block.type === "cta-banner") { const media = mediaById(content.media_asset_id); const background = media ? `background-image:linear-gradient(rgba(0,0,0,${Number(content.overlay || 0) / 100}),rgba(0,0,0,${Number(content.overlay || 0) / 100})),url('${escapeCssUrl(media.public_url)}')` : ""; return `<div class="vp-preview-inner vp-preview-cta ${media ? "has-media" : ""}" style="${escapeAttr(background)}"><div>${content.eyebrow ? `<p class="vp-eyebrow">${escapeHtml(content.eyebrow)}</p>` : ""}<h2>${escapeHtml(content.title || "Chamada em destaque")}</h2>${previewParagraphs(content.text)}${previewActionButtons(content.buttons)}</div></div>`; }
+    if (block.type === "event-highlight") {
+      const event = state.events.find((item) => item.id === content.event_id) || state.events.find((item) => item.status === "published");
+      if (!event) return `<div class="vp-preview-inner vp-event-highlight-empty">${icon("calendar")}<strong>Nenhum evento publicado</strong><span>Cadastre um evento na Central para usar este bloco.</span></div>`;
+      const media = state.media.find((asset) => asset.id === event.media_asset_id);
+      return `<div class="vp-preview-inner vp-event-highlight ${media ? "has-media" : ""}" style="${media ? `background-image:linear-gradient(rgba(0,0,0,.08),rgba(0,0,0,.82)),url('${escapeCssUrl(media.public_url)}')` : ""}"><div><small>${escapeHtml(content.label || "Evento em destaque")}</small><h2>${escapeHtml(event.title)}</h2>${content.show_summary && event.summary ? `<p>${escapeHtml(event.summary)}</p>` : ""}<footer>${content.show_date ? `<span>${icon("calendar")}${escapeHtml(previewEventDate(event.starts_at))}</span>` : ""}<b>${escapeHtml(content.button_text || "Ver evento")} ${icon("arrow-right")}</b></footer></div></div>`;
+    }
     if (block.type === "quote") return `<figure class="vp-preview-inner vp-preview-quote"><blockquote>${escapeHtml(content.quote || "Uma frase memorável para destacar.")}</blockquote>${content.author ? `<figcaption>${escapeHtml(content.author)}</figcaption>` : ""}</figure>`;
     if (block.type === "contact") return `<div class="vp-preview-inner vp-preview-contact"><h2>${escapeHtml(content.title || "Fale conosco")}</h2>${previewParagraphs(content.text)}<div>${[content.address, content.phone, content.email].filter(Boolean).map((value) => `<span>${escapeHtml(value)}</span>`).join("")}</div>${previewButton(content.button_text, content.button_url)}</div>`;
     if (block.type === "divider") return `<div class="vp-preview-inner vp-preview-divider"><span></span>${content.label ? `<em>${escapeHtml(content.label)}</em>` : ""}<span></span></div>`;
@@ -375,6 +406,13 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     if (block.type === "testimonials") fields.push(textField("Título", "title", content.title), testimonialItemsInspector(content.items));
     if (block.type === "icon-list") fields.push(textField("Título", "title", content.title), iconListItemsInspector(content.items));
     if (block.type === "cta-banner") fields.push(textField("Chamada", "eyebrow", content.eyebrow), textField("Título", "title", content.title), textareaField("Texto", "text", content.text), mediaField("Imagem de fundo", "media_asset_id", content.media_asset_id, "image"), rangeField("Escurecimento", "overlay", content.overlay, 0, 90, "content"), actionButtonsInspector(content.buttons));
+    if (block.type === "event-highlight") fields.push(
+      `<label><span>Evento</span><select data-content-field="event_id">${options([["", "Próximo evento automaticamente"], ...state.events.filter((event) => event.status === "published").map((event) => [event.id, event.title])], content.event_id)}</select></label>`,
+      textField("Selo", "label", content.label),
+      textField("Texto do botão", "button_text", content.button_text),
+      toggleField("Exibir descrição curta", "show_summary", content.show_summary),
+      toggleField("Exibir data", "show_date", content.show_date),
+    );
     if (block.type === "quote") fields.push(textareaField("Citação", "quote", content.quote, 6), textField("Autoria", "author", content.author));
     if (block.type === "contact") fields.push(textField("Título", "title", content.title), textareaField("Texto", "text", content.text), textField("Endereço", "address", content.address), textField("Telefone", "phone", content.phone), textField("E-mail", "email", content.email), textField("Texto do botão", "button_text", content.button_text), linkField("Destino do botão", "button_url", content.button_url));
     if (block.type === "divider") fields.push(textField("Legenda opcional", "label", content.label));
@@ -447,8 +485,8 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
 
   function styleInspector(block) {
     const style = block.styles[state.styleTarget] || {};
-    const hasHeading = ["hero", "heading", "feature-grid", "faq", "stats", "timeline", "testimonials", "icon-list", "cta-banner", "quote", "contact", "gallery", "video"].includes(block.type);
-    const hasText = ["hero", "heading", "text", "feature-grid", "faq", "timeline", "icon-list", "cta-banner", "contact"].includes(block.type);
+    const hasHeading = ["hero", "heading", "feature-grid", "faq", "stats", "timeline", "testimonials", "icon-list", "cta-banner", "event-highlight", "quote", "contact", "gallery", "video"].includes(block.type);
+    const hasText = ["hero", "heading", "text", "feature-grid", "faq", "timeline", "icon-list", "cta-banner", "event-highlight", "contact"].includes(block.type);
     return `<fieldset><legend>Aparência</legend><div class="vp-style-target" role="tablist"><button type="button" data-style-target="base" aria-selected="${state.styleTarget === "base"}">Global</button><button type="button" data-style-target="desktop" aria-selected="${state.styleTarget === "desktop"}">Desktop</button><button type="button" data-style-target="mobile" aria-selected="${state.styleTarget === "mobile"}">Mobile</button></div><label><span>Alinhamento</span><select data-style-field="alignment"><option value="">Herdar</option>${options([["left", "Esquerda"], ["center", "Centro"], ["right", "Direita"]], style.alignment)}</select></label><label><span>Largura</span><select data-style-field="width"><option value="">Herdar</option>${options([["narrow", "Estreita"], ["content", "Padrão"], ["wide", "Ampla"], ["full", "Tela inteira"]], style.width)}</select></label>${hasHeading ? rangeField("Tamanho dos títulos", "heading_size", style.heading_size ?? "", 18, 160, "style", true) : ""}${hasText ? rangeField("Tamanho do texto", "text_size", style.text_size ?? "", 12, 40, "style", true) : ""}${colorField("Fundo", "background_color", style.background_color, "style", true)}${colorField("Texto", "text_color", style.text_color, "style", true)}${colorField("Destaque", "accent_color", style.accent_color, "style", true)}${rangeField("Espaço acima", "padding_top", style.padding_top ?? "", 0, 200, "style", true)}${rangeField("Espaço abaixo", "padding_bottom", style.padding_bottom ?? "", 0, 200, "style", true)}${rangeField("Margem lateral", "padding_inline", style.padding_inline ?? "", 0, 120, "style", true)}${rangeField("Altura mínima", "min_height", style.min_height ?? "", 0, 1200, "style", true)}${rangeField("Cantos", "border_radius", style.border_radius ?? "", 0, 48, "style", true)}${["gallery", "feature-grid", "stats", "testimonials", "icon-list"].includes(block.type) ? rangeField("Colunas", "columns", style.columns ?? "", 1, 4, "style", true) : ""}</fieldset><fieldset><legend>Posição livre</legend><p class="vp-field-help">Ajuste a posição neste dispositivo sem alterar a ordem da página.</p>${positionRangeField("Horizontal", "offset_x", style.offset_x)}${positionRangeField("Vertical", "offset_y", style.offset_y)}<button type="button" class="vp-secondary-action" data-reset-position>${icon("target")} Centralizar bloco</button></fieldset>`;
   }
 
@@ -521,6 +559,7 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     if (event.target.closest("[data-add-page]")) return addPage();
     if (event.target.closest("[data-add-room-service-page]")) return addRoomServicePage();
     if (event.target.closest("[data-add-blog-page]")) return addBlogPage();
+    if (event.target.closest("[data-add-events-page]")) return addEventsPage();
     const duplicatePageButton = event.target.closest("[data-duplicate-page]");
     if (duplicatePageButton) return duplicatePage(duplicatePageButton.dataset.duplicatePage);
     const deletePageButton = event.target.closest("[data-delete-page]");
@@ -1240,6 +1279,33 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     announce("Página de Blog adicionada.");
   }
 
+  function addEventsPage() {
+    const existing = state.document.pages.find((page) => page.type === "events");
+    if (existing) {
+      switchPage(existing.id);
+      announce("A página de Eventos já faz parte deste portal.");
+      return;
+    }
+    if (state.document.pages.length >= 20) return announce("O site já atingiu o limite de páginas.", true);
+    const page = {
+      id: uniquePageId("events"),
+      type: "events",
+      slug: uniquePageSlug("eventos"),
+      name: "Eventos",
+      title: "Eventos",
+      show_in_navigation: true,
+      settings: systemPageSettings(),
+      blocks: [],
+    };
+    state.document.pages.push(page);
+    state.activePageId = page.id;
+    state.selectedId = null;
+    checkpoint();
+    renderAll();
+    scheduleAutosave();
+    announce("Página de Eventos adicionada.");
+  }
+
   function systemPageSettings() {
     return {
       ...clone(activePage()?.settings || defaultPageSettings()),
@@ -1538,28 +1604,36 @@ export function createVisualPortalBuilder({ onSaved = () => {} } = {}) {
     return page?.type === "blog";
   }
 
+  function isEventsPage(page = activePage()) {
+    return page?.type === "events";
+  }
+
   function isSystemPage(page = activePage()) {
-    return ["room-service", "blog"].includes(page?.type);
+    return ["room-service", "blog", "events"].includes(page?.type);
   }
 
   function systemPageIcon(page) {
     if (page?.type === "room-service") return "shopping-bag";
+    if (page?.type === "events") return "calendar";
     return page?.slug ? "page" : "home";
   }
 
   function systemPageDescription(page) {
     if (page?.type === "room-service") return "Página conectada ao cardápio";
     if (page?.type === "blog") return "Página conectada ao Blog Fioreze";
+    if (page?.type === "events") return "Página conectada à agenda da unidade";
     return page?.slug ? `/${escapeHtml(page.slug)}` : "Página inicial";
   }
 
   function systemPagePanel(page = activePage()) {
     if (page?.type === "blog") return `<div class="vp-system-page-panel">${icon("page")}<strong>Blog conectado</strong><p>Esta página carrega as publicações oficiais do Blog Fioreze para a unidade selecionada.</p></div>`;
+    if (page?.type === "events") return `<div class="vp-system-page-panel">${icon("calendar")}<strong>Eventos conectados</strong><p>Esta página carrega os cards, filtros, calendário e detalhes gerenciados na agenda da unidade.</p></div>`;
     return `<div class="vp-system-page-panel">${icon("shopping-bag")}<strong>Room Service conectado</strong><p>Esta página usa automaticamente o cardápio, os horários e os quartos da unidade. O conteúdo é administrado pelo ERP Room Service.</p></div>`;
   }
 
   function systemPageNotice(page) {
     if (page?.type === "blog") return `<div class="vp-system-page-note">${icon("page")}<div><strong>Conteúdo conectado ao Blog Fioreze</strong><span>Este portal fornece o cabeçalho. As publicações são carregadas pelo feed oficial configurado para a unidade.</span></div></div>`;
+    if (page?.type === "events") return `<div class="vp-system-page-note">${icon("calendar")}<div><strong>Agenda conectada à unidade</strong><span>Este portal fornece o cabeçalho. Os eventos publicados são carregados automaticamente pela Central Administrativa.</span></div></div>`;
     return `<div class="vp-system-page-note">${icon("shopping-bag")}<div><strong>Conteúdo conectado ao ERP</strong><span>Este portal fornece o cabeçalho. Cardápio, horários, disponibilidade e quartos vêm da unidade selecionada.</span></div></div>`;
   }
 
@@ -1770,6 +1844,7 @@ function createBlock(type) {
     testimonials: { title: "O que dizem sobre nós", items: [{ quote: "Uma experiência memorável.", author: "Cliente", role: "", media_asset_id: "" }] },
     "icon-list": { title: "Destaques", items: [{ icon: "sparkles", title: "Novo benefício", text: "Descreva este item.", url: "" }] },
     "cta-banner": { eyebrow: "Em destaque", title: "Uma chamada importante", text: "Conduza o visitante para a próxima ação.", media_asset_id: "", overlay: 35, buttons: [{ text: "Conhecer", url: "/", icon: "arrow-right", media_asset_id: "", style: "solid" }] },
+    "event-highlight": { event_id: "", label: "Evento em destaque", button_text: "Ver evento", show_summary: true, show_date: true },
     quote: { quote: "Uma frase memorável para destacar.", author: "" },
     contact: { title: "Fale conosco", text: "Estamos à disposição para ajudar.", phone: "", email: "", address: "", button_text: "", button_url: "" },
     divider: { label: "" },
@@ -1781,6 +1856,7 @@ function createBlock(type) {
   if (type === "stats") shared.styles.base.columns = 3;
   if (type === "testimonials") shared.styles.base.columns = 3;
   if (type === "icon-list") shared.styles.base.columns = 3;
+  if (type === "event-highlight") Object.assign(shared.styles.base, { border_radius: 24, min_height: 420 });
   if (["feature-grid", "gallery", "stats", "testimonials", "icon-list"].includes(type)) shared.styles.mobile.columns = 1;
   if (type === "hero") Object.assign(shared.styles.mobile, { heading_size: 48, text_size: 16, padding_inline: 18 });
   if (type === "heading") shared.styles.mobile.heading_size = 38;
@@ -1816,6 +1892,13 @@ function previewParagraphs(value) { return String(value || "").split(/\n{2,}/).f
 function previewButton(text, url, style = "solid") { return text ? `<a class="vp-preview-button is-${escapeAttr(style || "solid")}" href="${escapeAttr(url || "#")}" tabindex="-1">${escapeHtml(text)}</a>` : ""; }
 function previewActionButtons(buttons = []) { return `<div class="vp-preview-actions">${buttons.map((button) => button.text ? `<a class="vp-preview-button is-${escapeAttr(button.style || "solid")}" href="#" tabindex="-1">${button.media_asset_id ? icon("image") : previewPortalIcon(button.icon)}<span>${escapeHtml(button.text)}</span></a>` : "").join("")}</div>`; }
 function previewPortalIcon(name) { return icon(name || "sparkles"); }
+function previewEventDate(value) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "Data a definir";
+  return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" })
+    .format(parsed)
+    .replace(".", "");
+}
 function blockLabel(block, index) { return block.content?.title || block.content?.text?.slice(0, 32) || `${BLOCK_LABELS[block.type]} ${index + 1}`; }
 function iconForBlock(type) { return BLOCKS.find(([key]) => key === type)?.[3] || icon("grid"); }
 function uniqueBlockId(type) { return `${type}-${crypto.randomUUID().slice(0, 8)}`; }
