@@ -24,6 +24,7 @@ const PBKDF2_MIN_ITERATIONS = PBKDF2_ITERATIONS;
 const PBKDF2_MAX_ITERATIONS = PBKDF2_ITERATIONS;
 const FULL_SESSION_TYPE = "full";
 const PASSWORD_CHANGE_SESSION_TYPE = "password_change_required";
+const MASTER_ADMIN_USER_NUMBER = 1;
 const DUMMY_PASSWORD_HASH =
   "pbkdf2$sha256$100000$ZmlvcmV6ZS1kdW1teS1zYWx0LTIwMjY=$mXQQxO28jbsrTZwq2R4c6bUcLzkM5YQm4cHhaxI8W+E=";
 
@@ -79,6 +80,7 @@ export async function loginAdmin({ request, env }) {
   const session = await buildAdminSession(env, {
     session_id: sessionId,
     user_id: user.id,
+    user_number: user.user_number,
     display_name: user.display_name,
     email: user.email,
     avatar_object_key: user.avatar_object_key,
@@ -124,7 +126,7 @@ export async function getCurrentAdminSession({ request, env, required = true }) 
   const sessionRow = await first(
     env,
     `SELECT s.id AS session_id, s.user_id, s.session_type, s.expires_at,
-            u.display_name, u.email,
+            u.user_number, u.display_name, u.email,
             u.avatar_object_key, u.avatar_mime_type, u.avatar_updated_at
        FROM admin_sessions s
        JOIN admin_users u ON u.id = s.user_id
@@ -200,7 +202,7 @@ export function assertAdminMutationAllowed({ request }) {
 async function findUserByEmail(env, email) {
   return first(
     env,
-    `SELECT id, display_name, email, password_hash, password_strategy,
+    `SELECT id, user_number, display_name, email, password_hash, password_strategy,
             status, force_password_change,
             avatar_object_key, avatar_mime_type, avatar_updated_at
        FROM admin_users
@@ -211,33 +213,55 @@ async function findUserByEmail(env, email) {
 }
 
 async function buildAdminSession(env, row) {
-  const hotels = await all(
-    env,
-    `SELECT h.id AS hotel_id, h.slug, h.name, h.short_name,
-            h.timezone, h.locale, h.currency, aha.access_level
-      FROM admin_hotel_access aha
-      JOIN hotels h ON h.id = aha.hotel_id
-     WHERE aha.user_id = ?
-        AND h.archived_at IS NULL
-      ORDER BY h.name`,
-    [row.user_id],
-  );
+  const isMaster = Number(row.user_number || 0) === MASTER_ADMIN_USER_NUMBER;
+  const hotels = isMaster
+    ? await all(
+        env,
+        `SELECT h.id AS hotel_id, h.slug, h.name, h.short_name,
+                h.timezone, h.locale, h.currency, 'owner' AS access_level
+           FROM hotels h
+          WHERE h.archived_at IS NULL
+            AND h.status = 'active'
+          ORDER BY h.name`,
+        [],
+      )
+    : await all(
+        env,
+        `SELECT h.id AS hotel_id, h.slug, h.name, h.short_name,
+                h.timezone, h.locale, h.currency, aha.access_level
+           FROM admin_hotel_access aha
+           JOIN hotels h ON h.id = aha.hotel_id
+          WHERE aha.user_id = ?
+            AND h.archived_at IS NULL
+          ORDER BY h.name`,
+        [row.user_id],
+      );
 
-  const permissions = await all(
-    env,
-    `SELECT DISTINCT p.permission_key
-       FROM admin_user_roles ur
-       JOIN admin_role_permissions rp ON rp.role_id = ur.role_id
-       JOIN admin_permissions p ON p.id = rp.permission_id
-      WHERE ur.user_id = ?
-      ORDER BY p.permission_key`,
-    [row.user_id],
-  );
+  const permissions = isMaster
+    ? await all(
+        env,
+        `SELECT permission_key
+           FROM admin_permissions
+          ORDER BY permission_key`,
+        [],
+      )
+    : await all(
+        env,
+        `SELECT DISTINCT p.permission_key
+           FROM admin_user_roles ur
+           JOIN admin_role_permissions rp ON rp.role_id = ur.role_id
+           JOIN admin_permissions p ON p.id = rp.permission_id
+          WHERE ur.user_id = ?
+          ORDER BY p.permission_key`,
+        [row.user_id],
+      );
 
   return {
     session_id: row.session_id,
     user: {
       id: row.user_id,
+      number: Number(row.user_number || 0) || null,
+      is_master: isMaster,
       display_name: row.display_name,
       email: row.email,
       avatar: row.avatar_object_key

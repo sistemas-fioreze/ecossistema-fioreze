@@ -24,6 +24,7 @@ test("unidades exigem sessao administrativa", async () => {
 
 test("usuario sem permissao de unidades nao recebe listagem enriquecida", async () => {
   const { json, env } = createWorkerTestContext();
+  env.__data.adminUsers.find((user) => user.id === "user-demo-admin").user_number = 99;
   const cookie = await createSessionCookie(env);
 
   const response = await json("/api/v1/admin/hotels", withCookie(cookie));
@@ -99,11 +100,12 @@ test("criacao de unidade valida slug, ignora hotel_id do cliente e registra audi
 test("criador acessa nova unidade imediatamente sem liberar outros usuarios", async () => {
   const { json, env } = createWorkerTestContext();
   grantPermissions(env);
-  const creatorCookie = await createSessionCookie(env);
+  const creatorCookie = await createSessionCookie(env, AURORA_USER_ID);
 
   const created = await json("/api/v1/admin/hotels", withCookie(creatorCookie, adminJson("POST", unitPayload({ slug: "demo-serra" }))));
-  const freshCreatorCookie = await createSessionCookie(env);
-  const otherCookie = await createSessionCookie(env, AURORA_USER_ID);
+  const freshCreatorCookie = await createSessionCookie(env, AURORA_USER_ID);
+  env.__data.adminUsers.find((user) => user.id === "user-demo-admin").user_number = 99;
+  const otherCookie = await createSessionCookie(env);
   const list = await json("/api/v1/admin/hotels", withCookie(freshCreatorCookie));
   const detail = await json("/api/v1/admin/hotels/demo-serra", withCookie(freshCreatorCookie));
   const branding = await json(
@@ -133,6 +135,7 @@ test("criador acessa nova unidade imediatamente sem liberar outros usuarios", as
   assert.equal(navigation.response.status, 200);
   assert.equal(otherDetail.response.status, 401);
   assert.equal(env.__data.adminHotelAccess.filter((entry) => entry.hotel_id === "demo-serra").length, 1);
+  assert.equal(env.__data.adminHotelAccess.find((entry) => entry.hotel_id === "demo-serra").user_id, AURORA_USER_ID);
 });
 
 test("falha atomica na criacao nao deixa unidade orfa", async () => {

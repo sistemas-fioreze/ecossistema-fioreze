@@ -76,7 +76,7 @@ test("novo workspace visual permanece isolado da Central e responsivo", () => {
   assert.match(css, /admin-nav-group/);
   assert.match(css, /@media \(max-width: 980px\)/);
   assert.match(css, /prefers-reduced-motion: reduce/);
-  assert.match(shell, /admin-brand-copy/);
+  assert.doesNotMatch(shell, /admin-brand-copy|<strong>Central<\/strong><small>Administrativa<\/small>/);
   assert.match(shell, /Visão geral/);
   assert.match(shell, /Experiências/);
   assert.match(shell, /Colaboração/);
@@ -254,7 +254,7 @@ test("login usa marca estática e valida sessão sem tela intermediária", () =>
   assert.match(css, /admin-access-card \.brand-mark[\s\S]*border: 0/);
   assert.match(css, /admin-access-card \.brand-mark[\s\S]*background: transparent url/);
   assert.match(css, /admin-access-card input:-webkit-autofill/);
-  assert.match(css, /admin-access-card \.admin-primary-button \{[\s\S]*width: 100%/);
+  assert.match(css, /admin-access-card \.admin-primary-button \{[\s\S]*width: 178px/);
 });
 
 test("Central usa identidade fixa sem seletor pessoal de cores", () => {
@@ -268,6 +268,7 @@ test("Central usa identidade fixa sem seletor pessoal de cores", () => {
   assert.doesNotMatch(`${home}\n${portals}\n${shell}`, /data-admin-palette|admin-palette-picker|ADMIN_PALETTES/);
   assert.doesNotMatch(routes, /admin\/me\/preferences|\.\/preferences\.js/);
   assert.match(css, /--workspace-sidebar: #ffffff/);
+  assert.match(css, /--admin-primary: #3d4349/);
   assert.match(css, /\.is-sidebar-compact :where\([\s\S]*display: none !important/);
   assert.match(doc, /identidade institucional fixa/);
   assert.doesNotMatch(doc, /Seletor pessoal de paleta|escolha uma paleta propria/);

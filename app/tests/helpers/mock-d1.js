@@ -963,6 +963,7 @@ class MockD1Database {
       return {
         session_id: session.id,
         user_id: user.id,
+        user_number: user.user_number,
         session_type: session.session_type || "full",
         expires_at: session.expires_at,
         display_name: user.display_name,
@@ -1032,6 +1033,16 @@ class MockD1Database {
       const [roleId] = params;
       const role = this.data.adminRoles.find((entry) => entry.id === roleId);
       return role ? { ...role } : null;
+    }
+
+    if (normalized.includes("from admin_user_roles ur") && normalized.includes("join admin_users u") && normalized.includes("u.user_number = 1")) {
+      const [roleId] = params;
+      const assigned = this.data.adminUserRoles.find(
+        (entry) =>
+          entry.role_id === roleId &&
+          this.data.adminUsers.some((user) => user.id === entry.user_id && Number(user.user_number) === 1),
+      );
+      return assigned ? { role_id: assigned.role_id } : null;
     }
 
     if (normalized.includes("count(*) as user_count") && normalized.includes("from admin_user_roles")) {
@@ -1259,7 +1270,32 @@ class MockD1Database {
     }
 
     if (normalized.includes("from admin_messages m") && normalized.includes("join admin_users sender")) {
-      const [ownerUserId] = params;
+      const ownerUserId = params[0];
+      const archived = normalized.includes("archived_by_sender_at is not null");
+      if (archived) {
+        return this.data.adminMessages
+          .filter(
+            (message) =>
+              (message.sender_user_id === ownerUserId && message.archived_by_sender_at != null) ||
+              (message.recipient_user_id === ownerUserId && message.archived_by_recipient_at != null),
+          )
+          .map((message) => {
+            const sent = message.sender_user_id === ownerUserId;
+            const counterpart = this.data.adminUsers.find((user) => user.id === (sent ? message.recipient_user_id : message.sender_user_id));
+            return {
+              id: message.id,
+              subject: message.subject,
+              body: message.body,
+              created_at: message.created_at,
+              read_at: message.read_at || null,
+              direction: sent ? "sent" : "inbox",
+              counterpart_number: counterpart?.user_number || null,
+              counterpart_name: counterpart?.display_name || "",
+              counterpart_email: counterpart?.email || "",
+            };
+          })
+          .sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id));
+      }
       const sent = normalized.includes("m.sender_user_id = ?");
       return this.data.adminMessages
         .filter((message) => (sent ? message.sender_user_id : message.recipient_user_id) === ownerUserId)
@@ -1301,6 +1337,26 @@ class MockD1Database {
           locale: hotel.locale,
           currency: hotel.currency,
           ...(this.data.branding.find((entry) => entry.hotel_id === hotel.id) || {}),
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    if (
+      normalized.includes("from hotels h") &&
+      normalized.includes("'owner' as access_level") &&
+      !normalized.includes("join hotel_modules")
+    ) {
+      return this.data.hotels
+        .filter((hotel) => hotel.status === "active" && hotel.archived_at == null)
+        .map((hotel) => ({
+          hotel_id: hotel.id,
+          slug: hotel.slug,
+          name: hotel.name,
+          short_name: hotel.short_name,
+          timezone: hotel.timezone,
+          locale: hotel.locale,
+          currency: hotel.currency,
+          access_level: "owner",
         }))
         .sort((a, b) => a.name.localeCompare(b.name));
     }
@@ -1619,6 +1675,13 @@ class MockD1Database {
             name: role.name,
             description: role.description || "",
             user_count: userCount,
+            master_assigned: this.data.adminUserRoles.some(
+              (entry) =>
+                entry.role_id === role.id &&
+                this.data.adminUsers.some((user) => user.id === entry.user_id && Number(user.user_number) === 1),
+            )
+              ? 1
+              : 0,
             permissions_text: permissions.join(","),
           };
         })
@@ -1657,6 +1720,14 @@ class MockD1Database {
       return this.data.adminUserRoles
         .filter((entry) => entry.user_id === userId && (!excludedRoleId || entry.role_id !== excludedRoleId))
         .map((entry) => ({ role_id: entry.role_id }));
+    }
+
+    if (normalized.includes("select hotel_id from admin_hotel_access where user_id = ?")) {
+      const [userId] = params;
+      return this.data.adminHotelAccess
+        .filter((entry) => entry.user_id === userId)
+        .map((entry) => ({ hotel_id: entry.hotel_id }))
+        .sort((a, b) => a.hotel_id.localeCompare(b.hotel_id));
     }
 
     if (normalized.includes("from admin_users u") && normalized.includes("p.permission_key in")) {
@@ -2683,6 +2754,48 @@ class MockD1Database {
           updated_at,
         });
       }
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update admin_messages") && normalized.includes("set read_at = null")) {
+      const [id, recipient_user_id] = params;
+      const message = this.data.adminMessages.find(
+        (entry) => entry.id === id && entry.recipient_user_id === recipient_user_id && entry.read_at != null,
+      );
+      if (!message) return d1Result(0);
+      message.read_at = null;
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update admin_messages") && normalized.includes("archived_by_sender_at = ?")) {
+      const [archived_at, id] = params;
+      const message = this.data.adminMessages.find((entry) => entry.id === id && entry.archived_by_sender_at == null);
+      if (!message) return d1Result(0);
+      message.archived_by_sender_at = archived_at;
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update admin_messages") && normalized.includes("archived_by_recipient_at = ?")) {
+      const [archived_at, id] = params;
+      const message = this.data.adminMessages.find((entry) => entry.id === id && entry.archived_by_recipient_at == null);
+      if (!message) return d1Result(0);
+      message.archived_by_recipient_at = archived_at;
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update admin_messages") && normalized.includes("archived_by_sender_at = null")) {
+      const [id] = params;
+      const message = this.data.adminMessages.find((entry) => entry.id === id && entry.archived_by_sender_at != null);
+      if (!message) return d1Result(0);
+      message.archived_by_sender_at = null;
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update admin_messages") && normalized.includes("archived_by_recipient_at = null")) {
+      const [id] = params;
+      const message = this.data.adminMessages.find((entry) => entry.id === id && entry.archived_by_recipient_at != null);
+      if (!message) return d1Result(0);
+      message.archived_by_recipient_at = null;
       return d1Result(1);
     }
 

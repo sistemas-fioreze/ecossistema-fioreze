@@ -6,23 +6,30 @@
  */
 
 body[data-admin-design="workspace"][data-admin-shell="erp"] {
-  --workspace-ink: #1c2522;
-  --workspace-muted: #69736f;
-  --workspace-faint: #8c9691;
-  --workspace-canvas: #f3f5f2;
+  --admin-primary: #3d4349;
+  --admin-primary-hover: #292e33;
+  --admin-primary-soft: #edf0f2;
+  --admin-accent: #6d747b;
+  --admin-canvas: #f4f5f5;
+  --color-primary: var(--admin-primary);
+  --color-secondary: var(--admin-primary-soft);
+  --workspace-ink: #202428;
+  --workspace-muted: #697077;
+  --workspace-faint: #90969c;
+  --workspace-canvas: #f4f5f5;
   --workspace-surface: #ffffff;
-  --workspace-soft: #edf1ed;
-  --workspace-line: #dce2dd;
-  --workspace-line-strong: #cbd3cd;
+  --workspace-soft: #eef0f1;
+  --workspace-line: #dfe2e4;
+  --workspace-line-strong: #cbd0d3;
   --workspace-sidebar: #ffffff;
-  --workspace-sidebar-soft: #f1f3f1;
-  --workspace-sidebar-text: #1c2522;
-  --workspace-sidebar-muted: #67716d;
+  --workspace-sidebar-soft: #f1f2f3;
+  --workspace-sidebar-text: #252a2e;
+  --workspace-sidebar-muted: #687078;
   --workspace-positive: #2d7d65;
   --workspace-warning: #b6852f;
   --workspace-danger: #b54a4a;
-  --workspace-shadow: 0 12px 30px rgba(28, 37, 34, 0.07);
-  --workspace-shadow-high: 0 24px 60px rgba(28, 37, 34, 0.16);
+  --workspace-shadow: 0 12px 30px rgba(32, 36, 40, 0.07);
+  --workspace-shadow-high: 0 24px 60px rgba(32, 36, 40, 0.16);
   color: var(--workspace-ink);
   background: var(--workspace-canvas);
 }
@@ -55,14 +62,11 @@ body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-shell {
 /* Authentication */
 
 body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-login {
+  width: 100%;
   min-height: 100dvh;
   display: grid;
   place-items: center;
-  padding:
-    max(32px, env(safe-area-inset-top))
-    max(22px, env(safe-area-inset-right))
-    max(32px, env(safe-area-inset-bottom))
-    max(22px, env(safe-area-inset-left));
+  padding: 24px;
   background: #fff;
 }
 
@@ -71,10 +75,13 @@ body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-login[hidden]
 }
 
 body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card {
-  width: min(430px, 100%);
-  display: grid;
-  gap: 16px;
-  justify-items: stretch;
+  width: min(360px, 100%);
+  min-height: 330px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
   margin: 0;
   border: 0;
   border-radius: 0;
@@ -84,13 +91,14 @@ body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card {
 }
 
 body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card .brand-mark {
-  width: 248px;
-  height: 82px;
-  justify-self: center;
-  margin: 0 auto 12px;
+  width: 230px;
+  height: 92px;
+  display: grid;
+  place-items: center;
+  margin: 0 0 12px;
   border: 0;
   border-radius: 0;
-  background: transparent url("/assets/shared/fioreze-central-logo.jpg") center / 298px auto no-repeat;
+  background: transparent url("/assets/shared/fioreze-central-logo.jpg") center / contain no-repeat;
   box-shadow: none;
   animation: none;
 }
@@ -98,26 +106,25 @@ body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card .
 body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card .eyebrow {
   margin: 0;
   color: var(--admin-primary);
-  font-size: 0.7rem;
-  font-weight: 850;
-  letter-spacing: 0.12em;
+  font-size: 0.64rem;
+  font-weight: 950;
+  letter-spacing: 0.18em;
   text-align: center;
 }
 
 body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card h1 {
-  margin: -6px 0 14px;
+  margin: 0 0 8px;
   color: var(--workspace-ink);
-  font-size: clamp(1.9rem, 4vw, 2.35rem);
-  font-weight: 760;
-  line-height: 1.08;
+  font-size: 1.3rem;
+  font-weight: 950;
+  line-height: 1.15;
   text-align: center;
 }
 
 body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card label {
-  position: static;
+  position: relative;
   display: grid;
-  gap: 7px;
-  width: 100%;
+  width: min(292px, 100%);
   min-width: 0;
   color: var(--workspace-ink);
   font-size: 0.78rem;
@@ -125,31 +132,28 @@ body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card l
 }
 
 body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card label > span {
-  position: static;
-  display: block;
-  width: auto;
-  height: auto;
-  overflow: visible;
-  clip: auto;
-  color: var(--workspace-ink);
-  font-size: 0.76rem;
-  font-weight: 760;
-  white-space: normal;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card input {
   box-sizing: border-box;
   width: 100%;
-  max-width: none;
-  min-height: 50px;
+  min-height: 52px;
   border: 1px solid var(--workspace-line-strong);
-  border-radius: 7px;
+  border-radius: 14px;
   padding: 0 14px;
-  background: #fff;
+  background: #f7f5ef;
   color: var(--workspace-ink);
   font: inherit;
-  font-size: 0.94rem;
-  text-align: left;
+  font-size: 0.88rem;
+  font-weight: 850;
+  text-align: center;
   transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
@@ -157,7 +161,7 @@ body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card i
 body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card input:-webkit-autofill:hover,
 body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card input:-webkit-autofill:focus {
   -webkit-text-fill-color: var(--workspace-ink);
-  -webkit-box-shadow: 0 0 0 1000px #fff inset;
+  -webkit-box-shadow: 0 0 0 1000px #f7f5ef inset;
   transition: background-color 9999s ease-out 0s;
 }
 
@@ -168,10 +172,10 @@ body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card i
 }
 
 body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card .admin-primary-button {
-  width: 100%;
-  min-height: 50px;
+  width: 178px;
+  min-height: 46px;
   margin-top: 4px;
-  border-radius: 7px;
+  border-radius: 14px;
   font-size: 0.9rem;
 }
 
@@ -243,7 +247,7 @@ body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-brand-lockup 
   min-width: 0;
   min-height: 48px;
   display: grid;
-  grid-template-columns: 104px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
   gap: 10px;
   margin: 0;
@@ -258,37 +262,12 @@ body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-brand-wordmar
   display: block;
   overflow: hidden;
   border-radius: 0;
-  background: transparent url("/assets/shared/fioreze-central-logo.jpg") center / 126px auto no-repeat;
+  background: transparent url("/assets/shared/fioreze-central-logo.jpg") left center / 126px auto no-repeat;
   opacity: 1;
 }
 
 body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-brand-wordmark img {
   display: none;
-}
-
-body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-brand-copy {
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-}
-
-body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-brand-copy strong,
-body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-brand-copy small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-brand-copy strong {
-  color: var(--workspace-sidebar-text);
-  font-size: 0.72rem;
-  font-weight: 800;
-}
-
-body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-brand-copy small {
-  color: var(--workspace-sidebar-muted);
-  font-size: 0.6rem;
-  font-weight: 650;
 }
 
 body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-shell-toggle-sidebar {
@@ -355,6 +334,7 @@ body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-global-nav .a
   color: var(--workspace-sidebar-muted);
   font-size: 0.78rem;
   font-weight: 720;
+  line-height: 1;
   text-decoration: none;
   white-space: nowrap;
   transition: background-color 0.16s ease, color 0.16s ease;
@@ -395,8 +375,11 @@ body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-global-nav .a
 
 body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-global-nav a > span,
 body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-global-nav .admin-nav-group > div > span > span {
-  display: block;
+  min-height: 19px;
+  display: flex;
+  align-items: center;
   min-width: 0;
+  line-height: 1.15;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -416,7 +399,6 @@ body[data-admin-design="workspace"][data-admin-shell="erp"] .is-sidebar-compact 
 body[data-admin-design="workspace"][data-admin-shell="erp"] .is-sidebar-compact :where(
     .admin-brand-lockup,
     .admin-brand-wordmark,
-    .admin-brand-copy,
     .admin-nav-group > p,
     .admin-global-nav a > span,
     .admin-global-nav .admin-nav-group > div > span > span
@@ -537,8 +519,10 @@ body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-command-searc
 }
 
 body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-command-search label:focus-within {
-  border-color: color-mix(in srgb, var(--admin-primary) 55%, var(--workspace-line));
+  border-color: var(--workspace-line-strong);
   background: #fff;
+  outline: 0;
+  box-shadow: none;
 }
 
 body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-command-search input {
@@ -553,6 +537,12 @@ body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-command-searc
   font: inherit;
   font-size: 0.8rem;
   font-weight: 650;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-command-search input:focus,
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-command-search input:focus-visible {
+  outline: 0;
+  box-shadow: none;
 }
 
 body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-command-search kbd {
@@ -598,9 +588,33 @@ body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-command-resul
   text-decoration: none;
 }
 
-body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-command-results a:hover {
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-command-results a:hover,
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-command-results a.is-active {
   background: var(--admin-primary-soft);
   color: var(--admin-primary);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-command-results a > span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-command-results :where(strong, small) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-command-results strong {
+  color: var(--workspace-ink);
+  font-size: 0.76rem;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-command-results small {
+  color: var(--workspace-faint);
+  font-size: 0.62rem;
+  font-weight: 650;
 }
 
 body[data-admin-design="workspace"][data-admin-shell="erp"] :where(.admin-icon-button, .admin-shell-toggle-mobile) {
@@ -1426,37 +1440,60 @@ body[data-admin-design="workspace"][data-admin-shell="erp"] #accountManager {
 /* Messages */
 
 body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-messages-layout {
-  min-height: 560px;
+  min-height: 600px;
   display: grid;
-  grid-template-columns: 150px minmax(250px, 0.75fr) minmax(320px, 1.25fr);
+  grid-template-columns: 190px minmax(340px, 0.9fr) minmax(360px, 1.1fr);
   overflow: hidden;
   border: 1px solid var(--workspace-line);
   border-radius: 8px;
   background: #fff;
+  box-shadow: var(--workspace-shadow);
 }
 
 body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes {
-  display: grid;
-  align-content: start;
-  gap: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
   border: 0;
   border-right: 1px solid var(--workspace-line);
   border-radius: 0;
-  padding: 12px;
-  background: var(--workspace-canvas);
+  padding: 16px 12px;
+  background: #fafbfb;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes nav {
+  display: grid;
+  gap: 3px;
 }
 
 body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes button {
   min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   border: 0;
   border-radius: 6px;
   padding: 0 10px;
   background: transparent;
   color: var(--workspace-muted);
   font-size: 0.74rem;
+  font-weight: 750;
 }
 
-body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes button[aria-pressed="true"] {
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes .admin-message-compose {
+  min-height: 44px;
+  justify-content: center;
+  background: var(--admin-primary);
+  color: #fff;
+  font-size: 0.78rem;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes .admin-message-compose:hover {
+  background: var(--admin-primary-hover);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes nav button[aria-pressed="true"] {
   background: var(--admin-primary-soft);
   color: var(--admin-primary);
 }
@@ -1465,17 +1502,231 @@ body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes
   display: none;
 }
 
-body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-list-panel {
-  border-right: 1px solid var(--workspace-line);
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes button span {
+  min-width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--admin-primary);
+  color: #fff;
+  font-size: 0.62rem;
 }
 
-body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-row {
-  border-color: var(--workspace-line);
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-list-panel {
+  min-width: 0;
+  overflow: auto;
+  border-right: 1px solid var(--workspace-line);
   background: #fff;
 }
 
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid var(--workspace-line);
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(12px);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-toolbar button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 9px;
+  background: transparent;
+  color: var(--workspace-muted);
+  font-size: 0.66rem;
+  font-weight: 730;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-toolbar button:hover:not(:disabled) {
+  background: var(--admin-primary-soft);
+  color: var(--admin-primary);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-toolbar button:disabled {
+  opacity: 0.42;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-select-all,
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-check {
+  width: 34px;
+  min-width: 34px;
+  min-height: 34px;
+  display: grid;
+  place-items: center;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-search {
+  min-width: 150px;
+  margin-left: auto;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-search input {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--workspace-line);
+  border-radius: 6px;
+  padding: 0 10px;
+  background: var(--workspace-canvas);
+  color: var(--workspace-ink);
+  font: inherit;
+  font-size: 0.7rem;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-list-panel > .admin-muted {
+  min-height: 34px;
+  margin: 0;
+  border-bottom: 1px solid var(--workspace-line);
+  padding: 9px 14px;
+  font-size: 0.68rem;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-list {
+  display: grid;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-row {
+  min-width: 0;
+  min-height: 84px;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: stretch;
+  border: 0;
+  border-bottom: 1px solid var(--workspace-line);
+  background: #fff;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-row > button {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  padding: 10px 12px 10px 0;
+  background: transparent;
+  color: var(--workspace-ink);
+  text-align: left;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-row:hover,
 body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-row.is-selected {
   background: var(--admin-primary-soft);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-row.is-unread {
+  box-shadow: inset 3px 0 0 var(--admin-primary);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-row .admin-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 7px;
+  background: var(--admin-primary);
+  color: #fff;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-row-copy,
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-row-copy :where(strong, b, small) {
+  min-width: 0;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-row-copy strong {
+  font-size: 0.75rem;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-row-copy b {
+  margin-top: 3px;
+  font-size: 0.71rem;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-row-copy small,
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-row time {
+  color: var(--workspace-muted);
+  font-size: 0.63rem;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-detail {
+  min-width: 0;
+  overflow: auto;
+  padding: 22px;
+  background: #fff;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-detail header {
+  display: grid;
+  gap: 14px;
+  border-bottom: 1px solid var(--workspace-line);
+  padding-bottom: 18px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-detail header > div:last-child {
+  display: grid;
+  gap: 5px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-detail :where(h3, p) {
+  margin: 0;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-detail h3 {
+  color: var(--workspace-ink);
+  font-size: 1.2rem;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-detail header :where(span, time) {
+  color: var(--workspace-muted);
+  font-size: 0.7rem;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-detail-actions button {
+  min-height: 34px;
+  border: 1px solid var(--workspace-line);
+  border-radius: 6px;
+  padding: 0 10px;
+  background: #fff;
+  color: var(--workspace-muted);
+  font-size: 0.66rem;
+  font-weight: 730;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-body {
+  min-height: 260px;
+  padding: 24px 0;
+  color: var(--workspace-ink);
+  font-size: 0.84rem;
+  line-height: 1.7;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-master-badge {
+  min-height: 22px;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  border-radius: 999px;
+  padding: 0 8px;
+  background: var(--admin-primary-soft);
+  color: var(--admin-primary);
+  font-size: 0.58rem;
+  font-weight: 800;
+  vertical-align: middle;
 }
 
 /* Media and links */
@@ -1705,7 +1956,7 @@ body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-help-drawer {
   }
 
   body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-messages-layout {
-    grid-template-columns: 130px minmax(230px, 0.8fr) minmax(290px, 1.2fr);
+    grid-template-columns: 170px minmax(300px, 0.9fr) minmax(320px, 1.1fr);
     overflow-x: auto;
   }
 }
@@ -1903,11 +2154,21 @@ body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-help-drawer {
   }
 
   body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
     border: 0;
     border-bottom: 1px solid var(--workspace-line);
-    padding: 0 0 10px;
-    background: transparent;
+    padding: 10px;
+    background: #fff;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes nav button {
+    justify-content: center;
+    gap: 6px;
+    padding-inline: 6px;
   }
 
   body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-list-panel {
@@ -1919,11 +2180,38 @@ body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-help-drawer {
   }
 
   body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-detail {
-    min-height: 220px;
-    margin-top: 10px;
+    min-height: 320px;
+    display: none;
+    margin-top: 0;
     border: 1px solid var(--workspace-line);
     border-radius: 8px;
     background: #fff;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-messages-manager.is-reading-message .admin-message-list-panel {
+    display: none;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-messages-manager.is-reading-message .admin-message-detail {
+    display: block;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-toolbar {
+    flex-wrap: wrap;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-search {
+    order: 10;
+    width: 100%;
+    margin-left: 0;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-row {
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-row > button {
+    grid-template-columns: 34px minmax(0, 1fr) auto;
   }
 
   body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-row-actions {

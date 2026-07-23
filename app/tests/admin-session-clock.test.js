@@ -50,6 +50,7 @@ test("PATCH autenticado sem header de mutacao retorna 403, nao expiracao acident
 
 test("usuario sem permissao preserva comportamento da rota com sessao valida", async () => {
   const { json, env } = createWorkerTestContext();
+  env.__data.adminUsers.find((user) => user.id === "user-demo-admin").user_number = 99;
   const cookie = await createSessionCookie(env);
 
   const response = await json("/api/v1/admin/hotels", withCookie(cookie));

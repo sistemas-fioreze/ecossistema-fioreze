@@ -264,6 +264,7 @@ test("workers.dev preserva /go/:slug e nao transforma /:slug em link curto", asy
 
 test("admin lista links somente do hotel autorizado", async () => {
   const { json, env } = createWorkerTestContext();
+  env.__data.adminUsers.find((user) => user.id === "user-demo-admin").user_number = 99;
   grantPermissions(env, ["portals.links.read"]);
   const cookie = await createSessionCookie(env);
 
@@ -378,6 +379,7 @@ test("proprietario nao compartilha link com usuario sem acesso a unidade", async
 
 test("gestao de compartilhamento exige permissao de atualizar links", async () => {
   const { json, env } = createWorkerTestContext();
+  env.__data.adminUsers.find((user) => user.id === "user-demo-admin").user_number = 99;
   grantPermissions(env, ["portals.links.read"]);
   const cookie = await createSessionCookie(env);
 
