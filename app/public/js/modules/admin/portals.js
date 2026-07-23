@@ -1,5 +1,5 @@
 import { adminApi } from "./shared/admin-api.js";
-import { createAdminAuthView } from "./shared/admin-auth-view.js";
+import { createAdminAuthView, syncAdminNavigationActiveState } from "./shared/admin-auth-view.js";
 import {
   PORTALS_HOTELS_BRANDING_PERMISSION,
   PORTALS_HOTELS_CREATE_PERMISSION,
@@ -411,6 +411,7 @@ function handlePortalHistory() {
   visualPortalBuilder.dismiss();
   closeShortLinkEditor();
   closePortalsDialog();
+  syncAdminNavigationActiveState();
   renderPortals(currentSession);
   scrollPortalSurfaceToTop();
 }
@@ -422,6 +423,7 @@ function navigatePortalRoute(path) {
   closeShortLinkEditor();
   closePortalsDialog();
   window.history.pushState({}, "", path);
+  syncAdminNavigationActiveState();
   renderPortals(currentSession);
   scrollPortalSurfaceToTop();
 }
@@ -1450,7 +1452,7 @@ async function copyCurrentShortLinkUrl() {
 
 async function loadShortLinkShares(linkId) {
   els.shortLinkSharingPanel.hidden = false;
-  els.shortLinkSharingMessage.textContent = "Carregando pessoas...";
+  els.shortLinkSharingPanel.setAttribute("aria-busy", "true");
   try {
     const payload = await adminApi(`/api/v1/admin/short-links/${encodeURIComponent(linkId)}/shares`);
     currentShortLinkShareUsers = payload.data.users || [];
@@ -1460,6 +1462,8 @@ async function loadShortLinkShares(linkId) {
     currentShortLinkShareUsers = [];
     renderShortLinkShares();
     els.shortLinkSharingMessage.textContent = error.message || "Não foi possível carregar o compartilhamento.";
+  } finally {
+    els.shortLinkSharingPanel.removeAttribute("aria-busy");
   }
 }
 
@@ -1863,7 +1867,8 @@ async function openMediaMoveDialog(asset) {
   movingMediaAsset = asset;
   els.mediaMoveName.textContent = asset.original_filename || asset.id;
   els.mediaMoveError.textContent = "";
-  els.mediaMoveTarget.innerHTML = '<option value="">Carregando pastas...</option>';
+  els.mediaMoveTarget.innerHTML = '<option value="">Selecione uma pasta</option>';
+  els.mediaMoveTarget.disabled = true;
   els.mediaMoveDialog.showModal();
   try {
     const params = new URLSearchParams({ hotel_id: els.mediaHotel.value, all: "1" });
@@ -1875,6 +1880,7 @@ async function openMediaMoveDialog(asset) {
       ...folders.map((folder) => `<option value="${escapeAttr(folder.id)}">${escapeHtml(folderPaths.get(folder.id) || folder.name)}</option>`),
     ].join("");
     els.mediaMoveTarget.value = asset.folder_id || "root";
+    els.mediaMoveTarget.disabled = false;
     els.mediaMoveTarget.focus();
   } catch (error) {
     els.mediaMoveError.textContent = error.message || "Não foi possível carregar as pastas.";
@@ -2853,14 +2859,14 @@ function renderEventMediaPicker(selectedId) {
 
 async function openCustomPageEditor(item = null) {
   els.dialogTitle.textContent = item ? "Editar página HTML" : "Nova página HTML";
-  els.dialogBody.innerHTML = '<p class="admin-muted">Preparando editor seguro...</p>';
-  openPortalsDialog();
+  setSectionBusy(els.contentManager, true);
   try {
     let page = item;
     if (item) {
       const payload = await adminApi(`/api/v1/admin/custom-portal-pages/${encodeURIComponent(item.id)}`);
       page = payload.data.page;
     }
+    openPortalsDialog();
     els.dialogBody.innerHTML = contentForm("custom-page", `
       <div class="admin-form-grid">${dialogField("Título", "title", page?.title, "text", true)}${dialogField("Endereço", "slug", page?.slug, "text", true, "[a-z0-9]+(?:-[a-z0-9]+)*")}</div>
       ${dialogSelect("Status", "status", page?.status === "archived" ? "draft" : page?.status || "draft", [["draft", "Rascunho"], ["published", "Publicada"]])}
@@ -2868,7 +2874,10 @@ async function openCustomPageEditor(item = null) {
       <aside class="admin-sanitization-note"><strong>Publicação protegida</strong><span>O conteúdo é exibido isolado da sessão administrativa e não recebe acesso às APIs internas.</span></aside>`);
     bindDialogForm((event) => saveContent(event, item));
   } catch (error) {
+    openPortalsDialog();
     els.dialogBody.innerHTML = `<p class="admin-error">${escapeHtml(error.message || "Não foi possível abrir a página HTML.")}</p>`;
+  } finally {
+    setSectionBusy(els.contentManager, false);
   }
 }
 
@@ -2895,18 +2904,21 @@ function createShortLinkFromCustomPage(item) {
 
 async function openSectionsEditor(pageId) {
   els.dialogTitle.textContent = "Seções da página";
-  els.dialogBody.innerHTML = '<p class="admin-muted">Carregando seções...</p>';
-  openPortalsDialog();
+  setSectionBusy(els.contentManager, true);
   try {
     const payload = await adminApi(`/api/v1/admin/portal/pages/${encodeURIComponent(pageId)}`);
     const sections = payload.data.sections || [];
+    openPortalsDialog();
     els.dialogBody.innerHTML = `
       <div class="admin-section-editor-list">${sections.map((section) => `<button type="button" data-edit-section="${escapeAttr(section.id)}"><strong>${escapeHtml(section.title || section.section_key)}</strong><span>${escapeHtml(section.body || "Sem texto")}</span></button>`).join("") || '<p class="admin-empty">Nenhuma seção cadastrada.</p>'}</div>
       <button class="admin-primary-button" type="button" data-new-section>Nova seção</button>`;
     els.dialogBody.querySelector("[data-new-section]").addEventListener("click", () => openSectionForm(pageId));
     els.dialogBody.querySelectorAll("[data-edit-section]").forEach((button) => button.addEventListener("click", () => openSectionForm(pageId, sections.find((item) => item.id === button.dataset.editSection))));
   } catch (error) {
+    openPortalsDialog();
     els.dialogBody.innerHTML = `<p class="admin-error">${escapeHtml(error.message || "Não foi possível carregar as seções.")}</p>`;
+  } finally {
+    setSectionBusy(els.contentManager, false);
   }
 }
 

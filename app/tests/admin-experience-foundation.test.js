@@ -104,25 +104,41 @@ test("interface de links diferencia propriedade e compartilhamento", () => {
   assert.match(source, /data-share-revoke/);
 });
 
-test("Central de Portais navega sem overlay e Links possui layout mobile dedicado", () => {
+test("Central navega sem overlay e Links preserva ícones com rótulos no mobile", () => {
+  const admin = fs.readFileSync("public/js/modules/admin/admin.js", "utf8");
+  const messages = fs.readFileSync("public/js/modules/admin/admin-messages.js", "utf8");
+  const management = fs.readFileSync("public/js/modules/admin/central-management.js", "utf8");
   const source = fs.readFileSync("public/js/modules/admin/portals.js", "utf8");
+  const roomService = fs.readFileSync("public/js/modules/admin/room-service.js", "utf8");
   const shell = fs.readFileSync("public/js/modules/admin/shared/admin-auth-view.js", "utf8");
   const css = fs.readFileSync("public/css/modules/admin/admin-erp-aligned.css", "utf8");
 
+  assert.match(admin, /handleAdminNavigation/);
+  assert.match(admin, /window\.history\.pushState/);
+  assert.match(admin, /window\.addEventListener\("popstate"/);
   assert.match(source, /handlePortalNavigation/);
   assert.match(source, /window\.history\.pushState/);
   assert.match(source, /window\.addEventListener\("popstate"/);
+  assert.match(source, /syncAdminNavigationActiveState/);
+  assert.match(shell, /syncAdminNavigationActiveState/);
   assert.match(source, /function renderTabTransition\(render\) \{\s*render\(\);\s*\}/);
   assert.doesNotMatch(source, /Carregando links|Carregando eventos|Carregando conteúdos|Carregando unidades/);
+  assert.doesNotMatch(
+    [messages, management, source, roomService].join("\n"),
+    /Carregando (pedidos|detalhes|mensagens|usuários|perfis|pessoas|pastas|seções|arquivos)/,
+  );
   assert.doesNotMatch(shell, /setContentLoading|fioreze:admin-content-loading/);
   assert.match(css, /html\.short-link-editor-open/);
   assert.match(css, /\.admin-short-links-editor[\s\S]*position: fixed/);
   assert.match(css, /\.admin-link-card-actions[\s\S]*grid-template-columns: repeat\(2/);
+  assert.match(source, /<svg aria-hidden="true"[\s\S]*<span>\$\{escapeHtml\(label\)\}<\/span>/);
+  assert.match(css, /\.admin-link-card-actions button span \{[\s\S]*display: inline/);
 });
 
 test("abas administrativas usam conteúdo solto sem caixa ou fundo", () => {
   const css = fs.readFileSync("public/css/modules/admin/admin-erp-aligned.css", "utf8");
-  assert.match(css, /body\[data-admin-shell="erp"\] \.admin-tabs button \{[\s\S]*border: 0[\s\S]*background: transparent/);
+  assert.match(css, /:where\(\.admin-tabs, \.admin-segmented, \.admin-message-boxes\) \{[\s\S]*border: 0[\s\S]*background: transparent/);
+  assert.match(css, /:where\(\.admin-tabs, \.admin-segmented, \.admin-message-boxes\) button \{[\s\S]*border: 0[\s\S]*background: transparent/);
   assert.match(css, /body\[data-admin-shell="erp"\] \.admin-tab-panel \{[\s\S]*border: 0[\s\S]*background: transparent/);
 });
 
@@ -193,21 +209,24 @@ test("Biblioteca de Midia unifica pastas, imagens e videos em grade ou lista", (
   assert.equal(fs.existsSync("public/assets/shared/fioreze-central-logo.jpg"), true);
 });
 
-test("login usa marca estatica, paleta padrao e spinner proprio", () => {
+test("login usa marca estática e valida sessão sem tela intermediária", () => {
   const home = fs.readFileSync("public/admin/index.html", "utf8");
   const portals = fs.readFileSync("public/admin/portais/index.html", "utf8");
+  const roomService = fs.readFileSync("public/admin/room-service/index.html", "utf8");
   const css = fs.readFileSync("public/css/modules/admin/admin-erp-aligned.css", "utf8");
 
+  for (const html of [home, portals, roomService]) {
+    assert.match(html, /data-view="loading" aria-label="Verificando sessão administrativa"/);
+    assert.doesNotMatch(html, /admin-loading-card|admin-modern-spinner|Preparando a Central|Verificando sessao local/);
+  }
   for (const html of [home, portals]) {
     assert.match(html, /data-admin-palette="fioreze"/);
     assert.match(html, /rel="preload" as="image" href="\/assets\/shared\/fioreze-central-logo\.jpg"/);
-    assert.match(html, /admin-modern-spinner/);
   }
   assert.match(css, /admin-access-card \.brand-mark[\s\S]*animation: none/);
   assert.match(css, /admin-login[\s\S]*background: #fff/);
   assert.match(css, /admin-access-card \.brand-mark[\s\S]*border: 0/);
   assert.match(css, /admin-access-card \.brand-mark[\s\S]*background: transparent url/);
-  assert.match(css, /@keyframes admin-modern-spin/);
 });
 
 test("Central mobile remove o Criador da lateral e reserva o editor para desktop", () => {

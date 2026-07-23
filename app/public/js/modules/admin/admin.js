@@ -1,11 +1,11 @@
-import { createAdminAuthView } from "./shared/admin-auth-view.js";
+import { createAdminAuthView, syncAdminNavigationActiveState } from "./shared/admin-auth-view.js";
 import { adminApi } from "./shared/admin-api.js";
 import { canAccessAudit, canAccessPortals, canAccessRoles, canAccessUsers, getAuthorizedHotels, getPermissions } from "./shared/admin-session.js";
 import { escapeAttr, escapeHtml } from "./shared/format.js";
 import { renderRolesManager, renderUsersManager } from "./central-management.js";
 import { renderMessagesManager } from "./admin-messages.js";
 
-const section = currentSection();
+let section = currentSection();
 document.body.dataset.adminSection = section;
 let currentSession = null;
 
@@ -54,12 +54,72 @@ const auth = createAdminAuthView({
 });
 
 auth.boot();
+document.addEventListener("click", handleAdminNavigation);
+window.addEventListener("popstate", handleAdminHistory);
 
 window.addEventListener("fioreze:admin-refresh", (event) => {
   if (!currentSession) return;
   event.preventDefault();
   Promise.resolve(renderLauncher(currentSession)).finally(() => event.detail?.complete?.());
 });
+
+function handleAdminNavigation(event) {
+  const link = event.target.closest("a[href]");
+  if (
+    !link ||
+    !currentSession ||
+    event.defaultPrevented ||
+    event.button !== 0 ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey ||
+    link.target ||
+    link.hasAttribute("download")
+  ) {
+    return;
+  }
+  const target = new URL(link.href, window.location.origin);
+  if (target.origin !== window.location.origin || !isCoreAdminPath(target.pathname)) return;
+  event.preventDefault();
+  navigateAdminRoute(`${target.pathname}${target.search}${target.hash}`);
+}
+
+function handleAdminHistory() {
+  if (!currentSession || !isCoreAdminPath(window.location.pathname)) return;
+  void renderAdminRoute();
+}
+
+function navigateAdminRoute(path) {
+  const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  if (current === path) return;
+  window.history.pushState({}, "", path);
+  void renderAdminRoute();
+}
+
+async function renderAdminRoute() {
+  section = currentSection();
+  document.body.dataset.adminSection = section;
+  syncAdminNavigationActiveState();
+  document.querySelector('[data-view="dashboard"]')?.classList.remove("is-menu-open");
+  document.querySelector("[data-admin-backdrop]")?.setAttribute("hidden", "");
+  await renderLauncher(currentSession);
+  document.querySelector(".admin-management-panel:not([hidden]), .admin-home-dashboard:not([hidden])")?.scrollIntoView({
+    block: "start",
+    behavior: "auto",
+  });
+}
+
+function isCoreAdminPath(pathname) {
+  return [
+    "/admin/",
+    "/admin/mensagens/",
+    "/admin/configuracoes/",
+    "/admin/usuarios/",
+    "/admin/perfis/",
+    "/admin/minha-conta/",
+  ].some((path) => pathname === path || (path !== "/admin/" && pathname.startsWith(path)));
+}
 
 async function renderLauncher(session) {
   setPanelVisibility(section);

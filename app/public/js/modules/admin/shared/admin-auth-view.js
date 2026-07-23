@@ -552,13 +552,32 @@ function renderGlobalNav(session, section) {
     ["messages", "Mensagens", "/admin/mensagens/", "mail", true],
     ["settings", "Configurações", "/admin/configuracoes/", "settings", true],
   ];
+  const activeHref = items
+    .filter(([, , href, , enabled]) => enabled && isActive(href, section))
+    .map(([, , href]) => href)
+    .sort((left, right) => right.length - left.length)[0];
   return `<nav class="admin-global-nav">${items
     .map(([area, label, href, iconName, enabled]) =>
       enabled
-        ? `<a href="${href}" ${isActive(href, section) ? 'aria-current="page"' : ""}>${icon(iconName)}<span>${label}</span></a>`
+        ? `<a href="${href}" ${href === activeHref ? 'aria-current="page"' : ""}>${icon(iconName)}<span>${label}</span></a>`
         : `<span aria-disabled="true">${icon(iconName)}<span>${label}</span></span>`,
     )
     .join("")}</nav>`;
+}
+
+export function syncAdminNavigationActiveState(root = document) {
+  const links = [...root.querySelectorAll(".admin-global-nav a[href]")];
+  const active = links
+    .filter((link) => isActive(new URL(link.href, window.location.origin).pathname, document.body.dataset.adminSection || "home"))
+    .sort(
+      (left, right) =>
+        new URL(right.href, window.location.origin).pathname.length -
+        new URL(left.href, window.location.origin).pathname.length,
+    )[0];
+  for (const link of links) {
+    if (link === active) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  }
 }
 
 function isActive(href, section) {
