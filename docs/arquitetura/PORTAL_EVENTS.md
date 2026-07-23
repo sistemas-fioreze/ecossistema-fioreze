@@ -31,6 +31,8 @@ PATCH /api/v1/admin/portal/events/:event_id
 
 Todas exigem sessão, permissão administrativa e acesso ao hotel. A imagem precisa pertencer à mesma unidade. Texto e URL do botão são validados em conjunto, e a URL aceita somente HTTPS. Criações e alterações registram auditoria.
 
+O término também controla o ciclo de vida. Um evento publicado com `ends_at` vencido deixa de aparecer imediatamente nas APIs públicas e passa a ser apresentado como arquivado na Central. O Worker executa `archiveExpiredPortalEvents` a cada quinze minutos para persistir `status = archived`. Criar ou editar um evento já encerrado também o grava diretamente como arquivado. O processo usa o fuso já convertido para ISO UTC e não depende de migration adicional.
+
 ## Experiência pública
 
 A API pública é:
@@ -39,7 +41,7 @@ A API pública é:
 GET /api/v1/public/hotels/:hotel_slug/portal/events
 ```
 
-Ela retorna somente eventos publicados do hotel solicitado. A página conectada oferece:
+Ela retorna somente eventos publicados e ainda vigentes do hotel solicitado. A resposta não usa cache compartilhado, evitando que um evento encerrado continue visível depois do horário final. A página conectada oferece:
 
 - visualização em lista;
 - filtros por categoria e etiquetas;

@@ -1227,9 +1227,13 @@ class MockD1Database {
     }
 
     if (normalized.includes("from events") && normalized.includes("status = 'published'")) {
-      const [hotelId] = params;
+      const [hotelId, now] = params;
       return this.data.events
-        .filter((entry) => entry.hotel_id === hotelId && entry.status === "published")
+        .filter((entry) =>
+          entry.hotel_id === hotelId &&
+          entry.status === "published" &&
+          (!normalized.includes("e.ends_at > ?") || !entry.ends_at || entry.ends_at > now),
+        )
         .sort((left, right) => left.starts_at.localeCompare(right.starts_at) || left.title.localeCompare(right.title));
     }
 

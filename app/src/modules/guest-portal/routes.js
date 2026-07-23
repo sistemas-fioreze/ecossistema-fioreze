@@ -2,6 +2,7 @@ import { all } from "../../core/database.js";
 import { notFoundError } from "../../core/errors.js";
 import { ok } from "../../core/responses.js";
 import { resolveTenantBySlug } from "../../core/tenant.js";
+import { requestNow } from "../../core/time.js";
 import { requireEnabledModule } from "../../middleware/require-module.js";
 import { DEFAULT_WEATHER_LOCATION, loadPublicBlog, loadPublicWeather } from "../../services/public-portal-feeds.js";
 
@@ -15,11 +16,12 @@ export function registerGuestPortalRoutes(router) {
   router.get("/api/v1/public/hotels/:hotel_slug/portal/weather", getPortalWeather);
 }
 
-async function getPortalHome({ env, params }) {
+async function getPortalHome({ request, env, params }) {
   const tenant = await requirePublicPortal(env, params.hotel_slug);
+  const now = requestNow({ request, env });
   const [pages, events, information] = await Promise.all([
     listPublishedPages(env, tenant.hotel_id),
-    listPublishedEvents(env, tenant.hotel_id),
+    listPublishedEvents(env, tenant.hotel_id, now),
     listPublicInformation(env, tenant.hotel_id),
   ]);
 
@@ -31,7 +33,7 @@ async function getPortalHome({ env, params }) {
       events,
       information,
     },
-    { cacheControl: "public, max-age=60" },
+    { cacheControl: "no-store" },
   );
 }
 
@@ -47,15 +49,15 @@ async function getPortalPages({ env, params }) {
   );
 }
 
-async function getPortalEvents({ env, params }) {
+async function getPortalEvents({ request, env, params }) {
   const tenant = await requirePublicPortal(env, params.hotel_slug);
   return ok(
     {
       hotel_id: tenant.hotel_id,
       module_key: MODULE_KEY,
-      events: await listPublishedEvents(env, tenant.hotel_id),
+      events: await listPublishedEvents(env, tenant.hotel_id, requestNow({ request, env })),
     },
-    { cacheControl: "public, max-age=60" },
+    { cacheControl: "no-store" },
   );
 }
 
@@ -104,7 +106,7 @@ function listPublishedPages(env, hotelId) {
   );
 }
 
-async function listPublishedEvents(env, hotelId) {
+async function listPublishedEvents(env, hotelId, now) {
   const events = await all(
     env,
     `SELECT e.id, e.title, e.summary, e.content, e.location, e.category, e.tags_json,
@@ -117,9 +119,10 @@ async function listPublishedEvents(env, hotelId) {
         AND ma.status = 'active'
       WHERE e.hotel_id = ?
         AND e.status = 'published'
+        AND (e.ends_at IS NULL OR e.ends_at > ?)
       ORDER BY e.starts_at, e.title
       LIMIT 24`,
-    [hotelId],
+    [hotelId, now],
   );
   return events.map(formatPublicEvent);
 }

@@ -94,6 +94,9 @@ export function createVisualPortalBuilder({
   window.addEventListener("message", handlePreviewMessage);
 
   return {
+    dismiss() {
+      forceClose();
+    },
     async open(portalId, { pageId = "" } = {}) {
       root.hidden = false;
       document.documentElement.classList.add("visual-builder-open");

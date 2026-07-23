@@ -53,7 +53,7 @@ test("CSS administrativo contem drawer mobile, ajuda e reduced motion", () => {
   assert.match(css, /admin-help-drawer/);
   assert.match(css, /prefers-reduced-motion/);
   assert.match(css, /admin-content-loader[\s\S]*backdrop-filter: blur\(3px\)/);
-  assert.equal((css.match(/backdrop-filter:/g) || []).length, 1);
+  assert.ok((css.match(/backdrop-filter:/g) || []).length >= 3);
 });
 
 test("Central Administrativa usa a linguagem visual do ERP sem modulos de fachada", () => {
@@ -180,7 +180,37 @@ test("login usa marca estatica, paleta padrao e spinner proprio", () => {
     assert.match(html, /admin-modern-spinner/);
   }
   assert.match(css, /admin-access-card \.brand-mark[\s\S]*animation: none/);
+  assert.match(css, /admin-login[\s\S]*background: #fff/);
+  assert.match(css, /admin-access-card \.brand-mark[\s\S]*border: 0/);
+  assert.match(css, /admin-access-card \.brand-mark[\s\S]*background: transparent url/);
   assert.match(css, /@keyframes admin-modern-spin/);
+});
+
+test("Central mobile remove o Criador da lateral e reserva o editor para desktop", () => {
+  const shell = fs.readFileSync("public/js/modules/admin/shared/admin-auth-view.js", "utf8");
+  const portals = fs.readFileSync("public/js/modules/admin/portals.js", "utf8");
+  const html = fs.readFileSync("public/admin/portais/index.html", "utf8");
+  const css = fs.readFileSync("public/css/modules/admin/admin-erp-aligned.css", "utf8");
+
+  assert.doesNotMatch(shell, /\["portals", "Criador"/);
+  assert.doesNotMatch(portals, /\["Criador", "\/admin\/portais\/conteudos\/"/);
+  assert.match(html, /id="creatorDesktopGuard"/);
+  assert.match(portals, /matchMedia\("\(min-width: 1024px\)"\)/);
+  assert.match(portals, /visualPortalBuilder\.dismiss\(\)/);
+  assert.match(css, /@media \(max-width: 980px\)[\s\S]*html\.visual-builder-open \.vp-builder[\s\S]*display: none/);
+});
+
+test("seletores de mídia permitem upload contextual sem sair do formulário", () => {
+  const portals = fs.readFileSync("public/js/modules/admin/portals.js", "utf8");
+  const builder = fs.readFileSync("public/js/modules/admin/portal-builder.js", "utf8");
+
+  assert.match(portals, /data-inline-media-upload/);
+  assert.match(portals, /context: "identity"/);
+  assert.match(portals, /context: "event"/);
+  assert.match(portals, /context: "area"/);
+  assert.match(portals, /PORTALS_MEDIA_UPLOAD_PERMISSION/);
+  assert.match(portals, /adminApi\("\/api\/v1\/admin\/media", \{ method: "POST", body: form \}\)/);
+  assert.match(builder, /data-media-upload/);
 });
 
 test("shells administrativos continuam respondendo sem fallback incorreto", async () => {

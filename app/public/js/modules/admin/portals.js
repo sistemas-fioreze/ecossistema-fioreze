@@ -133,6 +133,7 @@ const els = {
   contentMessage: document.getElementById("contentMessage"),
   contentList: document.getElementById("contentList"),
   addContentButton: document.getElementById("addContentButton"),
+  creatorDesktopGuard: document.getElementById("creatorDesktopGuard"),
   areasManager: document.getElementById("areasManager"),
   areasHotel: document.getElementById("areasHotel"),
   areasMessage: document.getElementById("areasMessage"),
@@ -227,6 +228,8 @@ let currentContent = { visual_portals: [] };
 let dedicatedModules = [];
 let dedicatedNavigation = [];
 let eventMediaAssets = [];
+let dialogMediaAssets = [];
+const creatorDesktopMedia = window.matchMedia("(min-width: 1024px)");
 const visualPortalBuilder = createVisualPortalBuilder({
   onSaved() {
     if (!isCreatorRoute()) loadPortalContent();
@@ -354,6 +357,10 @@ els.dialog.querySelector("[data-dialog-close]").addEventListener("click", closeP
 els.dialog.addEventListener("click", (event) => {
   if (event.target === els.dialog) closePortalsDialog();
 });
+els.dialog.addEventListener("change", handleInlineMediaUpload);
+creatorDesktopMedia.addEventListener("change", () => {
+  if (isCreatorRoute() && currentSession) renderCreatorRoute(currentSession);
+});
 
 auth.boot();
 
@@ -435,7 +442,6 @@ function renderNav(session) {
     ["Biblioteca", "/admin/portais/media/", canAccessMediaLibrary(session)],
     ["Links", "/admin/portais/links/", canAccessLinks(session)],
     ["Eventos", "/admin/portais/eventos/", canAccessContent(session)],
-    ["Criador", "/admin/portais/conteudos/", canAccessContent(session)],
   ];
   els.portalsNav.innerHTML = items
     .map(([label, href, enabled]) =>
@@ -789,17 +795,15 @@ async function openMediaSelector(fieldName) {
     const mimeType = String(asset.mime_type || "");
     return mimeType.startsWith("image/") || (allowVideo && mimeType.startsWith("video/"));
   });
-  if (!assets.length) {
-    setMessage(allowVideo ? "Nenhuma imagem ou vídeo ativo disponível para esta unidade." : "Nenhuma imagem ativa disponível para esta unidade.");
-    return;
-  }
+  dialogMediaAssets = assets;
   const currentRef = inputValue(fieldName);
   els.dialogTitle.textContent = `Selecionar ${mediaLabel(fieldName).toLowerCase()}`;
   els.dialogBody.innerHTML = contentForm("identity-media", `
     <fieldset class="admin-content-media-picker admin-identity-media-picker">
       <legend>Biblioteca de Mídia</legend>
-      <p>${allowVideo ? "Escolha uma imagem ou vídeo. Vídeos serão exibidos somente no portal desktop." : "Escolha uma imagem ativa desta unidade."}</p>
-      <div>
+      <p>${allowVideo ? "Escolha uma imagem ou vídeo. Vídeos serão exibidos somente no portal desktop." : "Escolha uma imagem ativa desta unidade."} Você também pode enviar um novo arquivo agora.</p>
+      ${inlineMediaUploadControl({ context: "identity", hotelId: currentUnit.hotel_id, allowVideo })}
+      <div data-inline-media-options>
         <label class="admin-content-media-option no-media">
           <input type="radio" name="media_asset_id" value="" ${currentRef ? "" : "checked"}>
           <span>${featureSvg("image")}<strong>Sem arquivo</strong></span>
@@ -811,7 +815,7 @@ async function openMediaSelector(fieldName) {
   bindDialogForm((event) => {
     event.preventDefault();
     const selectedId = new FormData(event.currentTarget).get("media_asset_id") || "";
-    const selected = assets.find((asset) => asset.id === selectedId) || null;
+    const selected = dialogMediaAssets.find((asset) => asset.id === selectedId) || null;
     setInputValue(fieldName, selected?.id || "");
     setInputValue(`${fieldName}__preview`, selected?.public_url || "");
     setInputValue(`${fieldName}__mime`, selected?.mime_type || "");
@@ -831,6 +835,64 @@ function renderIdentityMediaOption(asset, currentRef) {
     ? `<video src="${escapeAttr(asset.public_url)}" muted playsinline preload="metadata"></video>`
     : `<img src="${escapeAttr(asset.public_url)}" alt="" loading="lazy" decoding="async">`;
   return `<label class="admin-content-media-option"><input type="radio" name="media_asset_id" value="${escapeAttr(asset.id)}" ${checked ? "checked" : ""}><span>${preview}<strong>${escapeHtml(asset.original_filename || (isVideo ? "Vídeo" : "Imagem"))}</strong></span></label>`;
+}
+
+function inlineMediaUploadControl({ context, hotelId, moduleKey = "guest-portal", allowVideo = false }) {
+  if (!hasPermission(currentSession, PORTALS_MEDIA_UPLOAD_PERMISSION)) return "";
+  const accept = allowVideo
+    ? "image/jpeg,image/png,image/webp,image/avif,video/mp4,video/webm,video/quicktime"
+    : "image/jpeg,image/png,image/webp,image/avif";
+  return `
+    <div class="admin-inline-media-upload">
+      <label>
+        <input
+          type="file"
+          data-inline-media-upload
+          data-upload-context="${escapeAttr(context)}"
+          data-upload-hotel="${escapeAttr(hotelId)}"
+          data-upload-module="${escapeAttr(moduleKey)}"
+          accept="${accept}"
+        >
+        <span>${featureSvg("upload")} Enviar novo arquivo</span>
+      </label>
+      <small data-inline-media-status>O arquivo será salvo na Biblioteca de Mídia desta unidade.</small>
+    </div>`;
+}
+
+async function handleInlineMediaUpload(event) {
+  const input = event.target.closest("[data-inline-media-upload]");
+  const file = input?.files?.[0];
+  if (!input || !file || !hasPermission(currentSession, PORTALS_MEDIA_UPLOAD_PERMISSION)) return;
+  const status = input.closest(".admin-inline-media-upload")?.querySelector("[data-inline-media-status]");
+  const context = input.dataset.uploadContext;
+  const form = new FormData();
+  form.set("hotel_id", input.dataset.uploadHotel);
+  form.set("module_key", input.dataset.uploadModule || "guest-portal");
+  form.set("file", file);
+  input.disabled = true;
+  if (status) status.textContent = "Enviando arquivo...";
+  try {
+    const payload = await adminApi("/api/v1/admin/media", { method: "POST", body: form });
+    const asset = payload.data.asset;
+    dialogMediaAssets = [asset, ...dialogMediaAssets.filter((item) => item.id !== asset.id)];
+    if (context === "event") {
+      eventMediaAssets = [asset, ...eventMediaAssets.filter((item) => item.id !== asset.id)];
+      const picker = input.closest(".admin-content-media-picker");
+      if (picker) picker.outerHTML = renderEventMediaPicker(asset.id);
+      return;
+    }
+    const options = els.dialogBody.querySelector("[data-inline-media-options]");
+    options?.querySelectorAll('input[name="media_asset_id"]').forEach((radio) => {
+      radio.checked = false;
+    });
+    options?.insertAdjacentHTML("beforeend", renderIdentityMediaOption(asset, asset.id));
+    if (status) status.textContent = "Arquivo enviado e selecionado.";
+  } catch (error) {
+    if (status) status.textContent = error.message || "Não foi possível enviar o arquivo.";
+  } finally {
+    input.disabled = false;
+    input.value = "";
+  }
 }
 
 async function saveCurrentUnit() {
@@ -2699,7 +2761,7 @@ function renderEventMediaPicker(selectedId) {
     `<label class="admin-content-media-option no-media"><input type="radio" name="media_asset_id" value="" ${selectedId ? "" : "checked"}><span>${featureSvg("image")}<strong>Sem imagem</strong></span></label>`,
     ...eventMediaAssets.map((asset) => `<label class="admin-content-media-option"><input type="radio" name="media_asset_id" value="${escapeAttr(asset.id)}" ${asset.id === selectedId ? "checked" : ""}><span><img src="${escapeAttr(asset.public_url)}" alt=""><strong>${escapeHtml(asset.original_filename || "Imagem")}</strong></span></label>`),
   ];
-  return `<fieldset class="admin-content-media-picker"><legend>Imagem do evento</legend><p>Selecione uma imagem já enviada à Biblioteca de Mídia.</p><div>${choices.join("")}</div></fieldset>`;
+  return `<fieldset class="admin-content-media-picker"><legend>Imagem do evento</legend><p>Selecione uma imagem da Biblioteca de Mídia ou envie uma nova.</p>${inlineMediaUploadControl({ context: "event", hotelId: els.eventsHotel.value })}<div data-inline-media-options>${choices.join("")}</div></fieldset>`;
 }
 
 async function openCustomPageEditor(item = null) {
@@ -2840,14 +2902,15 @@ async function handleAreaImageAction(event) {
   const params = new URLSearchParams({ hotel_id: els.areasHotel.value, status: "active" });
   const payload = await adminApi(`/api/v1/admin/media?${params.toString()}`);
   const assets = (payload.data.assets || []).filter((asset) => String(asset.mime_type || "").startsWith("image/"));
+  dialogMediaAssets = assets;
   els.dialogTitle.textContent = `Capa de ${module.public_name || module.name}`;
-  els.dialogBody.innerHTML = contentForm("area-media", `<fieldset class="admin-content-media-picker"><legend>Imagem do serviço</legend><p>A capa será usada no botão público deste serviço.</p><div><label class="admin-content-media-option no-media"><input type="radio" name="media_asset_id" value="" ${module.settings?.background_media_asset_id ? "" : "checked"}><span>${featureSvg("image")}<strong>Sem imagem</strong></span></label>${assets.map((asset) => `<label class="admin-content-media-option"><input type="radio" name="media_asset_id" value="${escapeAttr(asset.id)}" ${asset.id === module.settings?.background_media_asset_id ? "checked" : ""}><span><img src="${escapeAttr(asset.public_url)}" alt=""><strong>${escapeHtml(asset.original_filename || "Imagem")}</strong></span></label>`).join("")}</div></fieldset>`);
+  els.dialogBody.innerHTML = contentForm("area-media", `<fieldset class="admin-content-media-picker"><legend>Imagem do serviço</legend><p>A capa será usada no botão público deste serviço. Se preferir, envie uma nova imagem agora.</p>${inlineMediaUploadControl({ context: "area", hotelId: els.areasHotel.value, moduleKey: module.module_key })}<div data-inline-media-options><label class="admin-content-media-option no-media"><input type="radio" name="media_asset_id" value="" ${module.settings?.background_media_asset_id ? "" : "checked"}><span>${featureSvg("image")}<strong>Sem imagem</strong></span></label>${assets.map((asset) => renderIdentityMediaOption(asset, module.settings?.background_media_asset_id)).join("")}</div></fieldset>`);
   openPortalsDialog();
   bindDialogForm(async (submitEvent) => {
     submitEvent.preventDefault();
     const form = submitEvent.currentTarget;
     const selectedId = new FormData(form).get("media_asset_id") || "";
-    const selected = assets.find((asset) => asset.id === selectedId);
+    const selected = dialogMediaAssets.find((asset) => asset.id === selectedId);
     dedicatedModules = dedicatedModules.map((item) => item.module_key === module.module_key
       ? { ...item, settings: { ...(item.settings || {}), background_media_asset_id: selectedId || null }, background_image_url: selected?.public_url || null }
       : item);
@@ -2970,7 +3033,7 @@ async function loadAudit() {
 }
 
 function showPortalSection(active) {
-  for (const section of [els.portalsHome, els.unitsManager, els.shortLinksManager, els.mediaLibrary, els.eventsManager, els.contentManager, els.areasManager, els.navigationManager, els.auditManager]) {
+  for (const section of [els.portalsHome, els.unitsManager, els.shortLinksManager, els.mediaLibrary, els.eventsManager, els.contentManager, els.creatorDesktopGuard, els.areasManager, els.navigationManager, els.auditManager]) {
     section.hidden = section !== active;
   }
 }
@@ -3052,6 +3115,7 @@ function featureSvg(type) {
     info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>',
     navigation: '<circle cx="12" cy="12" r="9"/><path d="m15 9-2 6-6 2 2-6z"/>',
     history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>',
+    upload: '<path d="M12 16V4M7 9l5-5 5 5"/><path d="M5 14v6h14v-6"/>',
     code: '<path d="m8 9-3 3 3 3M16 9l3 3-3 3M14 5l-4 14"/>',
     builder: '<path d="M4 4h16v16H4zM4 10h16M10 10v10"/><path d="M14 14h3M15.5 12.5v3"/>',
   };
@@ -3076,6 +3140,14 @@ function renderCreatorRoute(session) {
   const portalId = params.get("portal") || "";
   if (!portalId) {
     window.location.replace("/admin/portais/conteudos/");
+    return;
+  }
+  if (!creatorDesktopMedia.matches) {
+    visualPortalBuilder.dismiss();
+    showPortalSection(els.creatorDesktopGuard);
+    els.portalsDenied.hidden = true;
+    setHeading("Criador de portais", "Continue a gestão pelo celular ou abra o Criador em uma tela maior.");
+    document.title = "Criador de Portais Fioreze";
     return;
   }
   showPortalSection(null);

@@ -118,6 +118,27 @@ test("paginas e eventos do portal preservam isolamento por hotel", async () => {
   assert.deepEqual(events.data.events.map((event) => event.id), ["event-aurora-welcome"]);
 });
 
+test("evento encerrado deixa de ser retornado no instante final", async () => {
+  const context = createWorkerTestContext();
+  context.env.__data.events.push({
+    id: "event-expired",
+    hotel_id: "muller-fioreze",
+    title: "Evento encerrado",
+    starts_at: "2026-07-12T20:00:00.000Z",
+    ends_at: "2026-07-13T15:00:00.000Z",
+    timezone: "America/Sao_Paulo",
+    status: "published",
+    tags_json: "[]",
+  });
+  const { response, body } = await context.json(
+    "/api/v1/public/hotels/muller-fioreze/portal/events",
+    { headers: { "x-fioreze-test-now": "2026-07-13T15:00:00.000Z" } },
+  );
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.equal(body.data.events.some((event) => event.id === "event-expired"), false);
+});
+
 test("portal publico e bloqueado quando o modulo nao e publico", async () => {
   const context = createWorkerTestContext();
   const module = context.env.__data.hotelModules.find(

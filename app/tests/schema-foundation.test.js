@@ -125,6 +125,10 @@ test("Static Assets executa Worker antes de APIs, produtos e portais personaliza
   assert.equal(workerFirst.size, 1);
 });
 
+test("Worker agenda o arquivamento de eventos encerrados", () => {
+  assert.deepEqual(wranglerConfig.triggers?.crons, ["*/15 * * * *"]);
+});
+
 test("migration 0009 adiciona permissoes de unidades sem associar roles", () => {
   for (const permission of [
     "portals.hotels.read",

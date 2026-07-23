@@ -359,7 +359,7 @@ export function registerAdminRoutes(router) {
 
   router.get("/api/v1/admin/portal/content", async ({ request, env, url }) => {
     const session = await requireAuthentication({ request, env });
-    return ok(await listPortalContent({ env, session, url }));
+    return ok(await listPortalContent({ request, env, session, url }));
   });
 
   router.post("/api/v1/admin/portal/pages", async ({ request, env }) => {

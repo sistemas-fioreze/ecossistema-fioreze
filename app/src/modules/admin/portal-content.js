@@ -8,16 +8,18 @@ import {
   requireAdminHotelAccess,
   requirePermission,
 } from "../../services/admin-auth.js";
+import { resolvePortalEventStatus } from "../../services/portal-event-lifecycle.js";
 import { HOTELS_READ_PERMISSION, HOTELS_SETTINGS_PERMISSION } from "./hotels.js";
 import { ADMIN_AUDIT_READ } from "./users.js";
 
 const PAGE_STATUSES = new Set(["draft", "published", "archived"]);
 const EVENT_STATUSES = new Set(["draft", "published", "cancelled", "archived"]);
 
-export async function listPortalContent({ env, session, url }) {
+export async function listPortalContent({ request, env, session, url }) {
   requirePermission(session, HOTELS_READ_PERMISSION);
   const hotelId = requireHotelId(url);
   requireAdminHotelAccess(session, hotelId);
+  const now = requestNow({ request, env });
 
   const [pages, events, information] = await Promise.all([
     all(
@@ -36,7 +38,12 @@ export async function listPortalContent({ env, session, url }) {
       env,
       `SELECT e.id, e.hotel_id, e.title, e.summary, e.content, e.location, e.category,
               e.tags_json, e.action_text, e.action_url, e.starts_at, e.ends_at, e.timezone,
-              e.status, e.media_asset_id, e.created_at, e.updated_at,
+              CASE
+                WHEN e.status = 'published' AND e.ends_at IS NOT NULL AND e.ends_at <= ?
+                THEN 'archived'
+                ELSE e.status
+              END AS status,
+              e.media_asset_id, e.created_at, e.updated_at,
               ma.public_url AS image_url, ma.alt_text AS image_alt
          FROM events e
          LEFT JOIN media_assets ma
@@ -45,7 +52,7 @@ export async function listPortalContent({ env, session, url }) {
           AND ma.status = 'active'
         WHERE e.hotel_id = ?
         ORDER BY e.starts_at DESC, e.title`,
-      [hotelId],
+      [now, hotelId],
     ),
     all(
       env,
@@ -208,6 +215,7 @@ export async function createPortalEvent({ request, env, session }) {
   const data = eventPayload(payload);
   data.mediaAssetId = await validateEventMedia(env, hotelId, payload.media_asset_id);
   const now = requestNow({ request, env });
+  data.status = resolvePortalEventStatus(data.status, data.endsAt, now);
   const eventId = createPublicId("event");
   await batch(env, [
     statement(
@@ -241,6 +249,7 @@ export async function updatePortalEvent({ request, env, session, eventId }) {
   const data = eventPayload(payload);
   data.mediaAssetId = await validateEventMedia(env, current.hotel_id, payload.media_asset_id);
   const now = requestNow({ request, env });
+  data.status = resolvePortalEventStatus(data.status, data.endsAt, now);
   await batch(env, [
     statement(
       env,
