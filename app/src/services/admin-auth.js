@@ -221,7 +221,7 @@ async function buildAdminSession(env, row) {
                 h.timezone, h.locale, h.currency, 'owner' AS access_level
            FROM hotels h
           WHERE h.archived_at IS NULL
-            AND h.status = 'active'
+            AND h.status <> 'archived'
           ORDER BY h.name`,
         [],
       )

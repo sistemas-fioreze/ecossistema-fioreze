@@ -1347,7 +1347,7 @@ class MockD1Database {
       !normalized.includes("join hotel_modules")
     ) {
       return this.data.hotels
-        .filter((hotel) => hotel.status === "active" && hotel.archived_at == null)
+        .filter((hotel) => hotel.status !== "archived" && hotel.archived_at == null)
         .map((hotel) => ({
           hotel_id: hotel.id,
           slug: hotel.slug,

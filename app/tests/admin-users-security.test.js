@@ -187,6 +187,32 @@ test("administrador mestre nao pode ser desativado, removido ou perder perfis e 
 
 test("administrador mestre recebe todas as unidades e permissoes independentemente dos vinculos", async () => {
   const { json, env } = createWorkerTestContext();
+  env.__data.hotels.push({
+    id: "office-inactive",
+    slug: "office-inactive",
+    name: "Office inativa",
+    short_name: "Office",
+    timezone: "America/Sao_Paulo",
+    locale: "pt-BR",
+    currency: "BRL",
+    status: "inactive",
+    created_at: "2026-07-20T00:00:00.000Z",
+    updated_at: "2026-07-20T00:00:00.000Z",
+    archived_at: null,
+  });
+  env.__data.hotels.push({
+    id: "hotel-archived",
+    slug: "hotel-archived",
+    name: "Unidade arquivada",
+    short_name: "Arquivada",
+    timezone: "America/Sao_Paulo",
+    locale: "pt-BR",
+    currency: "BRL",
+    status: "archived",
+    created_at: "2026-07-19T00:00:00.000Z",
+    updated_at: "2026-07-20T00:00:00.000Z",
+    archived_at: "2026-07-20T00:00:00.000Z",
+  });
   env.__data.adminUserRoles = env.__data.adminUserRoles.filter((entry) => entry.user_id !== "user-demo-admin");
   env.__data.adminHotelAccess = env.__data.adminHotelAccess.filter((entry) => entry.user_id !== "user-demo-admin");
   const cookie = await createSessionCookie(env);
@@ -198,8 +224,10 @@ test("administrador mestre recebe todas as unidades e permissoes independentemen
   assert.equal(body.data.user.is_master, true);
   assert.deepEqual(
     body.data.hotels.map((hotel) => hotel.hotel_id).sort(),
-    env.__data.hotels.filter((hotel) => hotel.status === "active" && hotel.archived_at == null).map((hotel) => hotel.id).sort(),
+    env.__data.hotels.filter((hotel) => hotel.status !== "archived" && hotel.archived_at == null).map((hotel) => hotel.id).sort(),
   );
+  assert.ok(body.data.hotels.some((hotel) => hotel.hotel_id === "office-inactive"));
+  assert.equal(body.data.hotels.some((hotel) => hotel.hotel_id === "hotel-archived"), false);
   assert.deepEqual(
     body.data.permissions.sort(),
     env.__data.adminPermissions.map((permission) => permission.permission_key).sort(),
