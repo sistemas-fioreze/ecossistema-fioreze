@@ -171,7 +171,9 @@ test("frontend do Emporio oferece catalogo e WhatsApp sem carrinho ou checkout",
   assert.match(moduleSource, /https:\/\/wa\.me\//);
   assert.match(moduleSource, /Falar com a recepção/);
   assert.match(moduleSource, /Catálogo para consulta/);
+  assert.match(moduleSource, /class="emporio-intro-heading"/);
   assert.match(moduleSource, /<h1>Empório<\/h1>/);
+  assert.match(moduleSource, /portal\.module\.emporio\.description/);
   assert.match(moduleSource, /data-emporio-carousel/);
   assert.match(moduleSource, /emporio\.carousel_slides/);
   assert.match(moduleSource, /data-emporio-carousel-title/);
@@ -181,6 +183,7 @@ test("frontend do Emporio oferece catalogo e WhatsApp sem carrinho ou checkout",
   assert.doesNotMatch(moduleSource, />Pesquisar produtos</);
   assert.doesNotMatch(moduleSource, /\bcarrinho\b|\bcheckout\b|adicionar ao carrinho/i);
   assert.match(moduleCss, /\.emporio-product-grid/);
+  assert.match(moduleCss, /\.emporio-intro-heading h1/);
   assert.match(moduleCss, /\.emporio-carousel-slide\.is-active/);
   assert.match(moduleCss, /\.emporio-detail-card/);
   assert.match(moduleCss, /\.emporio-detail\[hidden\]\s*\{\s*display:\s*none/);
@@ -188,6 +191,8 @@ test("frontend do Emporio oferece catalogo e WhatsApp sem carrinho ou checkout",
   assert.match(editor, /\/api\/v1\/admin\/emporio\/catalog/);
   assert.match(editor, /data-emporio-action="add-slide"/);
   assert.match(editor, /data-emporio-action="save-carousel"/);
+  assert.match(editor, /data-emporio-carousel-description/);
+  assert.match(editor, /"portal\.module\.emporio\.description": description/);
   assert.match(editor, /de 8 páginas configuradas/);
   assert.doesNotMatch(navigation, /guest-drawer-brand[^]*bootstrap\.short_name/);
 });

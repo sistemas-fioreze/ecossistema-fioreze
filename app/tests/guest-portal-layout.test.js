@@ -94,6 +94,8 @@ test("modulos internos usam capa do servico com titulo, icone e horario canonico
   assert.match(navigationCss, /\.public-module-hero-shade/);
   assert.match(navigationCss, /\.public-module-hero-copy h1 svg/);
   assert.match(navigationCss, /\.has-module-hero \.guest-shared-header/);
+  assert.match(navigationCss, /\.public-module-hero::after\s*\{[\s\S]*?linear-gradient\(180deg, transparent, var\(--color-background, #fff\)\)/);
+  assert.match(navigationCss, /min-height:\s*clamp\(250px,\s*30vw,\s*380px\)/);
 });
 
 test("header movel ganha blur somente depois da rolagem", () => {

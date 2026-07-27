@@ -279,12 +279,17 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
   function renderEmporioCarouselPanel() {
     const slides = emporioCarouselSlides();
     const images = state.media.filter((asset) => String(asset.mime_type || "").startsWith("image/"));
+    const description = state.hotel.settings?.["portal.module.emporio.description"] || SERVICE_DESCRIPTIONS.emporio;
     return `
       <section class="guest-editor-section emporio-carousel-editor">
         <header>
           <strong>Destaques do carrossel</strong>
           <span>${slides.length} de 8 páginas configuradas. A ordem abaixo é a ordem exibida no portal.</span>
         </header>
+        <label class="guest-editor-field">
+          <span>Descrição abaixo do título do Empório</span>
+          <textarea data-emporio-carousel-description maxlength="240" placeholder="Apresente brevemente o que o hóspede encontrará.">${escapeHtml(description)}</textarea>
+        </label>
         <div class="emporio-carousel-editor-list">
           ${slides.map((slide, index) => {
             const selected = mediaByRef(slide.media_asset_id);
@@ -476,6 +481,11 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
   }
 
   function handleInput(event) {
+    const carouselDescription = event.target.closest("[data-emporio-carousel-description]");
+    if (carouselDescription) {
+      state.hotel.settings["portal.module.emporio.description"] = carouselDescription.value;
+      return;
+    }
     const carouselField = event.target.closest("[data-emporio-carousel-field]");
     if (carouselField) {
       updateEmporioCarouselField(carouselField);
@@ -698,6 +708,9 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
 
   async function saveEmporioCarousel() {
     const status = els.panel.querySelector("[data-emporio-carousel-status]");
+    const description = String(
+      state.hotel.settings?.["portal.module.emporio.description"] || "",
+    ).trim();
     const slides = emporioCarouselSlides().map((slide) => ({
       title: String(slide.title || "").trim(),
       media_asset_id: String(slide.media_asset_id || "").trim(),
@@ -710,7 +723,10 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
     try {
       const payload = await adminApi(`/api/v1/admin/hotels/${encodeURIComponent(state.hotel.hotel_id)}/settings`, {
         method: "PATCH",
-        body: { "emporio.carousel_slides": slides },
+        body: {
+          "portal.module.emporio.description": description,
+          "emporio.carousel_slides": slides,
+        },
       });
       state.hotel.settings = structuredClone(payload.data.settings || state.hotel.settings);
       renderPanel();

@@ -45,7 +45,7 @@
 }
 
 .public-module-hero {
-  min-height: clamp(330px, 52vw, 560px);
+  min-height: clamp(250px, 30vw, 380px);
   display: flex;
   align-items: flex-end;
   position: relative;
@@ -65,6 +65,18 @@
   transform: scale(1.01);
 }
 
+.public-module-hero::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  z-index: 1;
+  height: clamp(42px, 7vw, 76px);
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, var(--color-background, #fff));
+}
+
 .public-module-hero-shade {
   position: absolute;
   inset: 0;
@@ -77,10 +89,10 @@
   width: min(1180px, calc(100% - 36px));
   display: grid;
   position: relative;
-  z-index: 1;
+  z-index: 2;
   gap: 8px;
   margin: 0 auto;
-  padding: 0 0 clamp(30px, 5vw, 62px);
+  padding: 0 0 clamp(54px, 6vw, 78px);
 }
 
 .public-module-hero-copy h1 {
@@ -328,12 +340,12 @@
   }
 
   .public-module-hero {
-    min-height: min(58svh, 490px);
+    min-height: clamp(240px, 68vw, 300px);
   }
 
   .public-module-hero-copy {
     width: calc(100% - max(36px, env(safe-area-inset-left) + env(safe-area-inset-right)));
-    padding-bottom: 30px;
+    padding-bottom: 50px;
   }
 }
 
