@@ -19,6 +19,7 @@ A área **Central Administrativa > Eventos** permite selecionar uma unidade auto
 - data e horário de término opcionais;
 - fuso horário da unidade;
 - status de rascunho, publicado, cancelado ou arquivado;
+- opção de manter o evento permanentemente no portal;
 - botão de ação opcional, formado por texto e endereço HTTPS.
 
 As APIs administrativas já existentes são:
@@ -31,7 +32,7 @@ PATCH /api/v1/admin/portal/events/:event_id
 
 Todas exigem sessão, permissão administrativa e acesso ao hotel. A imagem precisa pertencer à mesma unidade. Texto e URL do botão são validados em conjunto, e a URL aceita somente HTTPS. Criações e alterações registram auditoria.
 
-O término também controla o ciclo de vida. Um evento publicado com `ends_at` vencido deixa de aparecer imediatamente nas APIs públicas e passa a ser apresentado como arquivado na Central. O Worker executa `archiveExpiredPortalEvents` a cada quinze minutos para persistir `status = archived`. Criar ou editar um evento já encerrado também o grava diretamente como arquivado. O processo usa o fuso já convertido para ISO UTC e não depende de migration adicional.
+A data de início controla o ciclo de vida. Um evento publicado e não permanente deixa de aparecer nas APIs públicas quando `starts_at` é alcançado e passa a ser apresentado como arquivado na Central. O Worker executa `archiveExpiredPortalEvents` a cada quinze minutos para persistir `status = archived`. Criar ou editar um evento não permanente cuja data já passou também o grava diretamente como arquivado. Eventos marcados como permanentes continuam publicados até uma ação administrativa. O processo usa o fuso convertido para ISO UTC.
 
 ## Experiência pública
 
@@ -41,7 +42,7 @@ A API pública é:
 GET /api/v1/public/hotels/:hotel_slug/portal/events
 ```
 
-Ela retorna somente eventos publicados e ainda vigentes do hotel solicitado. A resposta não usa cache compartilhado, evitando que um evento encerrado continue visível depois do horário final. A página conectada oferece:
+Ela retorna somente eventos publicados que ainda não alcançaram a data inicial ou que foram marcados como permanentes. A resposta não usa cache compartilhado. A página conectada oferece:
 
 - visualização em lista;
 - filtros por categoria e etiquetas;
@@ -64,6 +65,6 @@ O bloco permite ajustar o rótulo, o texto da ação e a exibição da data e do
 
 ## Modelo de dados
 
-As migrations existentes `0003`, `0021`, `0022` e `0023` já sustentam a funcionalidade. Nenhuma migration adicional é necessária. Os campos editoriais e de mídia permanecem em `events`, com referência opcional a `media_assets`.
+As migrations `0003`, `0021`, `0022` e `0023` sustentam os dados editoriais e de mídia. A migration aditiva `0027_portal_event_permanence.sql` acrescenta `is_permanent`, com valor padrão falso, e o índice do ciclo público. Os registros existentes não são reescritos pela migration.
 
 Nenhum conteúdo real é incluído em seed, teste ou documentação.

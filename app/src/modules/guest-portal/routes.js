@@ -96,7 +96,7 @@ async function listPublishedEvents(env, hotelId, now) {
     env,
     `SELECT e.id, e.title, e.summary, e.content, e.location, e.category, e.tags_json,
             e.action_text, e.action_url, e.starts_at, e.ends_at, e.timezone,
-            e.media_asset_id, ma.public_url AS image_url, ma.alt_text AS image_alt
+            e.is_permanent, e.media_asset_id, ma.public_url AS image_url, ma.alt_text AS image_alt
        FROM events e
        LEFT JOIN media_assets ma
          ON ma.id = e.media_asset_id
@@ -104,7 +104,7 @@ async function listPublishedEvents(env, hotelId, now) {
         AND ma.status = 'active'
       WHERE e.hotel_id = ?
         AND e.status = 'published'
-        AND (e.ends_at IS NULL OR e.ends_at > ?)
+        AND (e.is_permanent = 1 OR e.starts_at > ?)
       ORDER BY e.starts_at, e.title
       LIMIT 24`,
     [hotelId, now],
@@ -115,6 +115,7 @@ async function listPublishedEvents(env, hotelId, now) {
 function formatPublicEvent(event) {
   return {
     ...event,
+    is_permanent: Boolean(event.is_permanent),
     tags: parseTags(event.tags_json),
     tags_json: undefined,
   };

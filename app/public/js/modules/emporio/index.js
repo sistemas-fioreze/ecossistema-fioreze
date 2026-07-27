@@ -56,6 +56,7 @@ function renderShell(bootstrap) {
         </div>
         <div class="emporio-intro-copy">
           <h1>Empório</h1>
+          <p data-emporio-carousel-title></p>
         </div>
         <div class="emporio-carousel-dots" data-emporio-carousel-dots aria-label="Destaques do Empório"></div>
       </section>
@@ -126,20 +127,26 @@ function bindActions(container, state) {
 function renderHeroCarousel(container, state) {
   const module = state.bootstrap.modules?.find((entry) => entry.module_key === MODULE_KEY);
   const moduleCover = sanitizePublicAssetUrl(module?.background_image_url);
+  const configuredSlides = normalizeConfiguredSlides(state.bootstrap.settings?.["emporio.carousel_slides"]);
   const productSlides = allItems(state)
     .map((item) => ({
       image: sanitizePublicAssetUrl(item.image_url),
       productId: item.public_id || item.id,
       alt: item.image_alt || item.name,
+      title: item.name,
     }))
     .filter((slide) => slide.image);
   const slides = [];
-  if (moduleCover && !productSlides.some((slide) => slide.image === moduleCover)) {
-    slides.push({ image: moduleCover, productId: null, alt: "Experiências do Empório" });
-  }
-  for (const slide of productSlides) {
-    if (!slides.some((entry) => entry.image === slide.image)) slides.push(slide);
-    if (slides.length === 7) break;
+  if (configuredSlides.length) {
+    slides.push(...configuredSlides);
+  } else {
+    if (moduleCover && !productSlides.some((slide) => slide.image === moduleCover)) {
+      slides.push({ image: moduleCover, productId: null, alt: "Experiências do Empório", title: "" });
+    }
+    for (const slide of productSlides) {
+      if (!slides.some((entry) => entry.image === slide.image)) slides.push(slide);
+      if (slides.length === 7) break;
+    }
   }
   if (!slides.length) return;
 
@@ -153,6 +160,7 @@ function renderHeroCarousel(container, state) {
           style="--emporio-slide: url('${escapeHtml(slide.image)}')"
           data-emporio-slide
           ${slide.productId ? `data-emporio-product="${escapeHtml(slide.productId)}" aria-label="Ver ${escapeHtml(slide.alt)}"` : `aria-label="${escapeHtml(slide.alt)}"`}
+          data-emporio-title="${escapeHtml(slide.title || "")}"
           aria-hidden="${index === 0 ? "false" : "true"}"
           tabindex="${index === 0 && slide.productId ? "0" : "-1"}"
         ></button>`,
@@ -163,6 +171,7 @@ function renderHeroCarousel(container, state) {
     ? slides.map((_, index) => `<button type="button" data-emporio-carousel-dot="${index}" aria-label="Mostrar destaque ${index + 1}" aria-current="${index === 0 ? "true" : "false"}"></button>`).join("")
     : "";
   restartCarousel(container, state);
+  syncCarouselTitle(container, state);
 }
 
 function setCarouselIndex(container, state, index) {
@@ -178,6 +187,29 @@ function setCarouselIndex(container, state, index) {
   container.querySelectorAll("[data-emporio-carousel-dot]").forEach((dot, dotIndex) => {
     dot.setAttribute("aria-current", String(dotIndex === state.carouselIndex));
   });
+  syncCarouselTitle(container, state);
+}
+
+function syncCarouselTitle(container, state) {
+  const current = [...container.querySelectorAll("[data-emporio-slide]")][state.carouselIndex];
+  const target = container.querySelector("[data-emporio-carousel-title]");
+  if (target) target.textContent = current?.dataset.emporioTitle || "";
+}
+
+function normalizeConfiguredSlides(value) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 8).map((slide) => {
+    const mediaId = String(slide?.media_asset_id || "").trim();
+    const image = sanitizePublicAssetUrl(mediaId ? `/media/${mediaId}` : "");
+    if (!image) return null;
+    const title = String(slide?.title || "").trim().slice(0, 120);
+    return {
+      image,
+      productId: null,
+      title,
+      alt: title || "Destaque do Empório",
+    };
+  }).filter(Boolean);
 }
 
 function restartCarousel(container, state) {

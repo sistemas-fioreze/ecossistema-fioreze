@@ -118,7 +118,7 @@ test("paginas e eventos do portal preservam isolamento por hotel", async () => {
   assert.deepEqual(events.data.events.map((event) => event.id), ["event-aurora-welcome"]);
 });
 
-test("evento encerrado deixa de ser retornado no instante final", async () => {
+test("evento nao permanente deixa de ser retornado no instante inicial", async () => {
   const context = createWorkerTestContext();
   context.env.__data.events.push({
     id: "event-expired",
@@ -128,6 +128,7 @@ test("evento encerrado deixa de ser retornado no instante final", async () => {
     ends_at: "2026-07-13T15:00:00.000Z",
     timezone: "America/Sao_Paulo",
     status: "published",
+    is_permanent: 0,
     tags_json: "[]",
   });
   const { response, body } = await context.json(

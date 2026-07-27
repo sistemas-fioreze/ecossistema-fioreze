@@ -2530,6 +2530,24 @@
   padding: 10px 14px;
 }
 
+.admin-event-permanent {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--admin-muted);
+  font-size: 0.74rem;
+  font-weight: 760;
+}
+
+.admin-event-permanent .admin-svg-icon {
+  width: 17px;
+  height: 17px;
+}
+
+.admin-event-permanence {
+  margin-top: 14px;
+}
+
 .admin-event-card footer button {
   display: inline-flex;
   align-items: center;

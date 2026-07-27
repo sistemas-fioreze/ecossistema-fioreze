@@ -534,6 +534,7 @@ function createFixtureData() {
         ends_at: "2026-08-10T22:00:00.000Z",
         timezone: "America/Sao_Paulo",
         status: "published",
+        is_permanent: 0,
       },
       {
         id: "event-aurora-welcome",
@@ -550,6 +551,7 @@ function createFixtureData() {
         ends_at: "2026-08-11T22:00:00.000Z",
         timezone: "America/Sao_Paulo",
         status: "published",
+        is_permanent: 0,
       },
     ],
     hotelInformation: [
@@ -1259,7 +1261,7 @@ class MockD1Database {
         .filter((entry) =>
           entry.hotel_id === hotelId &&
           entry.status === "published" &&
-          (!normalized.includes("e.ends_at > ?") || !entry.ends_at || entry.ends_at > now),
+          (!normalized.includes("e.is_permanent = 1 or e.starts_at > ?") || entry.is_permanent === 1 || entry.starts_at > now),
         )
         .sort((left, right) => left.starts_at.localeCompare(right.starts_at) || left.title.localeCompare(right.title));
     }

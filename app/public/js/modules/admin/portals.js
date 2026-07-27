@@ -2503,6 +2503,7 @@ function renderEventManagerCard(event) {
         </div>
       </div>
       <footer>
+        ${event.is_permanent ? `<span class="admin-event-permanent">${featureSvg("calendar")} Permanente no portal</span>` : ""}
         <button type="button" data-event-action="edit" data-event-id="${escapeAttr(event.id)}">${featureSvg("edit")} Editar evento</button>
       </footer>
     </article>`;
@@ -2543,6 +2544,10 @@ async function openEventEditor(item = null) {
       </div>
       <small>O término é opcional. Quando informado, preencha data e horário.</small>
     </fieldset>
+    <label class="admin-choice admin-choice-standalone admin-event-permanence">
+      <input name="is_permanent" type="checkbox" ${item?.is_permanent ? "checked" : ""}>
+      <span><strong>Manter permanentemente no portal</strong><small>Quando desativado, o evento é arquivado automaticamente após a data programada.</small></span>
+    </label>
     <fieldset class="admin-event-action-fields">
       <legend>Botão de ação opcional</legend>
       <p>Use para inscrições, reservas ou outras páginas externas.</p>
@@ -2570,6 +2575,7 @@ async function saveManagedEvent(event, item) {
     body.starts_at = zonedDateTimeToIso(body.start_date, body.start_time, body.timezone);
     body.ends_at = body.end_date ? zonedDateTimeToIso(body.end_date, body.end_time, body.timezone) : "";
     body.tags = String(body.tags || "").split(",").map((tag) => tag.trim()).filter(Boolean);
+    body.is_permanent = data.has("is_permanent");
     delete body.start_date;
     delete body.start_time;
     delete body.end_date;
@@ -2667,6 +2673,7 @@ async function openContentEditor(item = null) {
       <div class="admin-form-grid">${dialogField("Texto do botão", "action_text", item?.action_text, "text")}${dialogField("URL do botão", "action_url", item?.action_url, "url")}</div>
       ${renderEventMediaPicker(item?.media_asset_id)}
       <div class="admin-form-grid">${dialogField("Início", "starts_at", toLocalDateTime(item?.starts_at), "datetime-local", true)}${dialogField("Término", "ends_at", toLocalDateTime(item?.ends_at), "datetime-local")}</div>
+      <label class="admin-choice admin-choice-standalone admin-event-permanence"><input name="is_permanent" type="checkbox" ${item?.is_permanent ? "checked" : ""}><span><strong>Manter permanentemente no portal</strong><small>Quando desativado, o evento é arquivado automaticamente após a data programada.</small></span></label>
       <div class="admin-form-grid">${dialogField("Fuso horário", "timezone", item?.timezone || hotelTimezone(els.contentHotel.value), "text", true)}${dialogSelect("Status", "status", item?.status || "draft", [["draft", "Rascunho"], ["published", "Publicado"], ["cancelled", "Cancelado"], ["archived", "Arquivado"]])}</div>`);
   } else {
     els.dialogBody.innerHTML = contentForm("information", `
@@ -2695,6 +2702,7 @@ async function saveContent(event, item) {
     body.starts_at = fromLocalDateTime(body.starts_at);
     body.ends_at = fromLocalDateTime(body.ends_at);
     body.tags = String(body.tags || "").split(",").map((tag) => tag.trim()).filter(Boolean);
+    body.is_permanent = data.has("is_permanent");
   } else {
     body.hotel_id = els.contentHotel.value;
     body.sort_order = Number(body.sort_order || 100);

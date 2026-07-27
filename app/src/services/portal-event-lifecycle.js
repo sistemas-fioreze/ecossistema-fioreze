@@ -1,8 +1,8 @@
 import { run } from "../core/database.js";
 
-export function resolvePortalEventStatus(status, endsAt, now) {
-  if (status !== "published" || !endsAt) return status;
-  return Date.parse(endsAt) <= Date.parse(now) ? "archived" : status;
+export function resolvePortalEventStatus(status, startsAt, isPermanent, now) {
+  if (status !== "published" || isPermanent || !startsAt) return status;
+  return Date.parse(startsAt) <= Date.parse(now) ? "archived" : status;
 }
 
 export async function archiveExpiredPortalEvents(env, { now = new Date().toISOString() } = {}) {
@@ -13,8 +13,8 @@ export async function archiveExpiredPortalEvents(env, { now = new Date().toISOSt
         SET status = 'archived',
             updated_at = ?
       WHERE status = 'published'
-        AND ends_at IS NOT NULL
-        AND ends_at <= ?`,
+        AND is_permanent = 0
+        AND starts_at <= ?`,
     [normalizedNow, normalizedNow],
   );
   return Number(result?.meta?.changes || 0);

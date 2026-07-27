@@ -39,11 +39,11 @@ export async function listPortalContent({ request, env, session, url }) {
       `SELECT e.id, e.hotel_id, e.title, e.summary, e.content, e.location, e.category,
               e.tags_json, e.action_text, e.action_url, e.starts_at, e.ends_at, e.timezone,
               CASE
-                WHEN e.status = 'published' AND e.ends_at IS NOT NULL AND e.ends_at <= ?
+                WHEN e.status = 'published' AND e.is_permanent = 0 AND e.starts_at <= ?
                 THEN 'archived'
                 ELSE e.status
               END AS status,
-              e.media_asset_id, e.created_at, e.updated_at,
+              e.is_permanent, e.media_asset_id, e.created_at, e.updated_at,
               ma.public_url AS image_url, ma.alt_text AS image_alt
          FROM events e
          LEFT JOIN media_assets ma
@@ -215,7 +215,7 @@ export async function createPortalEvent({ request, env, session }) {
   const data = eventPayload(payload);
   data.mediaAssetId = await validateEventMedia(env, hotelId, payload.media_asset_id);
   const now = requestNow({ request, env });
-  data.status = resolvePortalEventStatus(data.status, data.endsAt, now);
+  data.status = resolvePortalEventStatus(data.status, data.startsAt, data.isPermanent, now);
   const eventId = createPublicId("event");
   await batch(env, [
     statement(
@@ -223,16 +223,16 @@ export async function createPortalEvent({ request, env, session }) {
         `INSERT INTO events (
          id, hotel_id, title, summary, content, location, category, tags_json,
          action_text, action_url, starts_at, ends_at, timezone, status,
-         media_asset_id, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [eventId, hotelId, data.title, data.summary, data.content, data.location, data.category, data.tagsJson, data.actionText, data.actionUrl, data.startsAt, data.endsAt, data.timezone, data.status, data.mediaAssetId, now, now],
+         is_permanent, media_asset_id, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [eventId, hotelId, data.title, data.summary, data.content, data.location, data.category, data.tagsJson, data.actionText, data.actionUrl, data.startsAt, data.endsAt, data.timezone, data.status, data.isPermanent, data.mediaAssetId, now, now],
     ),
     auditStatement(env, session, {
       hotelId,
       action: "portal-event.create",
       entityType: "event",
       entityId: eventId,
-      metadata: { status: data.status, has_image: Boolean(data.mediaAssetId), has_action: Boolean(data.actionUrl), tag_count: data.tags.length },
+      metadata: { status: data.status, permanent: Boolean(data.isPermanent), has_image: Boolean(data.mediaAssetId), has_action: Boolean(data.actionUrl), tag_count: data.tags.length },
       now,
     }),
   ]);
@@ -249,23 +249,23 @@ export async function updatePortalEvent({ request, env, session, eventId }) {
   const data = eventPayload(payload);
   data.mediaAssetId = await validateEventMedia(env, current.hotel_id, payload.media_asset_id);
   const now = requestNow({ request, env });
-  data.status = resolvePortalEventStatus(data.status, data.endsAt, now);
+  data.status = resolvePortalEventStatus(data.status, data.startsAt, data.isPermanent, now);
   await batch(env, [
     statement(
       env,
         `UPDATE events
           SET title = ?, summary = ?, content = ?, location = ?, category = ?, tags_json = ?,
               action_text = ?, action_url = ?, starts_at = ?, ends_at = ?, timezone = ?,
-              status = ?, media_asset_id = ?, updated_at = ?
+              status = ?, is_permanent = ?, media_asset_id = ?, updated_at = ?
         WHERE id = ? AND hotel_id = ?`,
-      [data.title, data.summary, data.content, data.location, data.category, data.tagsJson, data.actionText, data.actionUrl, data.startsAt, data.endsAt, data.timezone, data.status, data.mediaAssetId, now, eventId, current.hotel_id],
+      [data.title, data.summary, data.content, data.location, data.category, data.tagsJson, data.actionText, data.actionUrl, data.startsAt, data.endsAt, data.timezone, data.status, data.isPermanent, data.mediaAssetId, now, eventId, current.hotel_id],
     ),
     auditStatement(env, session, {
       hotelId: current.hotel_id,
       action: "portal-event.update",
       entityType: "event",
       entityId: eventId,
-      metadata: { status: data.status, has_image: Boolean(data.mediaAssetId), has_action: Boolean(data.actionUrl), tag_count: data.tags.length },
+      metadata: { status: data.status, permanent: Boolean(data.isPermanent), has_image: Boolean(data.mediaAssetId), has_action: Boolean(data.actionUrl), tag_count: data.tags.length },
       now,
     }),
   ]);
@@ -426,7 +426,12 @@ function eventPayload(payload) {
     endsAt,
     timezone: requireString(payload.timezone || "America/Sao_Paulo", "fuso horario", { max: 80 }),
     status,
+    isPermanent: normalizeEventBoolean(payload.is_permanent),
   };
+}
+
+function normalizeEventBoolean(value) {
+  return value === true || value === 1 || value === "1" || value === "true" || value === "on" ? 1 : 0;
 }
 
 function eventActionUrl(value) {
@@ -509,7 +514,7 @@ async function loadEvent(env, eventId) {
     env,
     `SELECT e.id, e.hotel_id, e.title, e.summary, e.content, e.location, e.category,
             e.tags_json, e.action_text, e.action_url, e.starts_at, e.ends_at, e.timezone,
-            e.status, e.media_asset_id, e.created_at, e.updated_at,
+            e.status, e.is_permanent, e.media_asset_id, e.created_at, e.updated_at,
             ma.public_url AS image_url, ma.alt_text AS image_alt
        FROM events e
        LEFT JOIN media_assets ma
@@ -557,7 +562,12 @@ function formatInformation(row) {
 
 function formatEvent(row) {
   const tags = parseJson(row.tags_json, []);
-  return { ...row, tags: Array.isArray(tags) ? tags : [], tags_json: undefined };
+  return {
+    ...row,
+    is_permanent: Boolean(row.is_permanent),
+    tags: Array.isArray(tags) ? tags : [],
+    tags_json: undefined,
+  };
 }
 
 function parseJson(value, fallback) {

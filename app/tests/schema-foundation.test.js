@@ -13,6 +13,7 @@ const adminLoginSecurityMigration = fs.readFileSync("migrations/0019_admin_login
 const guestPortalReferenceMigration = fs.readFileSync("migrations/0021_guest_portal_reference_features.sql", "utf8");
 const guestPortalEventDetailsMigration = fs.readFileSync("migrations/0022_guest_portal_event_details.sql", "utf8");
 const guestPortalEventActionsMigration = fs.readFileSync("migrations/0023_guest_portal_event_actions.sql", "utf8");
+const portalEventPermanenceMigration = fs.readFileSync("migrations/0027_portal_event_permanence.sql", "utf8");
 const seed = fs.readFileSync("seeds/dev.sql", "utf8");
 const wranglerConfig = JSON.parse(fs.readFileSync("wrangler.jsonc", "utf8"));
 const normalizedMigration = normalize(migration);
@@ -25,6 +26,7 @@ const normalizedAdminLoginSecurityMigration = normalize(adminLoginSecurityMigrat
 const normalizedGuestPortalReferenceMigration = normalize(guestPortalReferenceMigration);
 const normalizedGuestPortalEventDetailsMigration = normalize(guestPortalEventDetailsMigration);
 const normalizedGuestPortalEventActionsMigration = normalize(guestPortalEventActionsMigration);
+const normalizedPortalEventPermanenceMigration = normalize(portalEventPermanenceMigration);
 
 test("migration 0007 cria service_hours e media_assets", () => {
   assert.match(normalizedMigration, /create table if not exists service_hours/);
@@ -110,6 +112,13 @@ test("migration 0023 adiciona CTA opcional aos eventos sem alterar dados", () =>
   assert.match(normalizedGuestPortalEventActionsMigration, /alter table events add column action_text text/);
   assert.match(normalizedGuestPortalEventActionsMigration, /alter table events add column action_url text/);
   assert.equal(/insert into|update events|delete from/i.test(guestPortalEventActionsMigration), false);
+});
+
+test("migration 0027 adiciona permanencia de eventos sem alterar registros existentes", () => {
+  assert.match(normalizedPortalEventPermanenceMigration, /alter table events add column is_permanent integer not null default 0/);
+  assert.match(normalizedPortalEventPermanenceMigration, /check \(is_permanent in \(0, 1\)\)/);
+  assert.match(normalizedPortalEventPermanenceMigration, /create index if not exists idx_events_public_lifecycle/);
+  assert.equal(/insert into|update events|delete from/i.test(portalEventPermanenceMigration), false);
 });
 
 test("wrangler declara MEDIA_BUCKET privado de desenvolvimento", () => {
