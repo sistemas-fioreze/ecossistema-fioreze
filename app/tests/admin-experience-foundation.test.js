@@ -219,6 +219,7 @@ test("Central compartilha as proporcoes e os controles do shell oficial do ERP",
 test("Biblioteca de Midia unifica pastas, imagens e videos em grade ou lista", () => {
   const html = fs.readFileSync("public/admin/portais/index.html", "utf8");
   const source = fs.readFileSync("public/js/modules/admin/portals.js", "utf8");
+  const css = fs.readFileSync("public/css/modules/admin/admin-workspace.css", "utf8");
 
   for (const id of ["mediaGrid", "mediaBreadcrumbs", "mediaUploadForm", "mediaFolderDialog", "mediaViewGrid", "mediaViewList", "mediaStorageProgress"]) {
     assert.match(html, new RegExp(`id="${id}"`), id);
@@ -232,7 +233,24 @@ test("Biblioteca de Midia unifica pastas, imagens e videos em grade ou lista", (
   assert.match(source, /dataTransfer/);
   assert.match(source, /\/api\/v1\/admin\/media-folders/);
   assert.match(source, /folder_id/);
+  assert.match(source, /activePortalSection = active\?\.id/);
+  assert.match(css, /data-active-portal-section="mediaLibrary"[\s\S]*overflow: hidden;[\s\S]*padding: 0/);
+  assert.match(css, /\.admin-media-library \{[\s\S]*height: 100%;[\s\S]*grid-template-rows: auto minmax\(0, 1fr\)/);
+  assert.match(css, /\.admin-media-drive-main \{[\s\S]*height: 100%;[\s\S]*overflow-y: auto/);
   assert.equal(fs.existsSync("public/assets/shared/fioreze-central-logo.jpg"), true);
+});
+
+test("configuracao de unidades nao exibe mais a aba de incorporacao", () => {
+  const html = fs.readFileSync("public/admin/portais/index.html", "utf8");
+  const source = fs.readFileSync("public/js/modules/admin/portals.js", "utf8");
+
+  assert.doesNotMatch(html, /data-unit-tab="embed"|data-tab-panel="embed"|>Incorporação</);
+  assert.doesNotMatch(source, /renderEmbedPanel|saveEmbed|currentEmbed|PORTALS_EMBED_/);
+  assert.match(html, /data-unit-tab="general"/);
+  assert.match(html, /data-unit-tab="branding"/);
+  assert.match(html, /data-unit-tab="contact"/);
+  assert.match(html, /data-unit-tab="hosting"/);
+  assert.match(html, /data-unit-tab="seo"/);
 });
 
 test("login usa marca estática e valida sessão sem tela intermediária", () => {

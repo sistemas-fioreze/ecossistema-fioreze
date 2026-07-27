@@ -2278,6 +2278,54 @@ body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-messages-layo
   box-shadow: none;
 }
 
+/* Full-height media workspace */
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-portals-surface[data-active-portal-section="mediaLibrary"] {
+  overflow: hidden;
+  padding: 0;
+  background: #fff;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-media-library {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0;
+  overflow: hidden;
+  background: #fff;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-media-library > .admin-section-actions {
+  min-height: 72px;
+  margin: 0;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--workspace-line);
+  background: #fff;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-media-drive {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  border-top: 0;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-media-drive-sidebar {
+  min-height: 0;
+  height: 100%;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-media-drive-main {
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
 body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes {
   gap: 18px;
   padding: 16px 12px;
@@ -2484,6 +2532,14 @@ body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-empty
 }
 
 @media (max-width: 980px) {
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-media-drive {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-media-drive-sidebar {
+    height: auto;
+  }
+
   body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-messages-layout {
     grid-template-columns: 172px minmax(300px, 360px) minmax(320px, 1fr);
     overflow-x: auto;
@@ -2491,6 +2547,19 @@ body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-empty
 }
 
 @media (max-width: 720px) {
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-media-library > .admin-section-actions {
+    min-height: 0;
+    padding:
+      10px
+      max(12px, env(safe-area-inset-right))
+      10px
+      max(12px, env(safe-area-inset-left));
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-media-drive-main {
+    scrollbar-gutter: auto;
+  }
+
   body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-section-actions {
     min-height: 0;
     margin-bottom: 12px;
