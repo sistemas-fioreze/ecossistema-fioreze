@@ -75,19 +75,12 @@
           </section>
         </section>
 
-        <section id="settingsManager" class="admin-settings-manager admin-management-panel" hidden>
-          <header class="admin-settings-heading">
-            <div><p class="eyebrow">Administração</p><h2>Configurações</h2><p>Contas, acessos e histórico reunidos em um único lugar.</p></div>
-          </header>
+        <section id="settingsManager" class="admin-settings-manager admin-management-panel" aria-label="Configurações" hidden>
           <div id="settingsGrid" class="admin-settings-grid"></div>
         </section>
 
-        <section id="usersManager" class="admin-launcher-panel admin-management-panel" hidden>
-          <div class="admin-panel-heading">
-            <div>
-              <p class="eyebrow">Equipe</p>
-              <h2>Usuários</h2>
-            </div>
+        <section id="usersManager" class="admin-launcher-panel admin-management-panel" aria-label="Usuários" hidden>
+          <div class="admin-section-actions">
             <button id="addUserButton" class="admin-primary-button" type="button">Novo usuário</button>
           </div>
           <form id="usersFilters" class="admin-filters admin-management-filters">
@@ -99,33 +92,41 @@
           <div id="usersList" class="admin-table-stack"></div>
         </section>
 
-        <section id="rolesManager" class="admin-launcher-panel admin-management-panel" hidden>
-          <div class="admin-panel-heading">
-            <div>
-              <p class="eyebrow">Acessos</p>
-              <h2>Perfis e permissões</h2>
-            </div>
+        <section id="rolesManager" class="admin-launcher-panel admin-management-panel" aria-label="Perfis e permissões" hidden>
+          <div class="admin-section-actions">
             <button id="addRoleButton" class="admin-primary-button" type="button">Novo perfil</button>
           </div>
           <div id="rolesSummary" class="admin-muted" aria-live="polite"></div>
           <div id="rolesList" class="admin-table-stack"></div>
         </section>
 
-        <section id="messagesManager" class="admin-launcher-panel admin-management-panel admin-messages-manager" hidden>
-          <div class="admin-panel-heading">
-            <div>
-              <p class="eyebrow">Comunicação</p>
-              <h2>Caixa de mensagens</h2>
-              <p class="admin-muted">Organize conversas e acompanhe a comunicação da equipe.</p>
-            </div>
-          </div>
+        <section id="messagesManager" class="admin-launcher-panel admin-management-panel admin-messages-manager" aria-label="Caixa de mensagens" hidden>
           <div class="admin-messages-layout">
             <aside class="admin-message-boxes" aria-label="Caixas de mensagens">
-              <button id="composeMessageButton" class="admin-message-compose" type="button">Escrever</button>
+              <button id="composeMessageButton" class="admin-message-compose" type="button">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+                <span>Escrever</span>
+              </button>
               <nav>
-                <button type="button" data-message-box="inbox" aria-pressed="true">Entrada <span id="messagesUnreadCount" hidden></span></button>
-                <button type="button" data-message-box="sent" aria-pressed="false">Enviadas</button>
-                <button type="button" data-message-box="archived" aria-pressed="false">Arquivadas</button>
+                <button type="button" data-message-box="inbox" aria-pressed="true">
+                  <span class="admin-message-box-label">
+                    <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="m4 7 8 6 8-6"/></svg>
+                    Entrada
+                  </span>
+                  <span id="messagesUnreadCount" class="admin-message-count" hidden></span>
+                </button>
+                <button type="button" data-message-box="sent" aria-pressed="false">
+                  <span class="admin-message-box-label">
+                    <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m4 12 16-8-6 16-3-7z"/><path d="m11 13 9-9"/></svg>
+                    Enviadas
+                  </span>
+                </button>
+                <button type="button" data-message-box="archived" aria-pressed="false">
+                  <span class="admin-message-box-label">
+                    <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 8h16v12H4zM3 4h18v4H3z"/><path d="M9 12h6"/></svg>
+                    Arquivadas
+                  </span>
+                </button>
               </nav>
             </aside>
             <div class="admin-message-list-panel">
@@ -133,31 +134,41 @@
                 <label class="admin-message-select-all" title="Selecionar todas">
                   <input id="messagesSelectAll" type="checkbox" aria-label="Selecionar todas as mensagens">
                 </label>
-                <button id="messagesRefresh" type="button">Atualizar</button>
-                <button id="messagesArchive" type="button" disabled>Arquivar</button>
-                <button id="messagesMarkRead" type="button" disabled>Marcar como lida</button>
-                <button id="messagesMarkUnread" type="button" disabled>Marcar como não lida</button>
+                <button id="messagesRefresh" type="button" title="Atualizar">
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M20 6v5h-5"/><path d="M4 18v-5h5"/><path d="M6.1 8a7 7 0 0 1 11.6-2L20 8M4 16l2.3 2a7 7 0 0 0 11.6-2"/></svg>
+                  <span>Atualizar</span>
+                </button>
+                <button id="messagesArchive" type="button" title="Arquivar" disabled>
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 8h16v12H4zM3 4h18v4H3z"/><path d="M9 12h6"/></svg>
+                  <span>Arquivar</span>
+                </button>
+                <button id="messagesMarkRead" type="button" title="Marcar como lida" disabled>
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="m4 7 8 6 8-6"/></svg>
+                  <span>Marcar como lida</span>
+                </button>
+                <button id="messagesMarkUnread" type="button" title="Marcar como não lida" disabled>
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 6h16v13H4z"/><path d="M8 10h8"/></svg>
+                  <span>Marcar como não lida</span>
+                </button>
                 <label class="admin-message-search">
-                  <span class="sr-only">Pesquisar mensagens</span>
-                  <input id="messagesSearch" type="search" placeholder="Pesquisar mensagens" autocomplete="off">
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+                  <input id="messagesSearch" type="search" placeholder="Pesquisar mensagens" aria-label="Pesquisar mensagens" autocomplete="off">
                 </label>
               </div>
               <p id="messagesStatus" class="admin-muted" role="status" aria-live="polite"></p>
               <div id="messagesList" class="admin-message-list"></div>
             </div>
             <article id="messageDetail" class="admin-message-detail">
-              <div class="admin-empty">Selecione uma mensagem para visualizar.</div>
+              <div class="admin-message-empty">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="m4 7 8 6 8-6"/></svg>
+                <strong>Selecione uma mensagem</strong>
+                <span>O conteúdo será exibido aqui.</span>
+              </div>
             </article>
           </div>
         </section>
 
-        <section id="accountManager" class="admin-launcher-panel admin-management-panel" hidden>
-          <div class="admin-panel-heading">
-            <div>
-              <p class="eyebrow">Conta</p>
-              <h2>Minha conta</h2>
-            </div>
-          </div>
+        <section id="accountManager" class="admin-launcher-panel admin-management-panel" aria-label="Minha conta" hidden>
           <div id="accountDetails" class="admin-account-card"></div>
           <form id="avatarForm" class="admin-form-grid" enctype="multipart/form-data">
             <label>

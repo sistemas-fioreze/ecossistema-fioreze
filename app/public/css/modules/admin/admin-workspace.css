@@ -2249,3 +2249,357 @@ body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-help-drawer {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Compact section chrome and full-height messaging workspace */
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-section-actions {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin: 0 0 16px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-messages-manager {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #fff;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-messages-layout {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  grid-template-columns: 216px minmax(330px, 420px) minmax(400px, 1fr);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes {
+  gap: 18px;
+  padding: 16px 12px;
+  background: #f7f8f9;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes .admin-message-compose {
+  width: max-content;
+  min-width: 142px;
+  min-height: 52px;
+  justify-content: flex-start;
+  gap: 13px;
+  border-radius: 14px;
+  padding: 0 18px;
+  box-shadow: 0 2px 8px rgba(28, 35, 39, 0.12);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes .admin-message-compose svg,
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-box-label svg,
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-toolbar svg,
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-search svg,
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-empty svg {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes .admin-message-compose > span {
+  min-width: 0;
+  height: auto;
+  display: inline;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes nav {
+  gap: 2px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes nav button {
+  min-height: 42px;
+  border-radius: 0 18px 18px 0;
+  padding: 0 12px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes button .admin-message-box-label {
+  min-width: 0;
+  height: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes .admin-message-count {
+  min-width: 24px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--admin-primary);
+  color: #fff;
+  font-size: 0.62rem;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-list-panel {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-toolbar {
+  min-height: 62px;
+  gap: 3px;
+  padding: 9px 12px;
+  background: rgba(255, 255, 255, 0.98);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-toolbar button {
+  min-width: 38px;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 9px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-toolbar button span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-search {
+  position: relative;
+  min-width: 190px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-search svg {
+  position: absolute;
+  top: 50%;
+  left: 11px;
+  width: 16px;
+  height: 16px;
+  color: var(--workspace-muted);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-search input {
+  min-height: 40px;
+  border-color: transparent;
+  border-radius: 20px;
+  padding: 0 13px 0 35px;
+  background: var(--workspace-soft);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-search input:focus {
+  border-color: var(--workspace-line-strong);
+  background: #fff;
+  outline: 0;
+  box-shadow: 0 0 0 3px rgba(55, 65, 71, 0.08);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-list-panel > .admin-muted {
+  min-height: 36px;
+  padding: 10px 16px;
+  background: #fff;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-list {
+  min-height: 0;
+  align-content: start;
+  overflow-y: auto;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-row {
+  min-height: 76px;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-row > button {
+  padding-right: 14px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-row.is-unread {
+  background: #f7f9fb;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-row.is-unread .admin-message-row-copy :where(strong, b) {
+  font-weight: 820;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-detail {
+  min-height: 0;
+  padding: 28px clamp(24px, 3vw, 44px);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-detail .admin-message-empty {
+  min-height: 100%;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 9px;
+  color: var(--workspace-muted);
+  text-align: center;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-empty svg {
+  width: 42px;
+  height: 42px;
+  margin-bottom: 4px;
+  color: var(--workspace-faint);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-empty strong {
+  color: var(--workspace-ink);
+  font-size: 0.94rem;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-empty span {
+  font-size: 0.76rem;
+}
+
+@media (max-width: 1180px) {
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-messages-layout {
+    grid-template-columns: 188px minmax(310px, 380px) minmax(330px, 1fr);
+  }
+}
+
+@media (max-width: 980px) {
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-messages-layout {
+    grid-template-columns: 172px minmax(300px, 360px) minmax(320px, 1fr);
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 720px) {
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-section-actions {
+    min-height: 0;
+    margin-bottom: 12px;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-section-actions > :only-child {
+    width: 100%;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-messages-manager {
+    padding: 0;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-messages-layout {
+    height: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes {
+    display: grid;
+    grid-template-columns: 116px minmax(0, 1fr);
+    gap: 8px;
+    padding: 8px;
+    border-bottom: 1px solid var(--workspace-line);
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes .admin-message-compose {
+    min-width: 0;
+    width: 100%;
+    min-height: 42px;
+    border-radius: 10px;
+    padding: 0 12px;
+    gap: 8px;
+    box-shadow: none;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes nav {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 3px;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes nav button {
+    min-width: 0;
+    min-height: 42px;
+    justify-content: center;
+    border-radius: 9px;
+    padding: 0 6px;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-box-label {
+    justify-content: center;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-box-label svg {
+    display: none;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes .admin-message-count {
+    min-width: 18px;
+    width: 18px;
+    height: 18px;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-list-panel {
+    min-height: 0;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-detail {
+    min-height: 0;
+    height: 100%;
+    display: none;
+    overflow-y: auto;
+    border: 0;
+    border-radius: 0;
+    padding: 20px 16px;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-messages-manager.is-reading-message .admin-message-boxes,
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-messages-manager.is-reading-message .admin-message-list-panel {
+    display: none;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-messages-manager.is-reading-message .admin-message-detail {
+    display: block;
+    grid-row: 1 / -1;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-toolbar {
+    min-height: auto;
+    flex-wrap: wrap;
+    padding: 7px 9px;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-search {
+    order: 10;
+    width: 100%;
+    min-width: 0;
+    margin-left: 0;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-row {
+    min-height: 82px;
+  }
+}
