@@ -283,6 +283,61 @@ test("branding aceita video somente como capa do portal", async () => {
   assert.equal(documentAsCover.response.status, 400);
 });
 
+test("branding aplica fonte WOFF2 da unidade sem expor o identificador no bootstrap", async () => {
+  const { json, env } = createWorkerTestContext();
+  grantPermissions(env);
+  const cookie = await createSessionCookie(env);
+  env.__data.mediaAssets.push(
+    {
+      id: "media-muller-font",
+      hotel_id: "muller-fioreze",
+      module_key: "guest-portal",
+      storage_provider: "r2",
+      object_key: "hotels/muller-fioreze/guest-portal/2026/07/identidade.woff2",
+      public_url: "/media/media-muller-font",
+      mime_type: "font/woff2",
+      status: "active",
+    },
+    {
+      id: "media-aurora-font",
+      hotel_id: "aurora-demo",
+      module_key: "guest-portal",
+      storage_provider: "r2",
+      object_key: "hotels/aurora-demo/guest-portal/2026/07/identidade.woff2",
+      public_url: "/media/media-aurora-font",
+      mime_type: "font/woff2",
+      status: "active",
+    },
+  );
+
+  const valid = await json(
+    "/api/v1/admin/hotels/muller-fioreze/branding",
+    withCookie(cookie, adminJson("PATCH", {
+      font_family: "Georgia, 'Times New Roman', serif",
+      font_asset_id: "media-muller-font",
+    })),
+  );
+  const imageRejected = await json(
+    "/api/v1/admin/hotels/muller-fioreze/branding",
+    withCookie(cookie, adminJson("PATCH", { font_asset_id: "media-muller-logo" })),
+  );
+  const foreignRejected = await json(
+    "/api/v1/admin/hotels/muller-fioreze/branding",
+    withCookie(cookie, adminJson("PATCH", { font_asset_id: "media-aurora-font" })),
+  );
+  const bootstrap = await json("/api/v1/public/hotels/muller-fioreze/bootstrap");
+
+  assert.equal(valid.response.status, 200);
+  assert.equal(valid.body.data.branding.font_asset_id, "media-muller-font");
+  assert.equal(valid.body.data.branding.font_asset_url, "/media/media-muller-font");
+  assert.equal(valid.body.data.branding.font_asset_mime_type, "font/woff2");
+  assert.equal(imageRejected.response.status, 400);
+  assert.equal(foreignRejected.response.status, 400);
+  assert.equal(bootstrap.body.data.branding.font_asset_url, "/media/media-muller-font");
+  assert.equal(bootstrap.body.data.branding.font_asset_mime_type, "font/woff2");
+  assert.equal(Object.hasOwn(bootstrap.body.data.branding, "font_asset_id"), false);
+});
+
 test("branding faz round-trip por public_url e remove referencias sem excluir midia", async () => {
   const { json, env } = createWorkerTestContext();
   grantPermissions(env);

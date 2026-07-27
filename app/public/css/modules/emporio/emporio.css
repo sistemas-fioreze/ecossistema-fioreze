@@ -28,40 +28,59 @@
 }
 
 .emporio-intro {
-  min-height: 210px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 120px;
-  align-items: end;
-  gap: 28px;
+  min-height: clamp(240px, 34vw, 390px);
+  display: flex;
+  align-items: flex-end;
   position: relative;
-  padding: clamp(28px, 5vw, 62px);
   overflow: hidden;
   border-radius: 8px;
   color: #fff;
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--color-primary) 78%, #121212) 0%, rgba(18, 18, 18, 0.66) 58%, rgba(18, 18, 18, 0.28) 100%),
-    var(--emporio-cover, linear-gradient(135deg, var(--color-primary), #171717));
-  background-position: center;
-  background-size: cover;
+  background: linear-gradient(135deg, var(--color-primary), #171717);
 }
 
 .emporio-intro::after {
   content: "";
-  width: 320px;
-  height: 320px;
   position: absolute;
-  right: -120px;
-  bottom: -185px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 50%;
-}
-
-.emporio-intro > div {
-  position: relative;
+  inset: 0;
   z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(10, 10, 10, 0.02) 25%, rgba(10, 10, 10, 0.72) 100%);
 }
 
-.emporio-eyebrow,
+.emporio-carousel {
+  position: absolute;
+  inset: 0;
+}
+
+.emporio-carousel-slide {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+  background-image: var(--emporio-slide);
+  background-position: center;
+  background-size: cover;
+  transform: scale(1.025);
+  transition: opacity 700ms ease, transform 5s ease;
+}
+
+.emporio-carousel-slide.is-active {
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1);
+}
+
+.emporio-intro-copy {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  padding: clamp(26px, 5vw, 56px);
+}
+
 .emporio-section-heading p,
 .emporio-detail-content > p,
 .emporio-product-category {
@@ -74,56 +93,53 @@
 
 .emporio-intro h1 {
   max-width: 700px;
-  margin: 10px 0 10px;
+  margin: 0;
   font-size: clamp(2.1rem, 5vw, 4.7rem);
   line-height: 0.96;
   letter-spacing: 0;
+  text-shadow: 0 2px 22px rgba(0, 0, 0, 0.28);
 }
 
-.emporio-intro p:last-child {
-  max-width: 620px;
-  margin: 0;
-  color: rgba(255, 255, 255, 0.82);
-  font-size: clamp(0.9rem, 1.5vw, 1.08rem);
-  line-height: 1.55;
+.emporio-carousel-dots {
+  display: flex;
+  gap: 7px;
+  position: absolute;
+  right: clamp(22px, 4vw, 48px);
+  bottom: clamp(28px, 5vw, 58px);
+  z-index: 3;
 }
 
-.emporio-intro-mark {
-  width: 86px;
-  height: 86px;
-  display: grid;
-  place-items: center;
-  position: relative;
-  z-index: 1;
-  align-self: center;
-  justify-self: end;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+.emporio-carousel-dots button {
+  width: 24px;
+  height: 3px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.4);
+  transition: width 180ms ease, background-color 180ms ease;
 }
 
-.emporio-intro-mark svg {
-  width: 34px;
-  height: 34px;
+.emporio-carousel-dots button[aria-current="true"] {
+  width: 42px;
+  background: #fff;
 }
 
 .emporio-toolbar {
   display: grid;
   gap: 16px;
-  padding: 24px 0 12px;
+  padding: 20px 0 12px;
 }
 
 .emporio-search {
-  height: 52px;
+  width: min(520px, 100%);
+  height: 44px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  border: 1px solid var(--emporio-line);
-  border-radius: 8px;
-  padding: 0 16px;
-  background: #fff;
+  gap: 10px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 15px;
+  background: var(--emporio-soft);
 }
 
 .emporio-search svg {
@@ -138,6 +154,11 @@
   outline: 0;
   color: var(--emporio-ink);
   background: transparent;
+  font: inherit;
+}
+
+.emporio-search input::placeholder {
+  color: var(--emporio-muted);
 }
 
 .emporio-categories {
@@ -508,9 +529,11 @@
   }
 
   .emporio-intro {
-    min-height: 172px;
-    grid-template-columns: minmax(0, 1fr);
+    min-height: 190px;
     align-items: end;
+  }
+
+  .emporio-intro-copy {
     padding: 24px;
   }
 
@@ -519,8 +542,9 @@
     font-size: clamp(1.85rem, 10vw, 2.7rem);
   }
 
-  .emporio-intro-mark {
-    display: none;
+  .emporio-carousel-dots {
+    right: 22px;
+    bottom: 27px;
   }
 
   .emporio-toolbar {
@@ -589,6 +613,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .emporio-product-media img,
+  .emporio-carousel-slide,
   .emporio-loading span {
     transition: none;
     animation: none;

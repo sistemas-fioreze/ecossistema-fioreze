@@ -241,11 +241,13 @@ test("inicio desktop herda o fundo do topo e usa imagens configuradas nos servic
   assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.home-info-section\s*\{\s*display:\s*none/);
 });
 
-test("central permite escolher imagem ou video da biblioteca para a identidade", () => {
+test("central permite escolher imagem, video ou fonte da biblioteca para a identidade", () => {
   assert.match(adminScript, /allowVideo = fieldName === "cover_image_url"/);
+  assert.match(adminScript, /fontOnly = fieldName === "font_asset_id"/);
   assert.match(adminScript, /renderIdentityMediaOption/);
   assert.match(adminScript, /name="media_asset_id"/);
-  assert.match(adminScript, /String\(asset\.mime_type \|\| ""\)\.startsWith\("video\/"\)/);
+  assert.match(adminScript, /const isVideo = mimeType\.startsWith\("video\/"\)/);
+  assert.match(adminScript, /const isFont = mimeType\.startsWith\("font\/"\)/);
   assert.match(adminScript, /Capa do portal \(imagem ou vídeo\)/);
   assert.doesNotMatch(adminScript, /const selected = assets\[0\]/);
 });

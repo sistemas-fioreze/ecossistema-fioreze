@@ -40,6 +40,8 @@ export async function getHotelBranding(env, hotelId) {
     background_color: row.background_color,
     text_color: row.text_color,
     font_family: row.font_family,
+    font_asset_url: custom.font_asset_url || null,
+    font_asset_mime_type: custom.font_asset_mime_type || null,
   };
 }
 

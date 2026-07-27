@@ -100,6 +100,46 @@ test("upload MP4 e WebM valida assinatura, grava R2 e serve video", async () => 
   assert.match([...env.MEDIA_BUCKET.objects.keys()].join("\n"), /\.mp4|\.webm/);
 });
 
+test("upload WOFF e WOFF2 valida assinatura e serve fonte pelo R2", async () => {
+  const { json, fetch, env } = createWorkerTestContext();
+  grantMediaPermissions(env);
+  const cookie = await createSessionCookie(env);
+
+  const woff = await uploadImage(json, cookie, {
+    module_key: "guest-portal",
+    file: imageFile(woffBytes(), "identidade.woff", "font/woff"),
+  });
+  const woff2 = await uploadImage(json, cookie, {
+    module_key: "guest-portal",
+    file: imageFile(woff2Bytes(), "identidade.woff2", "font/woff2"),
+  });
+  const publicFont = await fetch(woff2.body.data.asset.public_url);
+
+  assert.equal(woff.response.status, 200);
+  assert.equal(woff2.response.status, 200);
+  assert.equal(woff.body.data.asset.mime_type, "font/woff");
+  assert.equal(woff2.body.data.asset.mime_type, "font/woff2");
+  assert.match(publicFont.headers.get("content-type") || "", /font\/woff2/);
+  assert.match([...env.MEDIA_BUCKET.objects.keys()].join("\n"), /\.woff2?/);
+});
+
+test("upload de fonte rejeita assinatura e extensão divergentes", async () => {
+  const { json, env } = createWorkerTestContext();
+  grantMediaPermissions(env);
+  const cookie = await createSessionCookie(env);
+
+  const badSignature = await uploadImage(json, cookie, {
+    file: imageFile(new Uint8Array([1, 2, 3, 4]), "identidade.woff2", "font/woff2"),
+  });
+  const badExtension = await uploadImage(json, cookie, {
+    file: imageFile(woff2Bytes(), "identidade.woff", "font/woff2"),
+  });
+
+  assert.equal(badSignature.response.status, 400);
+  assert.equal(badExtension.response.status, 400);
+  assert.equal(env.MEDIA_BUCKET.objects.size, 0);
+});
+
 test("upload de video rejeita assinatura ou extensao divergente", async () => {
   const { json, env } = createWorkerTestContext();
   grantMediaPermissions(env);
@@ -599,6 +639,14 @@ function mp4Bytes() {
 
 function webmBytes() {
   return new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 0x9f, 0x42, 0x86, 0x81, 0x01]);
+}
+
+function woffBytes() {
+  return new Uint8Array([0x77, 0x4f, 0x46, 0x46, 0x00, 0x01, 0x00, 0x00]);
+}
+
+function woff2Bytes() {
+  return new Uint8Array([0x77, 0x4f, 0x46, 0x32, 0x00, 0x01, 0x00, 0x00]);
 }
 
 function largeJpegBytes() {
