@@ -7,8 +7,6 @@ import {
   PORTALS_HOTELS_NAVIGATION_PERMISSION,
   PORTALS_HOTELS_SETTINGS_PERMISSION,
   PORTALS_HOTELS_UPDATE_PERMISSION,
-  PORTALS_EMBED_READ_PERMISSION,
-  PORTALS_EMBED_UPDATE_PERMISSION,
   PORTALS_MEDIA_ARCHIVE_PERMISSION,
   PORTALS_MEDIA_UPDATE_PERMISSION,
   PORTALS_MEDIA_UPLOAD_PERMISSION,
@@ -222,7 +220,6 @@ let currentUnits = [];
 let currentUnit = null;
 let currentModules = [];
 let currentNavigation = [];
-let currentEmbed = null;
 let currentEvents = [];
 let activeUnitTab = "general";
 let dirty = false;
@@ -633,16 +630,10 @@ async function openExistingUnit(hotelId) {
   els.unitEditorView.hidden = false;
   setSectionBusy(els.unitsManager, true);
   try {
-    const [hotel, embed] = await Promise.all([
-      adminApi(`/api/v1/admin/hotels/${encodeURIComponent(hotelId)}`),
-      hasPermission(currentSession, PORTALS_EMBED_READ_PERMISSION)
-        ? adminApi(`/api/v1/admin/hotels/${encodeURIComponent(hotelId)}/embed`)
-        : Promise.resolve({ data: { embed: null, modules: [] } }),
-    ]);
+    const hotel = await adminApi(`/api/v1/admin/hotels/${encodeURIComponent(hotelId)}`);
     currentUnit = hotel.data.hotel;
     currentModules = [];
     currentNavigation = [];
-    currentEmbed = embed.data;
     dirty = false;
     renderUnitEditor();
   } catch (error) {
@@ -753,9 +744,6 @@ function renderTabPanels() {
     <div class="admin-navigation-list">${currentNavigation.map(renderNavigationItem).join("") || '<div class="admin-empty">Nenhum item cadastrado.</div>'}</div>
     ${currentUnit.hotel_id ? renderNavigationComposer() : ""}
   `;
-  panel("embed").innerHTML = isNewUnitBlockedTab("embed")
-    ? blockedMessage
-    : renderEmbedPanel();
   panel("seo").innerHTML = isNewUnitBlockedTab("seo")
     ? blockedMessage
     : `
@@ -834,10 +822,6 @@ function handleUnitEditorClick(event) {
   }
   const navButton = event.target.closest("[data-nav-action]");
   if (navButton) handleNavigationAction(navButton);
-  const copyEmbed = event.target.closest("[data-copy-embed]");
-  if (copyEmbed) {
-    copyEmbedSnippet(copyEmbed.dataset.copyEmbed);
-  }
 }
 
 async function openMediaSelector(fieldName) {
@@ -978,7 +962,6 @@ async function saveCurrentUnit() {
       });
       await saveBranding();
       await saveSettings();
-      await saveEmbed();
     }
     dirty = false;
     setMessage("Unidade salva com sucesso.");
@@ -1070,64 +1053,6 @@ async function saveModules() {
     method: "PATCH",
     body: { modules },
   });
-}
-
-async function saveEmbed() {
-  if (
-    !hasPermission(currentSession, PORTALS_EMBED_READ_PERMISSION) ||
-    !hasPermission(currentSession, PORTALS_EMBED_UPDATE_PERMISSION) ||
-    !currentUnit.hotel_id ||
-    !currentEmbed?.embed
-  ) {
-    return;
-  }
-  const enabledInput = els.unitEditorForm.elements["embed.enabled"];
-  const originsInput = els.unitEditorForm.elements["embed.allowed_origins"];
-  const themeInput = els.unitEditorForm.elements["embed.default_theme"];
-  const backgroundInput = els.unitEditorForm.elements["embed.default_background"];
-  const headerInput = els.unitEditorForm.elements["embed.header"];
-  const heightInput = els.unitEditorForm.elements["embed.initial_height"];
-  const compactInput = els.unitEditorForm.elements["embed.compact"];
-  if (!enabledInput || !originsInput || !themeInput || !backgroundInput || !headerInput || !heightInput || !compactInput) {
-    return;
-  }
-  const modules = [...els.unitEditorForm.querySelectorAll("[name='embed.module']:checked")].map((input) => input.value);
-  const body = {
-    enabled: enabledInput.checked === true,
-    allowed_origins: originsInput.value
-      .split(/\n/)
-      .map((origin) => origin.trim())
-      .filter(Boolean),
-    allowed_modules: modules,
-    default_theme: themeInput.value || "light",
-    default_background: backgroundInput.value || "default",
-    header: headerInput.value || "visible",
-    initial_height: Number(heightInput.value),
-    compact: compactInput.checked === true,
-  };
-  if (!embedFormChanged(body, currentEmbed.embed)) return;
-  await adminApi(`/api/v1/admin/hotels/${encodeURIComponent(currentUnit.hotel_id)}/embed`, {
-    method: "PATCH",
-    body,
-  });
-}
-
-function embedFormChanged(next, current) {
-  return (
-    next.enabled !== Boolean(current.enabled) ||
-    !sameStringList(next.allowed_origins, current.allowed_origins || []) ||
-    !sameStringList(next.allowed_modules, current.allowed_modules || []) ||
-    next.default_theme !== (current.default_theme || "light") ||
-    next.default_background !== (current.default_background || "default") ||
-    next.header !== (current.header || "visible") ||
-    next.initial_height !== Number(current.initial_height || 520) ||
-    next.compact !== Boolean(current.compact)
-  );
-}
-
-function sameStringList(left, right) {
-  if (left.length !== right.length) return false;
-  return left.every((value, index) => value === right[index]);
 }
 
 async function handleNavigationAction(button) {
@@ -2161,67 +2086,6 @@ function renderNavigationComposer() {
   `;
 }
 
-function renderEmbedPanel() {
-  if (!hasPermission(currentSession, PORTALS_EMBED_READ_PERMISSION)) {
-    return '<div class="admin-empty">Você não tem acesso a esta função.</div>';
-  }
-  const embed = currentEmbed?.embed || {};
-  const modules = currentEmbed?.modules || currentModules.filter((moduleRow) => moduleRow.enabled && moduleRow.is_public);
-  const selected = new Set(embed.allowed_modules || []);
-  const defaultModule = selected.has("room-service") ? "room-service" : modules[0]?.module_key || "guest-portal";
-  const baseUrl = `${window.location.origin}/embed/${currentUnit.slug}/${defaultModule}/`;
-  const fixed = `<iframe src="${baseUrl}" width="100%" height="${embed.initial_height || 520}" loading="lazy" style="border:0;width:100%;max-width:100%;"></iframe>`;
-  const autoHeight = `<iframe data-fioreze-embed data-fioreze-embed-id="fioreze-${currentUnit.slug}-${defaultModule}" src="${baseUrl}" width="100%" height="${embed.initial_height || 520}" loading="lazy" style="border:0;width:100%;max-width:100%;"></iframe>\n<script src="${window.location.origin}/embed/fioreze-embed.js" defer></script>`;
-  return `
-    <div class="admin-form-grid">
-      <label class="admin-field"><span>Permitir incorporacao</span><input name="embed.enabled" type="checkbox" ${embed.enabled ? "checked" : ""}></label>
-      ${selectField("Tema padrao", "embed.default_theme", embed.default_theme || "light", ["light", "auto"])}
-      ${selectField("Fundo padrao", "embed.default_background", embed.default_background || "default", ["default", "transparent"])}
-      ${selectField("Cabecalho", "embed.header", embed.header || "visible", ["visible", "hidden"])}
-      ${field("Altura inicial", "embed.initial_height", embed.initial_height || 520, "number")}
-      <label class="admin-field"><span>Compacto</span><input name="embed.compact" type="checkbox" ${embed.compact ? "checked" : ""}></label>
-    </div>
-    <label class="admin-field admin-field-wide">
-      <span>Dominios autorizados</span>
-      <textarea name="embed.allowed_origins" rows="4" placeholder="https://site-autorizado.example">${escapeHtml((embed.allowed_origins || []).join("\n"))}</textarea>
-      <small>Informe origens HTTPS completas, sem caminhos adicionais.</small>
-    </label>
-    <div class="admin-module-toggle">
-      <div>
-        <strong>Áreas incorporáveis</strong>
-        <span>Apenas áreas públicas e ativas podem ser selecionadas.</span>
-      </div>
-      <div class="admin-embed-module-list">
-        ${modules
-          .map(
-            (moduleRow) =>
-              `<label><input name="embed.module" type="checkbox" value="${escapeAttr(moduleRow.module_key)}" ${selected.has(moduleRow.module_key) ? "checked" : ""}> ${escapeHtml(moduleRow.navigation_label || moduleRow.name || moduleRow.module_key)}</label>`,
-          )
-          .join("")}
-      </div>
-    </div>
-    <div class="admin-navigation-composer">
-      <strong>Preview</strong>
-      <iframe title="Preview de incorporacao" src="${escapeAttr(baseUrl)}" height="${escapeAttr(embed.initial_height || 520)}" loading="lazy"></iframe>
-    </div>
-    <div class="admin-navigation-composer">
-      <strong>Codigo para copiar</strong>
-      <textarea readonly rows="3">${escapeHtml(fixed)}</textarea>
-      <button type="button" data-copy-embed="fixed">Copiar iframe simples</button>
-      <textarea readonly rows="5">${escapeHtml(autoHeight)}</textarea>
-      <button type="button" data-copy-embed="auto">Copiar iframe com autoaltura</button>
-    </div>
-  `;
-}
-
-function copyEmbedSnippet(kind) {
-  const textareas = [...els.unitEditorForm.querySelectorAll('[data-tab-panel="embed"] textarea[readonly]')];
-  const value = kind === "auto" ? textareas[1]?.value : textareas[0]?.value;
-  if (!value) return;
-  navigator.clipboard?.writeText(value);
-  setMessage("Codigo de incorporacao copiado.");
-}
-
 function field(label, name, value = "", type = "text", help = "") {
   return `
     <label class="admin-field">
@@ -3034,6 +2898,7 @@ function showPortalSection(active) {
   for (const section of [els.portalsHome, els.unitsManager, els.shortLinksManager, els.mediaLibrary, els.eventsManager, els.contentManager, els.areasManager, els.navigationManager, els.auditManager]) {
     section.hidden = section !== active;
   }
+  els.portalsContent.dataset.activePortalSection = active?.id || "";
 }
 
 function populateAuthorizedHotels(select, session, includeAll = false) {
