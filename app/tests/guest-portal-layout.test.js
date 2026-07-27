@@ -82,6 +82,20 @@ test("shell abre o portal diretamente sem uma segunda tela de carregamento", () 
   assert.doesNotMatch(roomServiceScript, /Carregando cardápio|renderLoading/);
 });
 
+test("modulos internos usam capa do servico com titulo, icone e horario canonico", () => {
+  assert.match(appScript, /has-module-hero/);
+  assert.match(appScript, /function renderModuleHero/);
+  assert.match(appScript, /module\.background_image_url/);
+  assert.match(appScript, /navigationIcon\(moduleKey\)/);
+  assert.match(appScript, /evaluateServiceStatus\(\{[\s\S]*?serviceHours:\s*bootstrap\.service_hours\?\.\["room-service"\]/);
+  assert.match(appScript, /moduleKey !== "emporio"/);
+  assert.match(navigationScript, /hideBrand = false/);
+  assert.match(navigationScript, /is-brand-hidden/);
+  assert.match(navigationCss, /\.public-module-hero-shade/);
+  assert.match(navigationCss, /\.public-module-hero-copy h1 svg/);
+  assert.match(navigationCss, /\.has-module-hero \.guest-shared-header/);
+});
+
 test("header movel ganha blur somente depois da rolagem", () => {
   assert.match(portalScript, /syncHeaderScroll/);
   assert.match(navigationScript, /window\.scrollY > 8/);

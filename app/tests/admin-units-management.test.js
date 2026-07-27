@@ -470,6 +470,38 @@ test("settings aceita varios embeds seguros do Google Maps e rejeita conteudo in
   assert.equal(apiKey.response.status, 400);
 });
 
+test("settings controla os destaques do Emporio com imagens isoladas por unidade", async () => {
+  const { json, env } = createWorkerTestContext();
+  grantPermissions(env);
+  const cookie = await createSessionCookie(env);
+  env.__data.mediaAssets.push({
+    id: "media-aurora-carousel",
+    hotel_id: "aurora-demo",
+    module_key: "emporio",
+    public_url: "/media/media-aurora-carousel",
+    mime_type: "image/webp",
+    status: "active",
+  });
+
+  const slides = [{ title: "Seleção da estação", media_asset_id: "media-muller-logo" }];
+  const valid = await json(
+    "/api/v1/admin/hotels/muller-fioreze/settings",
+    withCookie(cookie, adminJson("PATCH", { "emporio.carousel_slides": slides })),
+  );
+  const bootstrap = await json("/api/v1/public/hotels/muller-fioreze/bootstrap");
+  const foreignImage = await json(
+    "/api/v1/admin/hotels/muller-fioreze/settings",
+    withCookie(cookie, adminJson("PATCH", {
+      "emporio.carousel_slides": [{ title: "Outro hotel", media_asset_id: "media-aurora-carousel" }],
+    })),
+  );
+
+  assert.equal(valid.response.status, 200);
+  assert.deepEqual(valid.body.data.settings["emporio.carousel_slides"], slides);
+  assert.deepEqual(bootstrap.body.data.settings["emporio.carousel_slides"], slides);
+  assert.equal(foreignImage.response.status, 400);
+});
+
 test("modulos sao atualizados de forma idempotente sem excluir registros", async () => {
   const { json, env } = createWorkerTestContext();
   grantPermissions(env);

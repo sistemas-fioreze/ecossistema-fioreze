@@ -144,6 +144,7 @@ function renderPortal(container, state) {
   const navigation = renderGuestNavigation(state.bootstrap, {
     activeModule: "guest-portal",
     activeTab: state.activeTab,
+    hideBrand: Boolean(state.selectedEventId),
   });
   if (state.selectedEventId) {
     if (isDesktopPortal()) {

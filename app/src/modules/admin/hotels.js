@@ -66,6 +66,7 @@ const PUBLIC_SETTINGS = new Set([
   "portal.module.emporio.description",
   "portal.module.romantic-packages.description",
   "portal.module.spa.description",
+  "emporio.carousel_slides",
   "seo.title",
   "seo.description",
   "seo.social_image_asset_id",
@@ -427,7 +428,9 @@ export async function updateAdminHotelSettings({ request, env, session, hotelId 
   const statements = [];
   const changedFields = [];
   for (const [key, value] of entries) {
-    const normalized = validateSetting(key, value);
+    const normalized = key === "emporio.carousel_slides"
+      ? await validateEmporioCarouselSlides(env, hotelId, value)
+      : validateSetting(key, value);
     if (key === "seo.social_image_asset_id" && normalized.value) {
       await validateMediaSelection(env, hotelId, normalized.value);
     }
@@ -1048,6 +1051,26 @@ function validateSetting(key, value) {
   if (/[<>]/.test(text)) throw badRequest(`${key} nao aceita HTML.`);
   if (text.length > TEXT_SETTING_MAX) throw badRequest(`${key} excede o tamanho permitido.`);
   return { value: text, type: "string" };
+}
+
+async function validateEmporioCarouselSlides(env, hotelId, value) {
+  if (!Array.isArray(value)) throw badRequest("Os destaques do Emporio devem ser enviados como lista.");
+  if (value.length > 8) throw badRequest("O carrossel do Emporio aceita no maximo 8 destaques.");
+  const normalized = [];
+  const mediaIds = new Set();
+  for (const [index, entry] of value.entries()) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      throw badRequest(`Destaque ${index + 1} invalido.`);
+    }
+    rejectUnknown(entry, new Set(["title", "media_asset_id"]));
+    const title = optionalString(entry.title, `titulo do destaque ${index + 1}`, { max: 120 }) || "";
+    const mediaAssetId = requireString(entry.media_asset_id, `imagem do destaque ${index + 1}`, { max: 160 });
+    if (mediaIds.has(mediaAssetId)) throw badRequest("Nao repita a mesma imagem no carrossel.");
+    await requireActiveHotelImage(env, hotelId, mediaAssetId);
+    mediaIds.add(mediaAssetId);
+    normalized.push({ title, media_asset_id: mediaAssetId });
+  }
+  return { value: JSON.stringify(normalized), type: "json" };
 }
 
 function validateMapsEmbedUrls(value) {

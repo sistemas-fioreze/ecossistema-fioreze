@@ -242,6 +242,7 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
     const categories = state.catalog.category_options || [];
     const products = catalogProducts();
     return `
+      ${renderEmporioCarouselPanel()}
       <section class="guest-editor-section emporio-editor-overview">
         <header>
           <strong>Catálogo do Empório</strong>
@@ -272,6 +273,45 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
         <div class="emporio-editor-product-list">
           ${products.map(renderEmporioProductRow).join("") || '<p class="guest-editor-help">Nenhum produto cadastrado.</p>'}
         </div>
+      </section>`;
+  }
+
+  function renderEmporioCarouselPanel() {
+    const slides = emporioCarouselSlides();
+    const images = state.media.filter((asset) => String(asset.mime_type || "").startsWith("image/"));
+    return `
+      <section class="guest-editor-section emporio-carousel-editor">
+        <header>
+          <strong>Destaques do carrossel</strong>
+          <span>${slides.length} de 8 páginas configuradas. A ordem abaixo é a ordem exibida no portal.</span>
+        </header>
+        <div class="emporio-carousel-editor-list">
+          ${slides.map((slide, index) => {
+            const selected = mediaByRef(slide.media_asset_id);
+            return `
+              <article class="emporio-carousel-editor-row" data-emporio-slide-index="${index}">
+                <span class="emporio-carousel-editor-preview">${selected ? `<img src="${escapeAttr(selected.public_url)}" alt="">` : icon("image")}</span>
+                <div>
+                  <label class="guest-editor-field"><span>Título do destaque</span><input data-emporio-carousel-field="title" maxlength="120" value="${escapeAttr(slide.title || "")}" placeholder="Experiência em destaque"></label>
+                  <label class="guest-editor-field"><span>Imagem</span><select data-emporio-carousel-field="media_asset_id" required>
+                    <option value="">Selecione uma imagem</option>
+                    ${images.map((asset) => `<option value="${escapeAttr(asset.id)}" ${asset.id === slide.media_asset_id ? "selected" : ""}>${escapeHtml(asset.original_filename || asset.id)}</option>`).join("")}
+                  </select></label>
+                  ${hasPermission(state.session, PORTALS_MEDIA_UPLOAD_PERMISSION) ? `<label class="guest-editor-upload is-compact"><input type="file" data-emporio-carousel-upload="${index}" accept="image/jpeg,image/png,image/webp,image/avif"><span>Enviar nova imagem</span></label>` : ""}
+                </div>
+                <div class="emporio-carousel-editor-actions">
+                  <button type="button" data-emporio-action="slide-up" data-index="${index}" ${index === 0 ? "disabled" : ""} aria-label="Mover destaque para cima">↑</button>
+                  <button type="button" data-emporio-action="slide-down" data-index="${index}" ${index === slides.length - 1 ? "disabled" : ""} aria-label="Mover destaque para baixo">↓</button>
+                  <button type="button" data-emporio-action="remove-slide" data-index="${index}">Remover</button>
+                </div>
+              </article>`;
+          }).join("") || '<p class="guest-editor-help">Sem destaques editoriais. Enquanto esta lista estiver vazia, o portal usa automaticamente as imagens dos produtos.</p>'}
+        </div>
+        <div class="emporio-editor-form-actions">
+          <button type="button" data-emporio-action="add-slide" ${slides.length >= 8 ? "disabled" : ""}>${icon("plus")} Adicionar destaque</button>
+          <button class="admin-primary-button" type="button" data-emporio-action="save-carousel">Salvar carrossel</button>
+        </div>
+        <p class="guest-editor-help" data-emporio-carousel-status aria-live="polite"></p>
       </section>`;
   }
 
@@ -436,6 +476,11 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
   }
 
   function handleInput(event) {
+    const carouselField = event.target.closest("[data-emporio-carousel-field]");
+    if (carouselField) {
+      updateEmporioCarouselField(carouselField);
+      return;
+    }
     const control = event.target.closest("[data-editor-path]");
     if (!control || control.type === "file" || control.type === "radio" || control.type === "checkbox") return;
     if (control.closest("[data-emporio-form]")) return;
@@ -445,6 +490,17 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
   }
 
   function handleChange(event) {
+    const carouselUpload = event.target.closest("[data-emporio-carousel-upload]");
+    if (carouselUpload) {
+      uploadEmporioCarouselMedia(carouselUpload);
+      return;
+    }
+    const carouselField = event.target.closest("[data-emporio-carousel-field]");
+    if (carouselField) {
+      updateEmporioCarouselField(carouselField);
+      renderPanel();
+      return;
+    }
     const emporioUpload = event.target.closest("[data-emporio-media-upload]");
     if (emporioUpload) {
       uploadEmporioMedia(emporioUpload);
@@ -523,6 +579,30 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
 
   function handleEmporioAction(button) {
     const action = button.dataset.emporioAction;
+    if (action === "add-slide") {
+      const slides = emporioCarouselSlides();
+      if (slides.length < 8) slides.push({ title: "", media_asset_id: "" });
+      renderPanel();
+      return;
+    }
+    if (["slide-up", "slide-down", "remove-slide"].includes(action)) {
+      const slides = emporioCarouselSlides();
+      const index = Number(button.dataset.index);
+      if (action === "remove-slide") {
+        slides.splice(index, 1);
+      } else {
+        const target = action === "slide-up" ? index - 1 : index + 1;
+        if (target >= 0 && target < slides.length) {
+          [slides[index], slides[target]] = [slides[target], slides[index]];
+        }
+      }
+      renderPanel();
+      return;
+    }
+    if (action === "save-carousel") {
+      saveEmporioCarousel();
+      return;
+    }
     if (action === "cancel") {
       state.catalogEditor = null;
       renderPanel();
@@ -575,6 +655,68 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
       setStatus("Imagem enviada e selecionada.", "success");
     } catch (error) {
       setStatus(error.message || "Não foi possível enviar a imagem.", "error");
+    }
+  }
+
+  async function uploadEmporioCarouselMedia(input) {
+    const file = input.files?.[0];
+    const index = Number(input.dataset.emporioCarouselUpload);
+    if (!file || !Number.isInteger(index)) return;
+    input.disabled = true;
+    const status = els.panel.querySelector("[data-emporio-carousel-status]");
+    if (status) status.textContent = "Enviando imagem...";
+    const form = new FormData();
+    form.set("hotel_id", state.hotel.hotel_id);
+    form.set("module_key", MODULE_KEY_FOR_CATALOG);
+    form.set("file", file);
+    try {
+      const payload = await adminApi("/api/v1/admin/media", { method: "POST", body: form });
+      const asset = payload.data.asset;
+      state.media = [asset, ...state.media.filter((entry) => entry.id !== asset.id)];
+      const slide = emporioCarouselSlides()[index];
+      if (slide) slide.media_asset_id = asset.id;
+      renderPanel();
+      setStatus("Imagem enviada e selecionada.", "success");
+    } catch (error) {
+      if (status) status.textContent = error.message || "Não foi possível enviar a imagem.";
+      input.disabled = false;
+    }
+  }
+
+  function updateEmporioCarouselField(control) {
+    const row = control.closest("[data-emporio-slide-index]");
+    const slide = emporioCarouselSlides()[Number(row?.dataset.emporioSlideIndex)];
+    if (slide) slide[control.dataset.emporioCarouselField] = control.value;
+  }
+
+  function emporioCarouselSlides() {
+    const current = state.hotel?.settings?.["emporio.carousel_slides"];
+    if (Array.isArray(current)) return current;
+    state.hotel.settings["emporio.carousel_slides"] = [];
+    return state.hotel.settings["emporio.carousel_slides"];
+  }
+
+  async function saveEmporioCarousel() {
+    const status = els.panel.querySelector("[data-emporio-carousel-status]");
+    const slides = emporioCarouselSlides().map((slide) => ({
+      title: String(slide.title || "").trim(),
+      media_asset_id: String(slide.media_asset_id || "").trim(),
+    }));
+    if (slides.some((slide) => !slide.media_asset_id)) {
+      if (status) status.textContent = "Selecione uma imagem para cada destaque.";
+      return;
+    }
+    if (status) status.textContent = "Salvando carrossel...";
+    try {
+      const payload = await adminApi(`/api/v1/admin/hotels/${encodeURIComponent(state.hotel.hotel_id)}/settings`, {
+        method: "PATCH",
+        body: { "emporio.carousel_slides": slides },
+      });
+      state.hotel.settings = structuredClone(payload.data.settings || state.hotel.settings);
+      renderPanel();
+      setStatus("Carrossel do Empório atualizado.", "success");
+    } catch (error) {
+      if (status) status.textContent = error.message || "Não foi possível salvar o carrossel.";
     }
   }
 
@@ -743,9 +885,13 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
       "portal.blog_feed_url",
       "contact.maps_url",
       "contact.maps_embed_urls",
+      "emporio.carousel_slides",
       ...SERVICE_KEYS.map((key) => `portal.module.${key}.description`),
     ];
-    return Object.fromEntries(keys.map((key) => [key, settings[key] ?? (key === "contact.maps_embed_urls" ? [] : "")]));
+    return Object.fromEntries(keys.map((key) => [
+      key,
+      settings[key] ?? (["contact.maps_embed_urls", "emporio.carousel_slides"].includes(key) ? [] : ""),
+    ]));
   }
 
   function modulePayload(moduleKey) {

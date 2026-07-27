@@ -76,6 +76,7 @@ test("evento encerrado aparece arquivado na administracao imediatamente", async 
     ends_at: "2026-07-13T14:59:59.000Z",
     timezone: "America/Sao_Paulo",
     status: "published",
+    is_permanent: 0,
     tags_json: "[]",
     created_at: NOW,
     updated_at: NOW,
@@ -105,6 +106,24 @@ test("novo evento ja encerrado e persistido como arquivado", async () => {
   });
   assert.equal(result.event.status, "archived");
   assert.equal(env.__data.events[0].status, "archived");
+});
+
+test("evento permanente continua publicado depois da data inicial", async () => {
+  const env = createEnv();
+  const result = await createPortalEvent({
+    request: request({
+      hotel_id: "muller-fioreze",
+      title: "Experiencia permanente",
+      starts_at: "2026-07-13T10:00:00.000Z",
+      timezone: "America/Sao_Paulo",
+      status: "published",
+      is_permanent: true,
+    }),
+    env,
+    session: session(),
+  });
+  assert.equal(result.event.status, "published");
+  assert.equal(result.event.is_permanent, true);
 });
 
 test("pagina e secao sao criadas atomicamente com auditoria", async () => {
@@ -278,7 +297,7 @@ class ContentStatement {
           .filter((row) => row.hotel_id === hotelId)
           .map((row) => withEventMedia({
             ...row,
-            status: row.status === "published" && row.ends_at && row.ends_at <= now ? "archived" : row.status,
+            status: row.status === "published" && !row.is_permanent && row.starts_at && row.starts_at <= now ? "archived" : row.status,
           }, data.mediaAssets)),
       };
     }
@@ -317,7 +336,7 @@ class ContentStatement {
     } else if (this.sql.startsWith("INSERT INTO portal_sections")) {
       data.sections.push({ id: p[0], page_id: p[1], hotel_id: p[2], section_key: p[3], title: p[4], body: p[5], settings_json: p[6], sort_order: p[7], created_at: p[8], updated_at: p[9] });
     } else if (this.sql.startsWith("INSERT INTO events")) {
-      data.events.push({ id: p[0], hotel_id: p[1], title: p[2], summary: p[3], content: p[4], location: p[5], category: p[6], tags_json: p[7], action_text: p[8], action_url: p[9], starts_at: p[10], ends_at: p[11], timezone: p[12], status: p[13], media_asset_id: p[14], created_at: p[15], updated_at: p[16] });
+      data.events.push({ id: p[0], hotel_id: p[1], title: p[2], summary: p[3], content: p[4], location: p[5], category: p[6], tags_json: p[7], action_text: p[8], action_url: p[9], starts_at: p[10], ends_at: p[11], timezone: p[12], status: p[13], is_permanent: p[14], media_asset_id: p[15], created_at: p[16], updated_at: p[17] });
     } else if (this.sql.startsWith("INSERT INTO hotel_information")) {
       data.information.push({ id: p[0], hotel_id: p[1], info_key: p[2], title: p[3], body: p[4], is_public: p[5], sort_order: p[6], created_at: p[7], updated_at: p[8] });
     } else if (this.sql.startsWith("INSERT INTO admin_audit_log")) {

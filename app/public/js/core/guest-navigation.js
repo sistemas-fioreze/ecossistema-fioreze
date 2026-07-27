@@ -16,7 +16,10 @@ const MODULE_ICONS = {
   "romantic-packages": "heart",
 };
 
-export function renderGuestNavigation(bootstrap, { activeTab = "inicio", activeModule = "guest-portal" } = {}) {
+export function renderGuestNavigation(
+  bootstrap,
+  { activeTab = "inicio", activeModule = "guest-portal", hideBrand = false } = {},
+) {
   const homePath = `/${encodeURIComponent(bootstrap.slug)}`;
   const logoUrl = sanitizePublicAssetUrl(
     bootstrap.branding?.horizontal_logo_url || bootstrap.branding?.logo_url || bootstrap.branding?.icon_url,
@@ -32,7 +35,7 @@ export function renderGuestNavigation(bootstrap, { activeTab = "inicio", activeM
   ).join("");
 
   return `
-    <header class="site-header guest-shared-header" data-guest-header>
+    <header class="site-header guest-shared-header${hideBrand ? " is-brand-hidden" : ""}" data-guest-header>
       <div class="guest-brand">
         <button class="guest-menu-toggle" type="button" data-guest-menu-open aria-label="Abrir navegação" aria-expanded="false" aria-controls="guest-navigation-drawer">
           ${navigationIcon("menu")}
@@ -139,7 +142,7 @@ function isSafeInternalPath(value) {
   return typeof value === "string" && /^\/(?!\/)[A-Za-z0-9_~!$&'()*+,;=:@%./-]*$/.test(value);
 }
 
-function navigationIcon(name) {
+export function navigationIcon(name) {
   const paths = {
     menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
     close: '<path d="M6 6l12 12M18 6 6 18"/>',

@@ -58,6 +58,7 @@ Ele permite somente escolhas que preservam o template:
 - feed público do blog;
 - link e incorporações de mapas;
 - nome, descrição, imagem e disponibilidade dos quatro serviços;
+- títulos, imagens, quantidade e ordem dos destaques do carrossel do Empório;
 - acesso direto aos eventos, às informações do hotel e à Biblioteca de Mídia.
 
 O editor oferece prévia ao vivo em desktop e mobile. A prévia usa mensagens da mesma origem e não concede autorização. Salvar continua exigindo sessão, acesso ao hotel e as permissões administrativas de identidade, configurações e módulos.
@@ -75,6 +76,8 @@ O portal usa somente estruturas compartilhadas:
 - APIs específicas de cada módulo para catálogo e operação.
 
 Nenhum HTML, nome de hotel, cor ou catálogo é duplicado por unidade. O Müller continua sendo o primeiro tenant, não uma exceção no código.
+
+Os módulos internos usam a imagem cadastrada no próprio serviço como capa. A navegação permanece transparente sobre a mídia, o título usa o ícone do módulo e o degradê integra a capa ao conteúdo. No Room Service, o único complemento do título é o horário calculado a partir de `service_hours`. O Empório mantém sua composição comercial própria e lê os destaques editoriais de `emporio.carousel_slides`; quando a lista está vazia, usa as imagens disponíveis do catálogo como fallback.
 
 ## Segurança
 
