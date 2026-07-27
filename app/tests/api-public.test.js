@@ -159,13 +159,13 @@ test("modulo desabilitado e bloqueado no Worker", async () => {
   assert.equal(body.error.code, "not_found");
 });
 
-test("modulo planejado habilitado responde como contrato futuro, nao como fluxo ativo", async () => {
+test("Emporio habilitado responde como catalogo publico funcional", async () => {
   const { json } = createWorkerTestContext();
   const { response, body } = await json("/api/v1/public/hotels/aurora-demo/emporio/items");
 
-  assert.equal(response.status, 501);
-  assert.equal(body.error.code, "not_implemented");
-  assert.equal(body.error.details.module_key, "emporio");
+  assert.equal(response.status, 200);
+  assert.equal(body.data.module_key, "emporio");
+  assert.deepEqual(body.data.categories, []);
 });
 
 test("consulta de produtos e isolada por hotel", async () => {

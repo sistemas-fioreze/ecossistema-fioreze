@@ -91,6 +91,7 @@ Implementados:
 - `GET /api/v1/public/hotels/:hotel_slug/room-service/products`
 - `GET /api/v1/public/hotels/:hotel_slug/room-service/rooms`
 - `POST /api/v1/public/hotels/:hotel_slug/room-service/orders`
+- `GET /api/v1/public/hotels/:hotel_slug/emporio/items`
 - `POST /api/v1/admin/login`
 - `POST /api/v1/admin/logout`
 - `GET /api/v1/admin/session`
@@ -112,6 +113,11 @@ Implementados:
 - `PATCH /api/v1/admin/room-service/catalog/categories/:id`
 - `POST /api/v1/admin/room-service/catalog/items`
 - `PATCH /api/v1/admin/room-service/catalog/items/:id`
+- `GET /api/v1/admin/emporio/catalog`
+- `POST /api/v1/admin/emporio/catalog/categories`
+- `PATCH /api/v1/admin/emporio/catalog/categories/:id`
+- `POST /api/v1/admin/emporio/catalog/items`
+- `PATCH /api/v1/admin/emporio/catalog/items/:id`
 - `GET /api/v1/admin/room-service/media`
 - `POST /api/v1/admin/room-service/media`
 - `POST /api/v1/admin/room-service/me/avatar`
@@ -160,7 +166,7 @@ Implementados:
 
 Contratos futuros:
 
-- Emporio: items e orders;
+- Emporio: pedidos permanecem desativados; o modulo e somente catalogo;
 - Spa: services e requests;
 - Pacotes Romanticos: packages e requests.
 
@@ -464,6 +470,8 @@ O shell `/admin/portais/` e a Central de Portais Fioreze. A interface segue a me
 
 Em **Portais > Portal do Hóspede**, a Central oferece um editor guiado para o único template oficial compartilhado. Cada unidade pode alterar logos, cores, tipografia, capa, textos, mapas, imagens e disponibilidade de Room Service, Empório, Pacotes Românticos e Spa. Estrutura, navegação e comportamento não são duplicados nem livremente alteráveis. A arquitetura está documentada em `docs/arquitetura/GUEST_PORTAL_TEMPLATE.md`; a retirada do antigo criador está registrada em `docs/arquitetura/VISUAL_PORTAL_BUILDER.md`.
 
+A guia **Empório** desse editor administra categorias, produtos, descrições, etiquetas, preços, ordem, disponibilidade e imagens da Biblioteca de Mídia. O portal público apresenta um catálogo visual e uma tela de detalhes, mas não cria carrinho, checkout ou pedido. A ação comercial abre o WhatsApp público cadastrado em `contact.whatsapp` para a recepção confirmar informações e disponibilidade.
+
 O shell publico do Portal do Hospede e unico para todos os hoteis. Ele reproduz a composicao visual da referencia aprovada com identidade dinamica por unidade: cabecalho compartilhado, menu lateral no mobile, navegacao integrada entre os modulos habilitados, servicos ilustrados, evento em destaque, lista e calendario de eventos, detalhe editorial, informacoes do hotel e blog. O mesmo cabecalho acompanha o hospede no Room Service e nos demais modulos publicos. Cores, tipografia, logos, modulos, imagens e conteudos continuam vindo do bootstrap e das APIs do hotel selecionado; nenhum HTML ou dado do Muller fica fixo no shell compartilhado.
 
 A migration `0022_guest_portal_event_details.sql` amplia `events` de forma aditiva com descricao completa, local, categoria e tags. A migration `0023_guest_portal_event_actions.sql` acrescenta um botao editorial opcional por evento, formado por texto e URL HTTPS validados em conjunto. Esses campos sustentam a visualizacao editorial de eventos e podem ser administrados pela Central de Portais. As migrations nao cadastram nem alteram eventos existentes.
@@ -541,7 +549,7 @@ No ERP, a mensagem exibida e `Impressao desativada neste ambiente.`. Mudar statu
 ## Ainda Falta Migrar
 
 - evolucao dos conteudos estruturados do Portal do Hospede oficial;
-- Emporio funcional;
+- compra on-line no Emporio, que permanece intencionalmente fora do escopo do catalogo;
 - Spa funcional;
 - Pacotes Romanticos funcionais;
 - ERP administrativo completo;

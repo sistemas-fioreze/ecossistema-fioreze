@@ -60,6 +60,13 @@ import {
   updateRoomServiceCatalogItem,
 } from "./erp-catalog.js";
 import {
+  createAdminEmporioCategory,
+  createAdminEmporioItem,
+  listAdminEmporioCatalog,
+  updateAdminEmporioCategory,
+  updateAdminEmporioItem,
+} from "./emporio-catalog.js";
+import {
   createRoomServiceRoom,
   getRoomServiceOperations,
   listRoomServiceRooms,
@@ -562,6 +569,31 @@ export function registerAdminRoutes(router) {
   router.get("/api/v1/admin/room-service/catalog", async ({ request, env, url }) => {
     const session = await getCurrentRoomServiceErpSession({ request, env });
     return ok(await listRoomServiceErpCatalog({ env, session, url }));
+  });
+
+  router.get("/api/v1/admin/emporio/catalog", async ({ request, env, url }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await listAdminEmporioCatalog({ env, session, url }));
+  });
+
+  router.post("/api/v1/admin/emporio/catalog/categories", async ({ request, env }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await createAdminEmporioCategory({ request, env, session }), { status: 201 });
+  });
+
+  router.patch("/api/v1/admin/emporio/catalog/categories/:id", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await updateAdminEmporioCategory({ request, env, session, categoryId: params.id }));
+  });
+
+  router.post("/api/v1/admin/emporio/catalog/items", async ({ request, env }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await createAdminEmporioItem({ request, env, session }), { status: 201 });
+  });
+
+  router.patch("/api/v1/admin/emporio/catalog/items/:id", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await updateAdminEmporioItem({ request, env, session, itemId: params.id }));
   });
 
   router.post("/api/v1/admin/room-service/catalog/categories", async ({ request, env }) => {

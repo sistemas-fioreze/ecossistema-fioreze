@@ -123,16 +123,12 @@
 }
 
 .guest-drawer-brand .brand-logo-img {
-  width: 118px;
+  width: min(170px, 54vw);
   max-height: 42px;
 }
 
-.guest-drawer-brand > span {
-  overflow: hidden;
-  font-size: 0.8rem;
-  font-weight: 850;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.guest-drawer-brand .brand-name-text {
+  font-size: 1rem;
 }
 
 .guest-drawer-nav {

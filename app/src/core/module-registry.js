@@ -1,4 +1,5 @@
 import { registerFutureModuleRoutes } from "../modules/future/routes.js";
+import { registerEmporioRoutes } from "../modules/emporio/routes.js";
 import { registerGuestPortalRoutes } from "../modules/guest-portal/routes.js";
 import { registerRoomServiceRoutes } from "../modules/room-service/routes.js";
 
@@ -18,7 +19,8 @@ export const MODULES = [
   {
     module_key: "emporio",
     name: "Emporio",
-    status: "planned",
+    status: "functional-foundation",
+    registerRoutes: registerEmporioRoutes,
   },
   {
     module_key: "spa",

@@ -133,7 +133,7 @@
 
 .guest-portal-editor-tabs {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 2px;
   padding: 10px;
   border-bottom: 1px solid #e6e9ed;
@@ -518,6 +518,165 @@
 .guest-editor-content-links a small {
   color: #77808a;
   font-size: .68rem;
+}
+
+.emporio-editor-overview {
+  gap: 12px;
+}
+
+.emporio-editor-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.emporio-editor-summary span {
+  display: grid;
+  gap: 2px;
+  border: 1px solid #e0e4e8;
+  border-radius: 5px;
+  padding: 10px;
+  color: #737b85;
+  background: #fafbfc;
+  font-size: .65rem;
+}
+
+.emporio-editor-summary strong {
+  color: #202124;
+  font-size: 1.05rem;
+}
+
+.emporio-editor-actions,
+.emporio-editor-form-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.emporio-editor-actions button,
+.emporio-editor-form-actions button {
+  min-height: 38px;
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid #cfd5dc;
+  border-radius: 5px;
+  color: #353a40;
+  background: #fff;
+  font-weight: 750;
+}
+
+.emporio-editor-actions button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.emporio-editor-actions svg,
+.emporio-editor-category-list svg,
+.emporio-editor-product-list svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.emporio-editor-category-list,
+.emporio-editor-product-list {
+  display: grid;
+  gap: 7px;
+}
+
+.emporio-editor-category-list > button,
+.emporio-editor-product-list > button {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid #e0e4e8;
+  border-radius: 6px;
+  padding: 9px 10px;
+  color: #202124;
+  background: #fff;
+  text-align: left;
+}
+
+.emporio-editor-category-list > button {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.emporio-editor-product-list > button {
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+}
+
+.emporio-editor-category-list > button > span,
+.emporio-editor-product-list > button > span:nth-child(2) {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.emporio-editor-category-list small,
+.emporio-editor-product-list small {
+  overflow: hidden;
+  color: #77808a;
+  font-size: .67rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.emporio-editor-thumb {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 5px;
+  color: #68717c;
+  background: #eef0f2;
+}
+
+.emporio-editor-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.emporio-editor-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.emporio-editor-availability {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
+  border: 1px solid #e0e4e8;
+  border-radius: 5px;
+  padding: 11px;
+}
+
+.emporio-editor-availability span {
+  display: grid;
+  gap: 3px;
+}
+
+.emporio-editor-availability small {
+  color: #77808a;
+  font-size: .68rem;
+  line-height: 1.4;
+}
+
+.emporio-editor-form-actions .admin-primary-button {
+  border-color: #353a40;
+  color: #fff;
+  background: #353a40;
 }
 
 @media (max-width: 1050px) {

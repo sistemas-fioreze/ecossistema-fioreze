@@ -867,6 +867,18 @@ class MockD1Database {
       return asset ? { id: asset.id } : null;
     }
 
+    if (normalized.includes("select id") && normalized.includes("from media_assets") && normalized.includes("mime_type like 'image/%'")) {
+      const [assetId, hotelId] = params;
+      const asset = this.data.mediaAssets.find(
+        (entry) =>
+          entry.id === assetId &&
+          entry.hotel_id === hotelId &&
+          entry.status === "active" &&
+          String(entry.mime_type || "").startsWith("image/"),
+      );
+      return asset ? { id: asset.id } : null;
+    }
+
     if (normalized.includes("from rooms") && normalized.includes("where id = ? and hotel_id = ?")) {
       const [roomId, hotelId] = params;
       return this.data.rooms.find((entry) => entry.id === roomId && entry.hotel_id === hotelId) || null;
@@ -1794,17 +1806,21 @@ class MockD1Database {
     }
 
     if (normalized.includes("from catalog_items ci") && normalized.includes("join categories c")) {
-      const [hotelId] = params;
+      const [hotelId, requestedModuleKey] = params;
+      const moduleKey = requestedModuleKey ||
+        (normalized.includes("ci.module_key = 'emporio'") ? "emporio" : "room-service");
+      const includeInactive = normalized.includes("ci.status != 'archived'");
       return this.data.catalogItems
         .filter((catalogItem) => catalogItem.hotel_id === hotelId)
-        .filter((catalogItem) => catalogItem.module_key === "room-service")
-        .filter((catalogItem) => catalogItem.status === "active")
+        .filter((catalogItem) => catalogItem.module_key === moduleKey)
+        .filter((catalogItem) => includeInactive ? catalogItem.status !== "archived" : catalogItem.status === "active")
         .filter((catalogItem) => {
           const catalog = this.data.catalogs.find((entry) => entry.id === catalogItem.catalog_id);
-          return catalog?.module_key === "room-service";
+          return catalog?.module_key === moduleKey && catalog.status === "active";
         })
         .map((catalogItem) => {
           const categoryRow = this.data.categories.find((categoryEntry) => categoryEntry.id === catalogItem.category_id);
+          if (!categoryRow || (includeInactive ? categoryRow.status === "archived" : categoryRow.status !== "active")) return null;
           const itemAvailability = this.findAvailability(catalogItem.id, catalogItem.hotel_id);
           return {
             ...catalogItem,
@@ -1815,6 +1831,7 @@ class MockD1Database {
             category_sort_order: categoryRow.sort_order,
           };
         })
+        .filter(Boolean)
         .sort((a, b) => a.category_sort_order - b.category_sort_order || a.sort_order - b.sort_order || a.name.localeCompare(b.name));
     }
 
@@ -2366,6 +2383,25 @@ class MockD1Database {
         throw new Error("UNIQUE constraint failed: categories.catalog_id, categories.name");
       }
       this.data.categories.push({ id, hotel_id, catalog_id, module_key, name, description, status: "active", sort_order, created_at, updated_at });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("insert or ignore into catalogs")) {
+      const [id, hotel_id, module_key, created_at, updated_at] = params;
+      if (!this.data.catalogs.some((entry) => entry.id === id)) {
+        this.data.catalogs.push({
+          id,
+          hotel_id,
+          module_key,
+          name: "Emporio",
+          description: "Catalogo digital da unidade",
+          status: "active",
+          sort_order: 100,
+          created_at,
+          updated_at,
+          archived_at: null,
+        });
+      }
       return d1Result(1);
     }
 
