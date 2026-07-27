@@ -484,9 +484,13 @@ test("settings controla os destaques do Emporio com imagens isoladas por unidade
   });
 
   const slides = [{ title: "Seleção da estação", media_asset_id: "media-muller-logo" }];
+  const description = "Seleção especial disponível na unidade.";
   const valid = await json(
     "/api/v1/admin/hotels/muller-fioreze/settings",
-    withCookie(cookie, adminJson("PATCH", { "emporio.carousel_slides": slides })),
+    withCookie(cookie, adminJson("PATCH", {
+      "portal.module.emporio.description": description,
+      "emporio.carousel_slides": slides,
+    })),
   );
   const bootstrap = await json("/api/v1/public/hotels/muller-fioreze/bootstrap");
   const foreignImage = await json(
@@ -497,7 +501,9 @@ test("settings controla os destaques do Emporio com imagens isoladas por unidade
   );
 
   assert.equal(valid.response.status, 200);
+  assert.equal(valid.body.data.settings["portal.module.emporio.description"], description);
   assert.deepEqual(valid.body.data.settings["emporio.carousel_slides"], slides);
+  assert.equal(bootstrap.body.data.settings["portal.module.emporio.description"], description);
   assert.deepEqual(bootstrap.body.data.settings["emporio.carousel_slides"], slides);
   assert.equal(foreignImage.response.status, 400);
 });

@@ -20,11 +20,34 @@
   height: 22px;
 }
 
+.emporio-intro-heading,
 .emporio-intro,
 .emporio-toolbar,
 .emporio-catalog {
   width: min(1240px, 100%);
   margin-inline: auto;
+}
+
+.emporio-intro-heading {
+  display: grid;
+  gap: 7px;
+  padding: 10px 2px 18px;
+}
+
+.emporio-intro-heading h1 {
+  margin: 0;
+  color: var(--emporio-ink);
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.emporio-intro-heading p {
+  max-width: 48rem;
+  margin: 0;
+  color: var(--emporio-muted);
+  font-size: clamp(0.88rem, 1.4vw, 1rem);
+  line-height: 1.5;
 }
 
 .emporio-intro {
@@ -91,19 +114,10 @@
   text-transform: uppercase;
 }
 
-.emporio-intro h1 {
-  max-width: 700px;
-  margin: 0;
-  font-size: clamp(2.1rem, 5vw, 4.7rem);
-  line-height: 0.96;
-  letter-spacing: 0;
-  text-shadow: 0 2px 22px rgba(0, 0, 0, 0.28);
-}
-
 .emporio-intro-copy > p {
   max-width: 44rem;
   min-height: 1.5em;
-  margin: 9px 0 0;
+  margin: 0;
   color: rgba(255, 255, 255, 0.88);
   font-size: clamp(0.82rem, 1.4vw, 1rem);
   font-weight: 700;
@@ -542,13 +556,16 @@
     align-items: end;
   }
 
-  .emporio-intro-copy {
-    padding: 24px;
+  .emporio-intro-heading {
+    padding: 8px 2px 14px;
   }
 
-  .emporio-intro h1 {
-    max-width: 14ch;
-    font-size: clamp(1.85rem, 10vw, 2.7rem);
+  .emporio-intro-heading h1 {
+    font-size: 2rem;
+  }
+
+  .emporio-intro-copy {
+    padding: 24px;
   }
 
   .emporio-carousel-dots {
