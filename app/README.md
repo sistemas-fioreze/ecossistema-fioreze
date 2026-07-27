@@ -72,7 +72,7 @@ Tabelas principais:
 - core: `hotels`, `hotel_domains`, `hotel_branding`, `hotel_settings`, `modules`, `hotel_modules`, `navigation_items`, `features`, `hotel_features`, `rooms`, `service_hours`, `media_assets`;
 - admin: `admin_users`, `admin_roles`, `admin_permissions`, `admin_user_roles`, `admin_role_permissions`, `admin_hotel_access`, `admin_sessions`, `admin_audit_log`;
 - usuarios operacionais do ERP: `erp_users`, `erp_user_permissions`, `erp_sessions`;
-- portal: `portal_pages`, `portal_sections`, `portal_content_items`, `custom_portal_pages`, `visual_portals`, `visual_portal_versions`, `visual_portal_templates`, `events`, `hotel_information`;
+- portal: `portal_pages`, `portal_sections`, `portal_content_items`, `custom_portal_pages`, `events`, `hotel_information`; as tabelas históricas `visual_portals`, `visual_portal_versions` e `visual_portal_templates` permanecem sem uso após a migration `0026`;
 - catalogos: `catalogs`, `categories`, `catalog_items`, `catalog_item_availability`;
 - pedidos: `orders`, `order_items`, `order_status_history`, `print_events`;
 - spa: `spa_services`, `spa_service_requests`, `spa_appointments`;
@@ -131,21 +131,6 @@ Implementados:
 - `GET /api/v1/admin/custom-portal-pages/:id`
 - `PATCH /api/v1/admin/custom-portal-pages/:id`
 - `DELETE /api/v1/admin/custom-portal-pages/:id`
-- `GET /api/v1/admin/visual-portals`
-- `POST /api/v1/admin/visual-portals`
-- `GET /api/v1/admin/visual-portals/:id`
-- `PATCH /api/v1/admin/visual-portals/:id`
-- `DELETE /api/v1/admin/visual-portals/:id`
-- `DELETE /api/v1/admin/visual-portals/:id/permanent` (somente portal arquivado)
-- `POST /api/v1/admin/visual-portals/:id/publish`
-- `POST /api/v1/admin/visual-portals/:id/duplicate`
-- `GET /api/v1/admin/visual-portals/:id/versions`
-- `GET /api/v1/admin/visual-portals/:id/versions/:versionId`
-- `POST /api/v1/admin/visual-portals/:id/versions/:versionId/restore`
-- `GET /api/v1/admin/visual-portal-templates`
-- `POST /api/v1/admin/visual-portal-templates`
-- `GET /api/v1/admin/visual-portal-templates/:id`
-- `DELETE /api/v1/admin/visual-portal-templates/:id`
 - `GET /api/v1/admin/short-links/:id/qrcode.svg`
 - `DELETE /api/v1/admin/short-links/:id/permanent`
 - `GET /api/v1/admin/short-links/:id/shares`
@@ -166,11 +151,12 @@ Implementados:
 - `HEAD /media/:id`
 - `GET /portal-content/:hotel_slug/:page_slug`
 - `HEAD /portal-content/:hotel_slug/:page_slug`
-- `GET /:hotel_slug/:portal_slug` (portal visual oficial)
-- `HEAD /:hotel_slug/:portal_slug` (portal visual oficial)
-- `GET /:hotel_slug/:portal_slug/:page_slug` (página interna do portal visual)
-- `GET /:hotel_slug/:portal_slug/app-icon.svg` (ícone gerado do portal instalável)
-- `GET|HEAD /portal/:hotel_slug/:portal_slug` redireciona para a URL canônica
+- `GET /:hotel_slug` (Portal do Hóspede oficial)
+- `HEAD /:hotel_slug` (Portal do Hóspede oficial)
+- `GET /:hotel_slug/room-service`
+- `GET /:hotel_slug/emporio`
+- `GET /:hotel_slug/romantic-packages`
+- `GET /:hotel_slug/spa`
 
 Contratos futuros:
 
@@ -476,7 +462,7 @@ O shell `/admin/portais/` e a Central de Portais Fioreze. A interface segue a me
 - telas dedicadas para areas e navegacao por unidade;
 - auditoria administrativa em `admin_audit_log`.
 
-Em **Conteúdos > Construtor**, a Central oferece um editor visual compartilhado para Portal do Hóspede, Empório, Spa, Pacotes Românticos e módulos públicos futuros. O editor possui sites multipágina, canvas desktop/mobile, cabeçalho e favicon personalizados, fundos com imagem ou vídeo, blocos arrastáveis, camadas, estilos responsivos, Biblioteca de Mídia, destinos por seletor, HTML incorporado sanitizado, desfazer/refazer, salvamento automático, modo instalável, modelos reutilizáveis, prévia de revisões e publicação separada do rascunho. O documento salvo é JSON estruturado e validado; HTML incorporado permanece isolado sem scripts. A arquitetura e os controles estão documentados em `docs/arquitetura/VISUAL_PORTAL_BUILDER.md`.
+Em **Portais > Portal do Hóspede**, a Central oferece um editor guiado para o único template oficial compartilhado. Cada unidade pode alterar logos, cores, tipografia, capa, textos, mapas, imagens e disponibilidade de Room Service, Empório, Pacotes Românticos e Spa. Estrutura, navegação e comportamento não são duplicados nem livremente alteráveis. A arquitetura está documentada em `docs/arquitetura/GUEST_PORTAL_TEMPLATE.md`; a retirada do antigo criador está registrada em `docs/arquitetura/VISUAL_PORTAL_BUILDER.md`.
 
 O shell publico do Portal do Hospede e unico para todos os hoteis. Ele reproduz a composicao visual da referencia aprovada com identidade dinamica por unidade: carregamento com logo horizontal, cabecalho responsivo, navegacao inferior no mobile, servicos ilustrados, evento em destaque, lista e calendario de eventos, detalhe editorial, informacoes do hotel, clima e blog. Cores, tipografia, logos, modulos, imagens e conteudos continuam vindo do bootstrap e das APIs do hotel selecionado; nenhum HTML ou dado do Muller fica fixo no shell compartilhado.
 
@@ -554,7 +540,7 @@ No ERP, a mensagem exibida e `Impressao desativada neste ambiente.`. Mudar statu
 
 ## Ainda Falta Migrar
 
-- integracao do Portal do Hospede principal com paginas adicionais criadas no Construtor Visual;
+- evolucao dos conteudos estruturados do Portal do Hospede oficial;
 - Emporio funcional;
 - Spa funcional;
 - Pacotes Romanticos funcionais;

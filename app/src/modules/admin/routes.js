@@ -94,23 +94,6 @@ import {
   updateAdminCustomPortalPage,
 } from "./custom-portal-pages.js";
 import {
-  archiveAdminVisualPortal,
-  archiveAdminVisualPortalTemplate,
-  createAdminVisualPortal,
-  createAdminVisualPortalTemplate,
-  deleteAdminVisualPortal,
-  duplicateAdminVisualPortal,
-  getAdminVisualPortal,
-  getAdminVisualPortalTemplate,
-  getAdminVisualPortalVersion,
-  listAdminVisualPortalTemplates,
-  listAdminVisualPortalVersions,
-  listAdminVisualPortals,
-  publishAdminVisualPortal,
-  restoreAdminVisualPortalVersion,
-  updateAdminVisualPortal,
-} from "./visual-portals.js";
-import {
   changeOwnPassword,
   archiveAdminUser,
   createAdminRole,
@@ -809,81 +792,6 @@ export function registerAdminRoutes(router) {
   router.delete("/api/v1/admin/custom-portal-pages/:id", async ({ request, env, params }) => {
     const session = await requireAuthentication({ request, env });
     return ok(await archiveAdminCustomPortalPage({ request, env, session, pageId: params.id }));
-  });
-
-  router.get("/api/v1/admin/visual-portals", async ({ request, env, url }) => {
-    const session = await requireAuthentication({ request, env });
-    return ok(await listAdminVisualPortals({ request, env, session, url }));
-  });
-
-  router.post("/api/v1/admin/visual-portals", async ({ request, env }) => {
-    const session = await requireAuthentication({ request, env });
-    return ok(await createAdminVisualPortal({ request, env, session }), { status: 201 });
-  });
-
-  router.get("/api/v1/admin/visual-portals/:id", async ({ request, env, params }) => {
-    const session = await requireAuthentication({ request, env });
-    return ok(await getAdminVisualPortal({ request, env, session, portalId: params.id }));
-  });
-
-  router.patch("/api/v1/admin/visual-portals/:id", async ({ request, env, params }) => {
-    const session = await requireAuthentication({ request, env });
-    return ok(await updateAdminVisualPortal({ request, env, session, portalId: params.id }));
-  });
-
-  router.delete("/api/v1/admin/visual-portals/:id", async ({ request, env, params }) => {
-    const session = await requireAuthentication({ request, env });
-    return ok(await archiveAdminVisualPortal({ request, env, session, portalId: params.id }));
-  });
-
-  router.delete("/api/v1/admin/visual-portals/:id/permanent", async ({ request, env, params }) => {
-    const session = await requireAuthentication({ request, env });
-    return ok(await deleteAdminVisualPortal({ request, env, session, portalId: params.id }));
-  });
-
-  router.post("/api/v1/admin/visual-portals/:id/publish", async ({ request, env, params }) => {
-    const session = await requireAuthentication({ request, env });
-    return ok(await publishAdminVisualPortal({ request, env, session, portalId: params.id }));
-  });
-
-  router.post("/api/v1/admin/visual-portals/:id/duplicate", async ({ request, env, params }) => {
-    const session = await requireAuthentication({ request, env });
-    return ok(await duplicateAdminVisualPortal({ request, env, session, portalId: params.id }), { status: 201 });
-  });
-
-  router.get("/api/v1/admin/visual-portals/:id/versions", async ({ request, env, params }) => {
-    const session = await requireAuthentication({ request, env });
-    return ok(await listAdminVisualPortalVersions({ env, session, portalId: params.id }));
-  });
-
-  router.get("/api/v1/admin/visual-portals/:id/versions/:versionId", async ({ request, env, params }) => {
-    const session = await requireAuthentication({ request, env });
-    return ok(await getAdminVisualPortalVersion({ env, session, portalId: params.id, versionId: params.versionId }));
-  });
-
-  router.post("/api/v1/admin/visual-portals/:id/versions/:versionId/restore", async ({ request, env, params }) => {
-    const session = await requireAuthentication({ request, env });
-    return ok(await restoreAdminVisualPortalVersion({ request, env, session, portalId: params.id, versionId: params.versionId }));
-  });
-
-  router.get("/api/v1/admin/visual-portal-templates", async ({ request, env, url }) => {
-    const session = await requireAuthentication({ request, env });
-    return ok(await listAdminVisualPortalTemplates({ env, session, url }));
-  });
-
-  router.post("/api/v1/admin/visual-portal-templates", async ({ request, env }) => {
-    const session = await requireAuthentication({ request, env });
-    return ok(await createAdminVisualPortalTemplate({ request, env, session }), { status: 201 });
-  });
-
-  router.get("/api/v1/admin/visual-portal-templates/:id", async ({ request, env, params, url }) => {
-    const session = await requireAuthentication({ request, env });
-    return ok(await getAdminVisualPortalTemplate({ env, session, templateId: params.id, url }));
-  });
-
-  router.delete("/api/v1/admin/visual-portal-templates/:id", async ({ request, env, params }) => {
-    const session = await requireAuthentication({ request, env });
-    return ok(await archiveAdminVisualPortalTemplate({ request, env, session, templateId: params.id }));
   });
 
   router.all("/api/v1/admin/*", async ({ request, env }) => {

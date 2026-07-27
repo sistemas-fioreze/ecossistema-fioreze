@@ -10,15 +10,11 @@ import { registerEmbedRoutes } from "./modules/embed/public.js";
 import { redirectShortLink } from "./modules/short-links/public.js";
 import { extractCustomDomainSlug, isShortLinkCustomDomainRequest } from "./modules/short-links/shared.js";
 import { serveCustomPortalPage } from "./modules/portal-pages/public.js";
-import { serveVisualPortal } from "./modules/visual-portals/public.js";
 import { archiveExpiredPortalEvents } from "./services/portal-event-lifecycle.js";
 import {
-  isLegacyGuestPortalPath,
-  isVisualPortalPublicHost,
-  matchLegacyVisualPortalPath,
-  matchVisualPortalPublicPath,
-  visualPortalPublicUrl,
-} from "./modules/visual-portals/shared.js";
+  isGuestPortalPublicHost,
+  isRetiredCustomPortalPath,
+} from "./modules/guest-portal/shared.js";
 
 const router = new Router();
 
@@ -56,25 +52,18 @@ router.get("/portal-content/:hotel_slug/:page_slug", async ({ env, params }) => 
 router.head("/portal-content/:hotel_slug/:page_slug", async ({ env, params }) => serveCustomPortalPage({ env, params, head: true }));
 async function handleRequest(request, env, ctx) {
   const url = new URL(request.url);
-  const officialPortalHost = isVisualPortalPublicHost(request, env);
+  const officialPortalHost = isGuestPortalPublicHost(request, env);
 
   if (isShortLinkCustomDomainRequest(request, env)) {
     return handleShortLinkCustomDomainRequest({ request, env, ctx, url });
   }
 
   if (url.pathname.startsWith("/portal-content/") && officialPortalHost) {
-    return visualPortalNotFound();
+    return guestPortalNotFound();
   }
 
-  const legacyVisualPortal = matchLegacyVisualPortalPath(url.pathname);
-  if (legacyVisualPortal) {
-    if (request.method !== "GET" && request.method !== "HEAD") return visualPortalMethodNotAllowed();
-    return Response.redirect(visualPortalPublicUrl({
-      env,
-      request,
-      hotelSlug: legacyVisualPortal.hotel_slug,
-      portalSlug: legacyVisualPortal.portal_slug,
-    }), 308);
+  if (officialPortalHost && (url.pathname === "/portal" || url.pathname.startsWith("/portal/"))) {
+    return guestPortalNotFound();
   }
 
   if (
@@ -102,14 +91,8 @@ async function handleRequest(request, env, ctx) {
     return serveAsset(request, env);
   }
 
-  const visualPortal = matchVisualPortalPublicPath(url.pathname);
-  if (visualPortal) {
-    if (request.method !== "GET" && request.method !== "HEAD") return visualPortalMethodNotAllowed();
-    return serveVisualPortal({ env, params: visualPortal, head: request.method === "HEAD" });
-  }
-
-  if (officialPortalHost && isLegacyGuestPortalPath(url.pathname)) {
-    return visualPortalNotFound();
+  if (officialPortalHost && isRetiredCustomPortalPath(url.pathname)) {
+    return guestPortalNotFound();
   }
 
   // Pages canonicaliza /index.html para /. Usar a rota canonica evita que o
@@ -117,15 +100,9 @@ async function handleRequest(request, env, ctx) {
   return serveAsset(request, env, "/");
 }
 
-function visualPortalNotFound() {
+function guestPortalNotFound() {
   return fail(404, "not_found", "Portal nao encontrado.", undefined, {
     headers: { "cache-control": "no-store", "x-robots-tag": "noindex, nofollow" },
-  });
-}
-
-function visualPortalMethodNotAllowed() {
-  return fail(405, "method_not_allowed", "Metodo nao permitido.", undefined, {
-    headers: { allow: "GET, HEAD", "cache-control": "no-store" },
   });
 }
 
@@ -167,7 +144,7 @@ function isDirectAsset(pathname) {
 function resolveAdminAssetPath(pathname) {
   const routes = [
     { canonical: "/erp/room-service/", assetPath: "/erp/room-service/" },
-    { canonical: "/admin/creator/", assetPath: "/admin/portais/" },
+    { canonical: "/admin/portais/portal-hospede/", assetPath: "/admin/portais/" },
     { canonical: "/admin/portais/unidades/", assetPath: "/admin/portais/" },
     { canonical: "/admin/portais/media/", assetPath: "/admin/portais/" },
     { canonical: "/admin/portais/links/", assetPath: "/admin/portais/" },
@@ -186,6 +163,13 @@ function resolveAdminAssetPath(pathname) {
 
   if (pathname === "/admin/room-service" || pathname.startsWith("/admin/room-service/")) {
     return { redirectTo: pathname.replace(/^\/admin\/room-service\/?/, "/erp/room-service/") };
+  }
+
+  if (pathname === "/admin/creator" || pathname.startsWith("/admin/creator/")) {
+    return { redirectTo: "/admin/portais/portal-hospede/" };
+  }
+  if (pathname === "/admin/portais/conteudos" || pathname.startsWith("/admin/portais/conteudos/")) {
+    return { redirectTo: "/admin/portais/portal-hospede/" };
   }
 
   for (const route of routes) {

@@ -62,14 +62,16 @@ test("GET /admin/portais/ entrega a Central de Portais", async () => {
   assert.equal(response.headers.has("location"), false);
 });
 
-test("GET /admin/creator/ entrega o construtor e preserva a query no redirect canonico", async () => {
+test("rotas do criador descontinuado redirecionam ao editor do Portal do Hospede", async () => {
   const { fetch } = createWorkerTestContext();
   const redirect = await fetch("/admin/creator?portal=portal_demo&page=inicio", { redirect: "manual" });
-  const shell = await fetch("/admin/creator/?portal=portal_demo&page=inicio", { redirect: "manual" });
+  const oldContents = await fetch("/admin/portais/conteudos/portal_demo", { redirect: "manual" });
+  const shell = await fetch("/admin/portais/portal-hospede/", { redirect: "manual" });
 
   assert.equal(redirect.status, 308);
-  assert.equal(new URL(redirect.headers.get("location")).pathname, "/admin/creator/");
-  assert.equal(new URL(redirect.headers.get("location")).search, "?portal=portal_demo&page=inicio");
+  assert.equal(new URL(redirect.headers.get("location")).pathname, "/admin/portais/portal-hospede/");
+  assert.equal(oldContents.status, 308);
+  assert.equal(new URL(oldContents.headers.get("location")).pathname, "/admin/portais/portal-hospede/");
   assert.equal(shell.status, 200);
   assert.match(await shell.text(), /Central de Portais Fioreze/);
   assert.equal(shell.headers.has("location"), false);
@@ -128,7 +130,7 @@ test("todos os modulos da Central de Portais entregam o shell funcional", async 
   const { fetch } = createWorkerTestContext();
   for (const path of [
     "/admin/portais/eventos/",
-    "/admin/portais/conteudos/",
+    "/admin/portais/portal-hospede/",
     "/admin/portais/areas/",
     "/admin/portais/navegacao/",
     "/admin/portais/auditoria/",

@@ -48,6 +48,8 @@ function createAssetsBinding() {
           '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><section id="unitsManager"></section></body></html>',
         "/admin/portais/links/":
           '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><section id="shortLinksManager"></section></body></html>',
+        "/admin/portais/portal-hospede/":
+          '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><section id="guestPortalEditor"></section></body></html>',
         "/admin/portais/conteudos/":
           '<!doctype html><html><body><h1>Central de Portais Fioreze</h1><form id="loginForm"></form><section id="contentManager"></section></body></html>',
         "/admin/portais/areas/":

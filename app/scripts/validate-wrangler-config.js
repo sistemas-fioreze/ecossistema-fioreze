@@ -60,8 +60,13 @@ if (workerFirstRoutes.size !== 1 || !workerFirstRoutes.has("/*")) {
   process.exit(1);
 }
 
-if (config.vars?.VISUAL_PORTAL_PUBLIC_ORIGIN !== "https://portal.hoteisfioreze.com.br") {
-  console.error("VISUAL_PORTAL_PUBLIC_ORIGIN deve apontar para o dominio oficial dos portais.");
+if (config.vars?.GUEST_PORTAL_PUBLIC_ORIGIN !== "https://portal.hoteisfioreze.com.br") {
+  console.error("GUEST_PORTAL_PUBLIC_ORIGIN deve apontar para o dominio oficial do Portal do Hospede.");
+  process.exit(1);
+}
+
+if (Object.hasOwn(config.vars || {}, "VISUAL_PORTAL_PUBLIC_ORIGIN")) {
+  console.error("VISUAL_PORTAL_PUBLIC_ORIGIN pertence ao criador visual descontinuado.");
   process.exit(1);
 }
 
