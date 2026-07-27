@@ -78,6 +78,7 @@ export async function render(container, context) {
     tabTransitionTimer: null,
     scrollHandler: null,
     eventDialogKeyHandler: null,
+    previewMessageHandler: null,
     swipeGesture: null,
   };
 
@@ -85,10 +86,30 @@ export async function render(container, context) {
   state.eventDialogKeyHandler = (event) => {
     if (event.key === "Escape" && state.selectedEventId && isDesktopPortal()) closeEventDetail(container, state);
   };
+  state.previewMessageHandler = (event) => {
+    if (
+      window.parent === window ||
+      event.source !== window.parent ||
+      event.origin !== window.location.origin ||
+      event.data?.type !== "fioreze:guest-portal-preview"
+    ) {
+      return;
+    }
+    const preview = event.data.payload || {};
+    state.bootstrap = {
+      ...state.bootstrap,
+      branding: { ...(state.bootstrap.branding || {}), ...(preview.branding || {}) },
+      settings: { ...(state.bootstrap.settings || {}), ...(preview.settings || {}) },
+      modules: Array.isArray(preview.modules) ? preview.modules : state.bootstrap.modules,
+    };
+    renderPortal(container, state);
+    afterRender(container, state, false);
+  };
   renderPortal(container, state);
   bindPortal(container, state);
   window.addEventListener("scroll", state.scrollHandler, { passive: true });
   window.addEventListener("keydown", state.eventDialogKeyHandler);
+  window.addEventListener("message", state.previewMessageHandler);
   try {
     const slug = encodeURIComponent(context.bootstrap.slug);
     [state.content, state.weather] = await Promise.all([
@@ -105,6 +126,7 @@ export async function render(container, context) {
     if (state.tabTransitionTimer) window.clearTimeout(state.tabTransitionTimer);
     if (state.scrollHandler) window.removeEventListener("scroll", state.scrollHandler);
     if (state.eventDialogKeyHandler) window.removeEventListener("keydown", state.eventDialogKeyHandler);
+    if (state.previewMessageHandler) window.removeEventListener("message", state.previewMessageHandler);
     document.body.classList.remove("event-dialog-open");
   };
 }

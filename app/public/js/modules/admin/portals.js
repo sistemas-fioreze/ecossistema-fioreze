@@ -29,7 +29,7 @@ import {
   hasPermission,
 } from "./shared/admin-session.js";
 import { debounce, escapeAttr, escapeHtml, formatDate } from "./shared/format.js";
-import { createVisualPortalBuilder } from "./portal-builder.js";
+import { createGuestPortalEditor } from "./guest-portal-editor.js";
 
 const els = {
   portalsNav: document.getElementById("portalsNav"),
@@ -130,10 +130,7 @@ const els = {
   addEventButton: document.getElementById("addEventButton"),
   contentManager: document.getElementById("contentManager"),
   contentHotel: document.getElementById("contentHotel"),
-  contentMessage: document.getElementById("contentMessage"),
-  contentList: document.getElementById("contentList"),
-  addContentButton: document.getElementById("addContentButton"),
-  creatorDesktopGuard: document.getElementById("creatorDesktopGuard"),
+  guestPortalEditor: document.getElementById("guestPortalEditor"),
   areasManager: document.getElementById("areasManager"),
   areasHotel: document.getElementById("areasHotel"),
   areasMessage: document.getElementById("areasMessage"),
@@ -159,7 +156,7 @@ const portalCards = [
   ["media", "Biblioteca de mídia", "Gerencie imagens, vídeos e pastas dos portais e módulos.", "/admin/portais/media/"],
   ["links", "Links e QR Codes", "Crie endereços curtos, QR Codes e acompanhe acessos.", "/admin/portais/links/"],
   ["eventos", "Eventos", "Planeje a agenda e publique experiências em cada unidade.", "/admin/portais/eventos/"],
-  ["conteudos", "Criador de portais", "Monte páginas desktop e mobile com blocos, templates e mídia.", "/admin/portais/conteudos/"],
+  ["conteudos", "Portal do Hóspede", "Personalize identidade, capas, conteúdos e serviços no template oficial.", "/admin/portais/portal-hospede/"],
 ];
 const mediaFields = ["logo_url", "horizontal_logo_url", "icon_url", "favicon_url", "cover_image_url", "social_image_url"];
 const settingFields = [
@@ -194,6 +191,10 @@ const settingFields = [
   "hosting.emergency_contact",
   "hosting.arrival_instructions",
   "portal.blog_feed_url",
+  "portal.module.room-service.description",
+  "portal.module.emporio.description",
+  "portal.module.romantic-packages.description",
+  "portal.module.spa.description",
   "seo.title",
   "seo.description",
   "seo.social_image_asset_id",
@@ -223,19 +224,16 @@ let currentEmbed = null;
 let currentEvents = [];
 let activeUnitTab = "general";
 let dirty = false;
-let contentType = "visual_portals";
-let currentContent = { visual_portals: [] };
+let contentType = "pages";
+let currentContent = { pages: [], custom_pages: [], events: [], information: [] };
 let dedicatedModules = [];
 let dedicatedNavigation = [];
 let eventMediaAssets = [];
 let dialogMediaAssets = [];
-const creatorDesktopMedia = window.matchMedia("(min-width: 1024px)");
-const visualPortalBuilder = createVisualPortalBuilder({
-  onSaved() {
-    if (!isCreatorRoute()) loadPortalContent();
-  },
-  onClosed: leaveCreatorRoute,
-  onPageChange: syncCreatorRoute,
+const guestPortalEditor = createGuestPortalEditor({
+  root: els.guestPortalEditor,
+  hotelSelect: els.contentHotel,
+  onHeading: setHeading,
 });
 
 const auth = createAdminAuthView({
@@ -340,9 +338,6 @@ els.unitEditorForm.addEventListener("change", () => {
 });
 els.unitEditorForm.addEventListener("click", handleUnitEditorClick);
 els.unitsList.addEventListener("click", handleUnitsListClick);
-els.contentHotel.addEventListener("change", loadPortalContent);
-els.contentManager.addEventListener("click", handleContentClick);
-els.addContentButton.addEventListener("click", () => openContentEditor());
 els.areasHotel.addEventListener("change", loadDedicatedAreas);
 els.areasList.addEventListener("change", saveDedicatedArea);
 els.areasList.addEventListener("click", handleAreaImageAction);
@@ -358,9 +353,6 @@ els.dialog.addEventListener("click", (event) => {
   if (event.target === els.dialog) closePortalsDialog();
 });
 els.dialog.addEventListener("change", handleInlineMediaUpload);
-creatorDesktopMedia.addEventListener("change", () => {
-  if (isCreatorRoute() && currentSession) renderCreatorRoute(currentSession);
-});
 
 auth.boot();
 document.addEventListener("click", handlePortalNavigation);
@@ -373,11 +365,10 @@ window.addEventListener("fioreze:admin-refresh", (event) => {
 });
 
 function refreshCurrentPortalRoute() {
-  if (isCreatorRoute()) return renderCreatorRoute(currentSession);
   if (isMediaRoute()) return loadMediaLibrary();
   if (isLinksRoute()) return loadShortLinks();
   if (isEventsRoute()) return loadEventsManager();
-  if (isContentRoute()) return loadPortalContent();
+  if (isContentRoute()) return guestPortalEditor.refresh();
   if (isAreasRoute() || isNavigationRoute()) return renderContentManager(currentSession);
   if (isAuditRoute()) return loadAudit();
   if (isUnitsRoute()) return currentUnit?.hotel_id ? openExistingUnit(currentUnit.hotel_id) : loadUnits();
@@ -407,8 +398,8 @@ function handlePortalNavigation(event) {
 }
 
 function handlePortalHistory() {
-  if (!currentSession || (!isPortalsShellPath(window.location.pathname) && !isCreatorRoute())) return;
-  visualPortalBuilder.dismiss();
+  if (!currentSession || !isPortalsShellPath(window.location.pathname)) return;
+  guestPortalEditor.dismiss();
   closeShortLinkEditor();
   closePortalsDialog();
   syncAdminNavigationActiveState();
@@ -419,7 +410,7 @@ function handlePortalHistory() {
 function navigatePortalRoute(path) {
   const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
   if (current === path) return;
-  visualPortalBuilder.dismiss();
+  guestPortalEditor.dismiss();
   closeShortLinkEditor();
   closePortalsDialog();
   window.history.pushState({}, "", path);
@@ -446,10 +437,6 @@ function renderPortals(session) {
   els.portalsContent.hidden = !allowed;
   if (!allowed) return;
   renderNav(session);
-  if (isCreatorRoute()) {
-    renderCreatorRoute(session);
-    return;
-  }
   if (isUnitsRoute()) {
     renderUnitsRoute();
     return;
@@ -471,12 +458,12 @@ function renderPortals(session) {
     return;
   }
   if (isAreasRoute()) {
-    navigateSoft("/admin/portais/conteudos/");
+    navigateSoft("/admin/portais/portal-hospede/");
     renderContentManager(session);
     return;
   }
   if (isNavigationRoute()) {
-    navigateSoft("/admin/portais/conteudos/");
+    navigateSoft("/admin/portais/portal-hospede/");
     renderContentManager(session);
     return;
   }
@@ -496,6 +483,7 @@ function setHeading(title, subtitle, eyebrow = "Central administrativa") {
 function renderNav(session) {
   const items = [
     ["Início", "/admin/portais/", true],
+    ["Portal do Hóspede", "/admin/portais/portal-hospede/", canAccessContent(session)],
     ["Unidades", "/admin/portais/unidades/", canAccessUnits(session)],
     ["Biblioteca", "/admin/portais/media/", canAccessMediaLibrary(session)],
     ["Links", "/admin/portais/links/", canAccessLinks(session)],
@@ -2566,43 +2554,23 @@ async function saveManagedEvent(event, item) {
 
 function renderContentManager(session) {
   const allowed = canAccessContent(session);
-  setHeading("Criador de portais", "Crie, personalize e publique experiências digitais para cada unidade.");
+  setHeading("Portal do Hóspede", "Personalize o template oficial da unidade sem alterar sua estrutura.");
   showPortalSection(allowed ? els.contentManager : null);
   els.portalsDenied.hidden = allowed;
   if (!allowed) return;
-  populateAuthorizedHotels(els.contentHotel, session);
-  loadPortalContent();
+  return guestPortalEditor.open(session);
 }
 
 async function loadPortalContent() {
-  if (!els.contentHotel.value) return;
-  setSectionBusy(els.contentManager, true);
-  try {
-    const hotelId = encodeURIComponent(els.contentHotel.value);
-    const visualPortalsPayload = await adminApi(`/api/v1/admin/visual-portals?hotel_id=${hotelId}`);
-    currentContent = { visual_portals: visualPortalsPayload.data.portals || [] };
-    renderContentList();
-  } catch (error) {
-    els.contentMessage.textContent = error.message || "Não foi possível carregar os conteúdos.";
-  } finally {
-    setSectionBusy(els.contentManager, false);
-  }
+  return guestPortalEditor.refresh();
 }
 
 function renderContentList() {
   const rows = currentContent[contentType] || [];
-  const labels = { visual_portals: "portal(is)" };
-  els.contentMessage.textContent = `${rows.length} ${labels[contentType]}.`;
-  els.contentList.innerHTML = rows.map((item) => renderContentRow(item, contentType)).join("") || '<p class="admin-empty">Nenhum conteúdo cadastrado.</p>';
+  return rows.map((item) => renderContentRow(item, contentType));
 }
 
 function renderContentRow(item, type) {
-  if (type === "visual_portals") {
-    const canEdit = hasPermission(currentSession, PORTALS_HOTELS_SETTINGS_PERMISSION) && item.status !== "archived";
-    const canDelete = hasPermission(currentSession, PORTALS_HOTELS_SETTINGS_PERMISSION) && item.status === "archived";
-    const canCreateLink = item.status === "published" && hasPermission(currentSession, PORTALS_LINKS_CREATE_PERMISSION);
-    return `<article class="admin-data-row admin-content-row admin-visual-portal-row"><span class="admin-role-icon">${featureSvg("builder")}</span><div class="admin-row-copy"><strong>${escapeHtml(item.name)}</strong><a href="${escapeAttr(item.public_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.public_url)}</a><small>Portal personalizado · versão ${Number(item.draft_revision)}${item.has_unpublished_changes ? " · alterações pendentes" : ""}</small></div><span class="admin-status-chip" data-status="${escapeAttr(item.status)}">${contentStatus(item.status)}</span><div class="admin-row-actions">${canEdit ? `<button class="admin-builder-launch" type="button" data-content-action="builder" data-id="${escapeAttr(item.id)}">${featureSvg("builder")} Abrir construtor</button>` : ""}${canCreateLink ? `<button type="button" data-content-action="create-link" data-id="${escapeAttr(item.id)}">Link e QR</button>` : ""}${canEdit ? `<button type="button" data-content-action="duplicate-visual" data-id="${escapeAttr(item.id)}">Duplicar</button><button class="danger" type="button" data-content-action="archive-visual" data-id="${escapeAttr(item.id)}">Arquivar</button>` : ""}${canDelete ? `<button class="danger" type="button" data-content-action="delete-visual" data-id="${escapeAttr(item.id)}">Excluir definitivamente</button>` : ""}</div></article>`;
-  }
   if (type === "pages") {
     return `<article class="admin-data-row admin-content-row"><span class="admin-role-icon">${featureSvg("page")}</span><div class="admin-row-copy"><strong>${escapeHtml(item.title)}</strong><span>/${escapeHtml(item.slug)}</span><small>${Number(item.section_count || 0)} seção(ões) · ordem ${Number(item.sort_order || 0)}</small></div><span class="admin-status-chip" data-status="${escapeAttr(item.status)}">${contentStatus(item.status)}</span><div class="admin-row-actions"><button type="button" data-content-action="sections" data-id="${escapeAttr(item.id)}">Seções</button><button type="button" data-content-action="edit" data-id="${escapeAttr(item.id)}">Editar</button></div></article>`;
   }
@@ -2635,21 +2603,12 @@ function handleContentClick(event) {
   if (action.dataset.contentAction === "sections") return openSectionsEditor(action.dataset.id);
   const item = (currentContent[contentType] || []).find((entry) => entry.id === action.dataset.id);
   if (!item) return;
-  if (action.dataset.contentAction === "builder") return openCreatorRoute(item.id);
   if (action.dataset.contentAction === "create-link") return createShortLinkFromCustomPage(item);
-  if (action.dataset.contentAction === "duplicate-visual") return duplicateVisualPortal(item);
-  if (action.dataset.contentAction === "archive-visual") return archiveVisualPortal(item);
-  if (action.dataset.contentAction === "delete-visual") return deleteVisualPortal(item);
   if (action.dataset.contentAction === "archive-custom") return archiveCustomPage(item);
   openContentEditor(item);
 }
 
 async function openContentEditor(item = null) {
-  if (contentType === "visual_portals") {
-    if (item) return openCreatorRoute(item.id);
-    openVisualPortalCreator();
-    return;
-  }
   if (contentType === "custom_pages") {
     openCustomPageEditor(item);
     return;
@@ -2684,120 +2643,6 @@ async function openContentEditor(item = null) {
   }
   openPortalsDialog();
   bindDialogForm((event) => saveContent(event, item));
-}
-
-async function openVisualPortalCreator() {
-  els.dialogTitle.textContent = "Novo portal visual";
-  els.dialogBody.innerHTML = '<p class="admin-muted">Preparando modelos...</p>';
-  openPortalsDialog();
-  try {
-    const hotelId = els.contentHotel.value;
-    const templatesPayload = await adminApi(`/api/v1/admin/visual-portal-templates?hotel_id=${encodeURIComponent(hotelId)}&module_key=guest-portal`);
-    const templates = templatesPayload.data.templates || [];
-    const templateOptions = templates.map((template) => [template.id, template.name]);
-    els.dialogBody.innerHTML = contentForm("visual-portal", `
-      <aside class="admin-sanitization-note"><strong>Construtor visual</strong><span>Monte versões desktop e mobile com blocos, imagens, vídeos e modelos reutilizáveis.</span></aside>
-      <div class="admin-form-grid">${dialogField("Nome interno", "name", "", "text", true)}${dialogField("Título público", "title", "", "text", true)}</div>
-      ${dialogField("Endereço", "slug", "", "text", true, "[a-z0-9]+(?:-[a-z0-9]+)*")}
-      ${dialogSelect("Começar com", "template", "builtin-showcase", templateOptions)}
-      <div class="admin-template-choice-preview"><span>${featureSvg("builder")}</span><div><strong>Liberdade com estrutura</strong><small>O modelo é apenas o ponto de partida. Todos os blocos poderão ser reorganizados e personalizados.</small></div></div>`);
-    bindDialogForm(async (event) => {
-      event.preventDefault();
-      const form = event.currentTarget;
-      const values = Object.fromEntries(new FormData(form).entries());
-      const template = templates.find((entry) => entry.id === values.template);
-      const body = {
-        hotel_id: hotelId,
-        module_key: "guest-portal",
-        slug: values.slug,
-        name: values.name,
-        title: values.title,
-        ...(template?.builtin ? { template_key: template.template_key } : { template_id: values.template }),
-      };
-      try {
-        form.querySelector(".admin-dialog-message").textContent = "Criando portal...";
-        const created = await adminApi("/api/v1/admin/visual-portals", { method: "POST", body });
-        closePortalsDialog();
-        openCreatorRoute(created.data.portal.id);
-      } catch (error) {
-        form.querySelector(".admin-dialog-message").textContent = error.message || "Não foi possível criar o portal.";
-      }
-    });
-  } catch (error) {
-    els.dialogBody.innerHTML = `<p class="admin-error">${escapeHtml(error.message || "Não foi possível preparar o construtor.")}</p>`;
-  }
-}
-
-function duplicateVisualPortal(item) {
-  const hotels = getAuthorizedHotels(currentSession);
-  const hotelOptions = hotels.map((hotel) => [hotel.hotel_id, hotel.short_name || hotel.name || hotel.hotel_id]);
-  els.dialogTitle.textContent = "Duplicar portal";
-  els.dialogBody.innerHTML = contentForm("duplicate-visual-portal", `
-    <p class="admin-muted">Uma nova cópia será criada como rascunho. Ao escolher outra unidade, as mídias usadas também serão copiadas com segurança.</p>
-    ${dialogSelect("Unidade de destino", "hotel_id", item.hotel_id, hotelOptions)}
-    ${dialogField("Nome da cópia", "name", `${item.name} - cópia`, "text", true)}
-    ${dialogField("Novo endereço", "slug", `${item.slug}-copia`, "text", true, "[a-z0-9]+(?:-[a-z0-9]+)*")}`);
-  openPortalsDialog();
-  bindDialogForm(async (event) => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const body = Object.fromEntries(new FormData(form).entries());
-    try {
-      form.querySelector(".admin-dialog-message").textContent = "Duplicando...";
-      const payload = await adminApi(`/api/v1/admin/visual-portals/${encodeURIComponent(item.id)}/duplicate`, { method: "POST", body });
-      closePortalsDialog();
-      els.contentHotel.value = body.hotel_id;
-      openCreatorRoute(payload.data.portal.id);
-    } catch (error) {
-      form.querySelector(".admin-dialog-message").textContent = error.message || "Não foi possível duplicar o portal.";
-    }
-  });
-}
-
-async function archiveVisualPortal(item) {
-  els.dialogTitle.textContent = "Arquivar portal";
-  els.dialogBody.innerHTML = contentForm("archive-visual-portal", `<aside class="admin-sanitization-note"><strong>${escapeHtml(item.name)}</strong><span>O endereço público deixará de responder. Você poderá excluir o portal definitivamente depois de arquivá-lo.</span></aside>`);
-  const submit = els.dialogBody.querySelector('button[type="submit"]');
-  submit.textContent = "Arquivar portal";
-  openPortalsDialog();
-  bindDialogForm(async (event) => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    try {
-      form.querySelector(".admin-dialog-message").textContent = "Arquivando portal...";
-      await adminApi(`/api/v1/admin/visual-portals/${encodeURIComponent(item.id)}`, { method: "DELETE", body: {} });
-      closePortalsDialog();
-      await loadPortalContent();
-    } catch (error) {
-      form.querySelector(".admin-dialog-message").textContent = error.message || "Não foi possível arquivar o portal.";
-    }
-  });
-}
-
-function deleteVisualPortal(item) {
-  els.dialogTitle.textContent = "Excluir portal definitivamente";
-  els.dialogBody.innerHTML = contentForm("delete-visual-portal", `<aside class="admin-sanitization-note"><strong>${escapeHtml(item.name)}</strong><span>Esta ação apaga o portal e todas as versões salvas. Ela não pode ser desfeita.</span></aside><label><span>Digite EXCLUIR para confirmar</span><input name="confirmation" autocomplete="off" required></label>`);
-  const submit = els.dialogBody.querySelector('button[type="submit"]');
-  submit.textContent = "Excluir definitivamente";
-  submit.classList.add("danger");
-  openPortalsDialog();
-  bindDialogForm(async (event) => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const message = form.querySelector(".admin-dialog-message");
-    if (String(new FormData(form).get("confirmation") || "").trim().toUpperCase() !== "EXCLUIR") {
-      message.textContent = "Digite EXCLUIR para confirmar a exclusão.";
-      return;
-    }
-    try {
-      message.textContent = "Excluindo portal...";
-      await adminApi(`/api/v1/admin/visual-portals/${encodeURIComponent(item.id)}/permanent`, { method: "DELETE", body: {} });
-      closePortalsDialog();
-      await loadPortalContent();
-    } catch (error) {
-      message.textContent = error.message || "Não foi possível excluir o portal.";
-    }
-  });
 }
 
 async function saveContent(event, item) {
@@ -3144,7 +2989,7 @@ function setSectionBusy(section, busy) {
 }
 
 function showPortalSection(active) {
-  for (const section of [els.portalsHome, els.unitsManager, els.shortLinksManager, els.mediaLibrary, els.eventsManager, els.contentManager, els.creatorDesktopGuard, els.areasManager, els.navigationManager, els.auditManager]) {
+  for (const section of [els.portalsHome, els.unitsManager, els.shortLinksManager, els.mediaLibrary, els.eventsManager, els.contentManager, els.areasManager, els.navigationManager, els.auditManager]) {
     section.hidden = section !== active;
   }
 }
@@ -3228,7 +3073,6 @@ function featureSvg(type) {
     history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>',
     upload: '<path d="M12 16V4M7 9l5-5 5 5"/><path d="M5 14v6h14v-6"/>',
     code: '<path d="m8 9-3 3 3 3M16 9l3 3-3 3M14 5l-4 14"/>',
-    builder: '<path d="M4 4h16v16H4zM4 10h16M10 10v10"/><path d="M14 14h3M15.5 12.5v3"/>',
   };
   return `<svg class="admin-svg-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[type] || paths.page}</svg>`;
 }
@@ -3237,67 +3081,12 @@ function navigateSoft(path) {
   window.history.pushState({}, "", path);
 }
 
-function openCreatorRoute(portalId, pageId = "") {
-  window.location.assign(creatorRouteUrl(portalId, pageId));
-}
-
-function renderCreatorRoute(session) {
-  if (!session || !canAccessContent(session)) {
-    showPortalSection(null);
-    els.portalsDenied.hidden = false;
-    return;
-  }
-  const params = new URLSearchParams(window.location.search);
-  const portalId = params.get("portal") || "";
-  if (!portalId) {
-    window.location.replace("/admin/portais/conteudos/");
-    return;
-  }
-  if (!creatorDesktopMedia.matches) {
-    visualPortalBuilder.dismiss();
-    showPortalSection(els.creatorDesktopGuard);
-    els.portalsDenied.hidden = true;
-    setHeading("Criador de portais", "Continue a gestão pelo celular ou abra o Criador em uma tela maior.");
-    document.title = "Criador de Portais Fioreze";
-    return;
-  }
-  showPortalSection(null);
-  setHeading("Criador de portais", "Edite o portal e suas páginas em uma área de trabalho persistente.");
-  document.title = "Criador de Portais Fioreze";
-  return visualPortalBuilder.open(portalId, { pageId: params.get("page") || "" });
-}
-
-function syncCreatorRoute({ portalId, pageId }) {
-  if (!isCreatorRoute() || !portalId) return;
-  const next = creatorRouteUrl(portalId, pageId);
-  const current = `${window.location.pathname}${window.location.search}`;
-  if (current !== next) window.history.replaceState({}, "", next);
-}
-
-function leaveCreatorRoute({ hotelId } = {}) {
-  if (!isCreatorRoute()) return;
-  const target = new URL("/admin/portais/conteudos/", window.location.origin);
-  if (hotelId) target.searchParams.set("hotel_id", hotelId);
-  window.location.assign(`${target.pathname}${target.search}`);
-}
-
-function creatorRouteUrl(portalId, pageId = "") {
-  const target = new URL("/admin/creator/", window.location.origin);
-  target.searchParams.set("portal", portalId);
-  if (pageId) target.searchParams.set("page", pageId);
-  return `${target.pathname}${target.search}`;
-}
-
 function renderTabTransition(render) {
   render();
 }
 
 function isMediaRoute() {
   return window.location.pathname.startsWith("/admin/portais/media/");
-}
-
-function isCreatorRoute() {
-  return window.location.pathname.startsWith("/admin/creator/");
 }
 
 function isLinksRoute() {
@@ -3313,7 +3102,8 @@ function isUnitsRoute() {
 }
 
 function isContentRoute() {
-  return window.location.pathname.startsWith("/admin/portais/conteudos/");
+  return window.location.pathname.startsWith("/admin/portais/portal-hospede/") ||
+    window.location.pathname.startsWith("/admin/portais/conteudos/");
 }
 
 function isAreasRoute() {

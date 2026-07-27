@@ -175,7 +175,8 @@ test("configuracao e Central preservam Worker-first e nova experiencia", () => {
   const script = fs.readFileSync("public/js/modules/admin/portals.js", "utf8");
   assert.ok(config.assets.run_worker_first.includes("/*"));
   assert.match(script, /setHeading\("Links e QR Codes"/);
-  assert.match(script, /setHeading\("Criador de portais"/);
+  assert.match(script, /setHeading\("Portal do Hóspede"/);
+  assert.match(html, /id="guestPortalEditor"/);
   assert.doesNotMatch(html, /data-content-type="custom_pages"/);
   assert.match(script, /qrcode\.svg/);
   assert.doesNotMatch(html, /Páginas HTML/);

@@ -29,7 +29,8 @@ test("Pages paralelo preserva Worker atual e bindings de desenvolvimento", () =>
   const pagesR2 = pagesConfig.r2_buckets.find((binding) => binding.binding === "MEDIA_BUCKET");
   assert.equal(pagesR2.bucket_name, workerR2.bucket_name);
   assert.deepEqual(pagesConfig.vars, workerConfig.vars);
-  assert.equal(workerConfig.vars.VISUAL_PORTAL_PUBLIC_ORIGIN, "https://portal.hoteisfioreze.com.br");
+  assert.equal(workerConfig.vars.GUEST_PORTAL_PUBLIC_ORIGIN, "https://portal.hoteisfioreze.com.br");
+  assert.equal(workerConfig.vars.VISUAL_PORTAL_PUBLIC_ORIGIN, undefined);
 });
 
 test("build Pages gera _worker.js avancado e copia assets sem alteracao", async (context) => {
@@ -70,8 +71,12 @@ test("build Pages gera _worker.js avancado e copia assets sem alteracao", async 
   assert.equal(await admin.text(), "asset:/admin/portais/");
 
   const creator = await pagesWorker.fetch(new Request("https://pages.example/admin/creator/?portal=portal_demo&page=inicio"), env, ctx);
-  assert.equal(creator.status, 200);
-  assert.equal(await creator.text(), "asset:/admin/portais/");
+  assert.equal(creator.status, 308);
+  assert.equal(new URL(creator.headers.get("location")).pathname, "/admin/portais/portal-hospede/");
+
+  const guestPortalEditor = await pagesWorker.fetch(new Request("https://pages.example/admin/portais/portal-hospede/"), env, ctx);
+  assert.equal(guestPortalEditor.status, 200);
+  assert.equal(await guestPortalEditor.text(), "asset:/admin/portais/");
 
   const directAsset = await pagesWorker.fetch(new Request("https://pages.example/css/core/reset.css"), env, ctx);
   assert.equal(await directAsset.text(), "asset:/css/core/reset.css");

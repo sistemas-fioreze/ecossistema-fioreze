@@ -44,7 +44,7 @@ Variaveis obrigatorias:
 | `ENVIRONMENT` | `development` |
 | `IMPRESSION_ENABLED` | `false` |
 | `DEFAULT_HOTEL_SLUG` | `muller-fioreze` |
-| `VISUAL_PORTAL_PUBLIC_ORIGIN` | `https://portal.hoteisfioreze.com.br` |
+| `GUEST_PORTAL_PUBLIC_ORIGIN` | `https://portal.hoteisfioreze.com.br` |
 | `TURNSTILE_ENABLED` | `false` ate ativacao controlada |
 | `TURNSTILE_SITE_KEY` | chave publica do widget |
 | `TURNSTILE_ALLOWED_HOSTNAMES` | hostnames administrativos separados por virgula |

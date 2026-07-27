@@ -34,7 +34,7 @@
     "IMPRESSION_ENABLED": "false",
     "DEFAULT_HOTEL_SLUG": "muller-fioreze",
     "SHORT_LINK_PUBLIC_ORIGIN": "https://go.hoteisfioreze.com.br",
-    "VISUAL_PORTAL_PUBLIC_ORIGIN": "https://portal.hoteisfioreze.com.br",
+    "GUEST_PORTAL_PUBLIC_ORIGIN": "https://portal.hoteisfioreze.com.br",
     "TURNSTILE_ENABLED": "false",
     "TURNSTILE_SITE_KEY": "",
     "TURNSTILE_ALLOWED_HOSTNAMES": "portal.hoteisfioreze.com.br,fioreze-portais-pages-dev.pages.dev,fioreze-portais-dev.marketing1-840.workers.dev"
