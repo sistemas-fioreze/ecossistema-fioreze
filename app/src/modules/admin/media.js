@@ -12,10 +12,12 @@ const UPDATE_PERMISSION = "portals.media.update";
 const ARCHIVE_PERMISSION = "portals.media.archive";
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 25 * 1024 * 1024;
+const MAX_FONT_BYTES = 2 * 1024 * 1024;
 const DEFAULT_STORAGE_QUOTA_BYTES = 5 * 1024 * 1024 * 1024;
 export const PUBLIC_CACHE_CONTROL = "public, max-age=3600, stale-while-revalidate=86400";
 const IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
-const MEDIA_MIME_TYPES = new Set([...IMAGE_MIME_TYPES, "video/mp4", "video/webm", "video/quicktime"]);
+const FONT_MIME_TYPES = new Set(["font/woff", "font/woff2"]);
+const MEDIA_MIME_TYPES = new Set([...IMAGE_MIME_TYPES, ...FONT_MIME_TYPES, "video/mp4", "video/webm", "video/quicktime"]);
 const MIME_EXTENSIONS = {
   "image/jpeg": "jpg",
   "image/png": "png",
@@ -24,6 +26,8 @@ const MIME_EXTENSIONS = {
   "video/mp4": "mp4",
   "video/webm": "webm",
   "video/quicktime": "mov",
+  "font/woff": "woff",
+  "font/woff2": "woff2",
 };
 const FILENAME_EXTENSIONS = {
   "image/jpeg": new Set(["jpg", "jpeg"]),
@@ -33,6 +37,8 @@ const FILENAME_EXTENSIONS = {
   "video/mp4": new Set(["mp4", "m4v"]),
   "video/webm": new Set(["webm"]),
   "video/quicktime": new Set(["mov", "qt"]),
+  "font/woff": new Set(["woff"]),
+  "font/woff2": new Set(["woff2"]),
 };
 const VALID_MEDIA_STATUSES = new Set(["active", "inactive", "archived"]);
 
@@ -598,7 +604,12 @@ export async function validateMediaFile(file) {
   if (!file || typeof file.arrayBuffer !== "function") {
     throw badRequest("Arquivo de midia obrigatorio.");
   }
-  const maxBytes = String(file.type || "").startsWith("video/") ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
+  const fileType = normalizeMimeType(file.type);
+  const maxBytes = fileType.startsWith("video/")
+    ? MAX_VIDEO_BYTES
+    : fileType.startsWith("font/")
+      ? MAX_FONT_BYTES
+      : MAX_IMAGE_BYTES;
   return validateFile(file, { allowedMimeTypes: MEDIA_MIME_TYPES, maxBytes, mediaLabel: "midia" });
 }
 
@@ -606,7 +617,8 @@ async function validateFile(file, { allowedMimeTypes, maxBytes, mediaLabel }) {
   if (!file || typeof file.arrayBuffer !== "function") {
     throw badRequest(`Arquivo de ${mediaLabel} obrigatorio.`);
   }
-  if (!allowedMimeTypes.has(file.type)) {
+  const declaredMime = normalizeMimeType(file.type);
+  if (!allowedMimeTypes.has(declaredMime)) {
     throw badRequest(`Formato de ${mediaLabel} nao permitido.`);
   }
   if (file.size <= 0) throw badRequest(`Arquivo de ${mediaLabel} vazio.`);
@@ -617,7 +629,7 @@ async function validateFile(file, { allowedMimeTypes, maxBytes, mediaLabel }) {
   if (bytes.byteLength > maxBytes) throw badRequest(`Arquivo de ${mediaLabel} excede ${formatMegabytes(maxBytes)}MB.`);
 
   const detectedMime = detectMimeType(bytes);
-  if (detectedMime !== file.type) {
+  if (detectedMime !== declaredMime) {
     throw badRequest(`Conteudo da ${mediaLabel} nao corresponde ao tipo informado.`);
   }
 
@@ -663,7 +675,16 @@ function detectMimeType(bytes) {
     if (["isom", "iso2", "mp41", "mp42", "avc1", "M4V ", "dash"].includes(majorBrand)) return "video/mp4";
   }
   if (bytes.length >= 4 && bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) return "video/webm";
+  if (bytes.length >= 4 && ascii(bytes, 0, 4) === "wOFF") return "font/woff";
+  if (bytes.length >= 4 && ascii(bytes, 0, 4) === "wOF2") return "font/woff2";
   return "";
+}
+
+function normalizeMimeType(value) {
+  const mimeType = String(value || "").toLowerCase();
+  if (mimeType === "application/font-woff" || mimeType === "application/x-font-woff") return "font/woff";
+  if (mimeType === "application/font-woff2" || mimeType === "application/x-font-woff2") return "font/woff2";
+  return mimeType;
 }
 
 function validateFilenameExtension(filename, mimeType) {

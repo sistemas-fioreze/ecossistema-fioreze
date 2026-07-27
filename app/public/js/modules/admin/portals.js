@@ -30,6 +30,7 @@ import {
 } from "./shared/admin-session.js";
 import { debounce, escapeAttr, escapeHtml, formatDate } from "./shared/format.js";
 import { createGuestPortalEditor } from "./guest-portal-editor.js";
+import { portalFontOptions } from "../../core/portal-fonts.js";
 
 const els = {
   portalsNav: document.getElementById("portalsNav"),
@@ -159,6 +160,7 @@ const portalCards = [
   ["conteudos", "Portal do Hóspede", "Personalize identidade, capas, conteúdos e serviços no template oficial.", "/admin/portais/portal-hospede/"],
 ];
 const mediaFields = ["logo_url", "horizontal_logo_url", "icon_url", "favicon_url", "cover_image_url", "social_image_url"];
+const brandingAssetFields = [...mediaFields, "font_asset_id"];
 const settingFields = [
   "general.short_description",
   "general.institutional_description",
@@ -702,7 +704,8 @@ function renderTabPanels() {
     <div class="admin-media-picker-grid">
       ${mediaFields.map((name) => mediaPicker(name)).join("")}
     </div>
-    ${field("Fonte", "font_family", currentUnit.branding?.font_family || "Effra, Inter, system-ui, sans-serif")}
+    ${fontSelectField("Fonte dos portais", "font_family", currentUnit.branding?.font_family)}
+    ${mediaPicker("font_asset_id", "Fonte personalizada")}
   `;
   panel("contact").innerHTML = isNewUnitBlockedTab("contact")
     ? blockedMessage
@@ -845,8 +848,10 @@ async function openMediaSelector(fieldName) {
   const params = new URLSearchParams({ hotel_id: currentUnit.hotel_id, status: "active" });
   const payload = await adminApi(`/api/v1/admin/media?${params.toString()}`);
   const allowVideo = fieldName === "cover_image_url";
+  const fontOnly = fieldName === "font_asset_id";
   const assets = (payload.data.assets || []).filter((asset) => {
     const mimeType = String(asset.mime_type || "");
+    if (fontOnly) return mimeType === "font/woff" || mimeType === "font/woff2";
     return mimeType.startsWith("image/") || (allowVideo && mimeType.startsWith("video/"));
   });
   dialogMediaAssets = assets;
@@ -855,8 +860,8 @@ async function openMediaSelector(fieldName) {
   els.dialogBody.innerHTML = contentForm("identity-media", `
     <fieldset class="admin-content-media-picker admin-identity-media-picker">
       <legend>Biblioteca de Mídia</legend>
-      <p>${allowVideo ? "Escolha uma imagem ou vídeo. Vídeos serão exibidos somente no portal desktop." : "Escolha uma imagem ativa desta unidade."} Você também pode enviar um novo arquivo agora.</p>
-      ${inlineMediaUploadControl({ context: "identity", hotelId: currentUnit.hotel_id, allowVideo })}
+      <p>${fontOnly ? "Escolha uma fonte WOFF ou WOFF2." : allowVideo ? "Escolha uma imagem ou vídeo. Vídeos serão exibidos somente no portal desktop." : "Escolha uma imagem ativa desta unidade."} Você também pode enviar um novo arquivo agora.</p>
+      ${inlineMediaUploadControl({ context: "identity", hotelId: currentUnit.hotel_id, allowVideo, fontOnly })}
       <div data-inline-media-options>
         <label class="admin-content-media-option no-media">
           <input type="radio" name="media_asset_id" value="" ${currentRef ? "" : "checked"}>
@@ -883,17 +888,23 @@ async function openMediaSelector(fieldName) {
 }
 
 function renderIdentityMediaOption(asset, currentRef) {
-  const isVideo = String(asset.mime_type || "").startsWith("video/");
+  const mimeType = String(asset.mime_type || "");
+  const isVideo = mimeType.startsWith("video/");
+  const isFont = mimeType.startsWith("font/");
   const checked = asset.id === currentRef || asset.public_url === currentRef;
-  const preview = isVideo
+  const preview = isFont
+    ? `<span class="admin-font-file-preview">Aa</span>`
+    : isVideo
     ? `<video src="${escapeAttr(asset.public_url)}" muted playsinline preload="metadata"></video>`
     : `<img src="${escapeAttr(asset.public_url)}" alt="" loading="lazy" decoding="async">`;
-  return `<label class="admin-content-media-option"><input type="radio" name="media_asset_id" value="${escapeAttr(asset.id)}" ${checked ? "checked" : ""}><span>${preview}<strong>${escapeHtml(asset.original_filename || (isVideo ? "Vídeo" : "Imagem"))}</strong></span></label>`;
+  return `<label class="admin-content-media-option"><input type="radio" name="media_asset_id" value="${escapeAttr(asset.id)}" ${checked ? "checked" : ""}><span>${preview}<strong>${escapeHtml(asset.original_filename || (isFont ? "Fonte" : isVideo ? "Vídeo" : "Imagem"))}</strong></span></label>`;
 }
 
-function inlineMediaUploadControl({ context, hotelId, moduleKey = "guest-portal", allowVideo = false }) {
+function inlineMediaUploadControl({ context, hotelId, moduleKey = "guest-portal", allowVideo = false, fontOnly = false }) {
   if (!hasPermission(currentSession, PORTALS_MEDIA_UPLOAD_PERMISSION)) return "";
-  const accept = allowVideo
+  const accept = fontOnly
+    ? ".woff,.woff2,font/woff,font/woff2"
+    : allowVideo
     ? "image/jpeg,image/png,image/webp,image/avif,video/mp4,video/webm,video/quicktime"
     : "image/jpeg,image/png,image/webp,image/avif";
   return `
@@ -1005,10 +1016,10 @@ async function saveBranding() {
     "muted_text_color",
     "browser_theme_color",
     "font_family",
-    ...mediaFields,
+    ...brandingAssetFields,
   ]) {
     const value = inputValue(fieldName);
-    if (mediaFields.includes(fieldName)) {
+    if (brandingAssetFields.includes(fieldName)) {
       body[fieldName] = value;
     } else if (value) {
       body[fieldName] = value;
@@ -1556,7 +1567,7 @@ function shortLinkPreviewUrl(slug) {
 }
 
 function renderMediaLibrary(session) {
-  setHeading("Biblioteca de mídia", "Organize e reutilize imagens e vídeos de cada unidade.");
+  setHeading("Biblioteca de mídia", "Organize e reutilize imagens, vídeos e fontes de cada unidade.");
   const allowed = canAccessMediaLibrary(session);
   showPortalSection(allowed ? els.mediaLibrary : null);
   els.portalsDenied.hidden = allowed;
@@ -1727,7 +1738,7 @@ function renderMediaItems() {
   const totalItems = currentFolders.length + currentAssets.length;
   els.mediaItemCount.textContent = `${totalItems} ${totalItems === 1 ? "item" : "itens"}`;
   if (!totalItems) {
-    els.mediaGrid.innerHTML = `<div class="admin-media-empty">${driveIcon("media")}<strong>Nenhum arquivo nesta pasta</strong><span>Crie uma pasta ou envie uma imagem ou vídeo.</span></div>`;
+    els.mediaGrid.innerHTML = `<div class="admin-media-empty">${driveIcon("media")}<strong>Nenhum arquivo nesta pasta</strong><span>Crie uma pasta ou envie uma imagem, vídeo ou fonte.</span></div>`;
     return;
   }
 
@@ -1737,16 +1748,19 @@ function renderMediaItems() {
 function renderMediaCard(asset) {
   const canUpdate = hasPermission(currentSession, PORTALS_MEDIA_UPDATE_PERMISSION);
   const canArchive = hasPermission(currentSession, PORTALS_MEDIA_ARCHIVE_PERMISSION) && asset.status !== "archived";
-  const isVideo = String(asset.mime_type || "").startsWith("video/");
+  const mimeType = String(asset.mime_type || "");
+  const isVideo = mimeType.startsWith("video/");
+  const isFont = mimeType.startsWith("font/");
+  const preview = isFont
+    ? `<span class="admin-media-font-preview" aria-label="Prévia da fonte">Aa</span>`
+    : isVideo
+      ? `<video src="${escapeAttr(asset.public_url)}" aria-label="${escapeAttr(asset.alt_text || asset.original_filename || "Vídeo")}" muted playsinline preload="metadata"></video>`
+      : `<img src="${escapeAttr(asset.public_url)}" alt="${escapeAttr(asset.alt_text || "")}" loading="lazy" decoding="async">`;
   return `
     <article class="admin-media-card" data-media-id="${escapeAttr(asset.id)}" draggable="${canUpdate}">
       <div class="admin-media-preview">
-        ${
-          isVideo
-            ? `<video src="${escapeAttr(asset.public_url)}" aria-label="${escapeAttr(asset.alt_text || asset.original_filename || "Vídeo")}" muted playsinline preload="metadata"></video>`
-            : `<img src="${escapeAttr(asset.public_url)}" alt="${escapeAttr(asset.alt_text || "")}" loading="lazy" decoding="async">`
-        }
-        <span>${driveIcon(isVideo ? "video" : "image")}</span>
+        ${preview}
+        <span>${driveIcon(isFont ? "font" : isVideo ? "video" : "image")}</span>
       </div>
       <div class="admin-media-body">
         <strong>${escapeHtml(asset.original_filename || asset.id)}</strong>
@@ -2091,6 +2105,7 @@ function driveIcon(name) {
     image: '<path d="M4 5h16v14H4z"/><path d="m6 16 4-4 3 3 2-2 3 3"/><circle cx="9" cy="9" r="1"/>',
     media: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 16 4-4 3 3 2-2 2 2"/><path d="m10 8 5 3-5 3z"/>',
     video: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3z"/>',
+    font: '<path d="M5 5h14M12 5v14M8 19h8"/><path d="M7 5v3M17 5v3"/>',
     home: '<path d="m4 11 8-7 8 7"/><path d="M6 10v10h12V10"/>',
     chevron: '<path d="m9 6 6 6-6 6"/>',
     copy: '<rect x="8" y="8" width="11" height="11"/><path d="M16 8V5H5v11h3"/>',
@@ -2289,6 +2304,17 @@ function selectField(label, name, value, options) {
   `;
 }
 
+function fontSelectField(label, name, value) {
+  return `
+    <label class="admin-field">
+      <span>${escapeHtml(label)}</span>
+      <select name="${escapeAttr(name)}">
+        ${portalFontOptions(value).map((option) => `<option value="${escapeAttr(option.value)}" ${option.value === value ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+      </select>
+    </label>
+  `;
+}
+
 function colorField(label, name, value = null) {
   const color = value || branding(name) || "#513b2d";
   return `
@@ -2301,8 +2327,13 @@ function colorField(label, name, value = null) {
 
 function mediaPicker(name, label = null) {
   const value = name.startsWith("seo.") ? setting(name) : branding(name);
-  const previewUrl = value?.startsWith("/") ? value : "";
-  const mediaType = name === "cover_image_url" && branding("cover_media_type") === "video" ? "video" : "image";
+  const isFont = name === "font_asset_id";
+  const previewUrl = isFont ? branding("font_asset_url") : value?.startsWith("/") ? value : "";
+  const mediaType = isFont
+    ? branding("font_asset_mime_type") || "font/woff2"
+    : name === "cover_image_url" && branding("cover_media_type") === "video"
+      ? "video"
+      : "image";
   return `
     <div class="admin-media-picker" data-media-field="${escapeAttr(name)}">
       <span class="admin-media-picker-copy"><strong>${escapeHtml(label || mediaLabel(name))}</strong><small data-media-selection-label>${value ? "Arquivo selecionado" : "Nenhum arquivo selecionado"}</small></span>
@@ -2319,6 +2350,9 @@ function mediaPicker(name, label = null) {
 
 function renderIdentityMediaPreview(url, mediaType) {
   if (!url) return "<em>Sem arquivo</em>";
+  if (String(mediaType || "").startsWith("font/")) {
+    return '<span class="admin-font-file-preview">Aa</span>';
+  }
   if (String(mediaType || "").startsWith("video")) {
     return `<video src="${escapeAttr(url)}" muted playsinline preload="metadata"></video>`;
   }
@@ -3154,6 +3188,7 @@ function mediaLabel(name) {
     favicon_url: "Favicon",
     cover_image_url: "Capa do portal (imagem ou vídeo)",
     social_image_url: "Imagem social",
+    font_asset_id: "Fonte personalizada",
   }[name] || name;
 }
 

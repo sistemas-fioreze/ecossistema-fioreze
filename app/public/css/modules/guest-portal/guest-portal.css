@@ -3185,7 +3185,7 @@
 
   .portal-header-nav.is-scrolled {
     background: rgba(255, 255, 255, 0.96);
-    box-shadow: 0 8px 18px rgba(35, 26, 13, 0.08);
+    box-shadow: none;
   }
 
   .guest-portal-root:has(.desktop-unit-cover.is-mobile-home) .portal-header-nav {
@@ -3205,7 +3205,7 @@
 
   .guest-portal-root:has(.desktop-unit-cover.is-mobile-home) .portal-header-nav.is-scrolled {
     background: rgba(18, 13, 10, 0.92);
-    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.16);
+    box-shadow: none;
   }
 
   .quick-card,

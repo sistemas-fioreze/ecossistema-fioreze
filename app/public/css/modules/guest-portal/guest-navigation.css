@@ -220,7 +220,7 @@
   .guest-shared-header.is-scrolled,
   .public-module-root .guest-shared-header {
     background: rgba(255, 255, 255, 0.88);
-    box-shadow: 0 8px 26px rgba(20, 17, 14, 0.08);
+    box-shadow: none;
     backdrop-filter: blur(22px) saturate(1.14);
     -webkit-backdrop-filter: blur(22px) saturate(1.14);
   }

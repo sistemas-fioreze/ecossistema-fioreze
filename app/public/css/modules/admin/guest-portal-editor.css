@@ -293,6 +293,12 @@
   object-fit: cover;
 }
 
+.guest-editor-font-preview {
+  font-family: Georgia, serif;
+  font-size: 1.45rem;
+  font-weight: 750;
+}
+
 .guest-editor-media-option input:checked + span {
   border-color: #353a40;
   box-shadow: 0 0 0 2px #fff inset;

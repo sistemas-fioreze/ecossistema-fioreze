@@ -252,7 +252,7 @@ A migration `0021_guest_portal_reference_features.sql` associa eventos a imagens
 
 O Portal do Hospede usa um unico shell para todas as unidades. Identidade, localizacao, eventos, modulos e capas de servicos sao resolvidos pelo `hotel_id`; nenhuma imagem ou cor do Muller fica fixa no codigo compartilhado. A capa da unidade aceita imagem ou video da Biblioteca de Midia; no mobile ela aparece somente na guia Inicio e e removida ao trocar de area. O movimento respeita a preferencia de reducao de animacoes do navegador. A previsao publica usa Gramado como localidade padrao para todas as unidades, por meio do Open-Meteo consultado pelo Worker. O blog e consultado pelo Worker no feed oficial permitido e devolvido ao navegador em um formato reduzido e sanitizado. Falhas desses servicos externos nao impedem a abertura do portal.
 
-Na Central Administrativa, a identidade da unidade usa um seletor visual da Biblioteca de Midia. Logos e imagens sociais aceitam imagens; a capa do portal aceita imagem ou video. Identidade, eventos e capas de servicos permitem enviar um novo arquivo diretamente no seletor, respeitando permissao e isolamento por unidade. O Criador de Portais permanece acessivel pela area de portais, mas a superficie de edicao abre somente em telas desktop. O feed do blog e configurado nos dados gerais da unidade e permanece restrito ao endpoint oficial autorizado.
+Na Central Administrativa, a identidade da unidade usa um seletor visual da Biblioteca de Midia. Logos e imagens sociais aceitam imagens; a capa do portal aceita imagem ou video. A tipografia pode ser escolhida em uma lista segura ou enviada como WOFF/WOFF2 para a Biblioteca de Midia, com validacao de assinatura, limite de tamanho e isolamento por unidade. Identidade, eventos e capas de servicos permitem enviar um novo arquivo diretamente no seletor, respeitando permissoes. O feed do blog e configurado nos dados gerais da unidade e permanece restrito ao endpoint oficial autorizado.
 
 A migration `0018_admin_messages_and_reference_numbers.sql` adiciona:
 
@@ -310,7 +310,7 @@ Os testes cobrem:
 
 ## Biblioteca De Midia
 
-A Central de Portais possui a rota `/admin/portais/media/`. Ela organiza imagens e videos publicos de hoteis e modulos em um gerenciador unificado, usando:
+A Central de Portais possui a rota `/admin/portais/media/`. Ela organiza imagens, videos e fontes publicas de hoteis e modulos em um gerenciador unificado, usando:
 
 - D1 para metadados em `media_assets`;
 - R2 para binarios via binding `MEDIA_BUCKET`;
@@ -470,7 +470,7 @@ O shell `/admin/portais/` e a Central de Portais Fioreze. A interface segue a me
 
 Em **Portais > Portal do Hóspede**, a Central oferece um editor guiado para o único template oficial compartilhado. Cada unidade pode alterar logos, cores, tipografia, capa, textos, mapas, imagens e disponibilidade de Room Service, Empório, Pacotes Românticos e Spa. Estrutura, navegação e comportamento não são duplicados nem livremente alteráveis. A arquitetura está documentada em `docs/arquitetura/GUEST_PORTAL_TEMPLATE.md`; a retirada do antigo criador está registrada em `docs/arquitetura/VISUAL_PORTAL_BUILDER.md`.
 
-A guia **Empório** desse editor administra categorias, produtos, descrições, etiquetas, preços, ordem, disponibilidade e imagens da Biblioteca de Mídia. O portal público apresenta um catálogo visual e uma tela de detalhes, mas não cria carrinho, checkout ou pedido. A ação comercial abre o WhatsApp público cadastrado em `contact.whatsapp` para a recepção confirmar informações e disponibilidade.
+A guia **Empório** desse editor administra categorias, produtos, descrições, etiquetas, preços, ordem, disponibilidade e imagens da Biblioteca de Mídia. O portal público apresenta um catálogo visual, uma capa em carrossel alimentada pelas imagens dos produtos e uma tela de detalhes, mas não cria carrinho, checkout ou pedido. A ação comercial abre o WhatsApp público cadastrado em `contact.whatsapp` para a recepção confirmar informações e disponibilidade.
 
 O shell publico do Portal do Hospede e unico para todos os hoteis. Ele reproduz a composicao visual da referencia aprovada com identidade dinamica por unidade: cabecalho compartilhado, menu lateral no mobile, navegacao integrada entre os modulos habilitados, servicos ilustrados, evento em destaque, lista e calendario de eventos, detalhe editorial, informacoes do hotel e blog. O mesmo cabecalho acompanha o hospede no Room Service e nos demais modulos publicos. Cores, tipografia, logos, modulos, imagens e conteudos continuam vindo do bootstrap e das APIs do hotel selecionado; nenhum HTML ou dado do Muller fica fixo no shell compartilhado.
 

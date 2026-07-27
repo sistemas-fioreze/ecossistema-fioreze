@@ -1663,6 +1663,28 @@
   background: #f2f3f4;
 }
 
+.admin-media-font-preview {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
+  color: #333941;
+  background: #f2f3f4;
+  font-family: Georgia, serif;
+  font-size: clamp(2rem, 5vw, 4rem);
+  font-weight: 750;
+}
+
+.admin-font-file-preview {
+  width: 100%;
+  min-height: 84px;
+  display: grid;
+  place-items: center;
+  font-family: Georgia, serif;
+  font-size: 2rem;
+  font-weight: 750;
+}
+
 .admin-media-preview > span {
   position: absolute;
   left: 8px;

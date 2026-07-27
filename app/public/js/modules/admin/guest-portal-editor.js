@@ -9,6 +9,7 @@ import {
   hasPermission,
 } from "./shared/admin-session.js";
 import { escapeAttr, escapeHtml } from "./shared/format.js";
+import { portalFontOptions } from "../../core/portal-fonts.js";
 
 const SERVICE_KEYS = ["room-service", "emporio", "romantic-packages", "spa"];
 const SERVICE_LABELS = {
@@ -162,7 +163,9 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
           ${colorField("Fundo", "branding.background_color", branding.background_color)}
           ${colorField("Texto", "branding.text_color", branding.text_color)}
         </div>
-        ${textField("Fonte", "branding.font_family", branding.font_family)}
+        ${fontSelectField("Fonte do portal", "branding.font_family", branding.font_family)}
+        ${mediaPicker("Fonte personalizada", "branding.font_asset_id", branding.font_asset_id, { fontOnly: true })}
+        <p class="guest-editor-help">Envie uma fonte WOFF ou WOFF2 para reproduzir com precisão a identidade da unidade. A fonte personalizada tem prioridade sobre o seletor.</p>
       </section>
       <section class="guest-editor-section">
         <header><strong>Capa principal</strong><span>Use uma imagem ou vídeo para a tela inicial.</span></header>
@@ -348,6 +351,7 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
   function mediaPicker(label, path, selectedValue, options = {}) {
     const assets = state.media.filter((asset) => {
       const type = String(asset.mime_type || "");
+      if (options.fontOnly) return type === "font/woff" || type === "font/woff2";
       return type.startsWith("image/") || (options.allowVideo && type.startsWith("video/"));
     });
     const selectedAsset = assets.find((asset) => asset.id === selectedValue || asset.public_url === selectedValue);
@@ -363,16 +367,19 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
         </div>
         ${hasPermission(state.session, PORTALS_MEDIA_UPLOAD_PERMISSION) ? `
           <label class="guest-editor-upload">
-            <input type="file" data-guest-media-upload data-editor-path="${escapeAttr(path)}" data-allow-video="${String(Boolean(options.allowVideo))}" accept="${options.allowVideo ? "image/jpeg,image/png,image/webp,image/avif,video/mp4,video/webm" : "image/jpeg,image/png,image/webp,image/avif"}">
+            <input type="file" data-guest-media-upload data-editor-path="${escapeAttr(path)}" data-allow-video="${String(Boolean(options.allowVideo))}" data-font-only="${String(Boolean(options.fontOnly))}" accept="${options.fontOnly ? ".woff,.woff2,font/woff,font/woff2" : options.allowVideo ? "image/jpeg,image/png,image/webp,image/avif,video/mp4,video/webm" : "image/jpeg,image/png,image/webp,image/avif"}">
             <span>Enviar novo arquivo</span>
           </label>` : ""}
       </fieldset>`;
   }
 
   function mediaOption(path, asset, checked) {
-    const preview = String(asset.mime_type || "").startsWith("video/")
+    const mimeType = String(asset.mime_type || "");
+    const preview = mimeType.startsWith("video/")
       ? `<video src="${escapeAttr(asset.public_url)}" muted preload="metadata"></video>`
-      : `<img src="${escapeAttr(asset.public_url)}" alt="" loading="lazy">`;
+      : mimeType.startsWith("font/")
+        ? `<span class="guest-editor-font-preview">Aa</span>`
+        : `<img src="${escapeAttr(asset.public_url)}" alt="" loading="lazy">`;
     const value = mediaValueForPath(path, asset);
     return `<label class="guest-editor-media-option" title="${escapeAttr(asset.original_filename || "Mídia")}"><input type="radio" name="${escapeAttr(path)}" data-editor-path="${escapeAttr(path)}" value="${escapeAttr(value)}" ${checked ? "checked" : ""}><span>${preview}</span></label>`;
   }
@@ -384,6 +391,16 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
 
   function textField(label, path, value, type = "text") {
     return `<label class="guest-editor-field"><span>${escapeHtml(label)}</span><input type="${escapeAttr(type)}" data-editor-path="${escapeAttr(path)}" value="${escapeAttr(value || "")}"></label>`;
+  }
+
+  function fontSelectField(label, path, value) {
+    return `
+      <label class="guest-editor-field">
+        <span>${escapeHtml(label)}</span>
+        <select data-editor-path="${escapeAttr(path)}">
+          ${portalFontOptions(value).map((option) => `<option value="${escapeAttr(option.value)}" ${option.value === value ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+        </select>
+      </label>`;
   }
 
   function textareaField(label, path, value, maxLength) {
@@ -696,6 +713,7 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
             background_color: branding.background_color,
             text_color: branding.text_color,
             font_family: branding.font_family,
+            font_asset_id: branding.font_asset_id || "",
           },
         }),
         adminApi(`/api/v1/admin/hotels/${encodeURIComponent(state.hotel.hotel_id)}/settings`, {
@@ -821,6 +839,7 @@ function validColor(value) {
 }
 
 function mediaValueForPath(path, asset) {
+  if (String(path || "").endsWith(".font_asset_id")) return asset.id;
   return String(path || "").startsWith("branding.") ? asset.public_url : asset.id;
 }
 

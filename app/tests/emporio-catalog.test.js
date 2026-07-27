@@ -171,8 +171,15 @@ test("frontend do Emporio oferece catalogo e WhatsApp sem carrinho ou checkout",
   assert.match(moduleSource, /https:\/\/wa\.me\//);
   assert.match(moduleSource, /Falar com a recepção/);
   assert.match(moduleSource, /Catálogo para consulta/);
+  assert.match(moduleSource, /<h1>Empório<\/h1>/);
+  assert.match(moduleSource, /data-emporio-carousel/);
+  assert.match(moduleSource, /window\.setInterval/);
+  assert.match(moduleSource, /prefers-reduced-motion/);
+  assert.match(moduleSource, /aria-label="Buscar no Empório"/);
+  assert.doesNotMatch(moduleSource, />Pesquisar produtos</);
   assert.doesNotMatch(moduleSource, /\bcarrinho\b|\bcheckout\b|adicionar ao carrinho/i);
   assert.match(moduleCss, /\.emporio-product-grid/);
+  assert.match(moduleCss, /\.emporio-carousel-slide\.is-active/);
   assert.match(moduleCss, /\.emporio-detail-card/);
   assert.match(moduleCss, /\.emporio-detail\[hidden\]\s*\{\s*display:\s*none/);
   assert.match(editor, /data-guest-editor-tab="emporio"|activeTab === "emporio"/);

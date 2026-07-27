@@ -1148,7 +1148,9 @@ class MockD1Database {
             (entry.id === assetRef || entry.public_url === publicUrlRef) &&
             entry.status === "active" &&
             ["r2", "static"].includes(entry.storage_provider) &&
-            (entry.hotel_id === hotelId || entry.hotel_id == null),
+            (entry.hotel_id === hotelId || entry.hotel_id == null) &&
+            (!normalized.includes("mime_type in ('font/woff', 'font/woff2')") ||
+              ["font/woff", "font/woff2"].includes(entry.mime_type)),
         ) || null
       );
     }

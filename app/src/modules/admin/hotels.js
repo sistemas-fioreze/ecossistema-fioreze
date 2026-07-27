@@ -311,7 +311,7 @@ export async function updateAdminHotelBranding({ request, env, session, hotelId 
   requireAdminHotelAccess(session, hotelId);
   await ensureHotelVisible(env, session, hotelId);
   const payload = await readJson(request);
-  const allowed = new Set([...BRANDING_COLOR_FIELDS, ...BRANDING_MEDIA_FIELDS, "font_family", "theme"]);
+  const allowed = new Set([...BRANDING_COLOR_FIELDS, ...BRANDING_MEDIA_FIELDS, "font_family", "font_asset_id", "theme"]);
   rejectUnknown(payload, allowed);
 
   const current = await loadBranding(env, hotelId);
@@ -349,6 +349,16 @@ export async function updateAdminHotelBranding({ request, env, session, hotelId 
       if ((next[field] || null) !== publicUrl) changedFields.push(field);
       next[field] = publicUrl;
     }
+  }
+  if (Object.hasOwn(payload, "font_asset_id")) {
+    const selection = await validateFontSelection(env, hotelId, payload.font_asset_id);
+    const assetId = selection?.id || null;
+    const publicUrl = selection?.public_url || null;
+    const mimeType = selection?.mime_type || null;
+    if ((customNext.font_asset_id || null) !== assetId) changedFields.push("font_asset_id");
+    customNext.font_asset_id = assetId;
+    customNext.font_asset_url = publicUrl;
+    customNext.font_asset_mime_type = mimeType;
   }
   if (Object.hasOwn(payload, "font_family")) {
     const fontFamily = optionalString(payload.font_family, "font_family", { max: 160 }) || "Effra, Inter, system-ui, sans-serif";
@@ -834,6 +844,25 @@ async function validateMediaSelection(env, hotelId, value, { allowVideo = false 
   return asset;
 }
 
+async function validateFontSelection(env, hotelId, value) {
+  const assetRef = optionalString(value, "font_asset_id", { max: 260 });
+  if (!assetRef) return null;
+  const asset = await first(
+    env,
+    `SELECT id, hotel_id, storage_provider, public_url, mime_type, status
+       FROM media_assets
+      WHERE (id = ? OR public_url = ?)
+        AND status = 'active'
+        AND storage_provider IN ('r2', 'static')
+        AND (hotel_id = ? OR hotel_id IS NULL)
+        AND mime_type IN ('font/woff', 'font/woff2')
+      LIMIT 1`,
+    [assetRef, assetRef, hotelId],
+  );
+  if (!asset) throw badRequest("Selecione uma fonte WOFF ou WOFF2 válida desta unidade.");
+  return asset;
+}
+
 function mediaKind(mimeType) {
   const normalized = String(mimeType || "").toLowerCase();
   if (normalized.startsWith("image/")) return "image";
@@ -882,6 +911,9 @@ function formatBranding(row) {
     muted_text_color: custom.muted_text_color || "#667085",
     browser_theme_color: custom.browser_theme_color || row?.primary_color || "#513b2d",
     font_family: row?.font_family || "Effra, Inter, system-ui, sans-serif",
+    font_asset_id: custom.font_asset_id || null,
+    font_asset_url: custom.font_asset_url || null,
+    font_asset_mime_type: custom.font_asset_mime_type || null,
     theme: custom.theme || "light",
     updated_at: row?.updated_at || null,
   };

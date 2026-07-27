@@ -15,6 +15,8 @@ export async function render(container, context) {
     query: "",
     activeCategory: "all",
     selectedProductId: productIdFromUrl(),
+    carouselIndex: 0,
+    carouselTimer: null,
   };
 
   container.innerHTML = renderShell(bootstrap);
@@ -24,6 +26,7 @@ export async function render(container, context) {
       `/api/v1/public/hotels/${encodeURIComponent(bootstrap.slug)}/emporio/items`,
     );
     state.categories = catalog.categories || [];
+    renderHeroCarousel(container, state);
     renderCatalog(container, state);
     renderProductDetail(container, state);
   } catch (error) {
@@ -35,7 +38,10 @@ export async function render(container, context) {
     renderProductDetail(container, state);
   };
   window.addEventListener("popstate", popstate);
-  cleanupCurrentRender = () => window.removeEventListener("popstate", popstate);
+  cleanupCurrentRender = () => {
+    window.removeEventListener("popstate", popstate);
+    window.clearInterval(state.carouselTimer);
+  };
 }
 
 function renderShell(bootstrap) {
@@ -45,19 +51,19 @@ function renderShell(bootstrap) {
   return `
     <section class="emporio-app"${style}>
       <section class="emporio-intro">
-        <div>
-          <p class="emporio-eyebrow">Seleção da unidade</p>
-          <h1>Empório ${escapeHtml(bootstrap.short_name || bootstrap.name)}</h1>
-          <p>Conheça produtos especiais, presentes e lembranças selecionados pela Família Fioreze.</p>
+        <div class="emporio-carousel" data-emporio-carousel aria-live="off">
+          ${cover ? `<span class="emporio-carousel-slide is-active" style="--emporio-slide: url('${escapeHtml(cover)}')" aria-hidden="false"></span>` : ""}
         </div>
-        <span class="emporio-intro-mark" aria-hidden="true">${icon("bag")}</span>
+        <div class="emporio-intro-copy">
+          <h1>Empório</h1>
+        </div>
+        <div class="emporio-carousel-dots" data-emporio-carousel-dots aria-label="Destaques do Empório"></div>
       </section>
 
       <section class="emporio-toolbar" aria-label="Busca e categorias">
         <label class="emporio-search">
-          <span class="sr-only">Pesquisar produtos</span>
           ${icon("search")}
-          <input type="search" data-emporio-search autocomplete="off" placeholder="O que você procura?">
+          <input type="search" data-emporio-search autocomplete="off" aria-label="Buscar no Empório" placeholder="Buscar">
         </label>
         <nav class="emporio-categories" data-emporio-categories aria-label="Categorias do Empório"></nav>
       </section>
@@ -93,6 +99,19 @@ function bindActions(container, state) {
       renderProductDetail(container, state);
       return;
     }
+    const slide = event.target.closest("[data-emporio-slide]");
+    if (slide?.dataset.emporioProduct) {
+      state.selectedProductId = slide.dataset.emporioProduct;
+      updateProductUrl(state.bootstrap.slug, state.selectedProductId);
+      renderProductDetail(container, state);
+      return;
+    }
+    const dot = event.target.closest("[data-emporio-carousel-dot]");
+    if (dot) {
+      setCarouselIndex(container, state, Number(dot.dataset.emporioCarouselDot));
+      restartCarousel(container, state);
+      return;
+    }
     if (event.target.closest("[data-emporio-retry]")) {
       window.location.reload();
       return;
@@ -102,6 +121,72 @@ function bindActions(container, state) {
   container.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && state.selectedProductId) closeProductDetail(container, state);
   });
+}
+
+function renderHeroCarousel(container, state) {
+  const module = state.bootstrap.modules?.find((entry) => entry.module_key === MODULE_KEY);
+  const moduleCover = sanitizePublicAssetUrl(module?.background_image_url);
+  const productSlides = allItems(state)
+    .map((item) => ({
+      image: sanitizePublicAssetUrl(item.image_url),
+      productId: item.public_id || item.id,
+      alt: item.image_alt || item.name,
+    }))
+    .filter((slide) => slide.image);
+  const slides = [];
+  if (moduleCover && !productSlides.some((slide) => slide.image === moduleCover)) {
+    slides.push({ image: moduleCover, productId: null, alt: "Experiências do Empório" });
+  }
+  for (const slide of productSlides) {
+    if (!slides.some((entry) => entry.image === slide.image)) slides.push(slide);
+    if (slides.length === 7) break;
+  }
+  if (!slides.length) return;
+
+  state.carouselIndex = 0;
+  container.querySelector("[data-emporio-carousel]").innerHTML = slides
+    .map(
+      (slide, index) => `
+        <button
+          class="emporio-carousel-slide${index === 0 ? " is-active" : ""}"
+          type="button"
+          style="--emporio-slide: url('${escapeHtml(slide.image)}')"
+          data-emporio-slide
+          ${slide.productId ? `data-emporio-product="${escapeHtml(slide.productId)}" aria-label="Ver ${escapeHtml(slide.alt)}"` : `aria-label="${escapeHtml(slide.alt)}"`}
+          aria-hidden="${index === 0 ? "false" : "true"}"
+          tabindex="${index === 0 && slide.productId ? "0" : "-1"}"
+        ></button>`,
+    )
+    .join("");
+  const dots = container.querySelector("[data-emporio-carousel-dots]");
+  dots.innerHTML = slides.length > 1
+    ? slides.map((_, index) => `<button type="button" data-emporio-carousel-dot="${index}" aria-label="Mostrar destaque ${index + 1}" aria-current="${index === 0 ? "true" : "false"}"></button>`).join("")
+    : "";
+  restartCarousel(container, state);
+}
+
+function setCarouselIndex(container, state, index) {
+  const slides = [...container.querySelectorAll("[data-emporio-slide]")];
+  if (!slides.length) return;
+  state.carouselIndex = ((index % slides.length) + slides.length) % slides.length;
+  slides.forEach((slide, slideIndex) => {
+    const active = slideIndex === state.carouselIndex;
+    slide.classList.toggle("is-active", active);
+    slide.setAttribute("aria-hidden", String(!active));
+    slide.tabIndex = active && slide.dataset.emporioProduct ? 0 : -1;
+  });
+  container.querySelectorAll("[data-emporio-carousel-dot]").forEach((dot, dotIndex) => {
+    dot.setAttribute("aria-current", String(dotIndex === state.carouselIndex));
+  });
+}
+
+function restartCarousel(container, state) {
+  window.clearInterval(state.carouselTimer);
+  const slideCount = container.querySelectorAll("[data-emporio-slide]").length;
+  if (slideCount < 2 || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+  state.carouselTimer = window.setInterval(() => {
+    setCarouselIndex(container, state, state.carouselIndex + 1);
+  }, 5000);
 }
 
 function renderCatalog(container, state) {
