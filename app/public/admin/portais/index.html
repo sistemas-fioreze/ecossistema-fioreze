@@ -70,23 +70,12 @@
 
             <section id="portalsContent" class="admin-launcher-panel admin-portals-surface" hidden>
               <div id="portalsHome">
-                <div class="admin-panel-heading">
-                  <div>
-                    <h2>Áreas da Central</h2>
-                    <p class="admin-muted">Acesse as funções administrativas do ecossistema digital.</p>
-                  </div>
-                </div>
                 <div id="portalsModules" class="admin-module-grid admin-feature-grid" aria-label="Áreas da Central de Portais"></div>
               </div>
 
               <section id="unitsManager" class="admin-units-manager" hidden>
                 <div id="unitsListView">
-                  <div class="admin-panel-heading">
-                    <div>
-                      <p class="admin-breadcrumbs"><a href="/admin/portais/">Portais</a> / Unidades</p>
-                      <h2>Unidades</h2>
-                      <p class="admin-muted">Cadastre e mantenha as unidades que aparecem nos portais digitais.</p>
-                    </div>
+                  <div class="admin-section-actions">
                     <button id="addUnitButton" class="admin-primary-button" type="button">Adicionar unidade</button>
                   </div>
                   <form id="unitFilters" class="admin-filters admin-unit-filters">
@@ -158,12 +147,7 @@
               </section>
 
           <section id="shortLinksManager" class="admin-short-links-manager" hidden>
-            <div class="admin-panel-heading admin-links-heading">
-              <div>
-                <span class="admin-section-kicker">Distribuição digital</span>
-                <h2>Links e QR Codes</h2>
-                <p class="admin-muted">Crie endereços curtos, gere QR Codes prontos para uso e acompanhe os acessos.</p>
-              </div>
+            <div class="admin-section-actions">
               <button id="addShortLinkButton" class="admin-primary-button" type="button">
                 <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
                 Novo link
@@ -290,11 +274,7 @@
           </section>
 
           <section id="mediaLibrary" class="admin-media-library" hidden>
-            <div class="admin-panel-heading admin-media-heading">
-              <div>
-                <h2>Biblioteca de mídia</h2>
-                <p class="admin-muted">Organize imagens e vídeos das unidades em um único lugar.</p>
-              </div>
+            <div class="admin-section-actions">
               <div class="admin-media-heading-actions">
                 <button id="mediaNewFolderButton" type="button" class="admin-drive-button">
                   <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 6h7l2 2h9v11H3z"/><path d="M12 11v5M9.5 13.5h5"/></svg>
@@ -414,12 +394,7 @@
           </section>
 
           <section id="eventsManager" class="admin-events-manager" hidden>
-            <div class="admin-panel-heading admin-events-heading">
-              <div>
-                <span class="admin-section-kicker">Agenda da unidade</span>
-                <h2>Eventos</h2>
-                <p class="admin-muted">Organize a programação exibida nos portais e mantenha cada experiência atualizada.</p>
-              </div>
+            <div class="admin-section-actions">
               <button id="addEventButton" class="admin-primary-button" type="button">
                 <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
                 Novo evento
@@ -454,8 +429,7 @@
           </section>
 
           <section id="contentManager" class="admin-content-manager" hidden>
-            <div class="admin-panel-heading">
-              <div><h2>Criador de portais</h2><p class="admin-muted">Crie experiências digitais responsivas a partir de modelos profissionais.</p></div>
+            <div class="admin-section-actions">
               <button id="addContentButton" class="admin-primary-button" type="button">Novo portal</button>
             </div>
             <div class="admin-filters admin-content-filters">
@@ -479,15 +453,13 @@
           </section>
 
           <section id="areasManager" class="admin-content-manager" hidden>
-            <div class="admin-panel-heading"><div><h2>Áreas</h2><p class="admin-muted">Defina quais experiências ficam disponíveis em cada unidade.</p></div></div>
             <div class="admin-filters"><label><span>Unidade</span><select id="areasHotel"></select></label></div>
             <p id="areasMessage" class="admin-muted" role="status" aria-live="polite"></p>
             <div id="areasList" class="admin-module-settings-grid"></div>
           </section>
 
           <section id="navigationManager" class="admin-content-manager" hidden>
-            <div class="admin-panel-heading">
-              <div><h2>Navegação</h2><p class="admin-muted">Organize os acessos exibidos no portal da unidade.</p></div>
+            <div class="admin-section-actions">
               <button id="addNavigationButton" class="admin-primary-button" type="button">Novo item</button>
             </div>
             <div class="admin-filters"><label><span>Unidade</span><select id="navigationHotel"></select></label></div>
@@ -496,7 +468,6 @@
           </section>
 
           <section id="auditManager" class="admin-content-manager" hidden>
-            <div class="admin-panel-heading"><div><h2>Auditoria</h2><p class="admin-muted">Acompanhe as alterações realizadas na Central Administrativa.</p></div></div>
             <form id="auditFilters" class="admin-filters">
               <label><span>Unidade</span><select id="auditHotel"><option value="">Todas as unidades</option></select></label>
               <label><span>Ação</span><input id="auditAction" type="search" placeholder="Ex.: portal-page.update"></label>

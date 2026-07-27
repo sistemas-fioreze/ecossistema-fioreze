@@ -198,6 +198,23 @@ test("shell inclui mensagens, sessao sem cache, identidade fixa e mídia compact
   assert.match(alignedCss, /\.admin-session-trigger[\s\S]*background: #fff/);
 });
 
+test("mensagens ocupam a area operacional e as secoes evitam titulos duplicados", () => {
+  const html = fs.readFileSync("public/admin/index.html", "utf8");
+  const portalsHtml = fs.readFileSync("public/admin/portais/index.html", "utf8");
+  const css = fs.readFileSync("public/css/modules/admin/admin-workspace.css", "utf8");
+
+  assert.doesNotMatch(html, /<h2>Caixa de mensagens<\/h2>/);
+  assert.doesNotMatch(html, /<h2>Usuários<\/h2>/);
+  assert.doesNotMatch(html, /<h2>Perfis e permissões<\/h2>/);
+  assert.doesNotMatch(portalsHtml, /<h2>Unidades<\/h2>/);
+  assert.doesNotMatch(portalsHtml, /<h2>Links e QR Codes<\/h2>/);
+  assert.match(html, /class="admin-section-actions"[\s\S]*id="addUserButton"/);
+  assert.match(portalsHtml, /class="admin-section-actions"[\s\S]*id="addUnitButton"/);
+  assert.match(css, /\.admin-messages-manager \{[\s\S]*padding: 0;[\s\S]*overflow: hidden/);
+  assert.match(css, /\.admin-messages-layout \{[\s\S]*height: 100%;[\s\S]*grid-template-columns: 216px/);
+  assert.match(css, /\.admin-message-list \{[\s\S]*overflow-y: auto/);
+});
+
 test("rota visual de mensagens entrega o shell sem redirecionamento em loop", async () => {
   const { fetch } = createWorkerTestContext();
   const redirect = await fetch("/admin/mensagens", { redirect: "manual" });

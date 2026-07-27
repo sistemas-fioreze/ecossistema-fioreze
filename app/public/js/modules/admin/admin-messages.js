@@ -244,7 +244,10 @@ function filteredMessages() {
 function syncToolbar() {
   const selected = state.selectedIds.size;
   const incomingBox = state.box === "inbox";
-  els.archive.textContent = state.box === "archived" ? "Restaurar" : "Arquivar";
+  const archiveLabel = state.box === "archived" ? "Restaurar" : "Arquivar";
+  const archiveText = els.archive.querySelector("span");
+  if (archiveText) archiveText.textContent = archiveLabel;
+  els.archive.title = archiveLabel;
   els.archive.disabled = selected === 0;
   els.markRead.disabled = selected === 0 || !incomingBox;
   els.markUnread.disabled = selected === 0 || !incomingBox;
@@ -268,7 +271,12 @@ function updateStatus() {
 }
 
 function renderEmptyDetail() {
-  els.detail.innerHTML = '<div class="admin-empty">Selecione uma mensagem para visualizar.</div>';
+  els.detail.innerHTML = `
+    <div class="admin-message-empty">
+      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="m4 7 8 6 8-6"/></svg>
+      <strong>Selecione uma mensagem</strong>
+      <span>O conteúdo será exibido aqui.</span>
+    </div>`;
   els.manager?.classList.remove("is-reading-message");
 }
 
