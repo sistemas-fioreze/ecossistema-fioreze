@@ -1,10 +1,7 @@
 import assert from "node:assert/strict";
-import fs from "node:fs";
 import test from "node:test";
 
-import { DEFAULT_WEATHER_LOCATION, buildBlogUrl, loadPublicBlog, loadPublicWeather } from "../src/services/public-portal-feeds.js";
-
-const guestPortalRoutes = fs.readFileSync(new URL("../src/modules/guest-portal/routes.js", import.meta.url), "utf8");
+import { buildBlogUrl, loadPublicBlog } from "../src/services/public-portal-feeds.js";
 
 test("blog oficial e reduzido a conteudo publico sanitizado", async () => {
   let requestedUrl = "";
@@ -50,49 +47,4 @@ test("timeout do feed e limpo mesmo quando o cliente falha de forma sincrona", a
     () => loadPublicBlog({ fetchImpl: () => { throw new Error("falha ficticia"); } }),
     /falha ficticia/,
   );
-});
-
-test("servico de clima usa as coordenadas e o fuso recebidos", async () => {
-  let requestedUrl = "";
-  const weather = await loadPublicWeather({
-    latitude: "-29.37",
-    longitude: "-50.88",
-    timezone: "America/Sao_Paulo",
-    fetchImpl: async (url) => {
-      requestedUrl = String(url);
-      return new Response(JSON.stringify({
-        current: { temperature_2m: 17.6, apparent_temperature: 17.1, weather_code: 2, precipitation: 0, relative_humidity_2m: 81, time: "2026-07-17T12:00" },
-        daily: { time: ["2026-07-17", "2026-07-18", "2026-07-19"], weather_code: [2, 61, 0], temperature_2m_max: [20.1, 18.4, 22], temperature_2m_min: [10.2, 9.6, 11], precipitation_probability_max: [10, 80, 0] },
-      }), { headers: { "content-type": "application/json" } });
-    },
-  });
-
-  const requested = new URL(requestedUrl);
-  assert.equal(requested.searchParams.get("latitude"), "-29.37");
-  assert.equal(requested.searchParams.get("longitude"), "-50.88");
-  assert.equal(requested.searchParams.get("timezone"), "America/Sao_Paulo");
-  assert.equal(weather.available, true);
-  assert.equal(weather.current.temperature, 18);
-  assert.equal(weather.current.description, "Parcialmente nublado");
-  assert.equal(weather.forecast.length, 3);
-});
-
-test("portal usa Gramado como localizacao climatica padrao para todas as unidades", () => {
-  assert.deepEqual(DEFAULT_WEATHER_LOCATION, {
-    name: "Gramado",
-    latitude: -29.3788,
-    longitude: -50.8738,
-    timezone: "America/Sao_Paulo",
-  });
-  assert.match(guestPortalRoutes, /latitude: DEFAULT_WEATHER_LOCATION\.latitude/);
-  assert.match(guestPortalRoutes, /longitude: DEFAULT_WEATHER_LOCATION\.longitude/);
-  assert.match(guestPortalRoutes, /timezone: DEFAULT_WEATHER_LOCATION\.timezone/);
-  assert.doesNotMatch(guestPortalRoutes, /tenant\.settings\["contact\.(?:latitude|longitude)"\]/);
-});
-
-test("clima sem coordenadas nao realiza chamada externa", async () => {
-  let called = false;
-  const weather = await loadPublicWeather({ latitude: "", longitude: null, fetchImpl: async () => { called = true; } });
-  assert.equal(called, false);
-  assert.deepEqual(weather, { available: false, current: null, forecast: [] });
 });

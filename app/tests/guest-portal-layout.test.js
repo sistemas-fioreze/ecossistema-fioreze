@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
+import { renderGuestNavigation } from "../public/js/core/guest-navigation.js";
 import { resolvePortalSwipe } from "../public/js/core/portal-home.js";
 
 const portalScript = fs.readFileSync(new URL("../public/js/core/portal-home.js", import.meta.url), "utf8");
@@ -8,27 +9,35 @@ const portalCss = fs.readFileSync(
   new URL("../public/css/modules/guest-portal/guest-portal.css", import.meta.url),
   "utf8",
 );
+const navigationScript = fs.readFileSync(new URL("../public/js/core/guest-navigation.js", import.meta.url), "utf8");
+const navigationCss = fs.readFileSync(
+  new URL("../public/css/modules/guest-portal/guest-navigation.css", import.meta.url),
+  "utf8",
+);
 const publicIndex = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const appScript = fs.readFileSync(new URL("../public/js/core/app.js", import.meta.url), "utf8");
 const adminScript = fs.readFileSync(new URL("../public/js/modules/admin/portals.js", import.meta.url), "utf8");
+const roomServiceScript = fs.readFileSync(new URL("../public/js/modules/room-service/index.js", import.meta.url), "utf8");
+const guestPortalRoutes = fs.readFileSync(new URL("../src/modules/guest-portal/routes.js", import.meta.url), "utf8");
 
 test("portal usa o layout de referencia com identidade e conteudo dinamicos", () => {
-  assert.match(portalScript, /branding\.horizontal_logo_url/);
+  assert.match(navigationScript, /branding\?\.horizontal_logo_url/);
   assert.doesNotMatch(portalScript, /loading-brand|Carregando portal|renderLoading/);
   assert.match(portalScript, /bootstrap\.modules\.filter/);
   assert.match(portalScript, /bootstrap\.settings/);
-  assert.match(portalScript, /\["inicio", "Início", "home"\]/);
+  assert.match(navigationScript, /\["inicio", "Início", "home"\]/);
   assert.match(portalScript, /Informações do hotel/);
   assert.match(portalCss, /\.featured-home-card/);
-  assert.match(portalCss, /\.bottom-nav-shell/);
-  assert.match(portalCss, /backdrop-filter:\s*blur\(24px\)\s+saturate\(1\.18\)/);
-  assert.match(portalCss, /\.bottom-nav \.nav-slider/);
+  assert.match(navigationCss, /\.guest-navigation-drawer/);
+  assert.match(navigationCss, /backdrop-filter:\s*blur\(26px\)\s+saturate\(1\.14\)/);
   assert.match(portalCss, /@media \(min-width: 960px\)/);
   assert.match(publicIndex, /guest-portal\/guest-portal\.css/);
+  assert.match(publicIndex, /guest-portal\/guest-navigation\.css/);
 });
 
-test("portal integra clima, blog, eventos ilustrados e capas dos servicos", () => {
-  assert.match(portalScript, /\/portal\/weather/);
+test("portal integra blog, eventos ilustrados e capas dos servicos sem clima", () => {
+  assert.doesNotMatch(portalScript, /\/portal\/weather|weather|clima/i);
+  assert.doesNotMatch(guestPortalRoutes, /portal\/weather|loadPublicWeather|DEFAULT_WEATHER_LOCATION/);
   assert.match(portalScript, /\/portal\/blog/);
   assert.match(portalScript, /event\.image_url/);
   assert.match(portalScript, /data-event-open/);
@@ -39,7 +48,6 @@ test("portal integra clima, blog, eventos ilustrados e capas dos servicos", () =
   assert.match(portalScript, /renderStayCalendar/);
   assert.match(portalScript, /portal-detail-view/);
   assert.match(portalScript, /event-detail-aside/);
-  assert.match(portalScript, /weather-now-temp/);
   assert.match(portalScript, /detail-action-button/);
   assert.match(portalScript, /event\.action_url/);
   assert.doesNotMatch(portalScript, /class="header-time"/);
@@ -47,11 +55,8 @@ test("portal integra clima, blog, eventos ilustrados e capas dos servicos", () =
   assert.match(portalCss, /\.event-blog-card/);
   assert.match(portalCss, /\.month-calendar-card/);
   assert.match(portalCss, /\.event-detail-layout/);
-  assert.match(portalCss, /@keyframes portal-nav-slide/);
-  assert.match(portalCss, /\.bottom-nav\.is-changing \.nav-slider/);
-  assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.site-header\s*\{[\s\S]*?position:\s*fixed/);
-  assert.match(portalCss, /\.site-header\.is-scrolled\s*\{[\s\S]*?backdrop-filter:\s*blur\(22px\)/);
-  assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.site-header\s*\{[\s\S]*?border:\s*0;[\s\S]*?box-shadow:\s*none/);
+  assert.match(navigationCss, /@media \(max-width: 959px\)[\s\S]*?\.guest-shared-header\.site-header\s*\{[\s\S]*?position:\s*fixed/);
+  assert.match(navigationCss, /\.guest-shared-header\.is-scrolled/);
   assert.match(adminScript, /media_asset_id/);
   assert.match(adminScript, /background_media_asset_id/);
   assert.match(adminScript, /portal\.blog_feed_url/);
@@ -61,9 +66,7 @@ test("portal integra clima, blog, eventos ilustrados e capas dos servicos", () =
 
 test("portal anima a troca de abas a partir da posicao anterior", () => {
   assert.match(portalScript, /previousTab/);
-  assert.match(portalScript, /--nav-from-index/);
   assert.match(portalScript, /portal-tab-transition/);
-  assert.match(portalCss, /animation:\s*portal-nav-slide 0\.42s/);
   assert.match(portalCss, /animation:\s*portal-tab-enter 0\.36s/);
 });
 
@@ -74,33 +77,35 @@ test("shell abre o portal diretamente sem uma segunda tela de carregamento", () 
   assert.doesNotMatch(publicIndex, /loader-screen|Carregando experiência/);
   assert.doesNotMatch(appScript, /app\.innerHTML\s*=\s*moduleLoader[\s\S]*renderGuestPortalHome/);
   assert.doesNotMatch(portalScript, /loading-screen|Carregando portal/);
-  assert.ok(portalScript.indexOf("renderPortal(container, state)") < portalScript.indexOf("await Promise.all"));
+  assert.ok(portalScript.indexOf("renderPortal(container, state)") < portalScript.indexOf("await apiGet"));
+  assert.doesNotMatch(appScript, /Carregando modulo/);
+  assert.doesNotMatch(roomServiceScript, /Carregando cardápio|renderLoading/);
 });
 
 test("header movel ganha blur somente depois da rolagem", () => {
   assert.match(portalScript, /syncHeaderScroll/);
-  assert.match(portalScript, /window\.scrollY > 8/);
+  assert.match(navigationScript, /window\.scrollY > 8/);
   assert.match(portalScript, /addEventListener\("scroll"/);
   assert.match(portalScript, /removeEventListener\("scroll"/);
   assert.match(portalCss, /background:\s*transparent/);
-  assert.match(portalCss, /\.site-header\.is-scrolled/);
+  assert.match(navigationCss, /\.guest-shared-header\.is-scrolled/);
 });
 
-test("mobile leva a navegacao inferior para o cabecalho do portal", () => {
-  assert.match(portalScript, /class="bottom-nav-shell portal-header-nav" data-portal-header-nav/);
-  assert.match(portalScript, /querySelector\("\[data-portal-header-nav\]"\)\?\.classList\.toggle\("is-scrolled"/);
-  assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.portal-header-nav\s*\{[\s\S]*?position:\s*fixed;[\s\S]*?top:\s*calc\(62px \+ env\(safe-area-inset-top\)\);[\s\S]*?bottom:\s*auto/);
-  assert.match(portalCss, /\.portal-header-nav \.bottom-nav\s*\{[\s\S]*?height:\s*52px;[\s\S]*?border-radius:\s*14px/);
-  assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.guest-shell\s*\{[\s\S]*?padding-top:\s*calc\(146px \+ env\(safe-area-inset-top\)\)/);
-  assert.match(portalCss, /@media \(max-width: 380px\)/);
+test("mobile usa menu lateral e remove a navegacao horizontal da tela", () => {
+  assert.match(navigationScript, /data-guest-menu-open/);
+  assert.match(navigationScript, /data-guest-navigation-drawer/);
+  assert.match(navigationScript, /aria-controls="guest-navigation-drawer"/);
+  assert.match(navigationCss, /\.guest-navigation-drawer\s*\{[\s\S]*?transform:\s*translateX\(-104%\)/);
+  assert.match(navigationCss, /\.guest-navigation-drawer\.is-open\s*\{[\s\S]*?translateX\(0\)/);
+  assert.doesNotMatch(portalScript, /bottom-nav|portal-header-nav/);
+  assert.match(navigationCss, /@media \(max-width: 959px\)[\s\S]*?\.guest-portal-root \.guest-shell\s*\{[\s\S]*?padding-top:\s*calc\(82px \+ env\(safe-area-inset-top\)\)/);
 });
 
 test("desktop centraliza header e mostra SVG em todas as guias", () => {
-  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.portal-app-top \.site-header\s*\{[\s\S]*?margin-right:\s*auto;[\s\S]*?margin-left:\s*auto/);
-  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.bottom-nav-shell\s*\{[\s\S]*?width:\s*min\(610px, calc\(100vw - 520px\)\)/);
-  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.bottom-nav button svg\s*\{[\s\S]*?display:\s*block/);
-  assert.match(portalCss, /@media \(min-width: 960px\) and \(max-width: 1120px\)/);
-  assert.equal((portalScript.match(/\["(?:inicio|servicos|eventos|hotel|blog)",/g) || []).length, 5);
+  assert.match(navigationCss, /@media \(min-width: 960px\)[\s\S]*?\.guest-shared-header\.site-header/);
+  assert.match(navigationCss, /\.guest-desktop-nav\s*\{[\s\S]*?display:\s*flex/);
+  assert.match(navigationCss, /\.guest-desktop-nav \.guest-nav-item svg/);
+  assert.equal((navigationScript.match(/\["(?:inicio|servicos|eventos|hotel|blog)",/g) || []).length, 5);
 });
 
 test("desktop usa a capa sanitizada da unidade como fundo de tela inteira", () => {
@@ -125,7 +130,7 @@ test("capa aceita video no desktop e somente na guia inicio do mobile", () => {
 });
 
 test("inicio mobile usa contraste branco e header com respiro seguro", () => {
-  assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.site-header\s*\{[\s\S]*?padding-top:\s*calc\(10px \+ env\(safe-area-inset-top\)\)/);
+  assert.match(navigationCss, /@media \(max-width: 959px\)[\s\S]*?\.guest-shared-header\.site-header\s*\{[\s\S]*?padding:\s*calc\(10px \+ env\(safe-area-inset-top\)\)/);
   assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.guest-portal-root:has\(\.desktop-unit-cover\.is-mobile-home\) \.home-hero-copy \.guest-title/);
   assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\.is-mobile-home\) \.home-info-section \.guest-section-heading button\s*\{[\s\S]*?color:\s*#fff/);
   assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\.is-mobile-home\) \.site-header\.is-scrolled\s*\{[\s\S]*?rgba\(18, 13, 10, 0\.46\)/);
@@ -160,16 +165,34 @@ test("gesto mobile ignora controles interativos e usa somente o conteudo", () =>
   assert.match(portalCss, /\.guest-shell,[\s\S]*?touch-action:\s*pan-y/);
 });
 
-test("navegacao mobile alinha icone e texto sem fundo borrado", () => {
-  assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.portal-header-nav \.bottom-nav \.nav-slider\s*\{\s*display:\s*none/);
-  assert.match(portalCss, /\.portal-header-nav \.bottom-nav button\s*\{[\s\S]*?flex-direction:\s*row;[\s\S]*?gap:\s*4px/);
-  assert.match(portalCss, /\.portal-header-nav\s*\{[\s\S]*?background:\s*transparent;[\s\S]*?backdrop-filter:\s*none/);
-  assert.match(portalCss, /\.portal-header-nav \.bottom-nav button\.active::after/);
+test("navegacao mobile alinha icone e texto no drawer", () => {
+  assert.match(navigationCss, /\.guest-nav-item\s*\{[\s\S]*?display:\s*inline-flex;[\s\S]*?align-items:\s*center;[\s\S]*?gap:\s*13px/);
+  assert.match(navigationCss, /\.guest-nav-item\.is-active\s*\{[\s\S]*?color:\s*#fff/);
+  assert.match(navigationCss, /\.guest-menu-toggle\s*,[\s\S]*?background:\s*transparent/);
 });
 
-test("clima movel reserva o cabecalho e cobre o conteudo de fundo", () => {
-  assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.weather-modal-backdrop\s*\{[\s\S]*?padding:\s*calc\(72px \+ env\(safe-area-inset-top\)\)[\s\S]*?rgba\(250, 249, 247, 0\.97\)/);
-  assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.weather-modal-sheet\s*\{[\s\S]*?max-height:\s*calc\(100dvh - 164px/);
+test("menu lateral inclui todas as secoes e modulos publicos habilitados", () => {
+  const html = renderGuestNavigation({
+    slug: "hotel-ficticio",
+    name: "Hotel Fictício",
+    short_name: "Fictício",
+    branding: {},
+    navigation: [],
+    modules: [
+      { module_key: "guest-portal", name: "Portal", enabled: true },
+      { module_key: "room-service", name: "Room Service", enabled: true },
+      { module_key: "emporio", name: "Empório", enabled: true },
+      { module_key: "spa", name: "Spa", enabled: true },
+      { module_key: "romantic-packages", name: "Pacotes", enabled: true },
+      { module_key: "admin", name: "Admin", enabled: true },
+      { module_key: "oculto", name: "Oculto", enabled: false },
+    ],
+  });
+  for (const label of ["Início", "Serviços", "Eventos", "Hotel", "Blog", "Room Service", "Empório", "Spa", "Pacotes"]) {
+    assert.match(html, new RegExp(label));
+  }
+  assert.doesNotMatch(html, />Admin</);
+  assert.doesNotMatch(html, />Oculto</);
 });
 
 test("portal renderiza varios mapas seguros na secao Como chegar", () => {
@@ -190,13 +213,10 @@ test("central administra uma lista de mapas sem armazenar iframe livre", () => {
   assert.match(adminScript, /Códigos HTML e chaves de API não são armazenados/);
 });
 
-test("desktop alinha as guias e deixa logo, clima e localizacao sem fundo", () => {
-  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.site-header,[\s\S]*?background:\s*transparent;[\s\S]*?backdrop-filter:\s*none/);
-  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.brand-logo-img\s*\{[\s\S]*?background:\s*transparent;[\s\S]*?box-shadow:\s*none/);
-  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.header-weather,[\s\S]*?\.header-location-button\s*\{[\s\S]*?background:\s*transparent;[\s\S]*?box-shadow:\s*none/);
-  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.bottom-nav-shell\s*\{[\s\S]*?top:\s*24px;[\s\S]*?height:\s*64px;[\s\S]*?align-items:\s*center/);
-  assert.match(portalCss, /\.bottom-nav\s*\{[\s\S]*?height:\s*64px;[\s\S]*?padding:\s*9px 4px/);
-  assert.match(portalScript, /class="header-location-label">Como Chegar<\/span>/);
+test("desktop alinha logo e guias compartilhadas sem fundo", () => {
+  assert.match(navigationCss, /@media \(min-width: 960px\)[\s\S]*?\.guest-shared-header\.site-header,[\s\S]*?background:\s*transparent;[\s\S]*?backdrop-filter:\s*none/);
+  assert.match(navigationCss, /\.guest-shared-header \.brand-logo-img\s*\{[\s\S]*?object-fit:\s*contain/);
+  assert.match(navigationCss, /\.guest-desktop-nav \.guest-nav-item\s*\{[\s\S]*?border-radius:\s*999px/);
   assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\) \.desktop-unit-cover::after\s*\{[\s\S]*?rgba\(14, 11, 9, 0\.68\)/);
   assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\) \.home-hero-copy \.guest-title/);
   assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\) \.home-services-section > \.guest-section-title/);

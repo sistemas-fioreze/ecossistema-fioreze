@@ -40,7 +40,6 @@ export async function render(container, context) {
   container.innerHTML = renderStaticShell({ embedded });
   bindStaticActions(container, state);
   if (context.bootstrap) renderHotelHeader(container, state);
-  renderLoading(container, "Carregando cardápio...");
 
   try {
     const [bootstrap, products, roomPayload] = await Promise.all([
@@ -85,14 +84,6 @@ function renderStaticShell({ embedded = false } = {}) {
   return `
     <section class="rs-app${embedded ? " is-portal-page" : ""}" data-rs-app>
       <section class="rs-shell" data-rs-shell>
-        ${embedded ? "" : `<header class="rs-mobile-header">
-          <span class="rs-mobile-header-logo" data-hotel-icon aria-hidden="true"></span>
-          <div>
-            <p class="rs-kicker">Room Service</p>
-            <h1 data-hotel-name></h1>
-          </div>
-        </header>`}
-
         <div class="rs-layout">
           <aside class="rs-order-column">
             <div class="rs-intro-copy">
@@ -148,7 +139,7 @@ function renderStaticShell({ embedded = false } = {}) {
                     <span data-cart-count>0 itens</span>
                   </div>
                   <strong class="rs-cart-value" data-cart-total>${formatMoney(0, "BRL")}</strong>
-                  <button class="rs-primary-button" type="submit" data-submit-order>
+                  <button class="rs-primary-button" type="submit" data-submit-order disabled aria-disabled="true">
                     <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg>
                     <span data-submit-label>Finalizar Pedido</span>
                   </button>
@@ -377,24 +368,6 @@ function syncSubmitButton(container, state) {
   } else {
     button.setAttribute("aria-label", "Finalizar pedido");
     button.removeAttribute("title");
-  }
-}
-
-function renderLoading(container, message) {
-  const catalog = container.querySelector("[data-catalog]");
-  if (catalog) {
-    catalog.innerHTML = "";
-    const card = document.createElement("div");
-    card.className = "rs-state-card";
-    card.textContent = message;
-    catalog.append(card);
-  }
-  const button = container.querySelector("[data-submit-order]");
-  if (button) {
-    button.disabled = true;
-    button.setAttribute("aria-disabled", "true");
-    button.setAttribute("aria-label", message);
-    setText(container, "[data-submit-label]", "Carregando cardápio...");
   }
 }
 

@@ -60,15 +60,14 @@ test("catalogo achata categorias e sanitiza imagens remotas", () => {
   assert.equal(sanitizeMediaPath("https://example.invalid/a.png"), null);
 });
 
-test("shell do Room Service preserva a hierarquia exata do template sem dependencias legadas", () => {
+test("shell do Room Service preserva a hierarquia do cardapio sob o header compartilhado", () => {
   const shell = renderStaticShell();
   const css = fs.readFileSync(new URL("../public/css/modules/room-service/room-service.css", import.meta.url), "utf8");
   const script = fs.readFileSync(new URL("../public/js/modules/room-service/index.js", import.meta.url), "utf8");
 
   assert.ok(shell.indexOf("rs-order-column") < shell.indexOf("rs-menu-column"));
   assert.doesNotMatch(shell, /data-rs-loader|data-hotel-logo-shell/);
-  assert.match(shell, /class="rs-mobile-header"/);
-  assert.match(shell, /data-hotel-icon/);
+  assert.doesNotMatch(shell, /class="rs-mobile-header"|data-hotel-icon|Carregando cardápio/);
   assert.match(shell, /Resumo do Pedido/);
   assert.match(shell, /data-image-viewer/);
   assert.match(shell, /data-submit-overlay/);
@@ -77,8 +76,8 @@ test("shell do Room Service preserva a hierarquia exata do template sem dependen
   assert.match(css, /\.rs-product-card\s*\{[\s\S]*?min-height:\s*220px/);
   assert.match(css, /\.rs-product-media\s*\{[\s\S]*?position:\s*absolute/);
   assert.match(css, /max\(18px, env\(safe-area-inset-left\)\)/);
-  assert.match(css, /\.rs-mobile-header-logo[\s\S]*?width:\s*42px/);
   assert.match(script, /classList\.toggle\("active", state\.activeCategory === category\.id\)/);
+  assert.doesNotMatch(script, /renderLoading|Carregando cardápio/);
   assert.doesNotMatch(script, /IntersectionObserver/);
 });
 
