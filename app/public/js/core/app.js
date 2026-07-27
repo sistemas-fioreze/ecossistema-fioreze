@@ -23,10 +23,13 @@ async function boot() {
 
   app.classList.toggle("guest-portal-root", moduleKey === "guest-portal");
   app.classList.toggle("room-service-root", moduleKey === "room-service");
+  app.classList.toggle("emporio-root", moduleKey === "emporio");
   app.classList.toggle("public-module-root", moduleKey !== "guest-portal");
   document.title = moduleKey === "room-service"
     ? `Room Service | ${bootstrap.short_name || bootstrap.name}`
-    : `${bootstrap.short_name || bootstrap.name} | Portal do Hóspede`;
+    : moduleKey === "emporio"
+      ? `Empório | ${bootstrap.short_name || bootstrap.name}`
+      : `${bootstrap.short_name || bootstrap.name} | Portal do Hóspede`;
 
   if (moduleKey === "guest-portal") {
     const module = await loadModule(moduleKey);

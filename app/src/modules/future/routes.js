@@ -15,7 +15,6 @@ function plannedEndpoint(moduleKey, resourceKey) {
 }
 
 export function registerFutureModuleRoutes(router) {
-  router.get("/api/v1/public/hotels/:hotel_slug/emporio/items", plannedEndpoint("emporio", "items"));
   router.post("/api/v1/public/hotels/:hotel_slug/emporio/orders", plannedEndpoint("emporio", "orders"));
   router.get("/api/v1/public/hotels/:hotel_slug/spa/services", plannedEndpoint("spa", "services"));
   router.post("/api/v1/public/hotels/:hotel_slug/spa/requests", plannedEndpoint("spa", "requests"));

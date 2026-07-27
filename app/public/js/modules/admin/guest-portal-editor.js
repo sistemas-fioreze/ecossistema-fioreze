@@ -32,6 +32,7 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
     save: root.querySelector("#saveGuestPortalButton"),
     status: root.querySelector("#guestPortalEditorStatus"),
     publicLink: root.querySelector("#guestPortalPublicLink"),
+    publicLinkLabel: root.querySelector("#guestPortalPublicLinkLabel"),
     previewName: root.querySelector("#guestPortalPreviewName"),
     previewFrame: root.querySelector("#guestPortalPreviewFrame"),
     preview: root.querySelector("#guestPortalPreview"),
@@ -41,6 +42,8 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
     hotel: null,
     modules: [],
     media: [],
+    catalog: { categories: [], category_options: [] },
+    catalogEditor: null,
     activeTab: "identity",
     device: "desktop",
     dirty: false,
@@ -74,6 +77,7 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
     els.root.addEventListener("click", handleClick);
     els.root.addEventListener("input", handleInput);
     els.root.addEventListener("change", handleChange);
+    els.root.addEventListener("submit", handleSubmit);
     els.preview.addEventListener("load", postPreview);
   }
 
@@ -98,14 +102,17 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
       const requests = [
         adminApi(`/api/v1/admin/hotels/${encodeURIComponent(hotelId)}`),
         adminApi(`/api/v1/admin/hotels/${encodeURIComponent(hotelId)}/modules`),
+        adminApi(`/api/v1/admin/emporio/catalog?hotel_id=${encodeURIComponent(hotelId)}`),
       ];
       if (hasPermission(state.session, PORTALS_MEDIA_READ_PERMISSION)) {
         requests.push(adminApi(`/api/v1/admin/media?hotel_id=${encodeURIComponent(hotelId)}&status=active`));
       }
-      const [hotelPayload, modulesPayload, mediaPayload] = await Promise.all(requests);
+      const [hotelPayload, modulesPayload, catalogPayload, mediaPayload] = await Promise.all(requests);
       state.hotel = structuredClone(hotelPayload.data.hotel);
       state.modules = structuredClone(modulesPayload.data.modules || []);
+      state.catalog = structuredClone(catalogPayload.data || { categories: [], category_options: [] });
       state.media = mediaPayload?.data?.assets || [];
+      state.catalogEditor = null;
       state.dirty = false;
       state.loaded = true;
       els.publicLink.href = publicPortalUrl();
@@ -134,7 +141,9 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
     if (state.activeTab === "identity") els.panel.innerHTML = renderIdentityPanel();
     else if (state.activeTab === "home") els.panel.innerHTML = renderHomePanel();
     else if (state.activeTab === "services") els.panel.innerHTML = renderServicesPanel();
+    else if (state.activeTab === "emporio") els.panel.innerHTML = renderEmporioPanel();
     else els.panel.innerHTML = renderContentPanel();
+    syncEditorChrome();
   }
 
   function renderIdentityPanel() {
@@ -224,6 +233,118 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
       </section>`;
   }
 
+  function renderEmporioPanel() {
+    if (state.catalogEditor?.kind === "category") return renderEmporioCategoryForm();
+    if (state.catalogEditor?.kind === "product") return renderEmporioProductForm();
+    const categories = state.catalog.category_options || [];
+    const products = catalogProducts();
+    return `
+      <section class="guest-editor-section emporio-editor-overview">
+        <header>
+          <strong>Catálogo do Empório</strong>
+          <span>Cadastre produtos para consulta. Nenhum item pode ser comprado pelo portal.</span>
+        </header>
+        <div class="emporio-editor-summary">
+          <span><strong>${products.length}</strong> produtos</span>
+          <span><strong>${categories.length}</strong> categorias</span>
+          <span><strong>${products.filter((item) => item.available).length}</strong> disponíveis</span>
+        </div>
+        <div class="emporio-editor-actions">
+          <button type="button" data-emporio-action="new-category">${icon("plus")} Categoria</button>
+          <button type="button" data-emporio-action="new-product" ${categories.length ? "" : "disabled"}>${icon("plus")} Produto</button>
+        </div>
+      </section>
+      <section class="guest-editor-section">
+        <header><strong>Categorias</strong><span>Organize a navegação pública do catálogo.</span></header>
+        <div class="emporio-editor-category-list">
+          ${categories.map((category) => `
+            <button type="button" data-emporio-action="edit-category" data-id="${escapeAttr(category.id)}">
+              <span><strong>${escapeHtml(category.name)}</strong><small>Ordem ${Number(category.sort_order || 0)}</small></span>
+              ${icon("edit")}
+            </button>`).join("") || '<p class="guest-editor-help">Crie a primeira categoria para começar o catálogo.</p>'}
+        </div>
+      </section>
+      <section class="guest-editor-section">
+        <header><strong>Produtos</strong><span>Preço, imagem e disponibilidade exibidos ao hóspede.</span></header>
+        <div class="emporio-editor-product-list">
+          ${products.map(renderEmporioProductRow).join("") || '<p class="guest-editor-help">Nenhum produto cadastrado.</p>'}
+        </div>
+      </section>`;
+  }
+
+  function renderEmporioProductRow(item) {
+    const media = mediaByRef(item.media_asset_id);
+    const image = media?.public_url || item.image_url || "";
+    return `
+      <button type="button" data-emporio-action="edit-product" data-id="${escapeAttr(item.id)}">
+        <span class="emporio-editor-thumb">${image ? `<img src="${escapeAttr(image)}" alt="">` : icon("bag")}</span>
+        <span><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(formatPrice(item.price_cents, item.currency))} · ${item.available ? "Disponível" : "Indisponível"}</small></span>
+        ${icon("edit")}
+      </button>`;
+  }
+
+  function catalogProducts() {
+    return (state.catalog.categories || []).flatMap((category) =>
+      (category.items || []).map((item) => ({
+        ...item,
+        category_id: category.id,
+        category_name: category.name,
+      })),
+    );
+  }
+
+  function renderEmporioCategoryForm() {
+    const category = state.catalogEditor.value || {};
+    return `
+      <form class="guest-editor-section emporio-editor-form" data-emporio-form="category" data-id="${escapeAttr(category.id || "")}">
+        <header><strong>${category.id ? "Editar categoria" : "Nova categoria"}</strong><span>Use nomes curtos e fáceis de localizar.</span></header>
+        ${textField("Nome", "catalog-category-name", category.name || "")}
+        ${textareaField("Descrição", "catalog-category-description", category.description || "", 500)}
+        <label class="guest-editor-field"><span>Ordem</span><input name="sort_order" type="number" min="0" max="100000" value="${Number(category.sort_order ?? 100)}"></label>
+        ${category.id ? `<label class="guest-editor-field"><span>Status</span><select name="status">${statusOptions(category.status)}</select></label>` : ""}
+        <div class="emporio-editor-form-actions">
+          <button type="button" data-emporio-action="cancel">Cancelar</button>
+          <button class="admin-primary-button" type="submit">Salvar categoria</button>
+        </div>
+        <p class="guest-editor-help" data-emporio-form-status aria-live="polite"></p>
+      </form>`;
+  }
+
+  function renderEmporioProductForm() {
+    const item = state.catalogEditor.value || {};
+    const categories = (state.catalog.category_options || []).filter((category) => category.status !== "archived");
+    const selectedMedia = item.media_asset_id || "";
+    return `
+      <form class="guest-editor-section emporio-editor-form" data-emporio-form="product" data-id="${escapeAttr(item.id || "")}">
+        <header><strong>${item.id ? "Editar produto" : "Novo produto"}</strong><span>O portal exibirá estes dados como catálogo, sem compra online.</span></header>
+        <label class="guest-editor-field"><span>Categoria</span><select name="category_id" required>${categories.map((category) => `<option value="${escapeAttr(category.id)}" ${category.id === item.category_id ? "selected" : ""}>${escapeHtml(category.name)}</option>`).join("")}</select></label>
+        <label class="guest-editor-field"><span>Nome</span><input name="name" maxlength="160" value="${escapeAttr(item.name || "")}" required></label>
+        <label class="guest-editor-field"><span>Descrição</span><textarea name="description" maxlength="1000">${escapeHtml(item.description || "")}</textarea></label>
+        <div class="emporio-editor-form-grid">
+          <label class="guest-editor-field"><span>Preço</span><input name="price" inputmode="decimal" placeholder="0,00" value="${escapeAttr(priceInput(item.price_cents))}" required></label>
+          <label class="guest-editor-field"><span>Etiqueta</span><input name="tag" maxlength="60" value="${escapeAttr(item.tag || "")}" placeholder="Exclusivo"></label>
+          <label class="guest-editor-field"><span>Ordem</span><input name="sort_order" type="number" min="0" max="100000" value="${Number(item.sort_order ?? 100)}"></label>
+          <label class="guest-editor-field"><span>Status</span><select name="status">${statusOptions(item.status || "active")}</select></label>
+        </div>
+        <label class="emporio-editor-availability"><input name="is_available" type="checkbox" ${item.available !== false ? "checked" : ""}><span><strong>Disponível para consulta</strong><small>O hóspede ainda confirmará a disponibilidade com a recepção.</small></span></label>
+        <label class="guest-editor-field"><span>Mensagem de disponibilidade</span><input name="availability_label" maxlength="120" value="${escapeAttr(item.availability_label || "")}" placeholder="Disponível na recepção"></label>
+        <fieldset class="guest-editor-media">
+          <legend>Imagem do produto</legend>
+          <div class="guest-editor-media-grid">
+            <label class="guest-editor-media-option is-empty"><input type="radio" name="media_asset_id" value="" ${selectedMedia ? "" : "checked"}><span>Sem imagem</span></label>
+            ${state.media.filter((asset) => String(asset.mime_type || "").startsWith("image/")).map((asset) => mediaOption("media_asset_id", asset, asset.id === selectedMedia)).join("")}
+          </div>
+          ${hasPermission(state.session, PORTALS_MEDIA_UPLOAD_PERMISSION) ? `
+            <label class="guest-editor-upload"><input type="file" data-emporio-media-upload accept="image/jpeg,image/png,image/webp,image/avif"><span>Enviar imagem do produto</span></label>` : ""}
+        </fieldset>
+        <div class="emporio-editor-form-actions">
+          <button type="button" data-emporio-action="cancel">Cancelar</button>
+          <button class="admin-primary-button" type="submit">Salvar produto</button>
+        </div>
+        <p class="guest-editor-help" data-emporio-form-status aria-live="polite"></p>
+      </form>`;
+  }
+
   function mediaPicker(label, path, selectedValue, options = {}) {
     const assets = state.media.filter((asset) => {
       const type = String(asset.mime_type || "");
@@ -277,7 +398,13 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
     const tab = event.target.closest("[data-guest-editor-tab]");
     if (tab) {
       state.activeTab = tab.dataset.guestEditorTab;
+      state.catalogEditor = null;
       renderPanel();
+      return;
+    }
+    const emporioAction = event.target.closest("[data-emporio-action]");
+    if (emporioAction) {
+      handleEmporioAction(emporioAction);
       return;
     }
     const device = event.target.closest("[data-guest-device]");
@@ -294,12 +421,18 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
   function handleInput(event) {
     const control = event.target.closest("[data-editor-path]");
     if (!control || control.type === "file" || control.type === "radio" || control.type === "checkbox") return;
+    if (control.closest("[data-emporio-form]")) return;
     setPath(control.dataset.editorPath, control.value);
     if (control.type === "color") syncColorPair(control);
     markDirty();
   }
 
   function handleChange(event) {
+    const emporioUpload = event.target.closest("[data-emporio-media-upload]");
+    if (emporioUpload) {
+      uploadEmporioMedia(emporioUpload);
+      return;
+    }
     const upload = event.target.closest("[data-guest-media-upload]");
     if (upload) {
       uploadMedia(upload);
@@ -307,9 +440,142 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
     }
     const control = event.target.closest("[data-editor-path]");
     if (!control || control.type === "file") return;
+    if (control.closest("[data-emporio-form]")) return;
     setPath(control.dataset.editorPath, control.type === "checkbox" ? control.checked : control.value);
     if (control.matches('input[type="text"][pattern]')) syncColorPair(control);
     markDirty();
+  }
+
+  async function handleSubmit(event) {
+    const form = event.target.closest("[data-emporio-form]");
+    if (!form) return;
+    event.preventDefault();
+    const submit = form.querySelector('[type="submit"]');
+    const status = form.querySelector("[data-emporio-form-status]");
+    const data = new FormData(form);
+    const kind = form.dataset.emporioForm;
+    const id = form.dataset.id;
+    submit.disabled = true;
+    status.textContent = "Salvando...";
+    try {
+      if (kind === "category") {
+        const current = state.catalogEditor?.value || {};
+        const body = {
+          hotel_id: state.hotel.hotel_id,
+          name: fieldValue(form, "catalog-category-name"),
+          description: fieldValue(form, "catalog-category-description"),
+          sort_order: Number(data.get("sort_order") || 100),
+          ...(id ? { status: data.get("status") || current.status || "active" } : {}),
+        };
+        await adminApi(
+          id
+            ? `/api/v1/admin/emporio/catalog/categories/${encodeURIComponent(id)}`
+            : "/api/v1/admin/emporio/catalog/categories",
+          { method: id ? "PATCH" : "POST", body },
+        );
+      } else {
+        const body = {
+          hotel_id: state.hotel.hotel_id,
+          category_id: data.get("category_id"),
+          name: data.get("name"),
+          description: data.get("description"),
+          tag: data.get("tag"),
+          price_cents: parsePrice(data.get("price")),
+          currency: state.hotel.currency || "BRL",
+          status: data.get("status") || "active",
+          sort_order: Number(data.get("sort_order") || 100),
+          is_available: data.get("is_available") === "on",
+          availability_label: data.get("availability_label"),
+          media_asset_id: data.get("media_asset_id") || "",
+        };
+        await adminApi(
+          id
+            ? `/api/v1/admin/emporio/catalog/items/${encodeURIComponent(id)}`
+            : "/api/v1/admin/emporio/catalog/items",
+          { method: id ? "PATCH" : "POST", body },
+        );
+      }
+      state.catalogEditor = null;
+      await loadEmporioCatalog();
+      setStatus("Catálogo do Empório atualizado.", "success");
+    } catch (error) {
+      status.textContent = error.message || "Não foi possível salvar.";
+      submit.disabled = false;
+    }
+  }
+
+  function handleEmporioAction(button) {
+    const action = button.dataset.emporioAction;
+    if (action === "cancel") {
+      state.catalogEditor = null;
+      renderPanel();
+      return;
+    }
+    if (action === "new-category") {
+      state.catalogEditor = { kind: "category", value: {} };
+    } else if (action === "edit-category") {
+      state.catalogEditor = {
+        kind: "category",
+        value: structuredClone((state.catalog.category_options || []).find((entry) => entry.id === button.dataset.id) || {}),
+      };
+    } else if (action === "new-product") {
+      state.catalogEditor = {
+        kind: "product",
+        value: { category_id: state.catalog.category_options?.[0]?.id || "", available: true, status: "active" },
+      };
+    } else if (action === "edit-product") {
+      state.catalogEditor = {
+        kind: "product",
+        value: structuredClone(catalogProducts().find((entry) => entry.id === button.dataset.id) || {}),
+      };
+    }
+    renderPanel();
+  }
+
+  async function loadEmporioCatalog() {
+    const payload = await adminApi(`/api/v1/admin/emporio/catalog?hotel_id=${encodeURIComponent(state.hotel.hotel_id)}`);
+    state.catalog = structuredClone(payload.data || { categories: [], category_options: [] });
+    renderPanel();
+  }
+
+  async function uploadEmporioMedia(input) {
+    const file = input.files?.[0];
+    const formElement = input.closest("[data-emporio-form]");
+    if (!file || !formElement) return;
+    captureProductDraft(formElement);
+    input.disabled = true;
+    setStatus("Enviando imagem...");
+    const form = new FormData();
+    form.set("hotel_id", state.hotel.hotel_id);
+    form.set("module_key", MODULE_KEY_FOR_CATALOG);
+    form.set("file", file);
+    try {
+      const payload = await adminApi("/api/v1/admin/media", { method: "POST", body: form });
+      const asset = payload.data.asset;
+      state.media = [asset, ...state.media.filter((entry) => entry.id !== asset.id)];
+      state.catalogEditor.value.media_asset_id = asset.id;
+      renderPanel();
+      setStatus("Imagem enviada e selecionada.", "success");
+    } catch (error) {
+      setStatus(error.message || "Não foi possível enviar a imagem.", "error");
+    }
+  }
+
+  function captureProductDraft(form) {
+    const data = new FormData(form);
+    state.catalogEditor.value = {
+      ...state.catalogEditor.value,
+      category_id: data.get("category_id"),
+      name: data.get("name"),
+      description: data.get("description"),
+      tag: data.get("tag"),
+      price_cents: safeParsePrice(data.get("price")),
+      status: data.get("status"),
+      sort_order: Number(data.get("sort_order") || 100),
+      available: data.get("is_available") === "on",
+      availability_label: data.get("availability_label"),
+      media_asset_id: data.get("media_asset_id") || "",
+    };
   }
 
   function syncColorPair(control) {
@@ -511,6 +777,16 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
     else els.save.removeAttribute("title");
   }
 
+  function syncEditorChrome() {
+    const catalogMode = state.activeTab === "emporio";
+    els.save.hidden = catalogMode;
+    els.publicLink.href = catalogMode ? `${publicPortalUrl()}/emporio` : publicPortalUrl();
+    els.publicLinkLabel.textContent = catalogMode ? "Abrir Empório" : "Abrir portal";
+    const nextPreview = catalogMode ? `${publicPortalUrl()}/emporio?admin_preview=1` : `${publicPortalUrl()}?admin_preview=1`;
+    if (els.preview.getAttribute("src") !== nextPreview) els.preview.src = nextPreview;
+    els.previewName.textContent = catalogMode ? "Empório" : state.hotel.short_name || state.hotel.name;
+  }
+
   function setStatus(message, kind = "") {
     els.status.textContent = message;
     els.status.className = kind ? `is-${kind}` : "";
@@ -548,12 +824,53 @@ function mediaValueForPath(path, asset) {
   return String(path || "").startsWith("branding.") ? asset.public_url : asset.id;
 }
 
+const MODULE_KEY_FOR_CATALOG = "emporio";
+
+function statusOptions(selected) {
+  return [
+    ["active", "Ativo"],
+    ["inactive", "Inativo"],
+    ["archived", "Arquivado"],
+  ].map(([value, label]) => `<option value="${value}" ${value === selected ? "selected" : ""}>${label}</option>`).join("");
+}
+
+function priceInput(cents) {
+  if (cents == null || cents === "") return "";
+  return (Number(cents) / 100).toFixed(2).replace(".", ",");
+}
+
+function parsePrice(value) {
+  const normalized = String(value || "").trim().replace(/\s/g, "").replace(/\./g, "").replace(",", ".");
+  const cents = Math.round(Number(normalized) * 100);
+  if (!Number.isInteger(cents) || cents < 0) throw new Error("Informe um preço válido.");
+  return cents;
+}
+
+function safeParsePrice(value) {
+  try {
+    return parsePrice(value);
+  } catch {
+    return 0;
+  }
+}
+
+function formatPrice(cents, currency = "BRL") {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: currency || "BRL" }).format(Number(cents || 0) / 100);
+}
+
+function fieldValue(form, name) {
+  return form.querySelector(`[data-editor-path="${CSS.escape(name)}"]`)?.value || "";
+}
+
 function icon(name) {
   const paths = {
     calendar: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/>',
     hotel: '<path d="M4 21V5l8-3 8 3v16M9 21v-4h6v4M8 8h.01M12 8h.01M16 8h.01M8 12h.01M12 12h.01M16 12h.01"/>',
     image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 20"/>',
     services: '<path d="M5 14h14M7 14a5 5 0 0 1 10 0M12 7V5M4 18h16"/><path d="M10 5h4"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    edit: '<path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/>',
+    bag: '<path d="M5 8h14l-1 12H6L5 8Z"/><path d="M9 9V7a3 3 0 0 1 6 0v2"/>',
   };
   return `<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[name] || paths.image}</svg>`;
 }

@@ -47,7 +47,7 @@ export function renderGuestNavigation(bootstrap, { activeTab = "inicio", activeM
     <div class="guest-drawer-backdrop" data-guest-menu-close hidden></div>
     <aside class="guest-navigation-drawer" id="guest-navigation-drawer" data-guest-navigation-drawer aria-hidden="true" aria-label="Navegação do hotel">
       <div class="guest-drawer-head">
-        <a class="guest-drawer-brand" href="${escapeHtml(homePath)}">${brand}<span>${escapeHtml(bootstrap.short_name || bootstrap.name)}</span></a>
+        <a class="guest-drawer-brand" href="${escapeHtml(homePath)}" aria-label="Ir para o início">${brand}</a>
         <button type="button" class="guest-menu-close" data-guest-menu-close aria-label="Fechar navegação">${navigationIcon("close")}</button>
       </div>
       <nav class="guest-drawer-nav">

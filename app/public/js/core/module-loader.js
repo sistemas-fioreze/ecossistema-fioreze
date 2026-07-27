@@ -1,6 +1,7 @@
 const MODULE_LOADERS = {
   "guest-portal": () => import("./portal-home.js"),
   "room-service": () => import("../modules/room-service/index.js"),
+  emporio: () => import("../modules/emporio/index.js"),
 };
 
 export async function loadModule(moduleKey) {

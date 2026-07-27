@@ -1,6 +1,10 @@
 import { all } from "../../core/database.js";
 
 export async function listRoomServiceProducts(env, hotelId) {
+  return listCatalogProducts(env, hotelId, "room-service");
+}
+
+export async function listCatalogProducts(env, hotelId, moduleKey) {
   return all(
     env,
     `SELECT ci.id, ci.public_id, ci.name, ci.description, ci.tag, ci.item_type,
@@ -13,11 +17,13 @@ export async function listRoomServiceProducts(env, hotelId) {
        LEFT JOIN catalog_item_availability ca
               ON ca.catalog_item_id = ci.id AND ca.hotel_id = ci.hotel_id
       WHERE ci.hotel_id = ?
-        AND ci.module_key = 'room-service'
-        AND cat.module_key = 'room-service'
+        AND ci.module_key = ?
+        AND cat.module_key = ?
+        AND cat.status = 'active'
+        AND c.status = 'active'
         AND ci.status = 'active'
       ORDER BY c.sort_order, ci.sort_order, ci.name`,
-    [hotelId],
+    [hotelId, moduleKey, moduleKey],
   );
 }
 
