@@ -1,6 +1,11 @@
 import { apiGet } from "../../core/api.js";
 import { escapeHtml } from "../../core/errors.js";
 import { sanitizePublicAssetUrl } from "../../core/theme.js";
+import {
+  bindCatalogMediaViewer,
+  renderCatalogMediaViewer,
+  renderZoomableCatalogMedia,
+} from "../shared/catalog-media-viewer.js";
 
 const MODULE_KEY = "emporio";
 let cleanupCurrentRender = () => {};
@@ -8,6 +13,7 @@ let cleanupCurrentRender = () => {};
 export async function render(container, context) {
   cleanupCurrentRender();
   await loadCss("/css/modules/emporio/emporio.css");
+  await loadCss("/css/modules/shared/catalog-detail.css");
   const bootstrap = context.bootstrap;
   const state = {
     bootstrap,
@@ -20,6 +26,7 @@ export async function render(container, context) {
   };
 
   container.innerHTML = renderShell(bootstrap);
+  const cleanupMediaViewer = bindCatalogMediaViewer(container);
   bindActions(container, state);
   try {
     const catalog = await apiGet(
@@ -41,6 +48,7 @@ export async function render(container, context) {
   cleanupCurrentRender = () => {
     window.removeEventListener("popstate", popstate);
     window.clearInterval(state.carouselTimer);
+    cleanupMediaViewer();
   };
 }
 
@@ -80,10 +88,11 @@ function renderShell(bootstrap) {
         <div class="emporio-loading"><span aria-hidden="true"></span><p>Preparando o catálogo...</p></div>
       </section>
 
-      <section class="emporio-detail" data-emporio-detail hidden aria-modal="true" role="dialog" aria-labelledby="emporio-product-title">
-        <button class="emporio-detail-backdrop" type="button" data-emporio-close aria-label="Fechar detalhes"></button>
-        <article class="emporio-detail-card" data-emporio-detail-card></article>
+      <section class="emporio-detail catalog-detail-layer" data-emporio-detail hidden aria-modal="true" role="dialog" aria-labelledby="emporio-product-title">
+        <button class="emporio-detail-backdrop catalog-detail-backdrop" type="button" data-emporio-close aria-label="Fechar detalhes"></button>
+        <article class="emporio-detail-card catalog-detail-surface" data-emporio-detail-card></article>
       </section>
+      ${renderCatalogMediaViewer()}
     </section>`;
 }
 
@@ -127,7 +136,9 @@ function bindActions(container, state) {
     if (event.target.closest("[data-emporio-close]")) closeProductDetail(container, state);
   });
   container.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && state.selectedProductId) closeProductDetail(container, state);
+    if (event.key === "Escape" && state.selectedProductId && !event.target.closest("[data-catalog-media-viewer]")) {
+      closeProductDetail(container, state);
+    }
   });
 }
 
@@ -294,6 +305,7 @@ function renderProductDetail(container, state) {
   if (!state.selectedProductId) {
     layer.hidden = true;
     document.body.classList.remove("emporio-detail-open");
+    document.body.classList.remove("catalog-detail-open");
     return;
   }
   const item = allItems(state).find(
@@ -309,13 +321,16 @@ function renderProductDetail(container, state) {
   const whatsapp = whatsappAction(state.bootstrap, item);
   const card = container.querySelector("[data-emporio-detail-card]");
   card.innerHTML = `
-    <button class="emporio-detail-close" type="button" data-emporio-close aria-label="Fechar">${icon("close")}</button>
-    <div class="emporio-detail-media">
-      ${image
-        ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(item.image_alt || item.name)}">`
-        : `<span class="emporio-product-placeholder" aria-hidden="true">${icon("gift")}</span>`}
+    <button class="emporio-detail-close catalog-detail-close" type="button" data-emporio-close aria-label="Fechar">${icon("close")}</button>
+    <div class="emporio-detail-media catalog-detail-media">
+      ${renderZoomableCatalogMedia({
+        image,
+        alt: item.image_alt || item.name,
+        label: `Ampliar imagem de ${item.name}`,
+        placeholder: `<span class="emporio-product-placeholder" aria-hidden="true">${icon("gift")}</span>`,
+      })}
     </div>
-    <div class="emporio-detail-content">
+    <div class="emporio-detail-content catalog-detail-content">
       <p>${escapeHtml(item.category_name || "Empório")}</p>
       <h2 id="emporio-product-title">${escapeHtml(item.name)}</h2>
       ${item.tag ? `<span class="emporio-detail-tag">${escapeHtml(item.tag)}</span>` : ""}
@@ -332,6 +347,7 @@ function renderProductDetail(container, state) {
     </div>`;
   layer.hidden = false;
   document.body.classList.add("emporio-detail-open");
+  document.body.classList.add("catalog-detail-open");
   window.requestAnimationFrame(() => card.querySelector("[data-emporio-close]")?.focus({ preventScroll: true }));
 }
 

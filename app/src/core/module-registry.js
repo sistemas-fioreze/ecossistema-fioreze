@@ -1,6 +1,7 @@
 import { registerFutureModuleRoutes } from "../modules/future/routes.js";
 import { registerEmporioRoutes } from "../modules/emporio/routes.js";
 import { registerGuestPortalRoutes } from "../modules/guest-portal/routes.js";
+import { registerRomanticPackageRoutes } from "../modules/romantic-packages/routes.js";
 import { registerRoomServiceRoutes } from "../modules/room-service/routes.js";
 
 export const MODULES = [
@@ -30,7 +31,8 @@ export const MODULES = [
   {
     module_key: "romantic-packages",
     name: "Pacotes Romanticos",
-    status: "planned",
+    status: "functional-foundation",
+    registerRoutes: registerRomanticPackageRoutes,
   },
   {
     module_key: "admin",
