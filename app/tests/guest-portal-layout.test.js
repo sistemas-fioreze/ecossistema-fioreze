@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
 import { renderGuestNavigation } from "../public/js/core/guest-navigation.js";
-import { resolvePortalSwipe } from "../public/js/core/portal-home.js";
+import { getModulePath, resolvePortalSwipe } from "../public/js/core/portal-home.js";
 
 const portalScript = fs.readFileSync(new URL("../public/js/core/portal-home.js", import.meta.url), "utf8");
 const portalCss = fs.readFileSync(
@@ -235,6 +235,20 @@ test("links dos modulos seguem o slug atual mesmo com navegacao antiga", () => {
 
   assert.match(html, /href="\/muller\/room-service"/);
   assert.doesNotMatch(html, /muller-fioreze\/room-service/);
+});
+
+test("cards da pagina inicial seguem o slug atual da unidade", () => {
+  const bootstrap = {
+    slug: "muller",
+    navigation: [
+      {
+        module_key: "room-service",
+        path: "/muller-fioreze/room-service",
+      },
+    ],
+  };
+
+  assert.equal(getModulePath(bootstrap, "room-service"), "/muller/room-service");
 });
 
 test("portal renderiza varios mapas seguros na secao Como chegar", () => {
