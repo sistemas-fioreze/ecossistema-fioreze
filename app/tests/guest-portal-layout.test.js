@@ -96,7 +96,8 @@ test("modulos internos usam capa do servico com titulo, icone e horario canonico
   assert.match(navigationCss, /\.public-module-hero-copy h1 svg/);
   assert.match(navigationCss, /\.has-module-hero \.guest-shared-header/);
   assert.match(navigationCss, /\.public-module-hero::after\s*\{[\s\S]*?linear-gradient\(180deg, transparent, var\(--color-background, #fff\)\)/);
-  assert.match(navigationCss, /min-height:\s*clamp\(250px,\s*30vw,\s*380px\)/);
+  assert.match(navigationCss, /min-height:\s*clamp\(125px,\s*15vw,\s*190px\)/);
+  assert.match(navigationCss, /@media \(max-width: 959px\)[\s\S]*?min-height:\s*clamp\(120px,\s*34vw,\s*150px\)/);
 });
 
 test("header movel ganha blur somente depois da rolagem", () => {
@@ -210,6 +211,30 @@ test("menu lateral inclui todas as secoes e modulos publicos habilitados", () =>
   }
   assert.doesNotMatch(html, />Admin</);
   assert.doesNotMatch(html, />Oculto</);
+});
+
+test("links dos modulos seguem o slug atual mesmo com navegacao antiga", () => {
+  const html = renderGuestNavigation({
+    slug: "muller",
+    name: "Muller & Fioreze",
+    branding: {},
+    navigation: [
+      {
+        module_key: "room-service",
+        path: "/muller-fioreze/room-service",
+      },
+    ],
+    modules: [
+      {
+        module_key: "room-service",
+        name: "Room Service",
+        enabled: true,
+      },
+    ],
+  });
+
+  assert.match(html, /href="\/muller\/room-service"/);
+  assert.doesNotMatch(html, /muller-fioreze\/room-service/);
 });
 
 test("portal renderiza varios mapas seguros na secao Como chegar", () => {

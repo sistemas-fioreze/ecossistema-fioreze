@@ -133,13 +133,7 @@ function getGuestModules(bootstrap) {
 }
 
 function getModulePath(bootstrap, moduleKey) {
-  const configured = (bootstrap.navigation || []).find((item) => item.module_key === moduleKey)?.path;
-  if (isSafeInternalPath(configured)) return configured;
   return `/${encodeURIComponent(bootstrap.slug)}/${encodeURIComponent(moduleKey)}`;
-}
-
-function isSafeInternalPath(value) {
-  return typeof value === "string" && /^\/(?!\/)[A-Za-z0-9_~!$&'()*+,;=:@%./-]*$/.test(value);
 }
 
 export function navigationIcon(name) {

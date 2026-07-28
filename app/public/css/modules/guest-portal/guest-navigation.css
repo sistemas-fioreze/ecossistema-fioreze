@@ -45,7 +45,7 @@
 }
 
 .public-module-hero {
-  min-height: clamp(250px, 30vw, 380px);
+  min-height: clamp(125px, 15vw, 190px);
   display: flex;
   align-items: flex-end;
   position: relative;
@@ -72,7 +72,7 @@
   bottom: -1px;
   left: 0;
   z-index: 1;
-  height: clamp(42px, 7vw, 76px);
+  height: clamp(21px, 3.5vw, 38px);
   pointer-events: none;
   background: linear-gradient(180deg, transparent, var(--color-background, #fff));
 }
@@ -92,7 +92,7 @@
   z-index: 2;
   gap: 8px;
   margin: 0 auto;
-  padding: 0 0 clamp(54px, 6vw, 78px);
+  padding: 0 0 clamp(27px, 3vw, 39px);
 }
 
 .public-module-hero-copy h1 {
@@ -340,12 +340,12 @@
   }
 
   .public-module-hero {
-    min-height: clamp(240px, 68vw, 300px);
+    min-height: clamp(120px, 34vw, 150px);
   }
 
   .public-module-hero-copy {
     width: calc(100% - max(36px, env(safe-area-inset-left) + env(safe-area-inset-right)));
-    padding-bottom: 50px;
+    padding-bottom: 25px;
   }
 }
 

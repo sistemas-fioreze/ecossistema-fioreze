@@ -5,6 +5,19 @@
   overflow: hidden;
 }
 
+body[data-admin-design="workspace"][data-admin-shell="erp"]
+  .admin-portals-surface[data-active-portal-section="contentManager"] {
+  padding: 0;
+  overflow: hidden;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"]
+  .admin-portals-surface[data-active-portal-section="contentManager"]
+  > .admin-guest-portal-manager {
+  min-height: 0;
+  height: 100%;
+}
+
 .guest-portal-editor {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
