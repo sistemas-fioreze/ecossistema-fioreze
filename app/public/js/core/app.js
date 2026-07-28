@@ -33,7 +33,7 @@ async function boot() {
   app.classList.toggle("romantic-packages-root", moduleKey === "romantic-packages");
   app.classList.toggle("spa-root", moduleKey === "spa");
   app.classList.toggle("public-module-root", moduleKey !== "guest-portal");
-  app.classList.toggle("has-module-hero", !["guest-portal", "emporio", "spa"].includes(moduleKey));
+  app.classList.toggle("has-module-heading", !["guest-portal", "emporio", "spa"].includes(moduleKey));
   document.title = moduleKey === "room-service"
     ? `Room Service | ${bootstrap.short_name || bootstrap.name}`
     : moduleKey === "emporio"
@@ -67,23 +67,23 @@ async function boot() {
 }
 
 function renderShell(bootstrap, moduleKey) {
-  const hero = ["emporio", "spa"].includes(moduleKey) ? "" : renderModuleHero(bootstrap, moduleKey);
+  const heading = ["emporio", "spa"].includes(moduleKey) ? "" : renderModuleHeading(bootstrap, moduleKey);
   return `
     <section class="portal-shell public-module-shell">
       ${renderGuestNavigation(bootstrap, { activeModule: moduleKey })}
-      ${hero}
+      ${heading}
       <section class="module-view" data-module-view data-module-key="${moduleKey}">
       </section>
     </section>
   `;
 }
 
-function renderModuleHero(bootstrap, moduleKey) {
+function renderModuleHeading(bootstrap, moduleKey) {
   const module = bootstrap.modules?.find((entry) => entry.module_key === moduleKey);
   if (!module) return "";
   return `
-    <section class="public-module-hero">
-      <div class="public-module-hero-copy">
+    <section class="public-module-heading">
+      <div class="public-module-heading-copy">
         <h1>${escapeText(module.navigation_label || module.name || moduleKey)}</h1>
       </div>
     </section>`;

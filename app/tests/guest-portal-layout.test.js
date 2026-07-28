@@ -83,18 +83,17 @@ test("shell abre o portal diretamente sem uma segunda tela de carregamento", () 
 });
 
 test("cabecalhos dos modulos exibem somente o titulo sem imagem", () => {
-  assert.match(appScript, /has-module-hero/);
-  assert.match(appScript, /function renderModuleHero/);
+  assert.match(appScript, /has-module-heading/);
+  assert.match(appScript, /function renderModuleHeading/);
   assert.match(appScript, /<h1>\$\{escapeText\(module\.navigation_label/);
-  assert.doesNotMatch(appScript, /--module-hero-image|public-module-hero-shade|navigationIcon\(moduleKey\)|roomServiceHours/);
+  assert.doesNotMatch(appScript, /public-module-hero|--module-hero-image|public-module-hero-shade|navigationIcon\(moduleKey\)|roomServiceHours/);
   assert.match(appScript, /\["guest-portal", "emporio", "spa"\]\.includes\(moduleKey\)/);
   assert.match(appScript, /\["emporio", "spa"\]\.includes\(moduleKey\)/);
   assert.match(navigationScript, /hideBrand = false/);
   assert.match(navigationScript, /is-brand-hidden/);
-  assert.doesNotMatch(navigationCss, /--module-hero-image|\.public-module-hero::before|\.public-module-hero-shade/);
-  assert.match(navigationCss, /\.has-module-hero \.guest-shared-header/);
-  assert.match(navigationCss, /min-height:\s*clamp\(125px,\s*15vw,\s*190px\)/);
-  assert.match(navigationCss, /@media \(max-width: 959px\)[\s\S]*?min-height:\s*clamp\(120px,\s*34vw,\s*150px\)/);
+  assert.doesNotMatch(navigationCss, /public-module-hero|has-module-hero|--module-hero-image/);
+  assert.match(navigationCss, /\.public-module-heading\s*\{[\s\S]*?background:\s*transparent;/);
+  assert.match(navigationCss, /\.public-module-heading-copy h1/);
 });
 
 test("header movel ganha blur somente depois da rolagem", () => {
