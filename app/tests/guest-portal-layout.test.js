@@ -88,7 +88,8 @@ test("modulos internos usam capa do servico com titulo, icone e horario canonico
   assert.match(appScript, /module\.background_image_url/);
   assert.match(appScript, /navigationIcon\(moduleKey\)/);
   assert.match(appScript, /evaluateServiceStatus\(\{[\s\S]*?serviceHours:\s*bootstrap\.service_hours\?\.\["room-service"\]/);
-  assert.match(appScript, /moduleKey !== "emporio"/);
+  assert.match(appScript, /\["guest-portal", "emporio", "spa"\]\.includes\(moduleKey\)/);
+  assert.match(appScript, /\["emporio", "spa"\]\.includes\(moduleKey\)/);
   assert.match(navigationScript, /hideBrand = false/);
   assert.match(navigationScript, /is-brand-hidden/);
   assert.match(navigationCss, /\.public-module-hero-shade/);

@@ -64,9 +64,13 @@ Pedidos guardam `hotel_id`, `module_key`, origem, acomodacao quando aplicavel, v
 
 ## Spa
 
+- `spa_shared_profile`;
+- `spa_shared_services`;
 - `spa_services`;
 - `spa_service_requests`;
 - `spa_appointments`.
+
+`spa_shared_profile` e `spa_shared_services` formam o catálogo institucional único do Spa Zena. Essas tabelas não usam `hotel_id` intencionalmente: todas as unidades consomem a mesma informação. A disponibilidade pública continua isolada por hotel em `hotel_modules`. As tabelas anteriores por hotel permanecem reservadas para futuras solicitações, agendas e operações específicas de cada unidade.
 
 ## Pacotes Romanticos
 

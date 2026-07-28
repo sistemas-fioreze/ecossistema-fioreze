@@ -33,15 +33,18 @@ async function boot() {
   app.classList.toggle("room-service-root", moduleKey === "room-service");
   app.classList.toggle("emporio-root", moduleKey === "emporio");
   app.classList.toggle("romantic-packages-root", moduleKey === "romantic-packages");
+  app.classList.toggle("spa-root", moduleKey === "spa");
   app.classList.toggle("public-module-root", moduleKey !== "guest-portal");
-  app.classList.toggle("has-module-hero", moduleKey !== "guest-portal" && moduleKey !== "emporio");
+  app.classList.toggle("has-module-hero", !["guest-portal", "emporio", "spa"].includes(moduleKey));
   document.title = moduleKey === "room-service"
     ? `Room Service | ${bootstrap.short_name || bootstrap.name}`
     : moduleKey === "emporio"
       ? `Empório | ${bootstrap.short_name || bootstrap.name}`
       : moduleKey === "romantic-packages"
         ? `Pacotes românticos | ${bootstrap.short_name || bootstrap.name}`
-      : `${bootstrap.short_name || bootstrap.name} | Portal do Hóspede`;
+        : moduleKey === "spa"
+          ? `Spa | ${bootstrap.short_name || bootstrap.name}`
+          : `${bootstrap.short_name || bootstrap.name} | Portal do Hóspede`;
 
   if (moduleKey === "guest-portal") {
     const module = await loadModule(moduleKey);
@@ -66,7 +69,7 @@ async function boot() {
 }
 
 function renderShell(bootstrap, moduleKey) {
-  const hero = moduleKey === "emporio" ? "" : renderModuleHero(bootstrap, moduleKey);
+  const hero = ["emporio", "spa"].includes(moduleKey) ? "" : renderModuleHero(bootstrap, moduleKey);
   return `
     <section class="portal-shell public-module-shell">
       ${renderGuestNavigation(bootstrap, { activeModule: moduleKey })}

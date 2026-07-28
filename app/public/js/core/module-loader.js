@@ -3,6 +3,7 @@ const MODULE_LOADERS = {
   "room-service": () => import("../modules/room-service/index.js"),
   emporio: () => import("../modules/emporio/index.js"),
   "romantic-packages": () => import("../modules/romantic-packages/index.js"),
+  spa: () => import("../modules/spa/index.js"),
 };
 
 export async function loadModule(moduleKey) {

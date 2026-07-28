@@ -164,11 +164,16 @@ Implementados:
 - `GET /:hotel_slug/romantic-packages`
 - `GET /api/v1/public/hotels/:hotel_slug/romantic-packages/packages`
 - `GET /:hotel_slug/spa`
+- `GET /api/v1/public/hotels/:hotel_slug/spa/services`
+- `GET /api/v1/admin/spa/catalog`
+- `PATCH /api/v1/admin/spa/profile`
+- `POST /api/v1/admin/spa/services`
+- `PATCH /api/v1/admin/spa/services/:id`
 
 Contratos futuros:
 
 - Emporio: pedidos permanecem desativados; o modulo e somente catalogo;
-- Spa: services e requests;
+- Spa: o catalogo compartilhado e funcional; requests e agenda permanecem futuros;
 - Pacotes Romanticos: o catalogo publico e funcional; requests permanecem preparados para uma etapa futura.
 
 ## Variaveis
@@ -473,6 +478,8 @@ Em **Portais > Portal do Hóspede**, a Central oferece um editor guiado para o �
 
 A guia **Empório** desse editor administra categorias, produtos, descrições, etiquetas, preços, ordem, disponibilidade e imagens da Biblioteca de Mídia. Ela também controla até oito destaques editoriais do carrossel, com título, imagem e ordenação. Quando nenhum destaque é configurado, o portal usa as imagens do catálogo como fallback. O catálogo público não cria carrinho, checkout ou pedido; a ação comercial abre o WhatsApp público cadastrado em `contact.whatsapp` para a recepção confirmar informações e disponibilidade.
 
+A guia **Spa** administra um catálogo institucional global do Spa Zena. Perfil, mensagens, regras, contato, logo, serviços, durações, preços, ordem e imagens são cadastrados uma vez e compartilhados por todas as unidades. A ativação pública continua independente por hotel em `hotel_modules`. O portal não usa tela de carregamento intermediária e não depende do Apps Script anterior. Consulte `docs/arquitetura/SPA_SHARED_CATALOG.md`.
+
 O shell publico do Portal do Hospede e unico para todos os hoteis. Ele reproduz a composicao visual da referencia aprovada com identidade dinamica por unidade: cabecalho compartilhado, menu lateral no mobile, navegacao integrada entre os modulos habilitados, servicos ilustrados, evento em destaque, lista e calendario de eventos, detalhe editorial, informacoes do hotel e blog. O mesmo cabecalho acompanha o hospede no Room Service e nos demais modulos publicos. Cores, tipografia, logos, modulos, imagens e conteudos continuam vindo do bootstrap e das APIs do hotel selecionado; nenhum HTML ou dado do Muller fica fixo no shell compartilhado.
 
 A migration `0022_guest_portal_event_details.sql` amplia `events` de forma aditiva com descricao completa, local, categoria e tags. A migration `0023_guest_portal_event_actions.sql` acrescenta um botao editorial opcional por evento, formado por texto e URL HTTPS validados em conjunto. A migration `0027_portal_event_permanence.sql` permite manter um evento permanentemente publicado. Esses campos sustentam a visualizacao editorial de eventos e podem ser administrados pela Central de Portais. As migrations nao cadastram nem alteram eventos existentes.
@@ -551,7 +558,7 @@ No ERP, a mensagem exibida e `Impressao desativada neste ambiente.`. Mudar statu
 
 - evolucao dos conteudos estruturados do Portal do Hospede oficial;
 - compra on-line no Emporio, que permanece intencionalmente fora do escopo do catalogo;
-- Spa funcional;
+- solicitacoes e agendamento on-line do Spa;
 - administracao e solicitacao on-line de Pacotes Romanticos;
 - ERP administrativo completo;
 - relatorios administrativos exportaveis;

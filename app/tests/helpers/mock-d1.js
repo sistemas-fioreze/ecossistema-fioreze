@@ -267,6 +267,42 @@ function createFixtureData() {
       availability("aurora-sandwich", "aurora-demo", 1),
     ],
     romanticPackages: [],
+    spaSharedProfile: {
+      id: "spa-zena",
+      title: "Spa Zena",
+      subtitle: "Cuidar de voce e a nossa essencia.",
+      intro_text: "Conheca nossos servicos de relaxamento e bem-estar.",
+      about_text: "Conteudo institucional ficticio do Spa.",
+      booking_title: "Agende seu horario",
+      booking_text: "Consulte a disponibilidade com a equipe.",
+      whatsapp_number: "5554999999999",
+      whatsapp_service_message: "Mensagem para {hotel_name}: {service_name}.",
+      whatsapp_general_message: "Mensagem geral para {hotel_name}.",
+      hours_text: "das 9h as 20h",
+      usage_rules_json: JSON.stringify(["Regra ficticia de utilizacao."]),
+      logo_media_asset_id: null,
+      status: "active",
+      created_at: "2026-07-28T00:00:00.000Z",
+      updated_at: "2026-07-28T00:00:00.000Z",
+      archived_at: null,
+    },
+    spaSharedServices: [
+      {
+        id: "spa-service-shared-relax",
+        name: "Massagem Relaxante Ficticia",
+        description: "Servico ficticio para testes locais.",
+        duration_label: "50 minutos",
+        duration_minutes: 50,
+        price_cents: 25000,
+        currency: "BRL",
+        media_asset_id: null,
+        status: "active",
+        sort_order: 10,
+        created_at: "2026-07-28T00:00:00.000Z",
+        updated_at: "2026-07-28T00:00:00.000Z",
+        archived_at: null,
+      },
+    ],
     adminUsers: [
       {
         id: "user-demo-admin",
@@ -845,6 +881,58 @@ class MockD1Database {
       return this.data.modules.find((moduleRow) => moduleRow.module_key === moduleKey) || null;
     }
 
+    if (normalized.includes("from spa_shared_profile p") && normalized.includes("where p.status = 'active'")) {
+      const profile = this.data.spaSharedProfile;
+      if (!profile || profile.status !== "active") return null;
+      const media = this.data.mediaAssets.find(
+        (entry) => entry.id === profile.logo_media_asset_id && entry.status === "active",
+      );
+      return {
+        ...profile,
+        logo_url: media?.public_url || null,
+        logo_alt: media?.alt_text || null,
+      };
+    }
+
+    if (normalized.includes("from spa_shared_profile p") && normalized.includes("where p.id = ?")) {
+      const [profileId] = params;
+      const profile = this.data.spaSharedProfile;
+      if (!profile || profile.id !== profileId) return null;
+      const media = this.data.mediaAssets.find((entry) => entry.id === profile.logo_media_asset_id);
+      return {
+        ...profile,
+        logo_url: media?.public_url || null,
+        logo_alt: media?.alt_text || null,
+      };
+    }
+
+    if (normalized.includes("from spa_shared_services s") && normalized.includes("where s.id = ?")) {
+      const [serviceId] = params;
+      const service = this.data.spaSharedServices.find((entry) => entry.id === serviceId);
+      if (!service) return null;
+      const media = this.data.mediaAssets.find((entry) => entry.id === service.media_asset_id);
+      return {
+        ...service,
+        image_url: media?.public_url || null,
+        image_alt: media?.alt_text || null,
+      };
+    }
+
+    if (
+      normalized.includes("select id, hotel_id") &&
+      normalized.includes("from media_assets") &&
+      normalized.includes("mime_type like 'image/%'")
+    ) {
+      const [assetId] = params;
+      const asset = this.data.mediaAssets.find(
+        (entry) =>
+          entry.id === assetId &&
+          entry.status === "active" &&
+          String(entry.mime_type || "").startsWith("image/"),
+      );
+      return asset ? { id: asset.id, hotel_id: asset.hotel_id } : null;
+    }
+
     if (normalized.includes("from catalogs c") && normalized.includes("join hotels h") && normalized.includes("c.status = 'active'")) {
       const [hotelId, moduleKey] = params;
       const catalogRow = this.data.catalogs.find((entry) => entry.hotel_id === hotelId && entry.module_key === moduleKey && entry.status === "active");
@@ -1265,6 +1353,25 @@ class MockD1Database {
 
   selectAll(sql, params) {
     const normalized = normalize(sql);
+
+    if (normalized.includes("from spa_shared_services s")) {
+      const activeOnly = normalized.includes("where s.status = 'active'");
+      return this.data.spaSharedServices
+        .filter((entry) => !activeOnly || (entry.status === "active" && entry.archived_at == null))
+        .map((entry) => {
+          const media = this.data.mediaAssets.find(
+            (candidate) =>
+              candidate.id === entry.media_asset_id &&
+              (!activeOnly || candidate.status === "active"),
+          );
+          return {
+            ...entry,
+            image_url: media?.public_url || null,
+            image_alt: media?.alt_text || null,
+          };
+        })
+        .sort((a, b) => Number(a.sort_order) - Number(b.sort_order) || a.name.localeCompare(b.name));
+    }
 
     if (normalized.includes("from portal_pages") && normalized.includes("status = 'published'")) {
       const [hotelId, moduleKey] = params;
@@ -2111,6 +2218,114 @@ class MockD1Database {
 
   execute(sql, params) {
     const normalized = normalize(sql);
+
+    if (normalized.startsWith("update spa_shared_profile")) {
+      const [
+        title,
+        subtitle,
+        intro_text,
+        about_text,
+        booking_title,
+        booking_text,
+        whatsapp_number,
+        whatsapp_service_message,
+        whatsapp_general_message,
+        hours_text,
+        usage_rules_json,
+        logo_media_asset_id,
+        status,
+        updated_at,
+        archived_at,
+        profileId,
+      ] = params;
+      const profile = this.data.spaSharedProfile;
+      if (!profile || profile.id !== profileId) return d1Result(0);
+      Object.assign(profile, {
+        title,
+        subtitle,
+        intro_text,
+        about_text,
+        booking_title,
+        booking_text,
+        whatsapp_number,
+        whatsapp_service_message,
+        whatsapp_general_message,
+        hours_text,
+        usage_rules_json,
+        logo_media_asset_id,
+        status,
+        updated_at,
+        archived_at,
+      });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("insert into spa_shared_services")) {
+      const [
+        id,
+        name,
+        description,
+        duration_label,
+        duration_minutes,
+        price_cents,
+        currency,
+        media_asset_id,
+        status,
+        sort_order,
+        created_at,
+        updated_at,
+        archived_at,
+      ] = params;
+      this.data.spaSharedServices.push({
+        id,
+        name,
+        description,
+        duration_label,
+        duration_minutes,
+        price_cents,
+        currency,
+        media_asset_id,
+        status,
+        sort_order,
+        created_at,
+        updated_at,
+        archived_at,
+      });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update spa_shared_services")) {
+      const [
+        name,
+        description,
+        duration_label,
+        duration_minutes,
+        price_cents,
+        currency,
+        media_asset_id,
+        status,
+        sort_order,
+        updated_at,
+        archived_at,
+        serviceId,
+      ] = params;
+      const service = this.data.spaSharedServices.find((entry) => entry.id === serviceId);
+      if (!service) return d1Result(0);
+      Object.assign(service, {
+        name,
+        description,
+        duration_label,
+        duration_minutes,
+        price_cents,
+        currency,
+        media_asset_id,
+        status,
+        sort_order,
+        updated_at,
+        archived_at,
+      });
+      return d1Result(1);
+    }
 
     if (normalized.startsWith("insert into orders")) {
       const [
