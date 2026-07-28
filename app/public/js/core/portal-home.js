@@ -1,4 +1,5 @@
 import { apiGet } from "./api.js";
+import { trackPortalVisit } from "./analytics.js";
 import { escapeHtml } from "./errors.js";
 import {
   bindGuestNavigation,
@@ -318,6 +319,7 @@ function bindPortal(container, state) {
 function activatePortalTab(container, state, nextTab, { scroll = true } = {}) {
   if (!PORTAL_NAV_ITEMS.some(([key]) => key === nextTab)) return;
   closeGuestNavigation(container);
+  const changed = state.activeTab !== nextTab;
   state.previousTab = state.activeTab;
   state.activeTab = nextTab;
   state.selectedEventId = null;
@@ -329,6 +331,7 @@ function activatePortalTab(container, state, nextTab, { scroll = true } = {}) {
   window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
   afterRender(container, state, scroll);
   if (state.activeTab === "blog") loadBlog(container, state);
+  if (changed) trackPortalVisit(state.bootstrap.slug, nextTab);
 }
 
 function closeEventDetail(container, state) {

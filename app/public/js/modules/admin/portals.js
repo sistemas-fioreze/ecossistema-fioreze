@@ -93,6 +93,8 @@ const els = {
   mediaMoveError: document.getElementById("mediaMoveError"),
   mediaGrid: document.getElementById("mediaGrid"),
   shortLinksManager: document.getElementById("shortLinksManager"),
+  shortLinksWorkspace: document.getElementById("shortLinksWorkspace"),
+  analyticsViewButtons: [...document.querySelectorAll("[data-analytics-view]")],
   shortLinksFilters: document.getElementById("shortLinksFilters"),
   shortLinksHotel: document.getElementById("shortLinksHotel"),
   shortLinksStatus: document.getElementById("shortLinksStatus"),
@@ -105,7 +107,25 @@ const els = {
   shortLinksEditorTitle: document.getElementById("shortLinksEditorTitle"),
   shortLinksForm: document.getElementById("shortLinksForm"),
   shortLinksPreview: document.getElementById("shortLinksPreview"),
+  shortLinkAnalyticsFilters: document.getElementById("shortLinkAnalyticsFilters"),
+  shortLinkAnalyticsFrom: document.getElementById("shortLinkAnalyticsFrom"),
+  shortLinkAnalyticsTo: document.getElementById("shortLinkAnalyticsTo"),
+  shortLinkAnalyticsRegion: document.getElementById("shortLinkAnalyticsRegion"),
+  resetShortLinkAnalyticsButton: document.getElementById("resetShortLinkAnalyticsButton"),
   shortLinksAnalytics: document.getElementById("shortLinksAnalytics"),
+  portalAnalyticsWorkspace: document.getElementById("portalAnalyticsWorkspace"),
+  portalAnalyticsFilters: document.getElementById("portalAnalyticsFilters"),
+  portalAnalyticsHotel: document.getElementById("portalAnalyticsHotel"),
+  portalAnalyticsFrom: document.getElementById("portalAnalyticsFrom"),
+  portalAnalyticsTo: document.getElementById("portalAnalyticsTo"),
+  portalAnalyticsRegion: document.getElementById("portalAnalyticsRegion"),
+  portalAnalyticsMessage: document.getElementById("portalAnalyticsMessage"),
+  portalAnalyticsSummary: document.getElementById("portalAnalyticsSummary"),
+  portalAnalyticsDaily: document.getElementById("portalAnalyticsDaily"),
+  portalAnalyticsPages: document.getElementById("portalAnalyticsPages"),
+  portalAnalyticsHours: document.getElementById("portalAnalyticsHours"),
+  portalAnalyticsLocations: document.getElementById("portalAnalyticsLocations"),
+  portalAnalyticsRecent: document.getElementById("portalAnalyticsRecent"),
   shortLinkQrPanel: document.getElementById("shortLinkQrPanel"),
   shortLinkQrImage: document.getElementById("shortLinkQrImage"),
   shortLinkQrUrl: document.getElementById("shortLinkQrUrl"),
@@ -287,6 +307,18 @@ els.mediaFolderForm.addEventListener("submit", saveMediaFolder);
 els.mediaFolderDialog.querySelector("[data-media-folder-cancel]").addEventListener("click", closeMediaFolderDialog);
 els.mediaMoveForm.addEventListener("submit", saveMediaMove);
 els.mediaMoveDialog.querySelector("[data-media-move-cancel]").addEventListener("click", closeMediaMoveDialog);
+for (const button of els.analyticsViewButtons) {
+  button.addEventListener("click", () => selectAnalyticsView(button.dataset.analyticsView));
+}
+els.portalAnalyticsFilters.addEventListener("submit", (event) => {
+  event.preventDefault();
+  loadPortalAnalytics();
+});
+els.shortLinkAnalyticsFilters.addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (currentShortLink) loadShortLinkAnalytics(currentShortLink.id);
+});
+els.resetShortLinkAnalyticsButton.addEventListener("click", resetCurrentShortLinkAnalytics);
 els.shortLinksFilters.addEventListener("submit", (event) => {
   event.preventDefault();
   loadShortLinks();
@@ -1092,6 +1124,8 @@ function renderShortLinksManager(session) {
   if (!allowed) return;
 
   populateShortLinksHotelSelect(session);
+  initializeAnalyticsDates();
+  selectAnalyticsView("links", { load: false });
   els.addShortLinkButton.hidden = !hasPermission(session, PORTALS_LINKS_CREATE_PERMISSION);
   closeShortLinkEditor();
   loadShortLinks();
@@ -1102,6 +1136,115 @@ function populateShortLinksHotelSelect(session) {
   els.shortLinksHotel.innerHTML = hotels
     .map((hotel) => `<option value="${escapeAttr(hotel.hotel_id)}">${escapeHtml(hotel.short_name || hotel.name)}</option>`)
     .join("");
+  els.portalAnalyticsHotel.innerHTML = els.shortLinksHotel.innerHTML;
+}
+
+function initializeAnalyticsDates() {
+  const to = new Date();
+  const from = new Date(to);
+  from.setUTCDate(from.getUTCDate() - 29);
+  for (const input of [els.shortLinkAnalyticsTo, els.portalAnalyticsTo]) input.value = to.toISOString().slice(0, 10);
+  for (const input of [els.shortLinkAnalyticsFrom, els.portalAnalyticsFrom]) input.value = from.toISOString().slice(0, 10);
+}
+
+function selectAnalyticsView(view, { load = true } = {}) {
+  const portals = view === "portals";
+  els.shortLinksWorkspace.hidden = portals;
+  els.portalAnalyticsWorkspace.hidden = !portals;
+  els.shortLinksManager.dataset.analyticsView = portals ? "portals" : "links";
+  for (const button of els.analyticsViewButtons) {
+    button.setAttribute("aria-pressed", String(button.dataset.analyticsView === (portals ? "portals" : "links")));
+  }
+  if (portals && load) loadPortalAnalytics();
+}
+
+async function loadPortalAnalytics() {
+  if (!currentSession || !els.portalAnalyticsHotel.value) return;
+  const params = new URLSearchParams({
+    hotel_id: els.portalAnalyticsHotel.value,
+    from: els.portalAnalyticsFrom.value,
+    to: els.portalAnalyticsTo.value,
+  });
+  if (els.portalAnalyticsRegion.value.trim()) params.set("region", els.portalAnalyticsRegion.value.trim());
+  els.portalAnalyticsWorkspace.setAttribute("aria-busy", "true");
+  try {
+    const payload = await adminApi(`/api/v1/admin/portal-analytics?${params}`);
+    renderPortalAnalytics(payload.data.analytics);
+    els.portalAnalyticsMessage.textContent = `Período de ${formatAnalyticsDay(payload.data.analytics.period.from)} a ${formatAnalyticsDay(payload.data.analytics.period.to)}.`;
+  } catch (error) {
+    clearPortalAnalytics();
+    els.portalAnalyticsMessage.textContent = error.message || "Não foi possível carregar os acessos dos portais.";
+  } finally {
+    els.portalAnalyticsWorkspace.removeAttribute("aria-busy");
+  }
+}
+
+function renderPortalAnalytics(analytics) {
+  const summary = [
+    ["Visitantes únicos", analytics.unique_visitors],
+    ["Visitas totais", analytics.total_visits],
+    ["Retornos", analytics.repeated_visits],
+    ["Último acesso", analytics.last_visit_at ? formatDate(analytics.last_visit_at) : "Nenhum"],
+  ];
+  els.portalAnalyticsSummary.innerHTML = summary
+    .map(([label, value]) => `<article><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value))}</strong></article>`)
+    .join("");
+  els.portalAnalyticsDaily.innerHTML = analyticsBars(analytics.daily, "visit_date", "unique_visitors", formatAnalyticsDay);
+  els.portalAnalyticsHours.innerHTML = analyticsBars(analytics.hourly, "hour", "unique_visitors", (value) => `${String(value || "--").padStart(2, "0")}:00`);
+  els.portalAnalyticsPages.innerHTML = analyticsRanking(analytics.pages, (row) => portalPageLabel(row.page_key));
+  els.portalAnalyticsLocations.innerHTML = analyticsRanking(analytics.locations, (row) => [row.region, row.country_code].filter(Boolean).join(" · ") || "Não informado");
+  els.portalAnalyticsRecent.innerHTML = (analytics.recent || []).map((row) => `
+    <article>
+      <div><strong>${escapeHtml(portalPageLabel(row.page_key))}</strong><span>${escapeHtml([row.region, row.country_code].filter(Boolean).join(" · ") || "Local não informado")}</span></div>
+      <div><b>${Number(row.unique_visitors || 0)} visitante(s)</b><span>${Number(row.total_visits || 0)} visita(s) · ${escapeHtml(formatDate(row.last_visit_at))}</span></div>
+    </article>`).join("") || '<div class="admin-empty compact">Nenhum acesso no período.</div>';
+}
+
+function analyticsBars(rows, labelKey, valueKey, labelFormatter) {
+  if (!rows?.length) return '<div class="admin-empty compact">Sem dados no período.</div>';
+  const max = Math.max(1, ...rows.map((row) => Number(row[valueKey] || 0)));
+  return rows.map((row) => {
+    const value = Number(row[valueKey] || 0);
+    const height = Math.max(8, Math.round((value / max) * 100));
+    return `<article title="${escapeAttr(`${value} visitante(s)`)}"><strong>${value}</strong><i style="--analytics-size:${height}%"></i><span>${escapeHtml(labelFormatter(row[labelKey]))}</span></article>`;
+  }).join("");
+}
+
+function analyticsRanking(rows, labelFormatter) {
+  if (!rows?.length) return '<div class="admin-empty compact">Sem dados no período.</div>';
+  const max = Math.max(1, ...rows.map((row) => Number(row.unique_visitors || 0)));
+  return rows.map((row, index) => {
+    const value = Number(row.unique_visitors || 0);
+    const width = Math.max(5, Math.round((value / max) * 100));
+    return `<article><b>${index + 1}</b><div><strong>${escapeHtml(labelFormatter(row))}</strong><i style="--analytics-size:${width}%"></i></div><span>${value}</span></article>`;
+  }).join("");
+}
+
+function clearPortalAnalytics() {
+  els.portalAnalyticsSummary.innerHTML = "";
+  for (const target of [els.portalAnalyticsDaily, els.portalAnalyticsPages, els.portalAnalyticsHours, els.portalAnalyticsLocations, els.portalAnalyticsRecent]) {
+    target.innerHTML = '<div class="admin-empty compact">Sem dados disponíveis.</div>';
+  }
+}
+
+function portalPageLabel(pageKey) {
+  return ({
+    inicio: "Início",
+    servicos: "Serviços",
+    eventos: "Eventos",
+    hotel: "Hotel",
+    blog: "Blog",
+    "room-service": "Room Service",
+    emporio: "Empório",
+    spa: "Spa",
+    "romantic-packages": "Pacotes românticos",
+  })[pageKey] || String(pageKey || "Página").replaceAll("-", " ");
+}
+
+function formatAnalyticsDay(value) {
+  if (!value) return "--";
+  const [year, month, day] = String(value).split("-");
+  return `${day}/${month}/${year}`;
 }
 
 async function loadShortLinks() {
@@ -1141,7 +1284,7 @@ function renderShortLinksSummary() {
     ["Ativos", active],
     ["Pausados", paused],
     ["Arquivados", archived],
-    ["Cliques", clicks],
+    ["Acessos registrados", clicks],
   ]
     .map(([label, value]) => `<article><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value))}</strong></article>`)
     .join("");
@@ -1171,7 +1314,7 @@ function renderShortLinkRow(link) {
         <small>Destino: ${escapeHtml(link.destination_summary || link.destination_scheme)}</small>
       </div>
       <div class="admin-link-card-metrics">
-        <span><strong>${Number(link.total_clicks || 0)}</strong> cliques</span>
+        <span><strong>${Number(link.total_clicks || 0)}</strong> acessos registrados</span>
         <span>${link.last_clicked_at ? `Último acesso ${escapeHtml(formatDate(link.last_clicked_at, link.hotel_timezone))}` : "Ainda sem acessos"}</span>
         <small>${escapeHtml(link.hotel_name || link.hotel_id)}</small>
       </div>
@@ -1223,6 +1366,10 @@ function openShortLinkEditor(link = null, defaults = {}) {
     control.disabled = !canManage;
   }
   form.querySelector('[type="submit"]').hidden = !canManage;
+  els.shortLinkAnalyticsFilters.hidden = !link || !hasPermission(currentSession, PORTALS_LINKS_ANALYTICS_PERMISSION);
+  els.resetShortLinkAnalyticsButton.hidden = !link || !canManage || !hasPermission(currentSession, PORTALS_LINKS_ANALYTICS_PERMISSION);
+  els.resetShortLinkAnalyticsButton.disabled = !link?.analytics_reset_available;
+  els.resetShortLinkAnalyticsButton.textContent = link?.analytics_reset_available ? "Zerar cliques uma única vez" : "Cliques já foram zerados";
   renderShortLinkAnalytics(null);
   renderShortLinkQr(link);
   resetShortLinkSharing();
@@ -1238,6 +1385,8 @@ function closeShortLinkEditor() {
   els.shortLinksEditor.hidden = true;
   els.shortLinksForm.reset();
   els.shortLinksPreview.textContent = "";
+  els.shortLinkAnalyticsFilters.hidden = true;
+  els.resetShortLinkAnalyticsButton.hidden = true;
   for (const control of els.shortLinksForm.elements) control.disabled = false;
   els.shortLinksForm.querySelector('[type="submit"]').hidden = false;
   renderShortLinkQr(null);
@@ -1456,11 +1605,35 @@ function shortLinkStatus(status) {
 }
 
 async function loadShortLinkAnalytics(linkId) {
+  const params = new URLSearchParams({
+    from: els.shortLinkAnalyticsFrom.value,
+    to: els.shortLinkAnalyticsTo.value,
+  });
+  if (els.shortLinkAnalyticsRegion.value.trim()) params.set("region", els.shortLinkAnalyticsRegion.value.trim());
   try {
-    const payload = await adminApi(`/api/v1/admin/short-links/${encodeURIComponent(linkId)}/analytics`);
+    const payload = await adminApi(`/api/v1/admin/short-links/${encodeURIComponent(linkId)}/analytics?${params}`);
     renderShortLinkAnalytics(payload.data.analytics);
   } catch {
     renderShortLinkAnalytics(null);
+  }
+}
+
+async function resetCurrentShortLinkAnalytics() {
+  if (!currentShortLink?.analytics_reset_available) return;
+  if (!window.confirm("Zerar definitivamente as métricas deste link? Esta ação só pode ser usada uma vez.")) return;
+  els.resetShortLinkAnalyticsButton.disabled = true;
+  try {
+    const payload = await adminApi(`/api/v1/admin/short-links/${encodeURIComponent(currentShortLink.id)}/analytics/reset`, {
+      method: "POST",
+      body: { slug: currentShortLink.slug },
+    });
+    currentShortLink = payload.data.link;
+    els.resetShortLinkAnalyticsButton.textContent = "Cliques já foram zerados";
+    await loadShortLinkAnalytics(currentShortLink.id);
+    await loadShortLinks();
+  } catch (error) {
+    els.shortLinksMessage.textContent = error.message || "Não foi possível zerar as métricas.";
+    els.resetShortLinkAnalyticsButton.disabled = !currentShortLink.analytics_reset_available;
   }
 }
 
@@ -1469,14 +1642,65 @@ function renderShortLinkAnalytics(analytics) {
     els.shortLinksAnalytics.innerHTML = '<div class="admin-empty">Métricas agregadas aparecem aqui após o primeiro acesso.</div>';
     return;
   }
+  const locations = analytics.locations || [];
+  const hourly = analytics.hourly || [];
+  const recentVisits = analytics.recent_visits || [];
   els.shortLinksAnalytics.innerHTML = `
-    <div class="admin-short-link-analytics">
-      <article><span>Total</span><strong>${Number(analytics.total_clicks || 0)}</strong></article>
+    <div class="admin-short-link-analytics-grid">
+      <article><span>Visitantes únicos</span><strong>${Number(analytics.tracked_unique_visitors ?? analytics.total_clicks ?? 0)}</strong></article>
       <article><span>7 dias</span><strong>${Number(analytics.last_7_days || 0)}</strong></article>
       <article><span>30 dias</span><strong>${Number(analytics.last_30_days || 0)}</strong></article>
+      <article><span>Aberturas repetidas</span><strong>${Number(analytics.repeated_opens || 0)}</strong></article>
       <article><span>Último acesso</span><strong>${analytics.last_clicked_at ? escapeHtml(formatDate(analytics.last_clicked_at)) : "Nenhum"}</strong></article>
     </div>
+    <div class="admin-short-link-detail-grid">
+      <section>
+        <header><strong>Localização</strong><span>País e estado</span></header>
+        ${locations.length ? locations.map(renderShortLinkLocation).join("") : '<div class="admin-empty compact">Sem localização registrada.</div>'}
+      </section>
+      <section>
+        <header><strong>Horários</strong><span>Cliques únicos por faixa</span></header>
+        ${hourly.length ? `<div class="admin-short-link-hours">${hourly.map(renderShortLinkHour).join("")}</div>` : '<div class="admin-empty compact">Sem horário registrado.</div>'}
+      </section>
+      <section class="admin-short-link-history">
+        <header><strong>Histórico recente</strong><span>Sem IP, token ou dados pessoais</span></header>
+        ${recentVisits.length ? recentVisits.map(renderShortLinkVisit).join("") : '<div class="admin-empty compact">Nenhum acesso recente.</div>'}
+      </section>
+    </div>
   `;
+}
+
+function renderShortLinkLocation(row) {
+  const label = [row.region, row.country_code].filter(Boolean).join(" · ") || "Não informado";
+  const repeats = Math.max(0, Number(row.total_attempts || 0) - Number(row.unique_clicks || 0));
+  return `
+    <article class="admin-short-link-location">
+      <span>${escapeHtml(label)}</span>
+      <strong>${Number(row.unique_clicks || 0)}</strong>
+      <small>${repeats ? `${repeats} abertura(s) repetida(s)` : "Sem repetição"}</small>
+    </article>`;
+}
+
+function renderShortLinkHour(row) {
+  const attempts = Number(row.total_attempts || 0);
+  const uniques = Number(row.unique_clicks || 0);
+  const percent = Math.min(100, Math.max(8, uniques * 12));
+  return `
+    <article>
+      <span>${escapeHtml(String(row.hour || "--").padStart(2, "0"))}:00</span>
+      <div><i style="width:${percent}%"></i></div>
+      <strong>${uniques}</strong>
+      <small>${attempts > uniques ? `${attempts - uniques} repetida(s)` : ""}</small>
+    </article>`;
+}
+
+function renderShortLinkVisit(row) {
+  const location = [row.region, row.country_code].filter(Boolean).join(" · ") || "Local não informado";
+  return `
+    <article>
+      <div><strong>${escapeHtml(formatDate(row.last_clicked_at || row.first_clicked_at))}</strong><span>${escapeHtml(location)}</span></div>
+      <small>${Number(row.repeat_count || 0) > 1 ? `${Number(row.repeat_count || 0)} aberturas no mesmo dia` : "Primeira abertura do dia"}</small>
+    </article>`;
 }
 
 function updateShortLinkPreview() {

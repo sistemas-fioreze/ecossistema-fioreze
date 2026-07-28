@@ -106,15 +106,47 @@ O 404 do dominio curto retorna JSON, `Cache-Control: no-store`, `X-Robots-Tag: n
 
 ## Analytics e Privacidade
 
-A cada `GET` redirecionado, o Worker incrementa:
+A cada `GET` redirecionado, o Worker cria um identificador HMAC a partir do endereco de rede e do link. O endereco original nunca e persistido. Para o mesmo link:
 
-- `short_links.total_clicks`;
-- `short_links.last_clicked_at`;
-- `short_link_clicks_daily.click_count`.
+- o primeiro acesso do visitante incrementa `short_links.total_clicks`;
+- o primeiro acesso em cada dia incrementa `short_link_clicks_daily.click_count`;
+- acessos seguintes atualizam somente as quantidades de repeticao;
+- outro visitante conta como um novo clique unico;
+- `HEAD` nunca entra nas metricas.
 
-As metricas sao agregadas por dia UTC. O sistema nao armazena IP, user-agent, referrer, query do visitante, cookies, e-mail ou identificadores pessoais do visitante.
+`short_link_unique_visitors` mantem o total unico do link. `short_link_click_visitors` mantem a distribuicao diaria. Ambas armazenam apenas HMAC, pais, estado ou regiao, horarios e contadores. O HMAC muda entre links, evitando correlacao entre campanhas.
 
-Falha de analytics nao deve bloquear o redirect.
+Links existentes podem ter `total_clicks` coletado antes da migration 0028. Por isso a listagem chama esse valor de acessos registrados, enquanto o painel detalhado usa as novas tabelas para apresentar visitantes realmente deduplicados. A precisao por visitante comeca depois da migration ou depois do reset unico.
+
+A tela administrativa oferece filtros de data e local, distribuicao por horario, localizacao, acessos recentes e repeticoes. O total de visitantes unicos elimina repeticoes inclusive entre dias diferentes.
+
+`SHORT_LINK_ANALYTICS_KEY` deve ser uma secret com pelo menos 32 caracteres. `LOGIN_RATE_LIMIT_KEY` e usada como contingencia para manter compatibilidade, mas uma chave dedicada e recomendada.
+
+O sistema nao armazena IP bruto, user-agent, referrer, query do visitante, cookies, e-mail ou qualquer valor usado para criar o HMAC. Falha de analytics nao bloqueia o redirect.
+
+### Reset unico
+
+O proprietario pode zerar as metricas de um link uma unica vez para remover acessos de homologacao. A operacao:
+
+- exige `portals.links.analytics` e `portals.links.update`;
+- exige confirmacao do slug;
+- zera os totais e exclui os agregados e visitantes protegidos daquele link;
+- grava `analytics_reset_at`, responsavel e nonce de concorrencia;
+- executa em batch atomico;
+- registra `short-link.analytics-reset` na auditoria;
+- responde conflito em toda tentativa posterior.
+
+O reset nao pode ser reabilitado pela interface e nao afeta outros links ou hoteis.
+
+## Analytics dos Portais
+
+O shell publico registra a abertura inicial e cada troca interna de guia em `POST /api/v1/public/hotels/:hotel_slug/portal/analytics/visit`.
+
+O payload contem somente `page_key`. O Worker resolve hotel, modulo, data e localizacao. A tabela `portal_visit_visitors` usa HMAC estavel apenas dentro do hotel, sem IP bruto, e mantem contadores diarios separados por pagina.
+
+Na Central, `GET /api/v1/admin/portal-analytics` apresenta somente os hoteis autorizados ao usuario e agrega visitantes unicos por dia, visitas, retornos, evolucao por data, paginas mais acessadas, horarios, pais, estado ou regiao e historico recente.
+
+`PORTAL_ANALYTICS_KEY` e a secret dedicada. Na ausencia dela, a ordem de contingencia e `SHORT_LINK_ANALYTICS_KEY` e depois `LOGIN_RATE_LIMIT_KEY`. Os endpoints administrativos nunca retornam o HMAC do visitante.
 
 ## QR Code
 
@@ -165,6 +197,7 @@ Acoes registradas:
 - `short-link.delete`
 - `short-link.share`
 - `short-link.share-revoke`
+- `short-link.analytics-reset`
 
 A auditoria registra entidade, ID, hotel, slug, campos alterados e usuario. O destino completo nao e gravado no audit log para reduzir risco de expor tokens ou parametros sensiveis.
 

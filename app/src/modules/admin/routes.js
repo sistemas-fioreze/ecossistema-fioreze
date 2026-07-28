@@ -89,10 +89,12 @@ import {
   getAdminShortLinkQrCode,
   listAdminShortLinkShares,
   listAdminShortLinks,
+  resetAdminShortLinkAnalytics,
   revokeAdminShortLinkShare,
   shareAdminShortLink,
   updateAdminShortLink,
 } from "./short-links.js";
+import { getAdminPortalAnalytics } from "./portal-analytics.js";
 import {
   archiveAdminCustomPortalPage,
   createAdminCustomPortalPage,
@@ -771,9 +773,19 @@ export function registerAdminRoutes(router) {
     return ok(await archiveAdminShortLink({ request, env, session, linkId: params.id }));
   });
 
-  router.get("/api/v1/admin/short-links/:id/analytics", async ({ request, env, params }) => {
+  router.get("/api/v1/admin/short-links/:id/analytics", async ({ request, env, params, url }) => {
     const session = await requireAuthentication({ request, env });
-    return ok(await getAdminShortLinkAnalytics({ request, env, session, linkId: params.id }));
+    return ok(await getAdminShortLinkAnalytics({ request, env, session, linkId: params.id, url }));
+  });
+
+  router.post("/api/v1/admin/short-links/:id/analytics/reset", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await resetAdminShortLinkAnalytics({ request, env, session, linkId: params.id }));
+  });
+
+  router.get("/api/v1/admin/portal-analytics", async ({ request, env, url }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await getAdminPortalAnalytics({ request, env, session, url }));
   });
 
   router.get("/api/v1/admin/short-links/:id/qrcode.svg", async ({ request, env, params, url }) => {

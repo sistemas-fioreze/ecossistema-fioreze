@@ -4,6 +4,7 @@ import { ok } from "../../core/responses.js";
 import { resolveTenantBySlug } from "../../core/tenant.js";
 import { requestNow } from "../../core/time.js";
 import { requireEnabledModule } from "../../middleware/require-module.js";
+import { recordPublicPortalVisit } from "../../services/public-analytics.js";
 import { loadPublicBlog } from "../../services/public-portal-feeds.js";
 
 const MODULE_KEY = "guest-portal";
@@ -13,6 +14,13 @@ export function registerGuestPortalRoutes(router) {
   router.get("/api/v1/public/hotels/:hotel_slug/portal/pages", getPortalPages);
   router.get("/api/v1/public/hotels/:hotel_slug/portal/events", getPortalEvents);
   router.get("/api/v1/public/hotels/:hotel_slug/portal/blog", getPortalBlog);
+  router.post("/api/v1/public/hotels/:hotel_slug/portal/analytics/visit", trackPortalVisit);
+}
+
+async function trackPortalVisit({ request, env, params }) {
+  const tenant = await requirePublicPortal(env, params.hotel_slug);
+  const result = await recordPublicPortalVisit({ request, env, hotelId: tenant.hotel_id });
+  return ok(result, { status: 202, cacheControl: "no-store" });
 }
 
 async function getPortalHome({ request, env, params }) {

@@ -301,36 +301,191 @@ export async function getAdminShortLinkQrCode({ request, env, session, linkId, u
   return new Response(createQrCodeSvg(publicUrl), { status: 200, headers });
 }
 
-export async function getAdminShortLinkAnalytics({ request, env, session, linkId }) {
+export async function getAdminShortLinkAnalytics({ request, env, session, linkId, url }) {
   requirePermission(session, ANALYTICS_PERMISSION);
   const link = await loadShortLinkForSession({ env, session, linkId });
   if (!link) throw notFoundError("Link não encontrado.");
-  const rows = await all(
-    env,
-    `SELECT click_date, click_count, first_clicked_at, last_clicked_at
-       FROM short_link_clicks_daily
-      WHERE short_link_id = ?
-      ORDER BY click_date ASC`,
-    [link.id],
-  );
   const now = requestNow({ request, env });
+  const period = analyticsPeriod(url, now);
+  const regionSearch = optionalString(url.searchParams.get("region"), "region", { max: 80 }).toLowerCase();
+  const regionLike = regionSearch ? `%${regionSearch}%` : null;
+  const visitorParams = [link.id, period.from, period.to, regionLike, regionLike];
+  const visitorWhere = `short_link_id = ? AND click_date BETWEEN ? AND ?
+    AND (? IS NULL OR lower(coalesce(region, '')) LIKE ?)`;
+  const [dailyRows, visitorSummary, locationRows, hourlyRows, recentRows] = await Promise.all([
+    all(
+      env,
+      `SELECT click_date,
+              COUNT(DISTINCT visitor_hash) AS click_count,
+              MIN(first_clicked_at) AS first_clicked_at,
+              MAX(last_clicked_at) AS last_clicked_at
+         FROM short_link_click_visitors
+        WHERE ${visitorWhere}
+        GROUP BY click_date
+        ORDER BY click_date ASC`,
+      visitorParams,
+    ),
+    first(
+      env,
+      `SELECT COUNT(DISTINCT visitor_hash) AS unique_visitors,
+              coalesce(SUM(click_count), 0) AS total_attempts
+         FROM short_link_click_visitors
+        WHERE ${visitorWhere}`,
+      visitorParams,
+    ),
+    all(
+      env,
+      `SELECT coalesce(country_code, 'Nao informado') AS country_code,
+              coalesce(region, 'Nao informado') AS region,
+              COUNT(DISTINCT visitor_hash) AS unique_clicks,
+              SUM(click_count) AS total_attempts,
+              MAX(last_clicked_at) AS last_clicked_at
+         FROM short_link_click_visitors
+        WHERE ${visitorWhere}
+        GROUP BY coalesce(country_code, 'Nao informado'), coalesce(region, 'Nao informado')
+        ORDER BY unique_clicks DESC, total_attempts DESC, last_clicked_at DESC
+        LIMIT 12`,
+      visitorParams,
+    ),
+    all(
+      env,
+      `SELECT substr(first_clicked_at, 12, 2) AS hour,
+              COUNT(DISTINCT visitor_hash) AS unique_clicks,
+              SUM(click_count) AS total_attempts
+         FROM short_link_click_visitors
+        WHERE ${visitorWhere}
+        GROUP BY substr(first_clicked_at, 12, 2)
+        ORDER BY hour ASC`,
+      visitorParams,
+    ),
+    all(
+      env,
+      `SELECT click_date, first_clicked_at, last_clicked_at, click_count,
+              country_code, region
+         FROM short_link_click_visitors
+        WHERE ${visitorWhere}
+        ORDER BY last_clicked_at DESC
+        LIMIT 20`,
+      visitorParams,
+    ),
+  ]);
+  const uniqueVisitors = Number(visitorSummary?.unique_visitors || 0);
+  const totalAttempts = Number(visitorSummary?.total_attempts || 0);
   return {
     analytics: {
       link_id: link.id,
       hotel_id: link.hotel_id,
       slug: link.slug,
       total_clicks: Number(link.total_clicks || 0),
+      unique_clicks: dailyRows.reduce((sum, row) => sum + Number(row.click_count || 0), 0),
+      tracked_unique_visitors: uniqueVisitors,
+      repeated_opens: Math.max(0, totalAttempts - uniqueVisitors),
       last_clicked_at: link.last_clicked_at || null,
-      last_7_days: sumSince(rows, now, 7),
-      last_30_days: sumSince(rows, now, 30),
-      daily: rows.map((row) => ({
+      period,
+      last_7_days: sumSince(dailyRows, now, 7),
+      last_30_days: sumSince(dailyRows, now, 30),
+      daily: dailyRows.map((row) => ({
         date: row.click_date,
         clicks: Number(row.click_count || 0),
         first_clicked_at: row.first_clicked_at,
         last_clicked_at: row.last_clicked_at,
       })),
+      locations: locationRows.map((row) => ({
+        country_code: row.country_code,
+        region: row.region,
+        unique_clicks: Number(row.unique_clicks || 0),
+        total_attempts: Number(row.total_attempts || 0),
+        last_clicked_at: row.last_clicked_at || null,
+      })),
+      hourly: hourlyRows.map((row) => ({
+        hour: row.hour,
+        unique_clicks: Number(row.unique_clicks || 0),
+        total_attempts: Number(row.total_attempts || 0),
+      })),
+      recent_visits: recentRows.map((row) => ({
+        date: row.click_date,
+        first_clicked_at: row.first_clicked_at,
+        last_clicked_at: row.last_clicked_at,
+        repeat_count: Number(row.click_count || 0),
+        country_code: row.country_code || null,
+        region: row.region || null,
+      })),
     },
   };
+}
+
+export async function resetAdminShortLinkAnalytics({ request, env, session, linkId }) {
+  requirePermission(session, ANALYTICS_PERMISSION);
+  requirePermission(session, UPDATE_PERMISSION);
+  assertAdminMutationAllowed({ request });
+  const link = await loadShortLinkForSession({ env, session, linkId, ownerOnly: true });
+  if (!link) throw notFoundError("Link não encontrado.");
+  if (link.analytics_reset_at) throw conflict("As métricas deste link já foram zeradas uma vez.");
+
+  const payload = await readJson(request);
+  rejectUnknownFields(payload, new Set(["slug"]));
+  if (requireString(payload.slug, "slug", { max: 64 }) !== link.slug) {
+    throw badRequest("Confirmação do link inválida.");
+  }
+
+  const now = requestNow({ request, env });
+  const resetNonce = createPublicId("reset");
+  const auditId = createPublicId("audit");
+  const results = await batch(env, [
+    statement(
+      env,
+      `UPDATE short_links
+          SET total_clicks = 0,
+              last_clicked_at = NULL,
+              analytics_reset_at = ?,
+              analytics_reset_by_user_id = ?,
+              analytics_reset_nonce = ?,
+              updated_by_user_id = ?,
+              updated_at = ?
+        WHERE id = ?
+          AND hotel_id = ?
+          AND analytics_reset_at IS NULL`,
+      [now, session.user.id, resetNonce, session.user.id, now, link.id, link.hotel_id],
+    ),
+    statement(
+      env,
+      `DELETE FROM short_link_clicks_daily
+        WHERE short_link_id = ?
+          AND EXISTS (SELECT 1 FROM short_links WHERE id = ? AND analytics_reset_nonce = ?)`,
+      [link.id, link.id, resetNonce],
+    ),
+    statement(
+      env,
+      `DELETE FROM short_link_click_visitors
+        WHERE short_link_id = ?
+          AND EXISTS (SELECT 1 FROM short_links WHERE id = ? AND analytics_reset_nonce = ?)`,
+      [link.id, link.id, resetNonce],
+    ),
+    statement(
+      env,
+      `DELETE FROM short_link_unique_visitors
+        WHERE short_link_id = ?
+          AND EXISTS (SELECT 1 FROM short_links WHERE id = ? AND analytics_reset_nonce = ?)`,
+      [link.id, link.id, resetNonce],
+    ),
+    statement(
+      env,
+      `INSERT INTO admin_audit_log (
+         id, hotel_id, module_key, actor_user_id, action, entity_type,
+         entity_id, metadata_json, created_at
+       )
+       SELECT ?, sl.hotel_id, NULL, ?, 'short-link.analytics-reset', 'short_link',
+              sl.id, ?, ?
+         FROM short_links sl
+        WHERE sl.id = ? AND sl.analytics_reset_nonce = ?`,
+      [auditId, session.user.id, JSON.stringify({ slug: link.slug, reset_once: true }), now, link.id, resetNonce],
+    ),
+  ]);
+  if (Number(results[0]?.meta?.changes || 0) !== 1) {
+    throw conflict("As métricas deste link já foram zeradas uma vez.");
+  }
+  const updated = await loadShortLinkForSession({ env, session, linkId });
+  return { link: formatShortLink(updated, { request, env, session }), reset: true };
 }
 
 export async function listAdminShortLinkShares({ env, session, linkId }) {
@@ -497,6 +652,8 @@ function formatShortLink(row, { request, env, session }) {
     notes: row.notes || null,
     total_clicks: Number(row.total_clicks || 0),
     last_clicked_at: row.last_clicked_at || null,
+    analytics_reset_available: !row.analytics_reset_at,
+    analytics_reset_at: row.analytics_reset_at || null,
     created_by_user_id: row.created_by_user_id,
     updated_by_user_id: row.updated_by_user_id,
     archived_by_user_id: row.archived_by_user_id || null,
@@ -518,6 +675,26 @@ function parseInteger(value, { defaultValue, max }) {
   const number = Number(value);
   if (!Number.isInteger(number) || number < 0 || number > max) throw badRequest("Paginação inválida.");
   return number;
+}
+
+function analyticsPeriod(url, nowIso) {
+  const to = parseAnalyticsDate(url.searchParams.get("to"), "to") || nowIso.slice(0, 10);
+  const fromDefault = new Date(`${to}T00:00:00.000Z`);
+  fromDefault.setUTCDate(fromDefault.getUTCDate() - 29);
+  const from = parseAnalyticsDate(url.searchParams.get("from"), "from") || fromDefault.toISOString().slice(0, 10);
+  if (from > to) throw badRequest("O início do período deve ser anterior ao fim.");
+  const days = Math.floor((Date.parse(`${to}T00:00:00.000Z`) - Date.parse(`${from}T00:00:00.000Z`)) / 86400000);
+  if (days > 365) throw badRequest("O período máximo para consulta é de 366 dias.");
+  return { from, to };
+}
+
+function parseAnalyticsDate(value, label) {
+  if (value == null || value === "") return "";
+  const normalized = String(value).trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized) || Number.isNaN(Date.parse(`${normalized}T00:00:00.000Z`))) {
+    throw badRequest(`${label} deve ser uma data válida.`);
+  }
+  return normalized;
 }
 
 function sumSince(rows, nowIso, days) {
