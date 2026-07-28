@@ -49,6 +49,7 @@ function renderShell(state) {
           </div>
 
           <div class="spa-zena-introduction">
+            <p class="spa-zena-location">${icon("location")}<span data-spa-location>${escapeHtml(state.profile.location_text)}</span></p>
             <p data-spa-subtitle>${escapeHtml(state.profile.subtitle)}</p>
             <p data-spa-intro>${escapeHtml(state.profile.intro_text)}</p>
             <button type="button" data-spa-about>${icon("info")}<span>Quem Somos</span></button>
@@ -146,6 +147,7 @@ function bindActions(container, state) {
 
 function renderProfile(container, state) {
   setText(container, "[data-spa-title]", state.profile.title);
+  setText(container, "[data-spa-location]", state.profile.location_text);
   setText(container, "[data-spa-subtitle]", state.profile.subtitle);
   setText(container, "[data-spa-intro]", state.profile.intro_text);
   setText(container, "[data-spa-booking-title]", state.profile.booking_title);
@@ -284,6 +286,7 @@ function defaultProfile() {
     title: "Spa Zena",
     subtitle: "Cuidar de você é a nossa essência.",
     intro_text: "Conheça nossos serviços de relaxamento e bem-estar.",
+    location_text: "Localizado no Hotel Müller & Fioreze, em Gramado.",
     about_text: "",
     booking_title: "Agende seu horário",
     booking_text: "Selecione a terapia desejada e consulte a disponibilidade.",
@@ -294,6 +297,7 @@ function defaultProfile() {
 function icon(name) {
   const paths = {
     info: '<path d="M12 16v-4m0-4h.01"/><circle cx="12" cy="12" r="9"/>',
+    location: '<path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/>',
     calendar: '<path d="M8 3v4m8-4v4M5 10h14M5 5h14v16H5z"/>',
     search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
     clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>',

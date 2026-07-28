@@ -423,6 +423,10 @@ test("settings valida texto seguro, horarios, email e URLs", async () => {
     "/api/v1/admin/hotels/muller-fioreze/settings",
     withCookie(cookie, adminJson("PATCH", { "hosting.welcome_text": "<b>ola</b>" })),
   );
+  const invalidTheme = await json(
+    "/api/v1/admin/hotels/muller-fioreze/settings",
+    withCookie(cookie, adminJson("PATCH", { "portal.navigation_drawer_theme": "automatic" })),
+  );
   const valid = await json(
     "/api/v1/admin/hotels/muller-fioreze/settings",
     withCookie(
@@ -432,13 +436,16 @@ test("settings valida texto seguro, horarios, email e URLs", async () => {
         "contact.email": "hotel@example.invalid",
         "contact.website": "https://example.invalid",
         "hosting.check_in": "14:00",
+        "portal.navigation_drawer_theme": "dark",
       }),
     ),
   );
 
   assert.equal(unsafe.response.status, 400);
+  assert.equal(invalidTheme.response.status, 400);
   assert.equal(valid.response.status, 200);
   assert.equal(valid.body.data.settings["contact.city"], "Gramado");
+  assert.equal(valid.body.data.settings["portal.navigation_drawer_theme"], "dark");
   assert.equal(env.__data.adminAuditLog.at(-1).action, "hotel.settings.update");
 });
 

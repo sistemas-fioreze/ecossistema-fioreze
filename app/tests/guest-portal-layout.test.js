@@ -82,20 +82,17 @@ test("shell abre o portal diretamente sem uma segunda tela de carregamento", () 
   assert.doesNotMatch(roomServiceScript, /Carregando cardápio|renderLoading/);
 });
 
-test("modulos internos usam capa do servico com titulo, icone e horario canonico", () => {
+test("cabecalhos dos modulos exibem somente o titulo sem imagem", () => {
   assert.match(appScript, /has-module-hero/);
   assert.match(appScript, /function renderModuleHero/);
-  assert.match(appScript, /module\.background_image_url/);
-  assert.match(appScript, /navigationIcon\(moduleKey\)/);
-  assert.match(appScript, /evaluateServiceStatus\(\{[\s\S]*?serviceHours:\s*bootstrap\.service_hours\?\.\["room-service"\]/);
+  assert.match(appScript, /<h1>\$\{escapeText\(module\.navigation_label/);
+  assert.doesNotMatch(appScript, /--module-hero-image|public-module-hero-shade|navigationIcon\(moduleKey\)|roomServiceHours/);
   assert.match(appScript, /\["guest-portal", "emporio", "spa"\]\.includes\(moduleKey\)/);
   assert.match(appScript, /\["emporio", "spa"\]\.includes\(moduleKey\)/);
   assert.match(navigationScript, /hideBrand = false/);
   assert.match(navigationScript, /is-brand-hidden/);
-  assert.match(navigationCss, /\.public-module-hero-shade/);
-  assert.match(navigationCss, /\.public-module-hero-copy h1 svg/);
+  assert.doesNotMatch(navigationCss, /--module-hero-image|\.public-module-hero::before|\.public-module-hero-shade/);
   assert.match(navigationCss, /\.has-module-hero \.guest-shared-header/);
-  assert.match(navigationCss, /\.public-module-hero::after\s*\{[\s\S]*?linear-gradient\(180deg, transparent, var\(--color-background, #fff\)\)/);
   assert.match(navigationCss, /min-height:\s*clamp\(125px,\s*15vw,\s*190px\)/);
   assert.match(navigationCss, /@media \(max-width: 959px\)[\s\S]*?min-height:\s*clamp\(120px,\s*34vw,\s*150px\)/);
 });
@@ -187,6 +184,30 @@ test("navegacao mobile alinha icone e texto no drawer", () => {
   assert.match(navigationCss, /\.guest-nav-item\s*\{[\s\S]*?display:\s*inline-flex;[\s\S]*?align-items:\s*center;[\s\S]*?gap:\s*13px/);
   assert.match(navigationCss, /\.guest-nav-item\.is-active\s*\{[\s\S]*?color:\s*#fff/);
   assert.match(navigationCss, /\.guest-menu-toggle\s*,[\s\S]*?background:\s*transparent/);
+});
+
+test("menu lateral aceita fundo branco ou preto por configuracao publica", () => {
+  const light = renderGuestNavigation({
+    slug: "hotel-claro",
+    name: "Hotel Claro",
+    branding: {},
+    settings: { "portal.navigation_drawer_theme": "light" },
+    navigation: [],
+    modules: [],
+  });
+  const dark = renderGuestNavigation({
+    slug: "hotel-escuro",
+    name: "Hotel Escuro",
+    branding: {},
+    settings: { "portal.navigation_drawer_theme": "dark" },
+    navigation: [],
+    modules: [],
+  });
+
+  assert.match(light, /guest-navigation-drawer is-light/);
+  assert.match(dark, /guest-navigation-drawer is-dark/);
+  assert.match(navigationCss, /\.guest-navigation-drawer\.is-dark/);
+  assert.match(navigationCss, /background:\s*rgba\(17,\s*17,\s*17,\s*0\.96\)/);
 });
 
 test("menu lateral inclui todas as secoes e modulos publicos habilitados", () => {

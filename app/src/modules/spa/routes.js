@@ -5,6 +5,7 @@ import { resolveTenantBySlug } from "../../core/tenant.js";
 import { requireEnabledModule } from "../../middleware/require-module.js";
 
 const MODULE_KEY = "spa";
+const SPA_LOCATION_TEXT = "Localizado no Hotel Müller & Fioreze, em Gramado.";
 
 export function registerSpaRoutes(router) {
   router.get("/api/v1/public/hotels/:hotel_slug/spa/services", async ({ env, params }) => {
@@ -70,6 +71,7 @@ function listActiveSpaServices(env) {
 function formatSpaProfile(profile) {
   return {
     ...profile,
+    location_text: SPA_LOCATION_TEXT,
     usage_rules: parseRules(profile.usage_rules_json),
     usage_rules_json: undefined,
   };
