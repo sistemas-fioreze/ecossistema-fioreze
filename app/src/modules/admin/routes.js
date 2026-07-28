@@ -67,6 +67,12 @@ import {
   updateAdminEmporioItem,
 } from "./emporio-catalog.js";
 import {
+  createAdminSpaService,
+  getAdminSpaCatalog,
+  updateAdminSpaProfile,
+  updateAdminSpaService,
+} from "./spa-catalog.js";
+import {
   createRoomServiceRoom,
   getRoomServiceOperations,
   listRoomServiceRooms,
@@ -596,6 +602,26 @@ export function registerAdminRoutes(router) {
   router.patch("/api/v1/admin/emporio/catalog/items/:id", async ({ request, env, params }) => {
     const session = await requireAuthentication({ request, env });
     return ok(await updateAdminEmporioItem({ request, env, session, itemId: params.id }));
+  });
+
+  router.get("/api/v1/admin/spa/catalog", async ({ request, env }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await getAdminSpaCatalog({ env, session }));
+  });
+
+  router.patch("/api/v1/admin/spa/profile", async ({ request, env }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await updateAdminSpaProfile({ request, env, session }));
+  });
+
+  router.post("/api/v1/admin/spa/services", async ({ request, env }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await createAdminSpaService({ request, env, session }), { status: 201 });
+  });
+
+  router.patch("/api/v1/admin/spa/services/:id", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await updateAdminSpaService({ request, env, session, serviceId: params.id }));
   });
 
   router.post("/api/v1/admin/room-service/catalog/categories", async ({ request, env }) => {

@@ -45,6 +45,8 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
     media: [],
     catalog: { categories: [], category_options: [] },
     catalogEditor: null,
+    spaCatalog: { profile: null, services: [] },
+    spaEditor: null,
     activeTab: "identity",
     device: "desktop",
     dirty: false,
@@ -104,16 +106,19 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
         adminApi(`/api/v1/admin/hotels/${encodeURIComponent(hotelId)}`),
         adminApi(`/api/v1/admin/hotels/${encodeURIComponent(hotelId)}/modules`),
         adminApi(`/api/v1/admin/emporio/catalog?hotel_id=${encodeURIComponent(hotelId)}`),
+        adminApi("/api/v1/admin/spa/catalog"),
       ];
       if (hasPermission(state.session, PORTALS_MEDIA_READ_PERMISSION)) {
         requests.push(adminApi(`/api/v1/admin/media?hotel_id=${encodeURIComponent(hotelId)}&status=active`));
       }
-      const [hotelPayload, modulesPayload, catalogPayload, mediaPayload] = await Promise.all(requests);
+      const [hotelPayload, modulesPayload, catalogPayload, spaPayload, mediaPayload] = await Promise.all(requests);
       state.hotel = structuredClone(hotelPayload.data.hotel);
       state.modules = structuredClone(modulesPayload.data.modules || []);
       state.catalog = structuredClone(catalogPayload.data || { categories: [], category_options: [] });
+      state.spaCatalog = structuredClone(spaPayload.data || { profile: null, services: [] });
       state.media = mediaPayload?.data?.assets || [];
       state.catalogEditor = null;
+      state.spaEditor = null;
       state.dirty = false;
       state.loaded = true;
       els.publicLink.href = publicPortalUrl();
@@ -143,6 +148,7 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
     else if (state.activeTab === "home") els.panel.innerHTML = renderHomePanel();
     else if (state.activeTab === "services") els.panel.innerHTML = renderServicesPanel();
     else if (state.activeTab === "emporio") els.panel.innerHTML = renderEmporioPanel();
+    else if (state.activeTab === "spa") els.panel.innerHTML = renderSpaPanel();
     else els.panel.innerHTML = renderContentPanel();
     syncEditorChrome();
   }
@@ -234,6 +240,113 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
         <header><strong>Estrutura protegida</strong><span>O Portal do Hóspede usa um único template oficial para todas as unidades.</span></header>
         <p class="guest-editor-help">Início, Serviços, Eventos, Hotel e Blog mantêm o mesmo fluxo. A identidade e os conteúdos mudam conforme a unidade selecionada.</p>
       </section>`;
+  }
+
+  function renderSpaPanel() {
+    if (state.spaEditor?.kind === "service") return renderSpaServiceForm();
+    const profile = state.spaCatalog.profile || {};
+    const services = state.spaCatalog.services || [];
+    const rules = Array.isArray(profile.usage_rules) ? profile.usage_rules.join("\n") : "";
+    return `
+      <form class="guest-editor-section spa-editor-form" data-spa-form="profile">
+        <header>
+          <strong>Identidade e atendimento do Spa</strong>
+          <span>Conteúdo compartilhado entre todas as unidades com o módulo Spa habilitado.</span>
+        </header>
+        <div class="spa-editor-shared-note">${icon("info")}<span>Uma alteração aqui atualiza o catálogo do Spa em todos os hotéis.</span></div>
+        <div class="spa-editor-profile-grid">
+          <label class="guest-editor-field"><span>Nome do Spa</span><input name="title" maxlength="120" required value="${escapeAttr(profile.title || "")}"></label>
+          <label class="guest-editor-field"><span>Frase principal</span><input name="subtitle" maxlength="240" required value="${escapeAttr(profile.subtitle || "")}"></label>
+        </div>
+        <label class="guest-editor-field"><span>Apresentação curta</span><textarea name="intro_text" maxlength="500" required>${escapeHtml(profile.intro_text || "")}</textarea></label>
+        <label class="guest-editor-field"><span>Quem Somos</span><textarea name="about_text" maxlength="4000" required>${escapeHtml(profile.about_text || "")}</textarea></label>
+        <div class="spa-editor-profile-grid">
+          <label class="guest-editor-field"><span>Título do agendamento</span><input name="booking_title" maxlength="120" required value="${escapeAttr(profile.booking_title || "")}"></label>
+          <label class="guest-editor-field"><span>Horário exibido</span><input name="hours_text" maxlength="120" required value="${escapeAttr(profile.hours_text || "")}"></label>
+        </div>
+        <label class="guest-editor-field"><span>Orientação de agendamento</span><textarea name="booking_text" maxlength="500" required>${escapeHtml(profile.booking_text || "")}</textarea></label>
+        <label class="guest-editor-field"><span>WhatsApp</span><input name="whatsapp_number" inputmode="numeric" maxlength="20" required value="${escapeAttr(profile.whatsapp_number || "")}"></label>
+        <label class="guest-editor-field"><span>Mensagem com serviço selecionado</span><textarea name="whatsapp_service_message" maxlength="800" required>${escapeHtml(profile.whatsapp_service_message || "")}</textarea></label>
+        <label class="guest-editor-field"><span>Mensagem para contato geral</span><textarea name="whatsapp_general_message" maxlength="800" required>${escapeHtml(profile.whatsapp_general_message || "")}</textarea></label>
+        <p class="guest-editor-help">Use <strong>{hotel_name}</strong> e <strong>{service_name}</strong> para preencher a mensagem automaticamente.</p>
+        <label class="guest-editor-field"><span>Regras de utilização</span><textarea name="usage_rules" rows="9" required>${escapeHtml(rules)}</textarea></label>
+        ${spaMediaSelect("Logo do Spa", "logo_media_asset_id", profile.logo_media_asset_id, profile.logo_url)}
+        <div class="emporio-editor-form-actions">
+          <button class="admin-primary-button" type="submit">Salvar informações do Spa</button>
+        </div>
+        <p class="guest-editor-help" data-spa-form-status aria-live="polite"></p>
+      </form>
+      <section class="guest-editor-section emporio-editor-overview">
+        <header>
+          <strong>Serviços do Spa</strong>
+          <span>Massagens, rituais, duração, valores e imagens do catálogo público.</span>
+        </header>
+        <div class="emporio-editor-summary">
+          <span><strong>${services.filter((item) => item.status === "active").length}</strong> ativos</span>
+          <span><strong>${services.length}</strong> cadastrados</span>
+        </div>
+        <div class="emporio-editor-actions">
+          <button type="button" data-spa-action="new-service">${icon("plus")} Novo serviço</button>
+        </div>
+      </section>
+      <section class="guest-editor-section">
+        <header><strong>Catálogo compartilhado</strong><span>Selecione um serviço para editar.</span></header>
+        <div class="emporio-editor-product-list">
+          ${services.map(renderSpaServiceRow).join("") || '<p class="guest-editor-help">Nenhum serviço cadastrado.</p>'}
+        </div>
+      </section>`;
+  }
+
+  function renderSpaServiceRow(service) {
+    const image = service.image_url || "";
+    return `
+      <button type="button" data-spa-action="edit-service" data-id="${escapeAttr(service.id)}">
+        <span class="emporio-editor-thumb">${image ? `<img src="${escapeAttr(image)}" alt="">` : icon("spa")}</span>
+        <span><strong>${escapeHtml(service.name)}</strong><small>${escapeHtml(formatPrice(service.price_cents, service.currency))} · ${escapeHtml(service.duration_label || "Sem duração")} · ${spaStatusLabel(service.status)}</small></span>
+        ${icon("edit")}
+      </button>`;
+  }
+
+  function renderSpaServiceForm() {
+    const service = state.spaEditor?.value || {};
+    return `
+      <form class="guest-editor-section emporio-editor-form spa-editor-form" data-spa-form="service" data-id="${escapeAttr(service.id || "")}">
+        <header>
+          <strong>${service.id ? "Editar serviço" : "Novo serviço"}</strong>
+          <span>As alterações serão publicadas para todas as unidades com Spa ativo.</span>
+        </header>
+        <label class="guest-editor-field"><span>Nome</span><input name="name" maxlength="160" required value="${escapeAttr(service.name || "")}"></label>
+        <label class="guest-editor-field"><span>Descrição</span><textarea name="description" maxlength="3000" required>${escapeHtml(service.description || "")}</textarea></label>
+        <div class="spa-editor-profile-grid">
+          <label class="guest-editor-field"><span>Duração exibida</span><input name="duration_label" maxlength="80" required value="${escapeAttr(service.duration_label || "")}" placeholder="50 minutos"></label>
+          <label class="guest-editor-field"><span>Duração em minutos</span><input name="duration_minutes" type="number" min="1" max="1440" value="${escapeAttr(service.duration_minutes || "")}"></label>
+          <label class="guest-editor-field"><span>Preço</span><input name="price" inputmode="decimal" required value="${escapeAttr(priceInput(service.price_cents))}" placeholder="0,00"></label>
+          <label class="guest-editor-field"><span>Ordem</span><input name="sort_order" type="number" min="0" max="100000" value="${Number(service.sort_order ?? 100)}"></label>
+        </div>
+        <label class="guest-editor-field"><span>Status</span><select name="status">${statusOptions(service.status || "active")}</select></label>
+        ${spaMediaSelect("Imagem do serviço", "media_asset_id", service.media_asset_id, service.image_url)}
+        <div class="emporio-editor-form-actions">
+          <button type="button" data-spa-action="cancel">Cancelar</button>
+          <button class="admin-primary-button" type="submit">Salvar serviço</button>
+        </div>
+        <p class="guest-editor-help" data-spa-form-status aria-live="polite"></p>
+      </form>`;
+  }
+
+  function spaMediaSelect(label, name, selectedId, selectedUrl) {
+    const images = state.media.filter((asset) => String(asset.mime_type || "").startsWith("image/"));
+    const currentIncluded = selectedId && images.some((asset) => asset.id === selectedId);
+    return `
+      <label class="guest-editor-field">
+        <span>${escapeHtml(label)}</span>
+        <select name="${escapeAttr(name)}">
+          <option value="">Sem imagem</option>
+          ${selectedId && !currentIncluded ? `<option value="${escapeAttr(selectedId)}" selected>Imagem compartilhada atual</option>` : ""}
+          ${images.map((asset) => `<option value="${escapeAttr(asset.id)}" ${asset.id === selectedId ? "selected" : ""}>${escapeHtml(asset.original_filename || asset.id)}</option>`).join("")}
+        </select>
+      </label>
+      ${selectedUrl ? `<span class="spa-editor-current-media"><img src="${escapeAttr(selectedUrl)}" alt=""></span>` : ""}
+      ${hasPermission(state.session, PORTALS_MEDIA_UPLOAD_PERMISSION) ? `<label class="guest-editor-upload"><input type="file" data-spa-media-upload data-spa-media-target="${escapeAttr(name)}" accept="image/jpeg,image/png,image/webp,image/avif"><span>Enviar nova imagem</span></label>` : ""}`;
   }
 
   function renderEmporioPanel() {
@@ -461,7 +574,13 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
     if (tab) {
       state.activeTab = tab.dataset.guestEditorTab;
       state.catalogEditor = null;
+      state.spaEditor = null;
       renderPanel();
+      return;
+    }
+    const spaAction = event.target.closest("[data-spa-action]");
+    if (spaAction) {
+      handleSpaAction(spaAction);
       return;
     }
     const emporioAction = event.target.closest("[data-emporio-action]");
@@ -500,6 +619,11 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
   }
 
   function handleChange(event) {
+    const spaUpload = event.target.closest("[data-spa-media-upload]");
+    if (spaUpload) {
+      uploadSpaMedia(spaUpload);
+      return;
+    }
     const carouselUpload = event.target.closest("[data-emporio-carousel-upload]");
     if (carouselUpload) {
       uploadEmporioCarouselMedia(carouselUpload);
@@ -530,6 +654,12 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
   }
 
   async function handleSubmit(event) {
+    const spaForm = event.target.closest("[data-spa-form]");
+    if (spaForm) {
+      event.preventDefault();
+      await submitSpaForm(spaForm);
+      return;
+    }
     const form = event.target.closest("[data-emporio-form]");
     if (!form) return;
     event.preventDefault();
@@ -637,6 +767,152 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
       };
     }
     renderPanel();
+  }
+
+  function handleSpaAction(button) {
+    const action = button.dataset.spaAction;
+    if (action === "cancel") {
+      state.spaEditor = null;
+    } else if (action === "new-service") {
+      state.spaEditor = {
+        kind: "service",
+        value: {
+          status: "active",
+          sort_order: (state.spaCatalog.services?.length || 0) * 10 + 10,
+          currency: "BRL",
+        },
+      };
+    } else if (action === "edit-service") {
+      state.spaEditor = {
+        kind: "service",
+        value: structuredClone(
+          (state.spaCatalog.services || []).find((entry) => entry.id === button.dataset.id) || {},
+        ),
+      };
+    }
+    renderPanel();
+  }
+
+  async function submitSpaForm(form) {
+    const submit = form.querySelector('[type="submit"]');
+    const status = form.querySelector("[data-spa-form-status]");
+    const kind = form.dataset.spaForm;
+    const id = form.dataset.id;
+    submit.disabled = true;
+    status.textContent = "Salvando...";
+    try {
+      if (kind === "profile") {
+        const body = spaProfilePayload(form);
+        const payload = await adminApi("/api/v1/admin/spa/profile", { method: "PATCH", body });
+        state.spaCatalog.profile = structuredClone(payload.data.profile);
+        status.textContent = "Informações do Spa atualizadas em todas as unidades.";
+      } else {
+        const body = spaServicePayload(form);
+        await adminApi(
+          id
+            ? `/api/v1/admin/spa/services/${encodeURIComponent(id)}`
+            : "/api/v1/admin/spa/services",
+          { method: id ? "PATCH" : "POST", body },
+        );
+        state.spaEditor = null;
+        await loadSpaCatalog();
+        setStatus("Catálogo do Spa atualizado.", "success");
+        return;
+      }
+      setStatus("Conteúdo compartilhado do Spa atualizado.", "success");
+      submit.disabled = false;
+    } catch (error) {
+      status.textContent = error.message || "Não foi possível salvar.";
+      submit.disabled = false;
+    }
+  }
+
+  function spaProfilePayload(form) {
+    const data = new FormData(form);
+    return {
+      title: data.get("title"),
+      subtitle: data.get("subtitle"),
+      intro_text: data.get("intro_text"),
+      about_text: data.get("about_text"),
+      booking_title: data.get("booking_title"),
+      booking_text: data.get("booking_text"),
+      whatsapp_number: data.get("whatsapp_number"),
+      whatsapp_service_message: data.get("whatsapp_service_message"),
+      whatsapp_general_message: data.get("whatsapp_general_message"),
+      hours_text: data.get("hours_text"),
+      usage_rules: String(data.get("usage_rules") || "")
+        .split(/\r?\n/)
+        .map((item) => item.trim())
+        .filter(Boolean),
+      logo_media_asset_id: data.get("logo_media_asset_id") || "",
+      status: state.spaCatalog.profile?.status || "active",
+    };
+  }
+
+  function spaServicePayload(form, { strict = true } = {}) {
+    const data = new FormData(form);
+    return {
+      name: data.get("name"),
+      description: data.get("description"),
+      duration_label: data.get("duration_label"),
+      duration_minutes: data.get("duration_minutes") || null,
+      price_cents: strict ? parsePrice(data.get("price")) : safeParsePrice(data.get("price")),
+      currency: state.spaEditor?.value?.currency || "BRL",
+      media_asset_id: data.get("media_asset_id") || "",
+      status: data.get("status") || "active",
+      sort_order: Number(data.get("sort_order") || 100),
+    };
+  }
+
+  async function loadSpaCatalog() {
+    const payload = await adminApi("/api/v1/admin/spa/catalog");
+    state.spaCatalog = structuredClone(payload.data || { profile: null, services: [] });
+    renderPanel();
+  }
+
+  async function uploadSpaMedia(input) {
+    const file = input.files?.[0];
+    const formElement = input.closest("[data-spa-form]");
+    if (!file || !formElement) return;
+    const kind = formElement.dataset.spaForm;
+    if (kind === "profile") {
+      state.spaCatalog.profile = {
+        ...state.spaCatalog.profile,
+        ...spaProfilePayload(formElement),
+      };
+    } else {
+      state.spaEditor.value = {
+        ...state.spaEditor.value,
+        ...spaServicePayload(formElement, { strict: false }),
+      };
+    }
+    input.disabled = true;
+    setStatus("Enviando imagem do Spa...");
+    const form = new FormData();
+    form.set("hotel_id", state.hotel.hotel_id);
+    form.set("module_key", "spa");
+    form.set("file", file);
+    try {
+      const payload = await adminApi("/api/v1/admin/media", { method: "POST", body: form });
+      const asset = payload.data.asset;
+      state.media = [asset, ...state.media.filter((entry) => entry.id !== asset.id)];
+      if (kind === "profile") {
+        Object.assign(state.spaCatalog.profile, {
+          logo_media_asset_id: asset.id,
+          logo_url: asset.public_url,
+        });
+      } else {
+        Object.assign(state.spaEditor.value, {
+          media_asset_id: asset.id,
+          image_url: asset.public_url,
+        });
+      }
+      renderPanel();
+      setStatus("Imagem enviada e selecionada.", "success");
+    } catch (error) {
+      setStatus(error.message || "Não foi possível enviar a imagem.", "error");
+      input.disabled = false;
+    }
   }
 
   async function loadEmporioCatalog() {
@@ -958,13 +1234,15 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
   }
 
   function syncEditorChrome() {
-    const catalogMode = state.activeTab === "emporio";
+    const catalogMode = ["emporio", "spa"].includes(state.activeTab);
+    const modulePath = state.activeTab === "spa" ? "spa" : "emporio";
+    const moduleLabel = state.activeTab === "spa" ? "Spa" : "Empório";
     els.save.hidden = catalogMode;
-    els.publicLink.href = catalogMode ? `${publicPortalUrl()}/emporio` : publicPortalUrl();
-    els.publicLinkLabel.textContent = catalogMode ? "Abrir Empório" : "Abrir portal";
-    const nextPreview = catalogMode ? `${publicPortalUrl()}/emporio?admin_preview=1` : `${publicPortalUrl()}?admin_preview=1`;
+    els.publicLink.href = catalogMode ? `${publicPortalUrl()}/${modulePath}` : publicPortalUrl();
+    els.publicLinkLabel.textContent = catalogMode ? `Abrir ${moduleLabel}` : "Abrir portal";
+    const nextPreview = catalogMode ? `${publicPortalUrl()}/${modulePath}?admin_preview=1` : `${publicPortalUrl()}?admin_preview=1`;
     if (els.preview.getAttribute("src") !== nextPreview) els.preview.src = nextPreview;
-    els.previewName.textContent = catalogMode ? "Empório" : state.hotel.short_name || state.hotel.name;
+    els.previewName.textContent = catalogMode ? moduleLabel : state.hotel.short_name || state.hotel.name;
   }
 
   function setStatus(message, kind = "") {
@@ -1015,6 +1293,14 @@ function statusOptions(selected) {
   ].map(([value, label]) => `<option value="${value}" ${value === selected ? "selected" : ""}>${label}</option>`).join("");
 }
 
+function spaStatusLabel(status) {
+  return {
+    active: "Ativo",
+    inactive: "Inativo",
+    archived: "Arquivado",
+  }[status] || "Ativo";
+}
+
 function priceInput(cents) {
   if (cents == null || cents === "") return "";
   return (Number(cents) / 100).toFixed(2).replace(".", ",");
@@ -1050,8 +1336,10 @@ function icon(name) {
     image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 20"/>',
     services: '<path d="M5 14h14M7 14a5 5 0 0 1 10 0M12 7V5M4 18h16"/><path d="M10 5h4"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
+    info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
     edit: '<path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/>',
     bag: '<path d="M5 8h14l-1 12H6L5 8Z"/><path d="M9 9V7a3 3 0 0 1 6 0v2"/>',
+    spa: '<path d="M12 20c-4 0-7-2.7-7-6 3.2 0 5.7 1.3 7 3.4C13.3 15.3 15.8 14 19 14c0 3.3-3 6-7 6Z"/><path d="M12 17c-2.4-1.5-4-4.1-4-7 2.9 0 5 1.8 5 4.4M12 17c2.4-1.5 4-4.1 4-7-1.2 0-2.3.3-3.1.9M12 3c1.5 1.4 2 3.1 1.5 5"/>',
   };
   return `<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[name] || paths.image}</svg>`;
 }

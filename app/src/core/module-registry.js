@@ -3,6 +3,7 @@ import { registerEmporioRoutes } from "../modules/emporio/routes.js";
 import { registerGuestPortalRoutes } from "../modules/guest-portal/routes.js";
 import { registerRomanticPackageRoutes } from "../modules/romantic-packages/routes.js";
 import { registerRoomServiceRoutes } from "../modules/room-service/routes.js";
+import { registerSpaRoutes } from "../modules/spa/routes.js";
 
 export const MODULES = [
   {
@@ -26,7 +27,8 @@ export const MODULES = [
   {
     module_key: "spa",
     name: "Spa",
-    status: "planned",
+    status: "functional-foundation",
+    registerRoutes: registerSpaRoutes,
   },
   {
     module_key: "romantic-packages",

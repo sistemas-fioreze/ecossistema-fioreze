@@ -79,6 +79,8 @@ Nenhum HTML, nome de hotel, cor ou catálogo é duplicado por unidade. O Müller
 
 Os módulos internos usam a imagem cadastrada no próprio serviço como capa. A navegação permanece transparente sobre a mídia, o título usa o ícone do módulo e o degradê integra a capa ao conteúdo. No Room Service, o único complemento do título é o horário calculado a partir de `service_hours`. O Empório mantém sua composição comercial própria e lê os destaques editoriais de `emporio.carousel_slides`; quando a lista está vazia, usa as imagens disponíveis do catálogo como fallback.
 
+O Spa usa um catálogo institucional global, compartilhado por todas as unidades. Cada hotel continua decidindo em `hotel_modules` se o serviço aparece e pode ser consultado. O layout, o editor e as regras desse catálogo estão documentados em `SPA_SHARED_CATALOG.md`.
+
 ## Segurança
 
 - o bootstrap retorna somente dados públicos;
