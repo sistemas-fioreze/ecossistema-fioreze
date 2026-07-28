@@ -308,6 +308,7 @@ test("Central substitui o Criador livre pelo editor fixo do Portal do Hóspede",
   assert.match(editor, /fioreze:guest-portal-preview/);
   assert.match(editor, /SERVICE_KEYS = \["room-service", "emporio", "romantic-packages", "spa"\]/);
   assert.match(css, /\.guest-portal-preview-frame\.is-mobile/);
+  assert.match(css, /\.admin-portals-surface\[data-active-portal-section="contentManager"\]\s*\{[\s\S]*?padding:\s*0;[\s\S]*?overflow:\s*hidden/);
 });
 
 test("seletores de mídia permitem upload contextual sem sair do formulário", () => {
