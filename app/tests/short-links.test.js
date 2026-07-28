@@ -45,6 +45,18 @@ test("migration 0024 cria compartilhamento privado sem duplicar acesso", () => {
   assert.match(migration, /access_level text not null default 'viewer'/);
 });
 
+test("migration 0028 protege visitantes, localizacao e reset unico sem IP bruto", () => {
+  const migration = fs.readFileSync("migrations/0028_short_link_unique_analytics.sql", "utf8").toLowerCase();
+  assert.match(migration, /create table if not exists short_link_click_visitors/);
+  assert.match(migration, /create table if not exists short_link_unique_visitors/);
+  assert.match(migration, /create table if not exists portal_visit_visitors/);
+  assert.match(migration, /primary key \(short_link_id, click_date, visitor_hash\)/);
+  assert.match(migration, /primary key \(hotel_id, page_key, visit_date, visitor_hash\)/);
+  assert.match(migration, /analytics_reset_at/);
+  assert.match(migration, /analytics_reset_nonce/);
+  assert.equal(/ip_address|raw_ip|user_agent|cookie|referrer/.test(migration), false);
+});
+
 test("Worker e Pages geram o dominio curto oficial sem remover o fallback Workers.dev", () => {
   const worker = JSON.parse(fs.readFileSync("wrangler.jsonc", "utf8"));
   const pages = JSON.parse(fs.readFileSync("pages/wrangler.jsonc", "utf8"));
@@ -146,12 +158,45 @@ test("dominio oficial /:slug redireciona e registra analytics sem anexar query d
   assert.equal(env.__data.shortLinkClicksDaily[0].click_count, 1);
 });
 
-test("HEAD /go/:slug usa o Worker e nao incrementa analytics", async () => {
+test("cliques repetidos do mesmo IP contam um visitante sem guardar o endereco bruto", async () => {
   const { fetch, env, flushWaitUntil } = createWorkerTestContext();
-
-  const response = await fetch("/go/reservas", { method: "HEAD", redirect: "manual" });
+  const headers = {
+    "x-fioreze-test-now": "2026-07-12T13:00:00.000Z",
+    "x-forwarded-for": "198.51.100.42",
+    "cf-ipcountry": "BR",
+    "x-fioreze-test-region": "Rio Grande do Sul",
+  };
+  await fetch("/go/reservas", { redirect: "manual", headers });
+  await fetch("/go/reservas", { redirect: "manual", headers: { ...headers, "x-fioreze-test-now": "2026-07-12T14:00:00.000Z" } });
   await flushWaitUntil();
 
+  const link = env.__data.shortLinks.find((entry) => entry.id === "link-muller-reservas");
+  assert.equal(link.total_clicks, 1);
+  assert.equal(env.__data.shortLinkClicksDaily[0].click_count, 1);
+  assert.equal(env.__data.shortLinkClickVisitors.length, 1);
+  assert.equal(env.__data.shortLinkClickVisitors[0].click_count, 2);
+  assert.equal(env.__data.shortLinkUniqueVisitors.length, 1);
+  assert.equal(env.__data.shortLinkUniqueVisitors[0].click_count, 2);
+  assert.equal(JSON.stringify(env.__data.shortLinkUniqueVisitors).includes("198.51.100.42"), false);
+
+  await fetch("/go/reservas", { redirect: "manual", headers: { ...headers, "x-forwarded-for": "198.51.100.43", "x-fioreze-test-now": "2026-07-12T15:00:00.000Z" } });
+  await flushWaitUntil();
+  assert.equal(link.total_clicks, 2);
+  assert.equal(env.__data.shortLinkClicksDaily[0].click_count, 2);
+  assert.equal(env.__data.shortLinkClickVisitors.length, 2);
+
+  await fetch("/go/reservas", { redirect: "manual", headers: { ...headers, "x-fioreze-test-now": "2026-07-13T15:00:00.000Z" } });
+  await flushWaitUntil();
+  assert.equal(link.total_clicks, 2);
+  assert.equal(env.__data.shortLinkClicksDaily.length, 2);
+  assert.equal(env.__data.shortLinkClickVisitors.length, 3);
+  assert.equal(env.__data.shortLinkUniqueVisitors.length, 2);
+});
+
+test("HEAD /go/:slug usa o Worker e nao incrementa analytics", async () => {
+  const { fetch, env, flushWaitUntil } = createWorkerTestContext();
+  const response = await fetch("/go/reservas", { method: "HEAD", redirect: "manual" });
+  await flushWaitUntil();
   assert.equal(response.status, 302);
   assert.equal(response.headers.get("location"), "https://booking.example/muller?origem=link#quartos");
   assert.equal(env.__data.shortLinks.find((entry) => entry.slug === "reservas").total_clicks, 0);
@@ -476,6 +521,48 @@ test("admin arquiva link por soft delete e analytics permanece disponivel", asyn
   assert.equal(analytics.response.status, 200);
   assert.equal(analytics.body.data.analytics.total_clicks, 1);
   assert.equal(publicResponse.status, 404);
+});
+
+test("analytics detalhada filtra local e reset atomico pode ser usado somente uma vez", async () => {
+  const { fetch, json, env, flushWaitUntil } = createWorkerTestContext();
+  grantPermissions(env);
+  const cookie = await createSessionCookie(env);
+  const baseHeaders = {
+    "x-fioreze-test-now": "2026-07-12T13:00:00.000Z",
+    "cf-ipcountry": "BR",
+    "x-fioreze-test-region": "Rio Grande do Sul",
+  };
+  await fetch("/go/reservas", { redirect: "manual", headers: { ...baseHeaders, "x-forwarded-for": "198.51.100.10" } });
+  await fetch("/go/reservas", { redirect: "manual", headers: { ...baseHeaders, "x-forwarded-for": "198.51.100.11" } });
+  await fetch("/go/reservas", { redirect: "manual", headers: { ...baseHeaders, "x-forwarded-for": "198.51.100.11", "x-fioreze-test-now": "2026-07-12T14:00:00.000Z" } });
+  await flushWaitUntil();
+
+  const analytics = await json(
+    "/api/v1/admin/short-links/link-muller-reservas/analytics?from=2026-07-12&to=2026-07-12&region=grande",
+    withCookie(cookie),
+  );
+  assert.equal(analytics.response.status, 200);
+  assert.equal(analytics.body.data.analytics.unique_clicks, 2);
+  assert.equal(analytics.body.data.analytics.tracked_unique_visitors, 2);
+  assert.equal(analytics.body.data.analytics.repeated_opens, 1);
+  assert.equal(analytics.body.data.analytics.locations[0].region, "Rio Grande do Sul");
+
+  const reset = await json(
+    "/api/v1/admin/short-links/link-muller-reservas/analytics/reset",
+    withCookie(cookie, adminJson("POST", { slug: "reservas" })),
+  );
+  const repeatedReset = await json(
+    "/api/v1/admin/short-links/link-muller-reservas/analytics/reset",
+    withCookie(cookie, adminJson("POST", { slug: "reservas" })),
+  );
+  assert.equal(reset.response.status, 200);
+  assert.equal(reset.body.data.link.analytics_reset_available, false);
+  assert.equal(repeatedReset.response.status, 409);
+  assert.equal(env.__data.shortLinks.find((entry) => entry.id === "link-muller-reservas").total_clicks, 0);
+  assert.equal(env.__data.shortLinkClicksDaily.length, 0);
+  assert.equal(env.__data.shortLinkClickVisitors.length, 0);
+  assert.equal(env.__data.adminAuditLog.filter((entry) => entry.action === "short-link.analytics-reset").length, 1);
+  assert.equal(env.__data.shortLinkUniqueVisitors.length, 0);
 });
 
 test("usuario de outro hotel nao confirma existencia do link", async () => {

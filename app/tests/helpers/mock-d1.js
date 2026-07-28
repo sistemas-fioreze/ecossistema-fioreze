@@ -479,6 +479,9 @@ function createFixtureData() {
     ],
     shortLinkUserShares: [],
     shortLinkClicksDaily: [],
+    shortLinkClickVisitors: [],
+    shortLinkUniqueVisitors: [],
+    portalVisitVisitors: [],
     customPortalPages: [],
     portalPages: [
       {
@@ -1224,6 +1227,26 @@ class MockD1Database {
       return this.data.shortLinkUserShares.find((entry) => entry.short_link_id === shortLinkId && entry.user_id === userId) || null;
     }
 
+    if (normalized.includes("from portal_visit_visitors") && normalized.includes("count(distinct visitor_hash)")) {
+      const [hotelId, from, to, regionLike] = params;
+      const rows = filterPortalAnalytics(this.data.portalVisitVisitors, { hotelId, from, to, regionLike });
+      return {
+        unique_visitors: new Set(rows.map((entry) => entry.visitor_hash)).size,
+        total_visits: rows.reduce((sum, entry) => sum + Number(entry.visit_count || 0), 0),
+        first_visit_at: rows.map((entry) => entry.first_visited_at).sort()[0] || null,
+        last_visit_at: rows.map((entry) => entry.last_visited_at).sort().at(-1) || null,
+      };
+    }
+
+    if (normalized.includes("from short_link_click_visitors") && normalized.includes("count(distinct visitor_hash)")) {
+      const [linkId, from, to, regionLike] = params;
+      const rows = filterShortLinkAnalytics(this.data.shortLinkClickVisitors, { linkId, from, to, regionLike });
+      return {
+        unique_visitors: new Set(rows.map((entry) => entry.visitor_hash)).size,
+        total_attempts: sumMetric(rows, "click_count"),
+      };
+    }
+
     if (normalized.includes("from admin_users u") && normalized.includes("join admin_hotel_access aha") && normalized.includes("where u.id = ?")) {
       const [hotelId, userId] = params;
       const user = this.data.adminUsers.find((entry) => entry.id === userId && entry.status === "active");
@@ -1946,10 +1969,68 @@ class MockD1Database {
     }
 
     if (normalized.includes("from short_link_clicks_daily") && normalized.includes("where short_link_id = ?")) {
-      const [linkId] = params;
+      const [linkId, from, to] = params;
       return this.data.shortLinkClicksDaily
         .filter((entry) => entry.short_link_id === linkId)
+        .filter((entry) => !from || (entry.click_date >= from && entry.click_date <= to))
         .sort((a, b) => a.click_date.localeCompare(b.click_date));
+    }
+
+    if (normalized.includes("from short_link_click_visitors")) {
+      const [linkId, from, to, regionLike] = params;
+      const rows = filterShortLinkAnalytics(this.data.shortLinkClickVisitors, { linkId, from, to, regionLike });
+      if (normalized.includes("group by click_date")) {
+        return groupedAnalytics(rows, (entry) => entry.click_date)
+          .map(({ key, rows: group }) => ({ click_date: key, click_count: new Set(group.map((entry) => entry.visitor_hash)).size, first_clicked_at: minMetric(group, "first_clicked_at"), last_clicked_at: maxMetric(group, "last_clicked_at") }))
+          .sort((left, right) => left.click_date.localeCompare(right.click_date));
+      }
+
+      if (normalized.includes("group by coalesce(country_code")) {
+        return groupedAnalytics(rows, (entry) => `${entry.country_code || "Nao informado"}\u0000${entry.region || "Nao informado"}`)
+          .map(({ key, rows: group }) => {
+            const [country_code, region] = key.split("\u0000");
+            return { country_code, region, unique_clicks: new Set(group.map((entry) => entry.visitor_hash)).size, total_attempts: sumMetric(group, "click_count"), last_clicked_at: maxMetric(group, "last_clicked_at") };
+          })
+          .sort((left, right) => right.unique_clicks - left.unique_clicks || right.total_attempts - left.total_attempts)
+          .slice(0, 12);
+      }
+      if (normalized.includes("group by substr(first_clicked_at")) {
+        return groupedAnalytics(rows, (entry) => entry.first_clicked_at.slice(11, 13))
+          .map(({ key, rows: group }) => ({ hour: key, unique_clicks: new Set(group.map((entry) => entry.visitor_hash)).size, total_attempts: sumMetric(group, "click_count") }))
+          .sort((left, right) => left.hour.localeCompare(right.hour));
+      }
+      return rows.sort((left, right) => right.last_clicked_at.localeCompare(left.last_clicked_at)).slice(0, 20);
+    }
+
+    if (normalized.includes("from portal_visit_visitors")) {
+      const [hotelId, from, to, regionLike] = params;
+      const rows = filterPortalAnalytics(this.data.portalVisitVisitors, { hotelId, from, to, regionLike });
+      let keyForRow;
+      if (normalized.includes("group by visit_date, page_key")) {
+        keyForRow = (entry) => `${entry.visit_date}\u0000${entry.page_key}\u0000${entry.country_code || ""}\u0000${entry.region || ""}`;
+      } else if (normalized.includes("group by visit_date")) {
+        keyForRow = (entry) => entry.visit_date;
+      } else if (normalized.includes("group by page_key")) {
+        keyForRow = (entry) => entry.page_key;
+      } else if (normalized.includes("group by coalesce(country_code")) {
+        keyForRow = (entry) => `${entry.country_code || "Nao informado"}\u0000${entry.region || "Nao informado"}`;
+      } else {
+        keyForRow = (entry) => entry.first_visited_at.slice(11, 13);
+      }
+      const mapped = groupedAnalytics(rows, keyForRow).map(({ key, rows: group }) => {
+        const values = key.split("\u0000");
+        const base = { unique_visitors: new Set(group.map((entry) => entry.visitor_hash)).size, total_visits: sumMetric(group, "visit_count") };
+        if (normalized.includes("group by visit_date, page_key")) {
+          return { ...base, visit_date: values[0], page_key: values[1], country_code: values[2] || null, region: values[3] || null, first_visit_at: minMetric(group, "first_visited_at"), last_visit_at: maxMetric(group, "last_visited_at") };
+        }
+        if (normalized.includes("group by visit_date")) return { ...base, visit_date: key };
+        if (normalized.includes("group by page_key")) return { ...base, page_key: key, last_visit_at: maxMetric(group, "last_visited_at") };
+        if (normalized.includes("group by coalesce(country_code")) return { ...base, country_code: values[0], region: values[1] };
+        return { ...base, hour: key };
+      });
+      if (normalized.includes("order by last_visit_at desc")) return mapped.sort((a, b) => b.last_visit_at.localeCompare(a.last_visit_at)).slice(0, 30);
+      if (normalized.includes("order by unique_visitors desc")) return mapped.sort((a, b) => b.unique_visitors - a.unique_visitors || b.total_visits - a.total_visits);
+      return mapped.sort((a, b) => String(a.visit_date || a.hour || "").localeCompare(String(b.visit_date || b.hour || "")));
     }
 
     if (normalized.includes("from media_assets") && normalized.includes("uploaded_by_erp_user_id") && normalized.includes("limit 100")) {
@@ -2735,6 +2816,36 @@ class MockD1Database {
       return d1Result(1);
     }
 
+    if (normalized.startsWith("insert or ignore into short_link_unique_visitors")) {
+      const [short_link_id, hotel_id, visitor_hash, country_code, region, first_clicked_at, last_clicked_at] = params;
+      const duplicate = this.data.shortLinkUniqueVisitors.some(
+        (entry) => entry.short_link_id === short_link_id && entry.visitor_hash === visitor_hash,
+      );
+      if (duplicate) return d1Result(0);
+      this.data.shortLinkUniqueVisitors.push({ short_link_id, hotel_id, visitor_hash, country_code, region, first_clicked_at, last_clicked_at, click_count: 1 });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("insert or ignore into short_link_click_visitors")) {
+      const [short_link_id, hotel_id, click_date, visitor_hash, country_code, region, first_clicked_at, last_clicked_at] = params;
+      const duplicate = this.data.shortLinkClickVisitors.some(
+        (entry) => entry.short_link_id === short_link_id && entry.click_date === click_date && entry.visitor_hash === visitor_hash,
+      );
+      if (duplicate) return d1Result(0);
+      this.data.shortLinkClickVisitors.push({ short_link_id, hotel_id, click_date, visitor_hash, country_code, region, first_clicked_at, last_clicked_at, click_count: 1 });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("insert or ignore into portal_visit_visitors")) {
+      const [hotel_id, page_key, visit_date, visitor_hash, country_code, region, first_visited_at, last_visited_at] = params;
+      const duplicate = this.data.portalVisitVisitors.some(
+        (entry) => entry.hotel_id === hotel_id && entry.page_key === page_key && entry.visit_date === visit_date && entry.visitor_hash === visitor_hash,
+      );
+      if (duplicate) return d1Result(0);
+      this.data.portalVisitVisitors.push({ hotel_id, page_key, visit_date, visitor_hash, country_code, region, first_visited_at, last_visited_at, visit_count: 1 });
+      return d1Result(1);
+    }
+
     if (normalized.startsWith("insert into hotels")) {
       const [id, slug, name, short_name, timezone, locale, currency, created_at, updated_at] = params;
       this.data.hotels.push({
@@ -3152,6 +3263,55 @@ class MockD1Database {
       return d1Result(1);
     }
 
+    if (normalized.startsWith("update short_links") && normalized.includes("analytics_reset_at = ?")) {
+      const [analytics_reset_at, analytics_reset_by_user_id, analytics_reset_nonce, updated_by_user_id, updated_at, id, hotel_id] = params;
+      const link = this.data.shortLinks.find((entry) => entry.id === id && entry.hotel_id === hotel_id && !entry.analytics_reset_at);
+      if (!link) return d1Result(0);
+      Object.assign(link, { total_clicks: 0, last_clicked_at: null, analytics_reset_at, analytics_reset_by_user_id, analytics_reset_nonce, updated_by_user_id, updated_at });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update short_links") && normalized.includes("set last_clicked_at = ?")) {
+      const [last_clicked_at, id] = params;
+      const link = this.data.shortLinks.find((entry) => entry.id === id);
+      if (!link) return d1Result(0);
+      link.last_clicked_at = last_clicked_at;
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update short_link_unique_visitors")) {
+      const [last_clicked_at, shortLinkId, visitorHash] = params;
+      const visitor = this.data.shortLinkUniqueVisitors.find(
+        (entry) => entry.short_link_id === shortLinkId && entry.visitor_hash === visitorHash,
+      );
+      if (!visitor) return d1Result(0);
+      visitor.click_count += 1;
+      visitor.last_clicked_at = last_clicked_at;
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update short_link_click_visitors")) {
+      const [last_clicked_at, shortLinkId, clickDate, visitorHash] = params;
+      const visitor = this.data.shortLinkClickVisitors.find(
+        (entry) => entry.short_link_id === shortLinkId && entry.click_date === clickDate && entry.visitor_hash === visitorHash,
+      );
+      if (!visitor) return d1Result(0);
+      visitor.click_count += 1;
+      visitor.last_clicked_at = last_clicked_at;
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update portal_visit_visitors")) {
+      const [last_visited_at, hotelId, pageKey, visitDate, visitorHash] = params;
+      const visitor = this.data.portalVisitVisitors.find(
+        (entry) => entry.hotel_id === hotelId && entry.page_key === pageKey && entry.visit_date === visitDate && entry.visitor_hash === visitorHash,
+      );
+      if (!visitor) return d1Result(0);
+      visitor.visit_count += 1;
+      visitor.last_visited_at = last_visited_at;
+      return d1Result(1);
+    }
+
     if (normalized.startsWith("update short_links") && normalized.includes("set internal_name = ?")) {
       const [
         internal_name,
@@ -3203,7 +3363,36 @@ class MockD1Database {
       this.data.shortLinks.splice(index, 1);
       this.data.shortLinkUserShares = this.data.shortLinkUserShares.filter((entry) => entry.short_link_id !== id);
       this.data.shortLinkClicksDaily = this.data.shortLinkClicksDaily.filter((entry) => entry.short_link_id !== id);
+      this.data.shortLinkClickVisitors = this.data.shortLinkClickVisitors.filter((entry) => entry.short_link_id !== id);
+      this.data.shortLinkUniqueVisitors = this.data.shortLinkUniqueVisitors.filter((entry) => entry.short_link_id !== id);
       return d1Result(1);
+    }
+
+    if (normalized.startsWith("delete from short_link_clicks_daily") && normalized.includes("analytics_reset_nonce")) {
+      const [shortLinkId, linkId, nonce] = params;
+      const allowed = this.data.shortLinks.some((entry) => entry.id === linkId && entry.analytics_reset_nonce === nonce);
+      if (!allowed) return d1Result(0);
+      const before = this.data.shortLinkClicksDaily.length;
+      this.data.shortLinkClicksDaily = this.data.shortLinkClicksDaily.filter((entry) => entry.short_link_id !== shortLinkId);
+      return d1Result(before - this.data.shortLinkClicksDaily.length);
+    }
+
+    if (normalized.startsWith("delete from short_link_click_visitors") && normalized.includes("analytics_reset_nonce")) {
+      const [shortLinkId, linkId, nonce] = params;
+      const allowed = this.data.shortLinks.some((entry) => entry.id === linkId && entry.analytics_reset_nonce === nonce);
+      if (!allowed) return d1Result(0);
+      const before = this.data.shortLinkClickVisitors.length;
+      this.data.shortLinkClickVisitors = this.data.shortLinkClickVisitors.filter((entry) => entry.short_link_id !== shortLinkId);
+      return d1Result(before - this.data.shortLinkClickVisitors.length);
+    }
+
+    if (normalized.startsWith("delete from short_link_unique_visitors") && normalized.includes("analytics_reset_nonce")) {
+      const [shortLinkId, linkId, nonce] = params;
+      const allowed = this.data.shortLinks.some((entry) => entry.id === linkId && entry.analytics_reset_nonce === nonce);
+      if (!allowed) return d1Result(0);
+      const before = this.data.shortLinkUniqueVisitors.length;
+      this.data.shortLinkUniqueVisitors = this.data.shortLinkUniqueVisitors.filter((entry) => entry.short_link_id !== shortLinkId);
+      return d1Result(before - this.data.shortLinkUniqueVisitors.length);
     }
 
     if (normalized.startsWith("delete from short_link_user_shares")) {
@@ -3479,6 +3668,13 @@ class MockD1Database {
       }
       if (normalized.includes("'short_link'")) {
         if (normalized.includes("from short_links sl")) {
+          if (normalized.includes("'short-link.analytics-reset'")) {
+            const [id, actor_user_id, metadata_json, created_at, entity_id, nonce] = params;
+            const link = this.data.shortLinks.find((entry) => entry.id === entity_id && entry.analytics_reset_nonce === nonce);
+            if (!link) return d1Result(0);
+            this.data.adminAuditLog.push({ id, hotel_id: link.hotel_id, module_key: null, actor_user_id, action: "short-link.analytics-reset", entity_type: "short_link", entity_id, metadata_json, created_at });
+            return d1Result(1);
+          }
           const [id, actor_user_id, metadata_json, created_at, entity_id, hotel_id] = params;
           const link = this.data.shortLinks.find(
             (entry) => entry.id === entity_id && entry.hotel_id === hotel_id && entry.status === "archived",
@@ -3615,6 +3811,46 @@ function d1Result(changes, results = []) {
     },
     results,
   };
+}
+
+function filterShortLinkAnalytics(rows, { linkId, from, to, regionLike }) {
+  const regionSearch = String(regionLike || "").replaceAll("%", "").toLowerCase();
+  return rows.filter((entry) =>
+    entry.short_link_id === linkId &&
+    (!from || (entry.click_date >= from && entry.click_date <= to)) &&
+    (!regionSearch || String(entry.region || "").toLowerCase().includes(regionSearch))
+  );
+}
+
+function filterPortalAnalytics(rows, { hotelId, from, to, regionLike }) {
+  const regionSearch = String(regionLike || "").replaceAll("%", "").toLowerCase();
+  return rows.filter((entry) =>
+    entry.hotel_id === hotelId &&
+    (!from || (entry.visit_date >= from && entry.visit_date <= to)) &&
+    (!regionSearch || String(entry.region || "").toLowerCase().includes(regionSearch))
+  );
+}
+
+function groupedAnalytics(rows, keyForRow) {
+  const groups = new Map();
+  for (const row of rows) {
+    const key = keyForRow(row);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(row);
+  }
+  return [...groups].map(([key, groupRows]) => ({ key, rows: groupRows }));
+}
+
+function sumMetric(rows, key) {
+  return rows.reduce((sum, entry) => sum + Number(entry[key] || 0), 0);
+}
+
+function minMetric(rows, key) {
+  return rows.map((entry) => entry[key]).filter(Boolean).sort()[0] || null;
+}
+
+function maxMetric(rows, key) {
+  return rows.map((entry) => entry[key]).filter(Boolean).sort().at(-1) || null;
 }
 
 function sleep(ms) {

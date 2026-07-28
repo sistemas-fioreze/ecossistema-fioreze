@@ -1,4 +1,5 @@
 import { apiGet } from "./api.js";
+import { portalPageKey, trackPortalVisit } from "./analytics.js";
 import { renderError } from "./errors.js";
 import {
   bindGuestNavigation,
@@ -26,6 +27,7 @@ async function boot() {
   const requestedModule = resolveModuleFromPath(window.location.pathname);
   const enabledModules = new Set(bootstrap.modules.map((module) => module.module_key));
   const moduleKey = enabledModules.has(requestedModule) ? requestedModule : "guest-portal";
+  trackPortalVisit(slug, portalPageKey(moduleKey));
 
   app.classList.toggle("guest-portal-root", moduleKey === "guest-portal");
   app.classList.toggle("room-service-root", moduleKey === "room-service");

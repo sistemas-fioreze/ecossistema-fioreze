@@ -145,13 +145,23 @@
               </section>
 
           <section id="shortLinksManager" class="admin-short-links-manager" hidden>
-            <div class="admin-section-actions">
+            <div class="admin-section-actions admin-short-links-topbar">
+              <label class="admin-short-links-search">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m21 21-4.3-4.3M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4Z"/></svg>
+                <input id="shortLinksSearch" name="q" type="search" placeholder="Buscar por nome, slug ou notas">
+              </label>
               <button id="addShortLinkButton" class="admin-primary-button" type="button">
                 <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
                 Novo link
               </button>
             </div>
 
+            <nav class="admin-analytics-switcher" aria-label="Tipo de análise">
+              <button type="button" data-analytics-view="links" aria-pressed="true">Links e QR Codes</button>
+              <button type="button" data-analytics-view="portals" aria-pressed="false">Acessos aos portais</button>
+            </nav>
+
+            <div id="shortLinksWorkspace" class="admin-short-links-workspace">
             <form id="shortLinksFilters" class="admin-filters admin-short-links-filters">
               <label>
                 <span>Unidade</span>
@@ -173,10 +183,6 @@
                   <option value="updated">Atualização</option>
                   <option value="clicks">Cliques</option>
                 </select>
-              </label>
-              <label>
-                <span>Busca</span>
-                <input id="shortLinksSearch" name="q" type="search" placeholder="nome interno, slug ou notas">
               </label>
               <button class="admin-links-filter-button" type="submit">Filtrar</button>
             </form>
@@ -265,10 +271,52 @@
                 <p id="shortLinkSharingMessage" class="admin-muted" role="status" aria-live="polite"></p>
                 <div id="shortLinkSharesList" class="admin-link-share-list"></div>
               </section>
+              <form id="shortLinkAnalyticsFilters" class="admin-analytics-filters">
+                <label><span>De</span><input id="shortLinkAnalyticsFrom" name="from" type="date"></label>
+                <label><span>Até</span><input id="shortLinkAnalyticsTo" name="to" type="date"></label>
+                <label><span>Local</span><input id="shortLinkAnalyticsRegion" name="region" type="search" placeholder="Estado ou região"></label>
+                <button type="submit">Atualizar métricas</button>
+                <button id="resetShortLinkAnalyticsButton" class="danger" type="button">Zerar cliques uma única vez</button>
+              </form>
               <div id="shortLinksAnalytics" class="admin-short-links-analytics-panel"></div>
             </div>
 
             <div id="shortLinksList" class="admin-short-links-list" aria-live="polite"></div>
+            </div>
+
+            <section id="portalAnalyticsWorkspace" class="admin-portal-analytics-workspace" hidden>
+              <form id="portalAnalyticsFilters" class="admin-analytics-filters admin-portal-analytics-filters">
+                <label><span>Unidade</span><select id="portalAnalyticsHotel" name="hotel_id" required></select></label>
+                <label><span>De</span><input id="portalAnalyticsFrom" name="from" type="date"></label>
+                <label><span>Até</span><input id="portalAnalyticsTo" name="to" type="date"></label>
+                <label><span>Local</span><input id="portalAnalyticsRegion" name="region" type="search" placeholder="Estado ou região"></label>
+                <button type="submit">Aplicar filtros</button>
+              </form>
+              <p id="portalAnalyticsMessage" class="admin-muted" role="status" aria-live="polite"></p>
+              <div id="portalAnalyticsSummary" class="admin-short-links-summary" aria-label="Resumo dos acessos aos portais"></div>
+              <div class="admin-analytics-dashboard">
+                <section class="admin-analytics-card admin-analytics-card-wide">
+                  <header><div><span>Evolução</span><h3>Visitantes por data</h3></div></header>
+                  <div id="portalAnalyticsDaily" class="admin-analytics-bars" aria-label="Gráfico de visitantes por data"></div>
+                </section>
+                <section class="admin-analytics-card">
+                  <header><div><span>Conteúdo</span><h3>Páginas mais acessadas</h3></div></header>
+                  <div id="portalAnalyticsPages" class="admin-analytics-ranking"></div>
+                </section>
+                <section class="admin-analytics-card">
+                  <header><div><span>Distribuição</span><h3>Horários de acesso</h3></div></header>
+                  <div id="portalAnalyticsHours" class="admin-analytics-bars compact"></div>
+                </section>
+                <section class="admin-analytics-card">
+                  <header><div><span>Geografia</span><h3>País e estado</h3></div></header>
+                  <div id="portalAnalyticsLocations" class="admin-analytics-ranking"></div>
+                </section>
+                <section class="admin-analytics-card admin-analytics-card-wide">
+                  <header><div><span>Histórico</span><h3>Acessos recentes</h3></div></header>
+                  <div id="portalAnalyticsRecent" class="admin-analytics-history"></div>
+                </section>
+              </div>
+            </section>
           </section>
 
           <section id="mediaLibrary" class="admin-media-library" hidden>
