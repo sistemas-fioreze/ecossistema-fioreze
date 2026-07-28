@@ -162,13 +162,14 @@ Implementados:
 - `GET /:hotel_slug/room-service`
 - `GET /:hotel_slug/emporio`
 - `GET /:hotel_slug/romantic-packages`
+- `GET /api/v1/public/hotels/:hotel_slug/romantic-packages/packages`
 - `GET /:hotel_slug/spa`
 
 Contratos futuros:
 
 - Emporio: pedidos permanecem desativados; o modulo e somente catalogo;
 - Spa: services e requests;
-- Pacotes Romanticos: packages e requests.
+- Pacotes Romanticos: o catalogo publico e funcional; requests permanecem preparados para uma etapa futura.
 
 ## Variaveis
 
@@ -551,7 +552,7 @@ No ERP, a mensagem exibida e `Impressao desativada neste ambiente.`. Mudar statu
 - evolucao dos conteudos estruturados do Portal do Hospede oficial;
 - compra on-line no Emporio, que permanece intencionalmente fora do escopo do catalogo;
 - Spa funcional;
-- Pacotes Romanticos funcionais;
+- administracao e solicitacao on-line de Pacotes Romanticos;
 - ERP administrativo completo;
 - relatorios administrativos exportaveis;
 - perfis de permissao reutilizaveis para equipes operacionais;

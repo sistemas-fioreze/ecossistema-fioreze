@@ -32,12 +32,15 @@ async function boot() {
   app.classList.toggle("guest-portal-root", moduleKey === "guest-portal");
   app.classList.toggle("room-service-root", moduleKey === "room-service");
   app.classList.toggle("emporio-root", moduleKey === "emporio");
+  app.classList.toggle("romantic-packages-root", moduleKey === "romantic-packages");
   app.classList.toggle("public-module-root", moduleKey !== "guest-portal");
   app.classList.toggle("has-module-hero", moduleKey !== "guest-portal" && moduleKey !== "emporio");
   document.title = moduleKey === "room-service"
     ? `Room Service | ${bootstrap.short_name || bootstrap.name}`
     : moduleKey === "emporio"
       ? `Empório | ${bootstrap.short_name || bootstrap.name}`
+      : moduleKey === "romantic-packages"
+        ? `Pacotes românticos | ${bootstrap.short_name || bootstrap.name}`
       : `${bootstrap.short_name || bootstrap.name} | Portal do Hóspede`;
 
   if (moduleKey === "guest-portal") {

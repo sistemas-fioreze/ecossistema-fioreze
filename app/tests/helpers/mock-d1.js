@@ -266,6 +266,7 @@ function createFixtureData() {
       availability("muller-emporio-water", "muller-fioreze", 1),
       availability("aurora-sandwich", "aurora-demo", 1),
     ],
+    romanticPackages: [],
     adminUsers: [
       {
         id: "user-demo-admin",
@@ -1860,6 +1861,28 @@ class MockD1Database {
         })
         .filter(Boolean)
         .sort((a, b) => a.category_sort_order - b.category_sort_order || a.sort_order - b.sort_order || a.name.localeCompare(b.name));
+    }
+
+    if (normalized.includes("from romantic_packages rp")) {
+      const [hotelId, moduleKey] = params;
+      return this.data.romanticPackages
+        .filter((entry) => entry.hotel_id === hotelId)
+        .filter((entry) => entry.module_key === moduleKey)
+        .filter((entry) => entry.status === "active")
+        .map((entry) => {
+          const media = this.data.mediaAssets.find(
+            (candidate) =>
+              candidate.id === entry.media_asset_id
+              && candidate.hotel_id === entry.hotel_id
+              && candidate.status === "active",
+          );
+          return {
+            ...entry,
+            image_url: media?.public_url || null,
+            image_alt: media?.alt_text || null,
+          };
+        })
+        .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0) || a.name.localeCompare(b.name));
     }
 
     if (normalized.includes("from categories") && normalized.includes("status != 'archived'")) {
