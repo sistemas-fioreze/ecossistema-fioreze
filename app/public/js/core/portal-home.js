@@ -697,9 +697,8 @@ function getServiceModules(bootstrap) {
   return bootstrap.modules.filter((module) => !["guest-portal", "admin"].includes(module.module_key));
 }
 
-function getModulePath(bootstrap, moduleKey) {
-  const navigation = bootstrap.navigation.find((item) => item.module_key === moduleKey);
-  return sanitizeInternalPath(navigation?.path) || `/${encodeURIComponent(bootstrap.slug)}/${encodeURIComponent(moduleKey)}`;
+export function getModulePath(bootstrap, moduleKey) {
+  return `/${encodeURIComponent(bootstrap.slug)}/${encodeURIComponent(moduleKey)}`;
 }
 
 function getModuleDescription(module, bootstrap) {
