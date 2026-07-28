@@ -21,6 +21,9 @@ export function renderGuestNavigation(
   { activeTab = "inicio", activeModule = "guest-portal", hideBrand = false } = {},
 ) {
   const homePath = `/${encodeURIComponent(bootstrap.slug)}`;
+  const drawerTheme = bootstrap.settings?.["portal.navigation_drawer_theme"] === "dark"
+    ? "dark"
+    : "light";
   const logoUrl = sanitizePublicAssetUrl(
     bootstrap.branding?.horizontal_logo_url || bootstrap.branding?.logo_url || bootstrap.branding?.icon_url,
   );
@@ -48,7 +51,7 @@ export function renderGuestNavigation(
       </div>
     </header>
     <div class="guest-drawer-backdrop" data-guest-menu-close hidden></div>
-    <aside class="guest-navigation-drawer" id="guest-navigation-drawer" data-guest-navigation-drawer aria-hidden="true" aria-label="Navegação do hotel">
+    <aside class="guest-navigation-drawer is-${drawerTheme}" id="guest-navigation-drawer" data-guest-navigation-drawer aria-hidden="true" aria-label="Navegação do hotel">
       <div class="guest-drawer-head">
         <a class="guest-drawer-brand" href="${escapeHtml(homePath)}" aria-label="Ir para o início">${brand}</a>
         <button type="button" class="guest-menu-close" data-guest-menu-close aria-label="Fechar navegação">${navigationIcon("close")}</button>

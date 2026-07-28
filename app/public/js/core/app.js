@@ -3,14 +3,12 @@ import { portalPageKey, trackPortalVisit } from "./analytics.js";
 import { renderError } from "./errors.js";
 import {
   bindGuestNavigation,
-  navigationIcon,
   renderGuestNavigation,
   syncGuestHeader,
 } from "./guest-navigation.js";
 import { loadModule } from "./module-loader.js";
 import { resolveModuleFromPath, resolveSlugFromPath } from "./tenant.js";
-import { applyBranding, sanitizePublicAssetUrl } from "./theme.js";
-import { evaluateServiceStatus } from "../modules/room-service/service-status.js";
+import { applyBranding } from "./theme.js";
 
 const app = document.getElementById("app");
 
@@ -83,26 +81,12 @@ function renderShell(bootstrap, moduleKey) {
 function renderModuleHero(bootstrap, moduleKey) {
   const module = bootstrap.modules?.find((entry) => entry.module_key === moduleKey);
   if (!module) return "";
-  const cover = sanitizePublicAssetUrl(module.background_image_url);
-  const style = cover ? ` style="--module-hero-image: url('${escapeCssUrl(cover)}')"` : "";
-  const hours = moduleKey === "room-service" ? roomServiceHours(bootstrap) : "";
   return `
-    <section class="public-module-hero${cover ? " has-cover" : ""}"${style}>
-      <div class="public-module-hero-shade" aria-hidden="true"></div>
+    <section class="public-module-hero">
       <div class="public-module-hero-copy">
-        <h1>${navigationIcon(moduleKey)}<span>${escapeText(module.navigation_label || module.name || moduleKey)}</span></h1>
-        ${hours ? `<p>${escapeText(hours)}</p>` : ""}
+        <h1>${escapeText(module.navigation_label || module.name || moduleKey)}</h1>
       </div>
     </section>`;
-}
-
-function roomServiceHours(bootstrap) {
-  const status = evaluateServiceStatus({
-    serviceHours: bootstrap.service_hours?.["room-service"] || [],
-    timezone: bootstrap.timezone,
-    operationMode: bootstrap.settings?.["room-service.operation_mode"] || "automatic",
-  });
-  return status.today_text;
 }
 
 function escapeText(value) {
@@ -112,10 +96,6 @@ function escapeText(value) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
-}
-
-function escapeCssUrl(value) {
-  return String(value || "").replace(/['\\\n\r\f]/g, "");
 }
 
 boot().catch((error) => {

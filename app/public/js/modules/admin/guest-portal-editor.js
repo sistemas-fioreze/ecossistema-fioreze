@@ -174,6 +174,18 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
         <p class="guest-editor-help">Envie uma fonte WOFF ou WOFF2 para reproduzir com precisão a identidade da unidade. A fonte personalizada tem prioridade sobre o seletor.</p>
       </section>
       <section class="guest-editor-section">
+        <header><strong>Menu lateral</strong><span>Escolha o contraste da navegação exibida no celular.</span></header>
+        ${choiceSelectField(
+          "Fundo do menu",
+          "settings.portal.navigation_drawer_theme",
+          state.hotel.settings?.["portal.navigation_drawer_theme"] || "light",
+          [
+            ["light", "Branco"],
+            ["dark", "Preto"],
+          ],
+        )}
+      </section>
+      <section class="guest-editor-section">
         <header><strong>Capa principal</strong><span>Use uma imagem ou vídeo para a tela inicial.</span></header>
         ${mediaPicker("Imagem ou vídeo de fundo", "branding.cover_image_url", branding.cover_image_url, { allowVideo: true })}
       </section>`;
@@ -557,6 +569,16 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
         <span>${escapeHtml(label)}</span>
         <select data-editor-path="${escapeAttr(path)}">
           ${portalFontOptions(value).map((option) => `<option value="${escapeAttr(option.value)}" ${option.value === value ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+        </select>
+      </label>`;
+  }
+
+  function choiceSelectField(label, path, value, options) {
+    return `
+      <label class="guest-editor-field">
+        <span>${escapeHtml(label)}</span>
+        <select data-editor-path="${escapeAttr(path)}">
+          ${options.map(([optionValue, optionLabel]) => `<option value="${escapeAttr(optionValue)}" ${optionValue === value ? "selected" : ""}>${escapeHtml(optionLabel)}</option>`).join("")}
         </select>
       </label>`;
   }
@@ -1175,6 +1197,7 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
       "hosting.welcome_text",
       "general.short_description",
       "portal.blog_feed_url",
+      "portal.navigation_drawer_theme",
       "contact.maps_url",
       "contact.maps_embed_urls",
       "emporio.carousel_slides",

@@ -62,6 +62,7 @@ const PUBLIC_SETTINGS = new Set([
   "hosting.emergency_contact",
   "hosting.arrival_instructions",
   "portal.blog_feed_url",
+  "portal.navigation_drawer_theme",
   "portal.module.room-service.description",
   "portal.module.emporio.description",
   "portal.module.romantic-packages.description",
@@ -1024,6 +1025,11 @@ function validateHexColor(value, field) {
 function validateSetting(key, value) {
   if (key === "contact.maps_embed_urls") return validateMapsEmbedUrls(value);
   if (value == null || value === "") return { value: "", type: "string" };
+  if (key === "portal.navigation_drawer_theme") {
+    const theme = requireString(value, key, { max: 10 });
+    if (!["light", "dark"].includes(theme)) throw badRequest("Tema do menu lateral invalido.");
+    return { value: theme, type: "string" };
+  }
   if (["contact.latitude", "contact.longitude"].includes(key)) {
     const number = Number(value);
     const max = key.endsWith("latitude") ? 90 : 180;
