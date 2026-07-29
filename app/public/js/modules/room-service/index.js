@@ -329,7 +329,7 @@ function updateServiceStatus(container, state, now = new Date()) {
     note.textContent = "";
   } else {
     note.hidden = false;
-    note.textContent = `${description.detail} Você ainda pode consultar o cardápio.`;
+    note.textContent = "Room service fechado no momento";
   }
   syncSubmitButton(container, state);
 }

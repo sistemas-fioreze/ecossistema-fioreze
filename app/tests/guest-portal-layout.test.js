@@ -87,6 +87,7 @@ test("pesquisa mobile da header encontra portais e encaminha filtros dos catalog
   assert.match(navigationScript, /fioreze:portal-search/);
   assert.match(navigationCss, /\.guest-search-panel:not\(\[hidden\]\)/);
   assert.match(navigationCss, /grid-template-columns:\s*44px minmax\(0,\s*1fr\) 44px/);
+  assert.match(navigationCss, /\.guest-search-field input::\x2dwebkit-search-cancel-button\s*\{[\s\S]*?\x2dwebkit-appearance:\s*none/);
 });
 
 test("cabecalhos mobile nao acumulam espacamento e Emporio compartilha o mesmo fundo", () => {

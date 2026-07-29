@@ -75,10 +75,23 @@ test("shell do Room Service preserva a hierarquia do cardapio sob o header compa
   assert.match(css, /grid-template-columns:\s*380px minmax\(0, 1fr\)/);
   assert.match(css, /\.rs-product-card\s*\{[\s\S]*?min-height:\s*220px/);
   assert.match(css, /\.rs-product-media\s*\{[\s\S]*?position:\s*absolute/);
+  assert.match(css, /\.rs-product-media\s*\{[\s\S]*?border:\s*0;[\s\S]*?background:\s*transparent;[\s\S]*?box-shadow:\s*none/);
+  assert.match(css, /\.rs-product-card:has\(\.rs-product-media\) \.rs-product-content\s*\{\s*padding-right:\s*0/);
+  assert.match(css, /\.rs-product-card:has\(\.rs-product-media\) \.rs-product-label,[\s\S]*?max-width:\s*calc\(100% - 76px\)/);
+  assert.match(css, /@media \(max-width: 959px\)[\s\S]*?\.rs-category-button\.active[\s\S]*?background:\s*transparent/);
+  assert.match(css, /@media \(max-width: 959px\)[\s\S]*?\.rs-product-label\s*\{[\s\S]*?border:\s*0;[\s\S]*?background:\s*transparent/);
   assert.match(css, /max\(18px, env\(safe-area-inset-left\)\)/);
   assert.match(script, /classList\.toggle\("active", state\.activeCategory === category\.id\)/);
   assert.doesNotMatch(script, /renderLoading|Carregando cardápio/);
   assert.doesNotMatch(script, /IntersectionObserver/);
+});
+
+test("aviso fechado usa mensagem curta e mantém respiro do formulário", () => {
+  const css = fs.readFileSync(new URL("../public/css/modules/room-service/room-service.css", import.meta.url), "utf8");
+  const script = fs.readFileSync(new URL("../public/js/modules/room-service/index.js", import.meta.url), "utf8");
+
+  assert.match(script, /note\.textContent = "Room service fechado no momento"/);
+  assert.match(css, /\.rs-service-note\s*\{[\s\S]*?margin:\s*0 0 14px/);
 });
 
 test("Room Service incorporado usa o cabecalho do portal e abre sem tela de carregamento", () => {
