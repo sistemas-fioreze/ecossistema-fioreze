@@ -11,7 +11,7 @@ export function registerRomanticPackageRoutes(router) {
     await requireEnabledModule(env, tenant.hotel_id, MODULE_KEY);
     const rows = await all(
       env,
-      `SELECT rp.id, rp.name, rp.description, rp.included_items_json,
+      `SELECT rp.id, rp.name, rp.description, rp.included_items_json, rp.item_type,
               rp.price_cents, rp.currency, rp.sort_order, rp.media_asset_id,
               ma.public_url AS image_url, ma.alt_text AS image_alt
          FROM romantic_packages rp
@@ -39,6 +39,7 @@ function publicPackage(row) {
     id: row.id,
     name: row.name,
     description: row.description || "",
+    item_type: row.item_type === "add-on" ? "add-on" : "package",
     included_items: parseIncludedItems(row.included_items_json),
     price_cents: row.price_cents == null ? null : Number(row.price_cents),
     currency: row.currency || "BRL",

@@ -123,7 +123,7 @@ test("frontend do Spa replica o layout legado sem loader ou Apps Script", () => 
   assert.match(css, /\.spa-zena-monogram\s*\{[\s\S]*?border:\s*0;[\s\S]*?border-radius:\s*0;/);
   assert.match(css, /\.spa-zena-location/);
   assert.match(css, /@media \(max-width: 959px\)/);
-  assert.match(shell, /\["guest-portal", "emporio", "spa"\]|\["emporio", "spa"\]/);
+  assert.match(shell, /\["guest-portal", "emporio", "spa", "romantic-packages"\]|\["emporio", "spa", "romantic-packages"\]/);
   assert.match(editor, /data-guest-editor-tab="spa"|activeTab === "spa"/);
   assert.match(editor, /\/api\/v1\/admin\/spa\/catalog/);
 });

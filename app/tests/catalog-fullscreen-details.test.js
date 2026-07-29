@@ -53,6 +53,7 @@ test("pacotes romanticos publicos exigem modulo habilitado e preservam isolament
   assert.equal(result.body.data.module_key, "romantic-packages");
   assert.deepEqual(result.body.data.packages.map((entry) => entry.id), ["romantic-muller-fictitious"]);
   assert.deepEqual(result.body.data.packages[0].included_items, ["Item ficticio A", "Item ficticio B"]);
+  assert.equal(result.body.data.packages[0].item_type, "package");
   assert.equal(result.body.data.packages[0].image_url, "/assets/hotels/muller-fioreze/logo.png");
 });
 
@@ -60,6 +61,8 @@ test("normalizacao publica de pacotes rejeita inclusoes malformadas", () => {
   assert.deepEqual(routeInternals.parseIncludedItems('["Cafe", "", 12]'), ["Cafe", "12"]);
   assert.deepEqual(routeInternals.parseIncludedItems("{invalid"), []);
   assert.deepEqual(routeInternals.parseIncludedItems('{"item":"nao-e-lista"}'), []);
+  assert.equal(routeInternals.publicPackage({ item_type: "add-on" }).item_type, "add-on");
+  assert.equal(routeInternals.publicPackage({ item_type: "valor-invalido" }).item_type, "package");
 });
 
 test("Emporio e Pacotes Romanticos compartilham detalhe em tela cheia e zoom acessivel", () => {
@@ -85,6 +88,10 @@ test("Emporio e Pacotes Romanticos compartilham detalhe em tela cheia e zoom ace
   assert.match(sharedJs, /event\.key === "Escape"/);
   assert.match(sharedJs, /MAX_ZOOM = 3/);
   assert.match(romanticCss, /\.romantic-packages-grid/);
+  assert.match(romanticCss, /\.romantic-packages-app\.is-fioreze-centro/);
+  assert.match(romanticCss, /\.romantic-centro-addon-list/);
+  assert.match(romantic, /context\.bootstrap\.hotel_id === "fiorezecentro"/);
+  assert.match(romantic, /Foto meramente ilustrativa/);
   assert.match(loader, /"romantic-packages": \(\) => import\("\.\.\/modules\/romantic-packages\/index\.js"\)/);
 });
 
@@ -105,6 +112,27 @@ test("Pacotes Romanticos usa consulta por hotel e acao da recepcao sem compra on
   assert.doesNotMatch(moduleSource, /comprar agora|checkout|adicionar ao carrinho/i);
   assert.match(action.href, /^https:\/\/wa\.me\/5554999990000\?/);
   assert.doesNotMatch(futureRoutes, /router\.get\([^]*romantic-packages\/packages/);
+});
+
+test("catalogo romantico do Fioreze Centro preserva escopo, precos e midias do PDF", () => {
+  const migration = fs.readFileSync(`${APP_ROOT}/migrations/0031_fioreze_centro_romantic_catalog.sql`, "utf8");
+  const expectedPrices = [
+    15700, 28700, 49700, 72700, 12900, 15000, 22000, 11000, 27000,
+    14000, 33000, 30000, 67000, 22000, 27000, 18000, 11000,
+  ];
+
+  assert.match(migration, /ADD COLUMN item_type TEXT NOT NULL DEFAULT 'package'/);
+  assert.match(migration, /CHECK \(item_type IN \('package', 'add-on'\)\)/);
+  assert.match(migration, /folder-fiorezecentro-portal-romantico/);
+  assert.match(migration, /hotels\/fiorezecentro\/portal\/romantico\/surpresa-amore\.jpg/);
+  assert.match(migration, /hotels\/fiorezecentro\/portal\/romantico\/surpresa-cupido\.jpg/);
+  assert.match(migration, /hotels\/fiorezecentro\/portal\/romantico\/surpresa-conquistare\.jpg/);
+  assert.match(migration, /hotels\/fiorezecentro\/portal\/romantico\/surpresa-perfetta\.jpg/);
+  assert.equal((migration.match(/'fiorezecentro'/g) || []).length > 20, true);
+  assert.doesNotMatch(migration, /'muller-fioreze'|'aurora-demo'/);
+  for (const price of expectedPrices) assert.match(migration, new RegExp(`\\b${price}\\b`));
+  assert.equal((migration.match(/'package'\s*\n\s*\)/g) || []).length, 4);
+  assert.equal((migration.match(/'add-on'\s*\n\s*\)/g) || []).length, 13);
 });
 
 test("todos os shells da Central Administrativa usam o favicon oficial", () => {

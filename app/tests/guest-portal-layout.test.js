@@ -87,8 +87,8 @@ test("cabecalhos dos modulos exibem somente o titulo sem imagem", () => {
   assert.match(appScript, /function renderModuleHeading/);
   assert.match(appScript, /<h1>\$\{escapeText\(module\.navigation_label/);
   assert.doesNotMatch(appScript, /public-module-hero|--module-hero-image|public-module-hero-shade|navigationIcon\(moduleKey\)|roomServiceHours/);
-  assert.match(appScript, /\["guest-portal", "emporio", "spa"\]\.includes\(moduleKey\)/);
-  assert.match(appScript, /\["emporio", "spa"\]\.includes\(moduleKey\)/);
+  assert.match(appScript, /\["guest-portal", "emporio", "spa", "romantic-packages"\]\.includes\(moduleKey\)/);
+  assert.match(appScript, /\["emporio", "spa", "romantic-packages"\]\.includes\(moduleKey\)/);
   assert.match(navigationScript, /hideBrand = false/);
   assert.match(navigationScript, /is-brand-hidden/);
   assert.doesNotMatch(navigationCss, /public-module-hero|has-module-hero|--module-hero-image/);
