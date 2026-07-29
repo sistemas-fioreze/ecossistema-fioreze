@@ -89,7 +89,25 @@ const BRANDING_COLOR_FIELDS = new Set([
 const BRANDING_MEDIA_FIELDS = new Set([
   "logo_url",
   "horizontal_logo_url",
+  "guest_portal_logo_url",
+  "room_service_logo_url",
+  "emporio_logo_url",
+  "romantic_packages_logo_url",
+  "spa_logo_url",
+  "navigation_logo_url",
   "icon_url",
+  "favicon_url",
+  "cover_image_url",
+  "social_image_url",
+]);
+const CUSTOM_BRANDING_MEDIA_FIELDS = new Set([
+  "horizontal_logo_url",
+  "guest_portal_logo_url",
+  "room_service_logo_url",
+  "emporio_logo_url",
+  "romantic_packages_logo_url",
+  "spa_logo_url",
+  "navigation_logo_url",
   "favicon_url",
   "cover_image_url",
   "social_image_url",
@@ -346,7 +364,7 @@ export async function updateAdminHotelBranding({ request, env, session, hotelId 
       allowVideo: field === "cover_image_url",
     });
     const publicUrl = selection?.public_url || null;
-    if (["horizontal_logo_url", "favicon_url", "cover_image_url", "social_image_url"].includes(field)) {
+    if (CUSTOM_BRANDING_MEDIA_FIELDS.has(field)) {
       if ((customNext[field] || null) !== publicUrl) changedFields.push(field);
       customNext[field] = publicUrl;
       if (field === "cover_image_url") {
@@ -917,6 +935,12 @@ function formatBranding(row) {
     hotel_id: row?.hotel_id || null,
     logo_url: row?.logo_url || null,
     horizontal_logo_url: custom.horizontal_logo_url || null,
+    guest_portal_logo_url: custom.guest_portal_logo_url || null,
+    room_service_logo_url: custom.room_service_logo_url || null,
+    emporio_logo_url: custom.emporio_logo_url || null,
+    romantic_packages_logo_url: custom.romantic_packages_logo_url || null,
+    spa_logo_url: custom.spa_logo_url || null,
+    navigation_logo_url: custom.navigation_logo_url || null,
     icon_url: row?.icon_url || null,
     favicon_url: custom.favicon_url || null,
     header_logo_scale: normalizeLogoScale(custom.header_logo_scale),

@@ -46,6 +46,78 @@ test("identidade da unidade controla favicon e escala uniforme da logo", () => {
   assert.match(adminScript, /header_logo_scale/);
 });
 
+test("cabecalho usa logo por portal e menu lateral usa identidade independente", () => {
+  const html = renderGuestNavigation({
+    slug: "hotel-ficticio",
+    name: "Hotel Fictício",
+    branding: {
+      horizontal_logo_url: "/media/logo-geral",
+      emporio_logo_url: "/media/logo-emporio",
+      navigation_logo_url: "/media/logo-menu",
+    },
+    settings: {},
+    modules: [{ module_key: "emporio", name: "Empório", enabled: true }],
+  }, { activeModule: "emporio" });
+
+  assert.match(html, /class="guest-brand-link"[^]*?src="\/media\/logo-emporio"/);
+  assert.match(html, /class="guest-drawer-brand"[^]*?src="\/media\/logo-menu"/);
+  assert.match(adminScript, /guest_portal_logo_url/);
+  assert.match(adminScript, /room_service_logo_url/);
+  assert.match(adminScript, /navigation_logo_url/);
+});
+
+test("pesquisa mobile da header encontra portais e encaminha filtros dos catalogos", () => {
+  const html = renderGuestNavigation({
+    slug: "hotel-ficticio",
+    name: "Hotel Fictício",
+    branding: {},
+    settings: {},
+    modules: [
+      { module_key: "guest-portal", name: "Portal", enabled: true },
+      { module_key: "room-service", name: "Room Service", enabled: true },
+      { module_key: "emporio", name: "Empório", enabled: true },
+      { module_key: "spa", name: "Spa", enabled: true },
+    ],
+  });
+
+  assert.match(html, /data-guest-search-toggle/);
+  assert.match(html, /data-guest-search-input/);
+  assert.match(html, /Buscar no portal/);
+  assert.match(html, /Serviço da unidade/);
+  assert.match(navigationScript, /fioreze:portal-search/);
+  assert.match(navigationCss, /\.guest-search-panel:not\(\[hidden\]\)/);
+  assert.match(navigationCss, /grid-template-columns:\s*44px minmax\(0,\s*1fr\) 44px/);
+});
+
+test("cabecalhos mobile nao acumulam espacamento e Emporio compartilha o mesmo fundo", () => {
+  const emporioCss = fs.readFileSync(
+    new URL("../public/css/modules/emporio/emporio.css", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(navigationCss, /\.public-module-root \.public-module-heading\s*\{\s*padding-top:\s*0/);
+  assert.match(navigationCss, /\.public-module-heading-copy\s*\{[^]*?padding-top:\s*calc\(74px \+ env\(safe-area-inset-top\)\)/);
+  assert.match(emporioCss, /\.emporio-root \.public-module-heading,[^]*?background:\s*#fafafa/);
+  assert.match(emporioCss, /@media \(max-width: 959px\)[^]*?\.emporio-search\s*\{\s*display:\s*none/);
+});
+
+test("Decorações Especiais preserva titulo dourado proprio e acao solida", () => {
+  const romanticScript = fs.readFileSync(
+    new URL("../public/js/modules/romantic-packages/index.js", import.meta.url),
+    "utf8",
+  );
+  const romanticCss = fs.readFileSync(
+    new URL("../public/css/modules/romantic-packages/romantic-packages.css", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(appScript, /moduleKey === "romantic-packages" \? "" : renderModuleHeading/);
+  assert.match(appScript, /!\["guest-portal", "romantic-packages"\]\.includes\(moduleKey\)/);
+  assert.match(romanticScript, /<em>\+ Detalhes<\/em>/);
+  assert.match(romanticCss, /\.is-special-decorations \.romantic-packages-heading[^]*?background:\s*var\(--centro-gold\)/);
+  assert.match(romanticCss, /\.is-centro-experience \.romantic-package-card-copy em[^]*?background:\s*var\(--centro-gold-deep\)/);
+});
+
 test("portal integra blog, eventos ilustrados e capas dos servicos sem clima", () => {
   assert.doesNotMatch(portalScript, /\/portal\/weather|weather|clima/i);
   assert.doesNotMatch(guestPortalRoutes, /portal\/weather|loadPublicWeather|DEFAULT_WEATHER_LOCATION/);

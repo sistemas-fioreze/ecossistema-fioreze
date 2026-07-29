@@ -612,14 +612,12 @@
   }
 
   .spa-zena-search {
-    order: 2;
-    height: 54px;
-    margin: 0;
+    display: none;
   }
 
   .spa-zena-services {
     min-width: 0;
-    order: 3;
+    order: 2;
   }
 
   .spa-zena-service {

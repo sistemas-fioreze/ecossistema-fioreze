@@ -154,7 +154,7 @@ function renderPackageCard(item, isFiorezeCentro) {
             <span class="romantic-card-divider">${icon("heart")}</span>
             <p>${escapeHtml(item.description || "")}</p>
             <span class="romantic-package-price">${formatPrice(item)}</span>
-            <em>Conhecer a experiência</em>
+            <em>+ Detalhes</em>
           </span>
         </button>
       </article>`;
