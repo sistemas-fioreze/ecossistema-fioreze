@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="robots" content="noindex, nofollow">
+    <title>404 | Fioreze</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        min-height: 100%;
+        margin: 0;
+        background: #fff;
+        color: #404246;
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      body {
+        min-height: 100vh;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        padding:
+          calc(28px + env(safe-area-inset-top))
+          calc(24px + env(safe-area-inset-right))
+          calc(28px + env(safe-area-inset-bottom))
+          calc(24px + env(safe-area-inset-left));
+      }
+
+      .public-not-found {
+        width: min(100%, 620px);
+        display: grid;
+        justify-items: center;
+        gap: 0;
+        text-align: center;
+      }
+
+      .public-not-found__logo {
+        width: clamp(178px, 24vw, 226px);
+        aspect-ratio: 3.1;
+        margin-bottom: clamp(30px, 6vh, 58px);
+        overflow: hidden;
+      }
+
+      .public-not-found__logo img {
+        display: block;
+        width: 100%;
+        height: auto;
+        transform: translateY(-29%);
+      }
+
+      .public-not-found h1 {
+        margin: 0;
+        color: #414347;
+        font-size: clamp(7rem, 18vw, 10rem);
+        font-weight: 800;
+        line-height: 0.82;
+        letter-spacing: 0;
+      }
+
+      .public-not-found p {
+        max-width: 520px;
+        margin: clamp(34px, 6vh, 52px) 0 0;
+        color: #55585d;
+        font-size: clamp(1rem, 2.4vw, 1.18rem);
+        font-weight: 600;
+        line-height: 1.5;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="public-not-found" aria-labelledby="notFoundTitle">
+      <span class="public-not-found__logo">
+        <img src="/assets/shared/fioreze-central-logo.jpg" alt="Fioreze Hotéis">
+      </span>
+      <h1 id="notFoundTitle">404</h1>
+      <p>A página solicitada não pode ser encontrada.</p>
+    </main>
+  </body>
+</html>

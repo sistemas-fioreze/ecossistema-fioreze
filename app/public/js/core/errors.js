@@ -10,6 +10,21 @@ export function renderError(target, title, message) {
   `;
 }
 
+export function renderNotFound(target) {
+  document.title = "404 | Fioreze";
+  document.body.classList.add("has-public-not-found");
+  target.className = "app-shell public-not-found-root";
+  target.innerHTML = `
+    <section class="public-not-found" aria-labelledby="notFoundTitle">
+      <span class="public-not-found__logo">
+        <img src="/assets/shared/fioreze-central-logo.jpg" alt="Fioreze Hotéis">
+      </span>
+      <h1 id="notFoundTitle">404</h1>
+      <p>A página solicitada não pode ser encontrada.</p>
+    </section>
+  `;
+}
+
 export function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")

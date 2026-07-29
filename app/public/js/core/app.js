@@ -1,6 +1,6 @@
 import { apiGet } from "./api.js";
 import { portalPageKey, trackPortalVisit } from "./analytics.js";
-import { renderError } from "./errors.js";
+import { renderError, renderNotFound } from "./errors.js";
 import {
   bindGuestNavigation,
   renderGuestNavigation,
@@ -15,7 +15,7 @@ const app = document.getElementById("app");
 async function boot() {
   const slug = resolveSlugFromPath();
   if (!slug) {
-    renderError(app, "Hotel nao informado", "Acesse a plataforma usando o slug publico do hotel.");
+    renderNotFound(app);
     return;
   }
 
@@ -24,7 +24,11 @@ async function boot() {
 
   const requestedModule = resolveModuleFromPath(window.location.pathname);
   const enabledModules = new Set(bootstrap.modules.map((module) => module.module_key));
-  const moduleKey = enabledModules.has(requestedModule) ? requestedModule : "guest-portal";
+  if (!enabledModules.has(requestedModule)) {
+    renderNotFound(app);
+    return;
+  }
+  const moduleKey = requestedModule;
   trackPortalVisit(slug, portalPageKey(moduleKey));
 
   app.classList.toggle("guest-portal-root", moduleKey === "guest-portal");
@@ -99,5 +103,9 @@ function escapeText(value) {
 }
 
 boot().catch((error) => {
+  if (error?.status === 404 || error?.code === "not_found") {
+    renderNotFound(app);
+    return;
+  }
   renderError(app, "Falha ao carregar", error.message);
 });

@@ -68,6 +68,8 @@ function createAssetsBinding() {
           '<!doctype html><html><body><h1>Central Administrativa Fioreze</h1><form id="loginForm"></form><section id="accountManager"></section></body></html>',
         "/admin/configuracoes/":
           '<!doctype html><html><body><h1>Central Administrativa Fioreze</h1><form id="loginForm"></form><section id="settingsManager"></section></body></html>',
+        "/not-found/":
+          '<!doctype html><html lang="pt-BR"><body><main class="public-not-found"><img src="/assets/shared/fioreze-central-logo.jpg" alt="Fioreze Hotéis"><h1>404</h1><p>A página solicitada não pode ser encontrada.</p></main></body></html>',
       };
       if (htmlByPath[pathname]) {
         return new Response(htmlByPath[pathname], {

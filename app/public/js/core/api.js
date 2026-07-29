@@ -21,7 +21,10 @@ async function parseApiResponse(response) {
   const payload = await response.json().catch(() => null);
   if (!response.ok || !payload?.ok) {
     const message = payload?.error?.message || "Falha ao comunicar com a API local.";
-    throw new Error(message);
+    const error = new Error(message);
+    error.status = response.status;
+    error.code = payload?.error?.code || null;
+    throw error;
   }
   return payload.data;
 }
