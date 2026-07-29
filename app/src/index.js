@@ -59,11 +59,11 @@ async function handleRequest(request, env, ctx) {
   }
 
   if (url.pathname.startsWith("/portal-content/") && officialPortalHost) {
-    return guestPortalNotFound();
+    return servePublicNotFoundPage(request, env);
   }
 
   if (officialPortalHost && (url.pathname === "/portal" || url.pathname.startsWith("/portal/"))) {
-    return guestPortalNotFound();
+    return servePublicNotFoundPage(request, env);
   }
 
   if (
@@ -92,27 +92,19 @@ async function handleRequest(request, env, ctx) {
   }
 
   if (officialPortalHost && isRetiredCustomPortalPath(url.pathname)) {
-    return guestPortalNotFound();
+    return servePublicNotFoundPage(request, env);
   }
 
-  // Pages canonicaliza /index.html para /. Usar a rota canonica evita que o
-  // redirect volte ao _worker.js e repita indefinidamente o fallback SPA.
-  return serveAsset(request, env, "/");
-}
-
-function guestPortalNotFound() {
-  return fail(404, "not_found", "Portal nao encontrado.", undefined, {
-    headers: { "cache-control": "no-store", "x-robots-tag": "noindex, nofollow" },
-  });
+  return servePublicPortalPage(request, env, url);
 }
 
 function handleShortLinkCustomDomainRequest({ request, env, ctx, url }) {
   if (request.method !== "GET" && request.method !== "HEAD") {
-    return shortLinkHostNotFound();
+    return servePublicNotFoundPage(request, env);
   }
 
   const slug = extractCustomDomainSlug(url.pathname);
-  if (!slug) return shortLinkHostNotFound();
+  if (!slug) return servePublicNotFoundPage(request, env);
 
   return redirectShortLink({
     request,
@@ -120,15 +112,6 @@ function handleShortLinkCustomDomainRequest({ request, env, ctx, url }) {
     ctx,
     params: { slug },
     head: request.method === "HEAD",
-  });
-}
-
-function shortLinkHostNotFound() {
-  return fail(404, "not_found", "Link nao encontrado.", undefined, {
-    headers: {
-      "x-robots-tag": "noindex, nofollow",
-      "cache-control": "no-store",
-    },
   });
 }
 
@@ -200,6 +183,79 @@ async function serveAsset(request, env, overridePath = null) {
   return env.ASSETS.fetch(new Request(url, request));
 }
 
+async function servePublicPortalPage(request, env, url) {
+  const parts = safePublicPathParts(url.pathname);
+  if (!parts || parts.length < 1 || parts.length > 2) {
+    return servePublicNotFoundPage(request, env);
+  }
+
+  let tenant;
+  try {
+    tenant = await resolveTenantBySlug(env, parts[0]);
+  } catch (error) {
+    if (error instanceof AppError && error.status === 404) {
+      return servePublicNotFoundPage(request, env);
+    }
+    throw error;
+  }
+
+  const moduleKey = parts[1] || "guest-portal";
+  if (!tenant.modules.some((module) => module.module_key === moduleKey && module.enabled !== false)) {
+    return servePublicNotFoundPage(request, env);
+  }
+
+  // Pages canonicaliza /index.html para /. Usar a rota canonica evita que o
+  // redirect volte ao _worker.js e repita indefinidamente o fallback SPA.
+  return serveAsset(request, env, "/");
+}
+
+function safePublicPathParts(pathname) {
+  try {
+    return String(pathname || "")
+      .split("/")
+      .filter(Boolean)
+      .map((part) => decodeURIComponent(part));
+  } catch {
+    return null;
+  }
+}
+
+async function servePublicNotFoundPage(request, env) {
+  const assetRequest = new Request(request.url, {
+    method: "GET",
+    headers: request.headers,
+  });
+  const asset = await serveAsset(assetRequest, env, "/not-found/");
+  const headers = new Headers(asset.headers);
+  headers.set("content-type", "text/html; charset=utf-8");
+  headers.set("cache-control", "no-store");
+  headers.set("x-robots-tag", "noindex, nofollow");
+  headers.delete("content-length");
+
+  if (request.method === "HEAD") {
+    return new Response(null, { status: 404, headers });
+  }
+
+  const logoUrl = publicNotFoundLogoUrl(request, env);
+  const body = (await asset.text()).replaceAll(
+    "/assets/shared/fioreze-central-logo.jpg",
+    logoUrl,
+  );
+  return new Response(body, { status: 404, headers });
+}
+
+function publicNotFoundLogoUrl(request, env) {
+  const configured = String(env.GUEST_PORTAL_PUBLIC_ORIGIN || "").trim();
+  try {
+    if (configured) {
+      return new URL("/assets/shared/fioreze-central-logo.jpg", configured).toString();
+    }
+  } catch {
+    // A origem da requisição continua sendo um fallback seguro.
+  }
+  return new URL("/assets/shared/fioreze-central-logo.jpg", request.url).toString();
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -214,7 +270,11 @@ export default {
       });
     } catch (error) {
       if (error instanceof AppError) {
-        return withSecurityHeaders(fail(error.status, error.code, error.message, error.details, { headers: error.headers }), {
+        const response =
+          error.status === 404 && isPublicHtmlNotFound(pathname, shortLinkHost)
+            ? await servePublicNotFoundPage(request, env)
+            : fail(error.status, error.code, error.message, error.details, { headers: error.headers });
+        return withSecurityHeaders(response, {
           embed: pathname.startsWith("/embed/"),
           admin: pathname.startsWith("/admin/") || pathname.startsWith("/erp/"),
           shortLinkHost,
@@ -237,3 +297,11 @@ export default {
     ctx.waitUntil(archiveExpiredPortalEvents(env, { now }));
   },
 };
+
+function isPublicHtmlNotFound(pathname, shortLinkHost) {
+  return (
+    shortLinkHost ||
+    pathname.startsWith("/go/") ||
+    pathname.startsWith("/portal-content/")
+  );
+}

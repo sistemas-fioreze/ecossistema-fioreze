@@ -216,7 +216,7 @@ test("HEAD no dominio oficial retorna o mesmo Location sem incrementar analytics
   assert.equal(env.__data.shortLinks.find((entry) => entry.slug === "reservas").total_clicks, 0);
 });
 
-test("links indisponiveis retornam 404 generico sem HTML do SPA", async () => {
+test("links indisponiveis retornam a pagina 404 minimalista sem HTML do SPA", async () => {
   const { fetch, env } = createWorkerTestContext();
   env.__data.shortLinks.push({
     ...env.__data.shortLinks[0],
@@ -225,15 +225,26 @@ test("links indisponiveis retornam 404 generico sem HTML do SPA", async () => {
     status: "active",
     expires_at: "2026-07-01T00:00:00.000Z",
   });
+  env.__data.shortLinks.push({
+    ...env.__data.shortLinks[0],
+    id: "link-arquivado",
+    slug: "arquivado",
+    status: "archived",
+    archived_at: "2026-07-10T00:00:00.000Z",
+  });
 
-  for (const slug of ["inexistente", "pausado", "expirado"]) {
+  for (const slug of ["inexistente", "pausado", "expirado", "arquivado"]) {
     const response = await fetch(`/go/${slug}`, {
       redirect: "manual",
       headers: { "x-fioreze-test-now": "2026-07-12T12:00:00.000Z" },
     });
     assert.equal(response.status, 404);
-    assert.match(response.headers.get("content-type") || "", /application\/json/);
+    assert.match(response.headers.get("content-type") || "", /text\/html/);
     assert.equal(response.headers.has("location"), false);
+    const html = await response.text();
+    assert.match(html, />404</);
+    assert.match(html, /A página solicitada não pode ser encontrada\./);
+    assert.doesNotMatch(html, /Hotel nao informado|slug publico|Link nao encontrado/i);
   }
 });
 
@@ -266,12 +277,14 @@ test("hostname oficial isola admin, api, assets e fallback SPA", async () => {
   for (const path of paths) {
     const response = await fetch(`${SHORT_LINK_ORIGIN}${path}`, { redirect: "manual" });
     assert.equal(response.status, 404, path);
-    assert.match(response.headers.get("content-type") || "", /application\/json/, path);
+    assert.match(response.headers.get("content-type") || "", /text\/html/, path);
     assert.equal(response.headers.get("cache-control"), "no-store", path);
     assert.equal(response.headers.get("x-robots-tag"), "noindex, nofollow", path);
     assert.equal(response.headers.has("location"), false, path);
     assert.equal(response.headers.has("set-cookie"), false, path);
-    assert.doesNotMatch(await response.text(), /Central de Portais|<!doctype html/i, path);
+    const html = await response.text();
+    assert.match(html, /A página solicitada não pode ser encontrada\./, path);
+    assert.doesNotMatch(html, /Central de Portais|Hotel nao informado|slug publico/i, path);
   }
 
   const post = await fetch(`${SHORT_LINK_ORIGIN}/reservas`, { method: "POST", redirect: "manual" });
@@ -292,7 +305,7 @@ test("hostname oficial bloqueia reservados codificados, traversal e encoding inv
   assert.equal(extractCustomDomainSlug("/reservas/"), "reservas");
 });
 
-test("workers.dev preserva /go/:slug e nao transforma /:slug em link curto", async () => {
+test("workers.dev preserva /go/:slug e trata /:slug sem hotel como 404", async () => {
   const { fetch, env, flushWaitUntil } = createWorkerTestContext({ SHORT_LINK_PUBLIC_ORIGIN: SHORT_LINK_ORIGIN });
 
   const technical = await fetch("/go/reservas", { redirect: "manual" });
@@ -301,9 +314,10 @@ test("workers.dev preserva /go/:slug e nao transforma /:slug em link curto", asy
   await flushWaitUntil();
 
   assert.equal(technical.status, 302);
-  assert.equal(plain.status, 200);
-  assert.match(await plain.text(), /<body>\/<\/body>/);
-  assert.equal(otherHost.status, 200);
+  assert.equal(plain.status, 404);
+  assert.match(await plain.text(), /A página solicitada não pode ser encontrada\./);
+  assert.equal(otherHost.status, 404);
+  assert.match(await otherHost.text(), /A página solicitada não pode ser encontrada\./);
   assert.equal(env.__data.shortLinks.find((entry) => entry.slug === "reservas").total_clicks, 1);
 });
 

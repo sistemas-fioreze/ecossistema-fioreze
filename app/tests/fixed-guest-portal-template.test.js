@@ -56,7 +56,14 @@ test("template oficial atende hotel e modulos e rejeita slugs do criador aposent
     GUEST_PORTAL_PUBLIC_ORIGIN: OFFICIAL_ORIGIN,
     ASSETS: {
       fetch(request) {
-        requestedAssets.push(new URL(request.url).pathname);
+        const pathname = new URL(request.url).pathname;
+        requestedAssets.push(pathname);
+        if (pathname === "/not-found/") {
+          return new Response(
+            '<!doctype html><html><body><img src="/assets/shared/fioreze-central-logo.jpg"><h1>404</h1><p>A página solicitada não pode ser encontrada.</p></body></html>',
+            { headers: { "content-type": "text/html; charset=utf-8" } },
+          );
+        }
         return new Response("<!doctype html><title>Portal do Hospede</title>", {
           headers: { "content-type": "text/html; charset=utf-8" },
         });
@@ -73,11 +80,11 @@ test("template oficial atende hotel e modulos e rejeita slugs do criador aposent
   assert.equal(home.status, 200);
   assert.match(home.headers.get("content-type") || "", /text\/html/);
   assert.equal(roomService.status, 200);
-  assert.deepEqual(requestedAssets, ["/", "/"]);
+  assert.deepEqual(requestedAssets, ["/", "/", "/not-found/", "/not-found/", "/not-found/"]);
   for (const response of [oldPortal, oldRoot, oldContent]) {
     assert.equal(response.status, 404);
-    assert.match(response.headers.get("content-type") || "", /application\/json/);
-    assert.doesNotMatch(await response.text(), /<!doctype html>/i);
+    assert.match(response.headers.get("content-type") || "", /text\/html/);
+    assert.match(await response.text(), /A página solicitada não pode ser encontrada\./);
   }
 });
 

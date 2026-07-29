@@ -4,6 +4,7 @@ import path from "node:path";
 import test from "node:test";
 import { buildPages } from "../scripts/build-pages.js";
 import worker from "../src/index.js";
+import { createTestEnv } from "./helpers/mock-d1.js";
 
 const root = process.cwd();
 const workerConfig = JSON.parse(fs.readFileSync("wrangler.jsonc", "utf8"));
@@ -87,9 +88,10 @@ test("build Pages rejeita saida fora do projeto ou dentro das fontes", async () 
   await assert.rejects(() => buildPages({ root, outputDir: "public/build" }), /nao pode substituir fontes/);
 });
 
-test("raiz e fallback SPA do Pages nao entram em loop de redirect", async () => {
+test("raiz 404 e fallback SPA valido do Pages nao entram em loop de redirect", async () => {
   const requestedAssetPaths = [];
   const env = {
+    ...createTestEnv(),
     ...pagesConfig.vars,
     ASSETS: {
       fetch: async (request) => {
@@ -108,12 +110,12 @@ test("raiz e fallback SPA do Pages nao entram em loop de redirect", async () => 
   const rootResponse = await worker.fetch(new Request("https://pages.example/"), env, ctx);
   const spaResponse = await worker.fetch(new Request("https://pages.example/muller-fioreze"), env, ctx);
 
-  assert.equal(rootResponse.status, 200);
+  assert.equal(rootResponse.status, 404);
   assert.equal(rootResponse.headers.get("location"), null);
   assert.equal(await rootResponse.text(), "shell-publico");
   assert.equal(spaResponse.status, 200);
   assert.equal(spaResponse.headers.get("location"), null);
-  assert.deepEqual(requestedAssetPaths, ["/", "/"]);
+  assert.deepEqual(requestedAssetPaths, ["/not-found/", "/"]);
 });
 
 test("scripts Pages usam configuracao dedicada", () => {
