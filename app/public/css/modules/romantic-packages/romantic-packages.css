@@ -263,9 +263,8 @@
 }
 
 .romantic-packages-app.is-fioreze-centro {
-  --centro-wine: #982923;
-  --centro-wine-deep: #731b19;
   --centro-gold: #c9aa43;
+  --centro-gold-deep: #8b6c1d;
   --centro-charcoal: #3f3a3b;
   --romantic-ink: var(--centro-charcoal);
   --romantic-muted: #6f6869;
@@ -286,7 +285,7 @@
   overflow: hidden;
   padding: 54px clamp(20px, 5vw, 72px);
   color: #fff;
-  background: var(--centro-wine);
+  background: var(--centro-gold);
   text-align: center;
 }
 
@@ -296,7 +295,7 @@
   width: min(260px, 32vw);
   height: 1px;
   position: absolute;
-  background: var(--centro-gold);
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .is-fioreze-centro .romantic-packages-heading::before {
@@ -309,49 +308,31 @@
   left: clamp(24px, 8vw, 110px);
 }
 
-.romantic-centro-mark {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  color: #fff;
-  font-size: 0.72rem;
-  font-weight: 850;
-  text-transform: uppercase;
-}
-
-.romantic-centro-mark svg {
-  width: 18px;
-  height: 18px;
-  color: var(--centro-gold);
-  fill: currentColor;
-  stroke-width: 1.2;
-}
-
 .is-fioreze-centro .romantic-packages-heading h1 {
   display: grid;
   justify-items: center;
-  gap: 0;
+  gap: 12px;
 }
 
 .is-fioreze-centro .romantic-packages-heading h1 span {
   font-family: "Brush Script MT", "Segoe Script", cursive;
   font-size: clamp(3.8rem, 10vw, 7.5rem);
   font-weight: 400;
-  line-height: 0.82;
+  line-height: 0.9;
   text-transform: lowercase;
 }
 
 .is-fioreze-centro .romantic-packages-heading h1 strong {
-  color: var(--centro-gold);
+  color: #3d3218;
   font-family: Georgia, "Times New Roman", serif;
   font-size: clamp(1.25rem, 3vw, 2.25rem);
   font-weight: 400;
-  line-height: 1;
+  line-height: 1.1;
 }
 
 .is-fioreze-centro .romantic-packages-heading > span {
   max-width: 44rem;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .is-fioreze-centro .romantic-packages-grid {
@@ -374,7 +355,7 @@
   align-items: center;
   gap: 18px;
   margin: 0 auto clamp(32px, 5vw, 58px);
-  color: var(--centro-wine);
+  color: var(--centro-gold-deep);
   text-align: center;
 }
 
@@ -388,6 +369,15 @@
   font-family: Georgia, "Times New Roman", serif;
   font-size: clamp(1.45rem, 3vw, 2.4rem);
   font-weight: 400;
+}
+
+.romantic-centro-section-title p {
+  max-width: 38rem;
+  margin: 7px auto 0;
+  color: var(--romantic-muted);
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  line-height: 1.5;
 }
 
 .romantic-centro-experience-grid {
@@ -432,16 +422,8 @@
   padding: 8px clamp(8px, 3vw, 34px) 0;
 }
 
-.is-centro-experience .romantic-package-card-copy > small {
-  color: var(--centro-charcoal);
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(1rem, 1.7vw, 1.35rem);
-  font-weight: 400;
-  letter-spacing: 0.22em;
-}
-
 .is-centro-experience .romantic-package-card-copy > strong {
-  color: var(--centro-wine);
+  color: var(--centro-gold-deep);
   font-family: "Brush Script MT", "Segoe Script", cursive;
   font-size: clamp(2.7rem, 5.6vw, 4.8rem);
   font-weight: 400;
@@ -454,7 +436,7 @@
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 12px;
-  color: var(--centro-wine);
+  color: var(--centro-gold-deep);
 }
 
 .romantic-card-divider::before,
@@ -479,7 +461,7 @@
 }
 
 .is-centro-experience .romantic-package-price {
-  color: var(--centro-wine);
+  color: var(--centro-gold-deep);
   font-size: clamp(1.45rem, 2.8vw, 2.2rem);
   font-weight: 900;
 }
@@ -489,7 +471,7 @@
   display: inline-flex;
   align-items: center;
   border-bottom: 1px solid var(--centro-gold);
-  color: var(--centro-wine);
+  color: var(--centro-gold-deep);
   font-size: 0.72rem;
   font-weight: 850;
   text-transform: uppercase;
@@ -512,14 +494,13 @@
 .romantic-centro-addons-heading > svg {
   width: 42px;
   height: 42px;
-  color: var(--centro-wine);
-  fill: currentColor;
+  color: var(--centro-gold-deep);
   stroke-width: 1.1;
 }
 
 .romantic-centro-addons-heading p {
   margin: 0 0 2px;
-  color: var(--centro-wine);
+  color: var(--centro-gold-deep);
   font-size: 0.68rem;
   font-weight: 850;
   text-transform: uppercase;
@@ -527,7 +508,7 @@
 
 .romantic-centro-addons-heading h2 {
   margin: 0;
-  color: var(--centro-gold);
+  color: var(--centro-gold-deep);
   font-family: "Brush Script MT", "Segoe Script", cursive;
   font-size: clamp(2.6rem, 5vw, 4.2rem);
   font-weight: 400;
@@ -555,7 +536,7 @@
 }
 
 .romantic-centro-addon-list > button:hover {
-  color: var(--centro-wine);
+  color: var(--centro-gold-deep);
 }
 
 .romantic-centro-addon-list > button > span {
@@ -573,7 +554,7 @@
 }
 
 .romantic-centro-addon-list em {
-  color: var(--centro-wine);
+  color: var(--centro-gold-deep);
   font-size: 1rem;
   font-style: normal;
   font-weight: 900;
@@ -585,30 +566,8 @@
   height: 18px;
 }
 
-.romantic-centro-signature {
-  display: grid;
-  justify-items: center;
-  gap: 8px;
-  color: var(--centro-wine);
-}
-
-.romantic-centro-signature svg {
-  fill: currentColor;
-}
-
-.romantic-centro-signature span {
-  font-family: Georgia, "Times New Roman", serif;
-}
-
-.romantic-centro-signature strong {
-  color: var(--centro-gold);
-  font-family: "Brush Script MT", "Segoe Script", cursive;
-  font-size: 1.65rem;
-  font-weight: 400;
-}
-
 .is-fioreze-centro .romantic-package-detail-card.is-centro-detail {
-  --color-primary: var(--centro-wine);
+  --color-primary: var(--centro-gold-deep);
 }
 
 .is-fioreze-centro .is-centro-detail .romantic-package-detail-content {
@@ -616,23 +575,22 @@
   border-left: 1px solid rgba(201, 170, 67, 0.35);
 }
 
-.is-fioreze-centro .is-centro-detail .romantic-package-detail-content::before {
-  content: "Surpresas românticas";
-  margin-bottom: 32px;
-  color: var(--centro-gold);
+.romantic-package-detail-category {
+  margin: 0 0 28px;
+  color: var(--centro-gold-deep);
   font-family: Georgia, "Times New Roman", serif;
   font-size: 0.8rem;
   text-transform: uppercase;
 }
 
 .is-fioreze-centro .is-centro-detail .romantic-package-detail-content h2 {
-  color: var(--centro-wine);
+  color: var(--centro-gold-deep);
   font-family: "Brush Script MT", "Segoe Script", cursive;
   font-weight: 400;
 }
 
 .is-fioreze-centro .is-centro-detail .romantic-package-action {
-  background: var(--centro-wine);
+  background: var(--centro-gold-deep);
 }
 
 .romantic-detail-image-note {
@@ -648,7 +606,7 @@
 }
 
 .is-fioreze-centro .is-add-on-detail .romantic-package-detail-media {
-  background: var(--centro-wine);
+  background: var(--centro-gold-deep);
 }
 
 .is-fioreze-centro .is-add-on-detail .romantic-package-placeholder {

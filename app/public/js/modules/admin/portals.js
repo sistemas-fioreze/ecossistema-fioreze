@@ -1237,7 +1237,7 @@ function portalPageLabel(pageKey) {
     "room-service": "Room Service",
     emporio: "Empório",
     spa: "Spa",
-    "romantic-packages": "Pacotes românticos",
+    "romantic-packages": "Decorações especiais",
   })[pageKey] || String(pageKey || "Página").replaceAll("-", " ");
 }
 

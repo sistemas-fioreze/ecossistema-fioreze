@@ -15,13 +15,13 @@ const SERVICE_KEYS = ["room-service", "emporio", "romantic-packages", "spa"];
 const SERVICE_LABELS = {
   "room-service": "Room Service",
   emporio: "Empório",
-  "romantic-packages": "Pacotes românticos",
+  "romantic-packages": "Decorações especiais",
   spa: "Spa",
 };
 const SERVICE_DESCRIPTIONS = {
   "room-service": "Refeições e bebidas no conforto da acomodação.",
   emporio: "Produtos selecionados, presentes e lembranças.",
-  "romantic-packages": "Experiências especiais para celebrar a dois.",
+  "romantic-packages": "Decorações e experiências para momentos especiais.",
   spa: "Massagens, tratamentos e momentos de bem-estar.",
 };
 

@@ -39,7 +39,7 @@ async function boot() {
     : moduleKey === "emporio"
       ? `Empório | ${bootstrap.short_name || bootstrap.name}`
       : moduleKey === "romantic-packages"
-        ? `Pacotes românticos | ${bootstrap.short_name || bootstrap.name}`
+        ? `Decorações especiais | ${bootstrap.short_name || bootstrap.name}`
         : moduleKey === "spa"
           ? `Spa | ${bootstrap.short_name || bootstrap.name}`
           : `${bootstrap.short_name || bootstrap.name} | Portal do Hóspede`;

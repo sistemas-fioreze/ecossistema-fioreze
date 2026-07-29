@@ -13,7 +13,7 @@ const MODULE_ICONS = {
   "room-service": "room-service",
   emporio: "bag",
   spa: "spa",
-  "romantic-packages": "heart",
+  "romantic-packages": "sparkle",
 };
 
 export function renderGuestNavigation(

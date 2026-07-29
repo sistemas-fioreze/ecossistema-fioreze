@@ -56,10 +56,10 @@ function renderShell(bootstrap, isFiorezeCentro) {
   return `
     <section class="romantic-packages-app${isFiorezeCentro ? " is-fioreze-centro" : ""}">
       <header class="romantic-packages-heading">
-        ${isFiorezeCentro ? renderFiorezeCentroMark() : "<p>Experiências a dois</p>"}
+        ${isFiorezeCentro ? "" : "<p>Experiências especiais</p>"}
         ${isFiorezeCentro
-          ? '<h1><span>surpresas</span><strong>ROMÂNTICAS</strong></h1>'
-          : "<h1>Pacotes românticos</h1>"}
+          ? '<h1><span>decorações</span><strong>ESPECIAIS</strong></h1>'
+          : "<h1>Decorações especiais</h1>"}
         <span>${escapeHtml(description)}</span>
       </header>
       <section class="romantic-packages-grid" data-romantic-packages-list aria-live="polite">
@@ -99,36 +99,42 @@ function renderPackages(container, state) {
   if (!state.packages.length) {
     list.innerHTML = `
       <div class="romantic-packages-empty">
-        ${icon("heart")}
-        <strong>Novas experiências em preparação</strong>
+        ${icon("sparkle")}
+        <strong>Novas decorações em preparação</strong>
         <span>Consulte a recepção para conhecer as opções disponíveis durante a sua estadia.</span>
       </div>`;
     return;
   }
-  const packages = state.packages.filter((item) => item.item_type !== "add-on");
-  const addOns = state.packages.filter((item) => item.item_type === "add-on");
   if (!state.isFiorezeCentro) {
     list.innerHTML = state.packages.map((item) => renderPackageCard(item, false)).join("");
     return;
   }
+  const categories = groupPackagesByCategory(state.packages);
   list.innerHTML = `
     <div class="romantic-centro-catalog">
-      <section class="romantic-centro-experiences" aria-labelledby="romantic-experiences-title">
-        <div class="romantic-centro-section-title">
-          <span aria-hidden="true"></span>
-          <h2 id="romantic-experiences-title">Escolha sua surpresa</h2>
-          <span aria-hidden="true"></span>
-        </div>
-        <div class="romantic-centro-experience-grid">
-          ${packages.map((item) => renderPackageCard(item, true)).join("")}
-        </div>
-      </section>
-      ${addOns.length ? renderAddOns(addOns) : ""}
-      <footer class="romantic-centro-signature" aria-label="Família Fioreze">
-        ${icon("heart")}
-        <span>Família <strong>Fioreze</strong></span>
-      </footer>
+      ${categories.map((category, index) => renderCategorySection(category, index)).join("")}
     </div>`;
+}
+
+function renderCategorySection(category, index) {
+  const packages = category.items.filter((item) => item.item_type !== "add-on");
+  const addOns = category.items.filter((item) => item.item_type === "add-on");
+  const titleId = `decoration-category-${index}`;
+  return `
+    <section class="romantic-centro-experiences" aria-labelledby="${titleId}" data-decoration-category="${escapeHtml(category.key)}">
+      <div class="romantic-centro-section-title">
+        <span aria-hidden="true"></span>
+        <div>
+          <h2 id="${titleId}">${escapeHtml(category.name)}</h2>
+          ${category.description ? `<p>${escapeHtml(category.description)}</p>` : ""}
+        </div>
+        <span aria-hidden="true"></span>
+      </div>
+      ${packages.length
+        ? `<div class="romantic-centro-experience-grid">${packages.map((item) => renderPackageCard(item, true)).join("")}</div>`
+        : ""}
+      ${addOns.length ? renderAddOns(addOns, `${titleId}-addons`) : ""}
+    </section>`;
 }
 
 function renderPackageCard(item, isFiorezeCentro) {
@@ -144,8 +150,7 @@ function renderPackageCard(item, isFiorezeCentro) {
             <small>Foto meramente ilustrativa</small>
           </span>
           <span class="romantic-package-card-copy">
-            <small>Surpresa</small>
-            <strong>${escapeHtml(removeSurprisePrefix(item.name))}</strong>
+            <strong>${escapeHtml(displayPackageName(item))}</strong>
             <span class="romantic-card-divider">${icon("heart")}</span>
             <p>${escapeHtml(item.description || "")}</p>
             <span class="romantic-package-price">${formatPrice(item)}</span>
@@ -172,14 +177,14 @@ function renderPackageCard(item, isFiorezeCentro) {
     </article>`;
 }
 
-function renderAddOns(items) {
+function renderAddOns(items, titleId) {
   return `
-    <section class="romantic-centro-addons" aria-labelledby="romantic-addons-title">
+    <section class="romantic-centro-addons" aria-labelledby="${escapeHtml(titleId)}">
       <div class="romantic-centro-addons-heading">
-        ${icon("heart")}
+        ${icon("sparkle")}
         <div>
-          <p>Complete o momento</p>
-          <h2 id="romantic-addons-title">Adicionais</h2>
+          <p>Personalize a experiência</p>
+          <h2 id="${escapeHtml(titleId)}">Adicionais</h2>
         </div>
       </div>
       <div class="romantic-centro-addon-list">
@@ -226,13 +231,14 @@ function renderPackageDetail(container, state) {
         image,
         alt: item.image_alt || item.name,
         label: `Ampliar imagem de ${item.name}`,
-        placeholder: `<span class="romantic-package-placeholder" aria-hidden="true">${icon("heart")}</span>`,
+        placeholder: `<span class="romantic-package-placeholder" aria-hidden="true">${icon("sparkle")}</span>`,
       })}
       ${image && state.isFiorezeCentro ? '<small class="romantic-detail-image-note">Foto meramente ilustrativa</small>' : ""}
     </div>
     <div class="romantic-package-detail-content catalog-detail-content">
-      <p class="romantic-package-detail-kicker">${isAddOn ? "Adicional romântico" : "Experiência romântica"}</p>
-      <h2 id="romantic-package-title">${escapeHtml(state.isFiorezeCentro ? removeSurprisePrefix(item.name) : item.name)}</h2>
+      <p class="romantic-package-detail-category">${escapeHtml(item.category_name || "Decorações especiais")}</p>
+      <p class="romantic-package-detail-kicker">${isAddOn ? "Adicional" : "Experiência especial"}</p>
+      <h2 id="romantic-package-title">${escapeHtml(state.isFiorezeCentro ? displayPackageName(item) : item.name)}</h2>
       <strong class="romantic-package-detail-price">${formatPrice(item)}</strong>
       <p class="romantic-package-detail-description">${escapeHtml(item.description || "Uma experiência especial preparada pela equipe do hotel.")}</p>
       ${renderIncludedItems(item.included_items)}
@@ -283,12 +289,30 @@ function removeSurprisePrefix(value) {
   return String(value || "").replace(/^surpresa\s+/i, "").trim();
 }
 
-function renderFiorezeCentroMark() {
-  return `
-    <div class="romantic-centro-mark" aria-label="Encante o seu amor">
-      ${icon("heart")}
-      <span>Encante o seu amor</span>
-    </div>`;
+function displayPackageName(item) {
+  return item.category_key === "romantic-surprises"
+    ? removeSurprisePrefix(item.name)
+    : String(item.name || "").trim();
+}
+
+function groupPackagesByCategory(items) {
+  const groups = new Map();
+  for (const item of items) {
+    const key = String(item.category_key || "featured").trim() || "featured";
+    if (!groups.has(key)) {
+      groups.set(key, {
+        key,
+        name: String(item.category_name || "Experiências").trim() || "Experiências",
+        description: String(item.category_description || "").trim(),
+        sortOrder: Number(item.category_sort_order || 100),
+        items: [],
+      });
+    }
+    groups.get(key).items.push(item);
+  }
+  return [...groups.values()].sort(
+    (left, right) => left.sortOrder - right.sortOrder || left.name.localeCompare(right.name, "pt-BR"),
+  );
 }
 
 function whatsappAction(bootstrap, item) {
@@ -297,7 +321,7 @@ function whatsappAction(bootstrap, item) {
   const number = digits.length === 10 || digits.length === 11 ? `55${digits}` : digits;
   if (number.length < 10 || number.length > 15) return { href: null };
   const message = [
-    "Olá! Gostaria de mais informações sobre este pacote romântico:",
+    "Olá! Gostaria de mais informações sobre esta decoração especial:",
     item.name,
     bootstrap.short_name || bootstrap.name,
     "Pode confirmar a disponibilidade para mim?",
@@ -326,8 +350,9 @@ function icon(name) {
     phone: '<path d="M4 5a2 2 0 0 1 2-2h3l1.4 4.2-2 1.2a12 12 0 0 0 7.2 7.2l1.2-2L21 15v3a2 2 0 0 1-2 2C10.7 20 4 13.3 4 5Z"/>',
     alert: '<path d="M12 3 2 21h20L12 3Z"/><path d="M12 9v5M12 18h.01"/>',
     arrow: '<path d="M5 12h14M14 7l5 5-5 5"/>',
+    sparkle: '<path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z"/>',
   };
-  return `<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[name] || paths.heart}</svg>`;
+  return `<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[name] || paths.sparkle}</svg>`;
 }
 
 async function loadCss(path) {
@@ -339,6 +364,8 @@ async function loadCss(path) {
 }
 
 export const romanticPackagesInternalsForTests = {
+  displayPackageName,
   formatPrice,
+  groupPackagesByCategory,
   whatsappAction,
 };
