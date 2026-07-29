@@ -177,7 +177,20 @@ const portalCards = [
   ["eventos", "Eventos", "Planeje a agenda e publique experiências em cada unidade.", "/admin/portais/eventos/"],
   ["conteudos", "Portal do Hóspede", "Personalize identidade, capas, conteúdos e serviços no template oficial.", "/admin/portais/portal-hospede/"],
 ];
-const mediaFields = ["logo_url", "horizontal_logo_url", "icon_url", "favicon_url", "cover_image_url", "social_image_url"];
+const mediaFields = [
+  "logo_url",
+  "horizontal_logo_url",
+  "icon_url",
+  "favicon_url",
+  "cover_image_url",
+  "social_image_url",
+  "guest_portal_logo_url",
+  "room_service_logo_url",
+  "emporio_logo_url",
+  "romantic_packages_logo_url",
+  "spa_logo_url",
+  "navigation_logo_url",
+];
 const brandingAssetFields = [...mediaFields, "font_asset_id"];
 const settingFields = [
   "general.short_description",
@@ -3308,6 +3321,12 @@ function mediaLabel(name) {
   return {
     logo_url: "Logo principal",
     horizontal_logo_url: "Logo horizontal",
+    guest_portal_logo_url: "Logo do Portal do Hóspede",
+    room_service_logo_url: "Logo do Room Service",
+    emporio_logo_url: "Logo do Empório",
+    romantic_packages_logo_url: "Logo de Decorações Especiais",
+    spa_logo_url: "Logo do Spa",
+    navigation_logo_url: "Logo do menu lateral",
     icon_url: "Logo reduzida",
     favicon_url: "Favicon",
     cover_image_url: "Capa do portal (imagem ou vídeo)",

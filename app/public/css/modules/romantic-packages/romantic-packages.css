@@ -470,8 +470,12 @@
   min-height: 40px;
   display: inline-flex;
   align-items: center;
-  border-bottom: 1px solid var(--centro-gold);
-  color: var(--centro-gold-deep);
+  justify-content: center;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 18px;
+  color: #fff;
+  background: var(--centro-gold-deep);
   font-size: 0.72rem;
   font-weight: 850;
   text-transform: uppercase;

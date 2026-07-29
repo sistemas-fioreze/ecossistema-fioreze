@@ -38,7 +38,7 @@ async function boot() {
   app.classList.toggle("romantic-packages-root", moduleKey === "romantic-packages");
   app.classList.toggle("spa-root", moduleKey === "spa");
   app.classList.toggle("public-module-root", moduleKey !== "guest-portal");
-  app.classList.toggle("has-module-heading", moduleKey !== "guest-portal");
+  app.classList.toggle("has-module-heading", !["guest-portal", "romantic-packages"].includes(moduleKey));
   document.title = moduleKey === "room-service"
     ? `Room Service | ${bootstrap.short_name || bootstrap.name}`
     : moduleKey === "emporio"
@@ -75,7 +75,7 @@ function renderShell(bootstrap, moduleKey) {
   return `
     <section class="portal-shell public-module-shell">
       ${renderGuestNavigation(bootstrap, { activeModule: moduleKey })}
-      ${renderModuleHeading(bootstrap, moduleKey)}
+      ${moduleKey === "romantic-packages" ? "" : renderModuleHeading(bootstrap, moduleKey)}
       <section class="module-view" data-module-view data-module-key="${moduleKey}">
       </section>
     </section>

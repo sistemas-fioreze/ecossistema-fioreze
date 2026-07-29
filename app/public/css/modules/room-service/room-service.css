@@ -908,6 +908,12 @@
   display: none !important;
 }
 
+@media (max-width: 959px) {
+  .rs-search-field {
+    display: none;
+  }
+}
+
 @media (min-width: 640px) {
   .rs-product-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

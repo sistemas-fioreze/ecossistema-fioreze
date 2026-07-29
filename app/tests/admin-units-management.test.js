@@ -364,6 +364,12 @@ test("branding faz round-trip por public_url e remove referencias sem excluir mi
         logo_url: "media-muller-logo",
         icon_url: "media-muller-logo",
         horizontal_logo_url: "media-muller-logo",
+        guest_portal_logo_url: "media-muller-logo",
+        room_service_logo_url: "media-muller-logo",
+        emporio_logo_url: "media-muller-logo",
+        romantic_packages_logo_url: "media-muller-logo",
+        spa_logo_url: "media-muller-logo",
+        navigation_logo_url: "media-muller-logo",
         favicon_url: "media-muller-logo",
         header_logo_scale: 2.2,
         cover_image_url: "media-muller-logo",
@@ -392,6 +398,12 @@ test("branding faz round-trip por public_url e remove referencias sem excluir mi
         logo_url: "",
         icon_url: "",
         horizontal_logo_url: "",
+        guest_portal_logo_url: "",
+        room_service_logo_url: "",
+        emporio_logo_url: "",
+        romantic_packages_logo_url: "",
+        spa_logo_url: "",
+        navigation_logo_url: "",
         favicon_url: "",
         cover_image_url: "",
         social_image_url: "",
@@ -402,6 +414,16 @@ test("branding faz round-trip por public_url e remove referencias sem excluir mi
   assert.equal(byId.response.status, 200);
   assert.equal(detailAfterId.body.data.branding.logo_url, "/assets/hotels/muller-fioreze/logo.png");
   assert.equal(detailAfterId.body.data.branding.header_logo_scale, 2.2);
+  for (const field of [
+    "guest_portal_logo_url",
+    "room_service_logo_url",
+    "emporio_logo_url",
+    "romantic_packages_logo_url",
+    "spa_logo_url",
+    "navigation_logo_url",
+  ]) {
+    assert.equal(detailAfterId.body.data.branding[field], "/assets/hotels/muller-fioreze/logo.png");
+  }
   assert.equal(byPublicUrl.response.status, 200);
   assert.equal(otherHotel.response.status, 400);
   assert.equal(arbitraryAssetPath.response.status, 400);
@@ -409,6 +431,12 @@ test("branding faz round-trip por public_url e remove referencias sem excluir mi
   assert.equal(removed.body.data.branding.logo_url, null);
   assert.equal(removed.body.data.branding.icon_url, null);
   assert.equal(removed.body.data.branding.horizontal_logo_url, null);
+  assert.equal(removed.body.data.branding.guest_portal_logo_url, null);
+  assert.equal(removed.body.data.branding.room_service_logo_url, null);
+  assert.equal(removed.body.data.branding.emporio_logo_url, null);
+  assert.equal(removed.body.data.branding.romantic_packages_logo_url, null);
+  assert.equal(removed.body.data.branding.spa_logo_url, null);
+  assert.equal(removed.body.data.branding.navigation_logo_url, null);
   assert.equal(removed.body.data.branding.favicon_url, null);
   assert.equal(removed.body.data.branding.cover_image_url, null);
   assert.equal(removed.body.data.branding.cover_media_type, null);

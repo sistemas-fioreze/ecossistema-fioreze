@@ -17,6 +17,13 @@ export async function render(container, context) {
 
   container.innerHTML = renderShell(state);
   bindActions(container, state);
+  const headerSearch = (event) => {
+    state.query = normalizeSearch(event.detail?.query);
+    const field = container.querySelector("[data-spa-search]");
+    if (field) field.value = event.detail?.query || "";
+    renderServices(container, state);
+  };
+  window.addEventListener("fioreze:portal-search", headerSearch);
 
   try {
     const payload = await apiGet(
@@ -31,6 +38,7 @@ export async function render(container, context) {
   }
 
   cleanupCurrentRender = () => {
+    window.removeEventListener("fioreze:portal-search", headerSearch);
     document.body.classList.remove("spa-modal-open");
   };
 }

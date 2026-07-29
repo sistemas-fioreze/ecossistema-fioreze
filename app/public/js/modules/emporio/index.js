@@ -28,6 +28,13 @@ export async function render(container, context) {
   container.innerHTML = renderShell(bootstrap);
   const cleanupMediaViewer = bindCatalogMediaViewer(container);
   bindActions(container, state);
+  const headerSearch = (event) => {
+    state.query = event.detail?.query || "";
+    const field = container.querySelector("[data-emporio-search]");
+    if (field) field.value = state.query;
+    renderCatalog(container, state);
+  };
+  window.addEventListener("fioreze:portal-search", headerSearch);
   try {
     const catalog = await apiGet(
       `/api/v1/public/hotels/${encodeURIComponent(bootstrap.slug)}/emporio/items`,
@@ -47,6 +54,7 @@ export async function render(container, context) {
   window.addEventListener("popstate", popstate);
   cleanupCurrentRender = () => {
     window.removeEventListener("popstate", popstate);
+    window.removeEventListener("fioreze:portal-search", headerSearch);
     window.clearInterval(state.carouselTimer);
     cleanupMediaViewer();
   };

@@ -16,6 +16,14 @@ const MODULE_ICONS = {
   "romantic-packages": "sparkle",
 };
 
+const MODULE_LOGO_FIELDS = {
+  "guest-portal": "guest_portal_logo_url",
+  "room-service": "room_service_logo_url",
+  emporio: "emporio_logo_url",
+  "romantic-packages": "romantic_packages_logo_url",
+  spa: "spa_logo_url",
+};
+
 export function renderGuestNavigation(
   bootstrap,
   { activeTab = "inicio", activeModule = "guest-portal", hideBrand = false } = {},
@@ -24,12 +32,11 @@ export function renderGuestNavigation(
   const drawerTheme = bootstrap.settings?.["portal.navigation_drawer_theme"] === "dark"
     ? "dark"
     : "light";
-  const logoUrl = sanitizePublicAssetUrl(
-    bootstrap.branding?.horizontal_logo_url || bootstrap.branding?.logo_url || bootstrap.branding?.icon_url,
+  const headerBrand = renderBrand(bootstrap, resolveHeaderLogo(bootstrap, activeModule));
+  const drawerBrand = renderBrand(
+    bootstrap,
+    bootstrap.branding?.navigation_logo_url || resolveHeaderLogo(bootstrap, activeModule),
   );
-  const brand = logoUrl
-    ? `<img class="brand-logo-img" src="${escapeHtml(logoUrl)}" alt="${escapeHtml(bootstrap.name)}">`
-    : `<strong class="brand-name-text">${escapeHtml(bootstrap.short_name || bootstrap.name)}</strong>`;
   const portalItems = PORTAL_NAV_ITEMS.map(([key, label, iconName]) =>
     renderPortalItem({ activeModule, activeTab, homePath, iconName, key, label }),
   ).join("");
@@ -43,17 +50,21 @@ export function renderGuestNavigation(
         <button class="guest-menu-toggle" type="button" data-guest-menu-open aria-label="Abrir navegação" aria-expanded="false" aria-controls="guest-navigation-drawer">
           ${navigationIcon("menu")}
         </button>
-        <a class="guest-brand-link" href="${escapeHtml(homePath)}" aria-label="Ir para o início de ${escapeHtml(bootstrap.name)}">${brand}</a>
+        <a class="guest-brand-link" href="${escapeHtml(homePath)}" aria-label="Ir para o início de ${escapeHtml(bootstrap.name)}">${headerBrand}</a>
         <nav class="guest-desktop-nav" aria-label="Navegação do hotel">
           ${portalItems}
           ${moduleItems ? `<span class="guest-nav-divider" aria-hidden="true"></span>${moduleItems}` : ""}
         </nav>
+        <button class="guest-search-toggle" type="button" data-guest-search-toggle aria-label="Pesquisar" aria-expanded="false" aria-controls="guest-portal-search">
+          ${navigationIcon("search")}
+        </button>
       </div>
     </header>
+    ${renderSearchPanel(bootstrap, { activeModule, homePath })}
     <div class="guest-drawer-backdrop" data-guest-menu-close hidden></div>
     <aside class="guest-navigation-drawer is-${drawerTheme}" id="guest-navigation-drawer" data-guest-navigation-drawer aria-hidden="true" aria-label="Navegação do hotel">
       <div class="guest-drawer-head">
-        <a class="guest-drawer-brand" href="${escapeHtml(homePath)}" aria-label="Ir para o início">${brand}</a>
+        <a class="guest-drawer-brand" href="${escapeHtml(homePath)}" aria-label="Ir para o início">${drawerBrand}</a>
         <button type="button" class="guest-menu-close" data-guest-menu-close aria-label="Fechar navegação">${navigationIcon("close")}</button>
       </div>
       <nav class="guest-drawer-nav">
@@ -66,16 +77,58 @@ export function renderGuestNavigation(
 
 export function bindGuestNavigation(container) {
   const close = () => closeGuestNavigation(container);
+  const closeSearch = () => closeGuestSearch(container);
   container.addEventListener("click", (event) => {
     if (event.target.closest("[data-guest-menu-open]")) {
       openGuestNavigation(container);
       return;
     }
-    if (event.target.closest("[data-guest-menu-close]")) close();
+    if (event.target.closest("[data-guest-menu-close]")) {
+      close();
+      return;
+    }
+    if (event.target.closest("[data-guest-search-toggle]")) {
+      toggleGuestSearch(container);
+      return;
+    }
+    if (event.target.closest("[data-guest-search-close]")) closeSearch();
+  });
+  container.addEventListener("input", (event) => {
+    if (!event.target.matches("[data-guest-search-input]")) return;
+    const query = normalizeSearch(event.target.value);
+    filterGuestSearchResults(container, query);
+    window.dispatchEvent(new CustomEvent("fioreze:portal-search", { detail: { query } }));
   });
   container.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") close();
+    if (event.key === "Escape") {
+      close();
+      closeSearch();
+    }
   });
+}
+
+export function toggleGuestSearch(container) {
+  const panel = container.querySelector("[data-guest-search-panel]");
+  const trigger = container.querySelector("[data-guest-search-toggle]");
+  const input = panel?.querySelector("[data-guest-search-input]");
+  if (!panel || !trigger || !input) return;
+  const opening = panel.hidden;
+  panel.hidden = !opening;
+  trigger.setAttribute("aria-expanded", String(opening));
+  if (opening) {
+    window.requestAnimationFrame(() => input.focus({ preventScroll: true }));
+  } else {
+    clearGuestSearch(container);
+  }
+}
+
+export function closeGuestSearch(container) {
+  const panel = container.querySelector("[data-guest-search-panel]");
+  const trigger = container.querySelector("[data-guest-search-toggle]");
+  if (!panel || !trigger) return;
+  panel.hidden = true;
+  trigger.setAttribute("aria-expanded", "false");
+  clearGuestSearch(container);
 }
 
 export function openGuestNavigation(container) {
@@ -113,6 +166,86 @@ export function syncGuestHeader(container) {
   container.querySelector("[data-guest-header]")?.classList.toggle("is-scrolled", window.scrollY > 8);
 }
 
+function renderSearchPanel(bootstrap, { activeModule, homePath }) {
+  const resultItems = activeModule === "guest-portal"
+    ? [
+        ...PORTAL_NAV_ITEMS.map(([key, label, iconName]) => ({
+          href: key === "inicio" ? homePath : `${homePath}?tab=${encodeURIComponent(key)}`,
+          iconName,
+          label,
+          meta: "Portal do hóspede",
+        })),
+        ...getGuestModules(bootstrap).map((module) => ({
+          href: getModulePath(bootstrap, module.module_key),
+          iconName: MODULE_ICONS[module.module_key] || "sparkle",
+          label: module.navigation_label || module.name || module.module_key,
+          meta: "Serviço da unidade",
+        })),
+      ]
+    : [];
+  return `
+    <section class="guest-search-panel" id="guest-portal-search" data-guest-search-panel hidden>
+      <div class="guest-search-field">
+        ${navigationIcon("search")}
+        <input type="search" data-guest-search-input autocomplete="off" placeholder="${activeModule === "guest-portal" ? "Buscar no portal" : "Buscar neste catálogo"}" aria-label="Pesquisar">
+        <button type="button" data-guest-search-close aria-label="Fechar pesquisa">${navigationIcon("close")}</button>
+      </div>
+      ${resultItems.length
+        ? `<div class="guest-search-results" data-guest-search-results>
+            ${resultItems.map((item) => `
+              <a href="${escapeHtml(item.href)}" data-guest-search-item data-search-text="${escapeHtml(normalizeSearch(`${item.label} ${item.meta}`))}">
+                ${navigationIcon(item.iconName)}
+                <span><strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.meta)}</small></span>
+              </a>`).join("")}
+            <p class="guest-search-empty" data-guest-search-empty hidden>Nenhum resultado encontrado.</p>
+          </div>`
+        : ""}
+    </section>`;
+}
+
+function renderBrand(bootstrap, source) {
+  const logoUrl = sanitizePublicAssetUrl(source);
+  return logoUrl
+    ? `<img class="brand-logo-img" src="${escapeHtml(logoUrl)}" alt="${escapeHtml(bootstrap.name)}">`
+    : `<strong class="brand-name-text">${escapeHtml(bootstrap.name)}</strong>`;
+}
+
+function resolveHeaderLogo(bootstrap, activeModule) {
+  const branding = bootstrap.branding || {};
+  return branding[MODULE_LOGO_FIELDS[activeModule]]
+    || bootstrap.branding?.horizontal_logo_url
+    || branding.logo_url
+    || branding.icon_url;
+}
+
+function filterGuestSearchResults(container, query) {
+  const items = [...container.querySelectorAll("[data-guest-search-item]")];
+  if (!items.length) return;
+  let visible = 0;
+  for (const item of items) {
+    const matches = !query || item.dataset.searchText.includes(query);
+    item.hidden = !matches;
+    if (matches) visible += 1;
+  }
+  const empty = container.querySelector("[data-guest-search-empty]");
+  if (empty) empty.hidden = visible > 0;
+}
+
+function clearGuestSearch(container) {
+  const input = container.querySelector("[data-guest-search-input]");
+  if (input) input.value = "";
+  filterGuestSearchResults(container, "");
+  window.dispatchEvent(new CustomEvent("fioreze:portal-search", { detail: { query: "" } }));
+}
+
+function normalizeSearch(value) {
+  return String(value || "")
+    .trim()
+    .toLocaleLowerCase("pt-BR")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
 function renderPortalItem({ activeModule, activeTab, homePath, iconName, key, label }) {
   const active = activeModule === "guest-portal" && activeTab === key;
   const href = key === "inicio" ? homePath : `${homePath}?tab=${encodeURIComponent(key)}`;
@@ -143,6 +276,7 @@ export function navigationIcon(name) {
   const paths = {
     menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
     close: '<path d="M6 6l12 12M18 6 6 18"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
     home: '<path d="m3 11 9-8 9 8v10h-6v-6H9v6H3V11Z"/>',
     services: '<path d="M5 14h14M7 14a5 5 0 0 1 10 0M12 7V5M4 18h16M10 5h4"/>',
     calendar: '<path d="M5 4v3M19 4v3M4 9h16M5 6h14a1 1 0 0 1 1 1v13H4V7a1 1 0 0 1 1-1Z"/><path d="M8 13h3M13 13h3M8 17h3"/>',

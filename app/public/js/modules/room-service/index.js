@@ -39,6 +39,13 @@ export async function render(container, context) {
 
   container.innerHTML = renderStaticShell({ embedded });
   bindStaticActions(container, state);
+  const headerSearch = (event) => {
+    state.query = event.detail?.query || "";
+    const field = container.querySelector("[data-search]");
+    if (field) field.value = state.query;
+    renderCatalog(container, state);
+  };
+  window.addEventListener("fioreze:portal-search", headerSearch);
   if (context.bootstrap) renderHotelHeader(container, state);
 
   try {
@@ -76,6 +83,7 @@ export async function render(container, context) {
   }
 
   cleanupCurrentRender = () => {
+    window.removeEventListener("fioreze:portal-search", headerSearch);
     if (state.statusTimer) window.clearInterval(state.statusTimer);
   };
 }
@@ -267,7 +275,9 @@ function bindStaticActions(container, state) {
 
 function renderHotelHeader(container, state) {
   const branding = state.bootstrap.branding || {};
-  const logoUrl = sanitizeAssetPath(branding.horizontal_logo_url || branding.logo_url);
+  const logoUrl = sanitizeAssetPath(
+    branding.room_service_logo_url || branding.horizontal_logo_url || branding.logo_url,
+  );
   const iconUrl = sanitizeAssetPath(branding.icon_url || logoUrl);
   const logoTargets = container.querySelectorAll("[data-hotel-logo], [data-hotel-logo-shell]");
   logoTargets.forEach((target) => {
