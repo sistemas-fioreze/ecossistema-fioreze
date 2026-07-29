@@ -731,8 +731,8 @@ function renderTabPanels() {
       "Escala da logo no cabeçalho",
       "header_logo_scale",
       currentUnit.branding?.header_logo_scale || 1,
-      0.65,
-      1.35,
+      0.5,
+      3,
       0.05,
     )}
     ${fontSelectField("Fonte dos portais", "font_family", currentUnit.branding?.font_family)}

@@ -365,7 +365,7 @@ test("branding faz round-trip por public_url e remove referencias sem excluir mi
         icon_url: "media-muller-logo",
         horizontal_logo_url: "media-muller-logo",
         favicon_url: "media-muller-logo",
-        header_logo_scale: 1.2,
+        header_logo_scale: 2.2,
         cover_image_url: "media-muller-logo",
         social_image_url: "media-muller-logo",
       }),
@@ -401,7 +401,7 @@ test("branding faz round-trip por public_url e remove referencias sem excluir mi
 
   assert.equal(byId.response.status, 200);
   assert.equal(detailAfterId.body.data.branding.logo_url, "/assets/hotels/muller-fioreze/logo.png");
-  assert.equal(detailAfterId.body.data.branding.header_logo_scale, 1.2);
+  assert.equal(detailAfterId.body.data.branding.header_logo_scale, 2.2);
   assert.equal(byPublicUrl.response.status, 200);
   assert.equal(otherHotel.response.status, 400);
   assert.equal(arbitraryAssetPath.response.status, 400);
@@ -422,7 +422,7 @@ test("branding rejeita escala de logo fora do intervalo seguro", async () => {
   const cookie = await createSessionCookie(env);
   const { response } = await json(
     "/api/v1/admin/hotels/muller-fioreze/branding",
-    withCookie(cookie, adminJson("PATCH", { header_logo_scale: 2 })),
+    withCookie(cookie, adminJson("PATCH", { header_logo_scale: 3.5 })),
   );
 
   assert.equal(response.status, 400);

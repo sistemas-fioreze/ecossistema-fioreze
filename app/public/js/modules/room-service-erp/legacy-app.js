@@ -683,7 +683,7 @@ function syncErpFavicon(url) {
 
 function normalizeLogoScale(value) {
   const scale = Number(value);
-  return Number.isFinite(scale) && scale >= 0.65 && scale <= 1.35 ? scale : 1;
+  return Number.isFinite(scale) && scale >= 0.5 && scale <= 3 ? scale : 1;
 }
 
 function renderAll() {

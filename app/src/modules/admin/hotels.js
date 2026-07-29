@@ -376,7 +376,7 @@ export async function updateAdminHotelBranding({ request, env, session, hotelId 
   }
   if (Object.hasOwn(payload, "header_logo_scale")) {
     const scale = Number(payload.header_logo_scale);
-    if (!Number.isFinite(scale) || scale < 0.65 || scale > 1.35) {
+    if (!Number.isFinite(scale) || scale < 0.5 || scale > 3) {
       throw badRequest("Escala da logo invalida.");
     }
     const normalizedScale = Number(scale.toFixed(2));
@@ -1203,7 +1203,7 @@ function defaultBrandingJson() {
 
 function normalizeLogoScale(value) {
   const scale = Number(value);
-  return Number.isFinite(scale) && scale >= 0.65 && scale <= 1.35 ? scale : 1;
+  return Number.isFinite(scale) && scale >= 0.5 && scale <= 3 ? scale : 1;
 }
 
 function parseJson(value, fallback) {
