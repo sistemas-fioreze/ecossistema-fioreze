@@ -418,8 +418,9 @@ body[data-erp="room-service"] textarea {
   height: 150px;
   display: block;
   margin: 0 auto 16px;
-  object-fit: cover;
+  object-fit: contain;
   object-position: center;
+  transform: scale(var(--header-logo-scale, 1));
 }
 
 .rs-login-mark {
@@ -517,8 +518,10 @@ body[data-erp="room-service"] textarea {
   max-width: 100%;
   height: 84px;
   display: block;
-  object-fit: cover;
+  object-fit: contain;
   object-position: center;
+  transform: scale(var(--header-logo-scale, 1));
+  transform-origin: left center;
 }
 
 .rs-brand-seal {

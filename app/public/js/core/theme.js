@@ -3,6 +3,11 @@ export function applyBranding(branding = {}) {
   const customFontUrl = sanitizePublicAssetUrl(branding.font_asset_url);
   const customFontFormat = branding.font_asset_mime_type === "font/woff" ? "woff" : "woff2";
   syncCustomFont(customFontUrl, customFontFormat);
+  syncFavicon(
+    sanitizePublicAssetUrl(branding.favicon_url)
+      || sanitizePublicAssetUrl(branding.icon_url)
+      || sanitizePublicAssetUrl(branding.logo_url),
+  );
   const pairs = {
     "--color-primary": branding.primary_color,
     "--color-secondary": branding.secondary_color,
@@ -10,10 +15,30 @@ export function applyBranding(branding = {}) {
     "--color-background": branding.background_color,
     "--color-text": branding.text_color,
     "--font-family": customFontUrl ? "'Fioreze Custom', system-ui, sans-serif" : branding.font_family,
+    "--header-logo-scale": normalizeLogoScale(branding.header_logo_scale),
   };
   for (const [property, value] of Object.entries(pairs)) {
     if (value) root.style.setProperty(property, value);
   }
+}
+
+function syncFavicon(url) {
+  if (!url) return;
+  for (const rel of ["icon", "apple-touch-icon"]) {
+    let link = document.head.querySelector(`link[data-hotel-favicon][rel="${rel}"]`);
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = rel;
+      link.dataset.hotelFavicon = "";
+      document.head.append(link);
+    }
+    link.href = url;
+  }
+}
+
+function normalizeLogoScale(value) {
+  const scale = Number(value);
+  return Number.isFinite(scale) && scale >= 0.65 && scale <= 1.35 ? String(scale) : "1";
 }
 
 function syncCustomFont(url, format) {

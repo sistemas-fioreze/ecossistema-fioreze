@@ -1,6 +1,14 @@
 import { createAdminAuthView, syncAdminNavigationActiveState } from "./shared/admin-auth-view.js";
 import { adminApi } from "./shared/admin-api.js";
-import { canAccessAudit, canAccessPortals, canAccessRoles, canAccessUsers, getAuthorizedHotels, getPermissions } from "./shared/admin-session.js";
+import {
+  canAccessAudit,
+  canAccessPortals,
+  canAccessRoles,
+  canAccessRoomService,
+  canAccessUsers,
+  getAuthorizedHotels,
+  getPermissions,
+} from "./shared/admin-session.js";
 import { escapeAttr, escapeHtml } from "./shared/format.js";
 import { renderRolesManager, renderUsersManager } from "./central-management.js";
 import { renderMessagesManager } from "./admin-messages.js";
@@ -148,6 +156,16 @@ async function renderLauncher(session) {
 
 function buildSystems(session) {
   const systems = [];
+  if (canAccessRoomService(session)) {
+    for (const hotel of getAuthorizedHotels(session)) {
+      if (!hotel.slug) continue;
+      systems.push({
+        title: `ERP Room Service · ${hotel.short_name || hotel.name}`,
+        description: "Pedidos, cardápio, funcionamento e equipe da unidade",
+        href: `/${encodeURIComponent(hotel.slug)}/admin/erp/`,
+      });
+    }
+  }
   if (canAccessPortals(session)) {
     systems.push({
       title: "Central de Portais",

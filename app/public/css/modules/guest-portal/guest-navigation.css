@@ -34,9 +34,12 @@
 }
 
 .guest-brand-link {
+  width: 196px;
+  height: 58px;
   display: inline-flex;
   min-width: 0;
   align-items: center;
+  overflow: hidden;
 }
 
 .guest-shared-header.is-brand-hidden .guest-brand-link {
@@ -65,6 +68,23 @@
   font-size: 1.62rem;
   line-height: 1.05;
   letter-spacing: 0;
+}
+
+.public-module-heading-description {
+  display: grid;
+  gap: 8px;
+}
+
+.public-module-heading-description p {
+  margin: 0;
+  color: var(--guest-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.public-module-heading-description strong {
+  color: var(--guest-ink);
+  font-weight: 720;
 }
 
 .guest-menu-toggle,
@@ -163,7 +183,12 @@
 
 .guest-drawer-brand .brand-logo-img {
   width: min(170px, 54vw);
+  height: 42px;
   max-height: 42px;
+  object-fit: contain;
+  object-position: left center;
+  transform: scale(var(--header-logo-scale, 1));
+  transform-origin: left center;
 }
 
 .guest-drawer-brand .brand-name-text {
@@ -256,8 +281,18 @@
   }
 
   .guest-shared-header .brand-logo-img {
-    width: min(156px, 48vw);
+    width: 100%;
+    height: 40px;
     max-height: 40px;
+    object-fit: contain;
+    object-position: left center;
+    transform: scale(var(--header-logo-scale, 1));
+    transform-origin: left center;
+  }
+
+  .guest-brand-link {
+    width: min(156px, 48vw);
+    height: 40px;
   }
 
   .guest-shared-header.is-scrolled,
@@ -354,12 +389,14 @@
   }
 
   .guest-shared-header .brand-logo-img {
-    width: 196px;
-    height: 58px;
+    width: 100%;
+    height: 100%;
     max-height: 58px;
     object-fit: contain;
     object-position: left center;
     filter: drop-shadow(0 2px 9px rgba(0, 0, 0, 0.24));
+    transform: scale(var(--header-logo-scale, 1));
+    transform-origin: left center;
   }
 
   .guest-desktop-nav {
@@ -438,6 +475,11 @@
 
   .public-module-heading-copy h1 {
     font-size: 1.72rem;
+  }
+
+  .public-module-heading-description {
+    width: min(760px, 100%);
+    margin: 0 auto;
   }
 }
 

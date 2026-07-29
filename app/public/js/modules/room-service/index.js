@@ -86,13 +86,7 @@ function renderStaticShell({ embedded = false } = {}) {
       <section class="rs-shell" data-rs-shell>
         <div class="rs-layout">
           <aside class="rs-order-column">
-            <div class="rs-intro-copy">
-              <p data-hotel-welcome></p>
-              <p data-hotel-guidance></p>
-              <p data-hotel-support></p>
-              <p data-service-hours></p>
-              <div class="rs-service-note" data-service-note hidden></div>
-            </div>
+            <div class="rs-service-note" data-service-note hidden></div>
 
             <section class="rs-cart-panel" data-cart-panel aria-label="Resumo do pedido">
               <form class="rs-order-form" data-order-form>

@@ -908,6 +908,14 @@
   width: 42px;
   height: 42px;
   object-fit: contain;
+  transform: scale(var(--preview-logo-scale, 1));
+  transform-origin: left center;
+}
+
+.admin-range-field output {
+  float: right;
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .admin-preview-card h3 {

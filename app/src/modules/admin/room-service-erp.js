@@ -268,6 +268,8 @@ async function loadBranding(env, hotelId) {
       logo_url: null,
       horizontal_logo_url: null,
       icon_url: null,
+      favicon_url: null,
+      header_logo_scale: 1,
       primary_color: null,
       secondary_color: null,
       accent_color: null,
@@ -283,6 +285,8 @@ async function loadBranding(env, hotelId) {
     logo_url: row.logo_url || null,
     horizontal_logo_url: custom.horizontal_logo_url || null,
     icon_url: row.icon_url || null,
+    favicon_url: custom.favicon_url || row.icon_url || row.logo_url || null,
+    header_logo_scale: normalizeLogoScale(custom.header_logo_scale),
     primary_color: row.primary_color || null,
     secondary_color: row.secondary_color || null,
     accent_color: row.accent_color || null,
@@ -291,6 +295,11 @@ async function loadBranding(env, hotelId) {
     font_family: row.font_family || null,
     updated_at: row.updated_at || null,
   };
+}
+
+function normalizeLogoScale(value) {
+  const scale = Number(value);
+  return Number.isFinite(scale) && scale >= 0.65 && scale <= 1.35 ? scale : 1;
 }
 
 async function listRooms(env, hotelId) {

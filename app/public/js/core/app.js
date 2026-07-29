@@ -3,6 +3,7 @@ import { portalPageKey, trackPortalVisit } from "./analytics.js";
 import { renderError, renderNotFound } from "./errors.js";
 import {
   bindGuestNavigation,
+  navigationIcon,
   renderGuestNavigation,
   syncGuestHeader,
 } from "./guest-navigation.js";
@@ -37,7 +38,7 @@ async function boot() {
   app.classList.toggle("romantic-packages-root", moduleKey === "romantic-packages");
   app.classList.toggle("spa-root", moduleKey === "spa");
   app.classList.toggle("public-module-root", moduleKey !== "guest-portal");
-  app.classList.toggle("has-module-heading", !["guest-portal", "emporio", "spa", "romantic-packages"].includes(moduleKey));
+  app.classList.toggle("has-module-heading", moduleKey !== "guest-portal");
   document.title = moduleKey === "room-service"
     ? `Room Service | ${bootstrap.short_name || bootstrap.name}`
     : moduleKey === "emporio"
@@ -71,11 +72,10 @@ async function boot() {
 }
 
 function renderShell(bootstrap, moduleKey) {
-  const heading = ["emporio", "spa", "romantic-packages"].includes(moduleKey) ? "" : renderModuleHeading(bootstrap, moduleKey);
   return `
     <section class="portal-shell public-module-shell">
       ${renderGuestNavigation(bootstrap, { activeModule: moduleKey })}
-      ${heading}
+      ${renderModuleHeading(bootstrap, moduleKey)}
       <section class="module-view" data-module-view data-module-key="${moduleKey}">
       </section>
     </section>
@@ -85,12 +85,70 @@ function renderShell(bootstrap, moduleKey) {
 function renderModuleHeading(bootstrap, moduleKey) {
   const module = bootstrap.modules?.find((entry) => entry.module_key === moduleKey);
   if (!module) return "";
+  const iconName = {
+    "room-service": "room-service",
+    emporio: "bag",
+    spa: "spa",
+    "romantic-packages": "sparkle",
+  }[moduleKey] || "sparkle";
+  const title = module.navigation_label || module.name || moduleKey;
+  const body = moduleKey === "room-service"
+    ? renderRoomServiceHeading(bootstrap)
+    : `<p>${escapeText(moduleDescription(bootstrap, moduleKey))}</p>`;
   return `
-    <section class="public-module-heading">
-      <div class="public-module-heading-copy">
-        <h1>${escapeText(module.navigation_label || module.name || moduleKey)}</h1>
+    <section class="portal-app-top public-module-heading">
+      <div class="app-top-card public-module-heading-copy">
+        <h1 class="app-top-title">${navigationIcon(iconName)}<span>${escapeText(title)}</span></h1>
+        <div class="public-module-heading-description">
+          ${body}
+        </div>
       </div>
     </section>`;
+}
+
+function renderRoomServiceHeading(bootstrap) {
+  const unitName = String(bootstrap.short_name || bootstrap.name || "").trim();
+  const hotelName = /^hotel\b/i.test(unitName) ? unitName : `Hotel ${unitName}`;
+  const support = bootstrap.settings?.["room-service.support_text"]
+    || (bootstrap.hotel_id === "muller-fioreze"
+      ? "Use o ramal n° 9 do telefone em sua acomodação em caso de dúvidas."
+      : "Em caso de dúvidas, entre em contato com a recepção.");
+  return `
+    <p><strong>Seja bem-vindo ao Room Service digital do ${escapeText(hotelName)}.</strong></p>
+    <p><strong>${escapeText(support)}</strong></p>
+    <p><strong>${escapeText(formatRoomServiceHours(bootstrap.service_hours?.["room-service"]))}</strong></p>`;
+}
+
+function formatRoomServiceHours(serviceHours = []) {
+  const active = serviceHours.filter((slot) => !slot.is_closed && slot.opens_at && slot.closes_at);
+  const days = new Map();
+  for (const slot of active) {
+    const day = Number(slot.day_of_week);
+    if (!days.has(day)) days.set(day, []);
+    days.get(day).push(`${formatTime(slot.opens_at)} até ${formatTime(slot.closes_at)}`);
+  }
+  const commonWindow = [...new Set(days.get(0) || [])]
+    .find((window) => Array.from({ length: 7 }, (_, day) => days.get(day)?.includes(window)).every(Boolean));
+  if (commonWindow) return `O Room Service opera diariamente das ${commonWindow}.`;
+  if (active.length) {
+    const first = active[0];
+    return `Consulte os horários do Room Service. O próximo período cadastrado é das ${formatTime(first.opens_at)} até ${formatTime(first.closes_at)}.`;
+  }
+  return "Consulte a equipe para confirmar o horário de funcionamento do Room Service.";
+}
+
+function formatTime(value) {
+  return String(value || "").slice(0, 5);
+}
+
+function moduleDescription(bootstrap, moduleKey) {
+  const configured = bootstrap.settings?.[`portal.module.${moduleKey}.description`];
+  if (configured) return configured;
+  return {
+    emporio: "Produtos selecionados, presentes e lembranças para tornar sua experiência ainda mais especial.",
+    spa: "Bem-estar, relaxamento e cuidado durante a sua estadia.",
+    "romantic-packages": "Experiências pensadas para celebrar momentos especiais.",
+  }[moduleKey] || "";
 }
 
 function escapeText(value) {

@@ -70,6 +70,8 @@ const state = {
   cart: new Map(),
   selectedOrderId: null,
   loginHotels: [],
+  loginHotel: null,
+  hotelSlug: resolveErpHotelSlug(),
   users: [],
   userPermissions: [],
   operations: null,
@@ -106,6 +108,9 @@ async function boot() {
   } catch (error) {
     if (error.status !== 401) notify("Nao foi possivel verificar a sessao administrativa.");
     showLogin();
+    if (error.status !== 401) {
+      byId("legacyLoginError").textContent = error.message || "Unidade indisponivel para o ERP.";
+    }
   } finally {
     setLoginBusy(false);
   }
@@ -114,20 +119,10 @@ async function boot() {
 async function loadLoginContext() {
   const payload = await getLoginContext();
   state.loginHotels = payload.data.hotels || [];
-  const select = byId("loginHotelSelect");
-  select.innerHTML = state.loginHotels
-    .map((hotel) => `<option value="${escapeAttr(hotel.hotel_id)}">${escapeHtml(displayHotelName(hotel))}</option>`)
-    .join("");
-  const requested = new URLSearchParams(window.location.search).get("hotel") || localStorage.getItem("fioreze-rs-login-hotel");
-  if (state.loginHotels.some((hotel) => hotel.hotel_id === requested)) select.value = requested;
-  handleLoginHotelChange();
-}
-
-function handleLoginHotelChange() {
-  const hotelId = byId("loginHotelSelect").value;
-  if (hotelId) localStorage.setItem("fioreze-rs-login-hotel", hotelId);
-  const hotel = state.loginHotels.find((entry) => entry.hotel_id === hotelId);
-  if (hotel) applyBranding(hotel.branding, hotel);
+  state.loginHotel = resolvePinnedHotel(state.loginHotels);
+  if (!state.loginHotel) throw new Error("Esta unidade nao possui um ERP Room Service disponivel.");
+  state.hotelSlug = state.loginHotel.slug;
+  applyBranding(state.loginHotel.branding, state.loginHotel);
 }
 
 function prepareStaticInterface() {
@@ -148,13 +143,6 @@ function prepareStaticInterface() {
     roomSelect.innerHTML = '<option value="">Apto</option>';
     roomInput.replaceWith(roomSelect);
   }
-
-  const hotelSelect = document.createElement("select");
-  hotelSelect.id = "loginHotelSelect";
-  hotelSelect.className = "legacy-login-hotel-select";
-  hotelSelect.setAttribute("aria-label", "Unidade do ERP");
-  hotelSelect.innerHTML = '<option value="">Carregando unidades...</option>';
-  loginCode.before(hotelSelect);
 
   const error = document.createElement("p");
   error.id = "legacyLoginError";
@@ -214,7 +202,6 @@ function bindStaticActions() {
   byId("loginCode").addEventListener("keydown", (event) => {
     if (event.key === "Enter") byId("loginPass").focus();
   });
-  byId("loginHotelSelect").addEventListener("change", handleLoginHotelChange);
   byId("erpUserModalClose")?.addEventListener("click", closeUserModal);
   byId("erpUserModalCancel")?.addEventListener("click", closeUserModal);
   byId("erpUserForm")?.addEventListener("submit", saveErpUser);
@@ -511,18 +498,17 @@ async function handleSettingsSubmit(event) {
 
 async function handleLogin() {
   const credential = byId("loginCode").value.trim();
-  const hotelId = byId("loginHotelSelect").value;
+  const hotelId = state.loginHotel?.hotel_id || "";
   const password = byId("loginPass").value;
   byId("legacyLoginError").textContent = "";
   if (!credential || !password || (!credential.includes("@") && !hotelId)) {
-    byId("legacyLoginError").textContent = "Selecione a unidade e informe codigo e senha.";
+    byId("legacyLoginError").textContent = "Informe o codigo do usuario e a senha.";
     return;
   }
   setLoginBusy(true, "Validando usuario e senha");
   try {
     await login({ hotelId, credential, password });
     const payload = await getSession();
-    localStorage.setItem("fioreze-rs-hotel", hotelId);
     byId("loginPass").value = "";
     await startSession(payload.data);
   } catch (error) {
@@ -543,20 +529,19 @@ async function handleLogout() {
 async function startSession(session) {
   state.session = session;
   const hotels = session?.hotels || [];
-  state.hotelId = hotels.some((hotel) => hotel.hotel_id === localStorage.getItem("fioreze-rs-hotel"))
-    ? localStorage.getItem("fioreze-rs-hotel")
-    : hotels[0]?.hotel_id || "";
+  const pinnedHotel = resolvePinnedHotel(hotels);
+  state.hotelId = pinnedHotel?.hotel_id || "";
 
   if (!state.hotelId) {
     showLogin();
-    byId("legacyLoginError").textContent = "Usuario sem unidade autorizada.";
+    byId("legacyLoginError").textContent = "Usuario sem acesso a esta unidade.";
     return;
   }
 
   const displayName = displayUserName(session?.user);
   byId("activeStaff").textContent = displayName;
   setImage(byId("topStaffAvatar", false), safeImage(session?.user?.avatar), displayName);
-  installHotelSelector(hotels);
+  renderHotelIdentity(pinnedHotel);
   configureAuthorizedNavigation(session?.permissions || []);
   showApplication();
   await refreshAll();
@@ -564,26 +549,9 @@ async function startSession(session) {
   startOrderPolling();
 }
 
-function installHotelSelector(hotels) {
+function renderHotelIdentity(hotel) {
   const title = document.querySelector("#appShell h1");
-  const select = byId("legacyHotelSelect", false) || document.createElement("select");
-  if (!select.id) {
-    select.id = "legacyHotelSelect";
-    select.className = "legacy-hotel-select";
-    select.setAttribute("aria-label", "Unidade do ERP");
-  }
-  select.innerHTML = hotels
-    .map((hotel) => `<option value="${escapeAttr(hotel.hotel_id)}">${escapeHtml(displayHotelName(hotel))}</option>`)
-    .join("");
-  select.value = state.hotelId;
-  select.onchange = async () => {
-    state.hotelId = select.value;
-    localStorage.setItem("fioreze-rs-hotel", state.hotelId);
-    state.cart.clear();
-    await refreshAll();
-    renderActiveRoute();
-  };
-  if (title) title.replaceWith(select);
+  if (title) title.textContent = displayHotelName(hotel);
 }
 
 function configureAuthorizedNavigation(permissions) {
@@ -682,7 +650,40 @@ function applyBranding(branding = {}, hotel = {}) {
   if (isHexColor(branding.background_color)) root.style.setProperty("--canvas", branding.background_color);
   if (isHexColor(branding.text_color)) root.style.setProperty("--ink", branding.text_color);
   if (branding.font_family) root.style.setProperty("--hotel-font", String(branding.font_family).slice(0, 160));
+  root.style.setProperty("--header-logo-scale", String(normalizeLogoScale(branding.header_logo_scale)));
+  syncErpFavicon(safeImage(branding.favicon_url) || reducedLogo || horizontalLogo);
   document.title = `${name} | ERP Room Service`;
+}
+
+function resolveErpHotelSlug() {
+  const match = window.location.pathname.match(/^\/([a-z0-9]+(?:-[a-z0-9]+)*)\/admin\/erp(?:\/|$)/);
+  return match?.[1] || new URLSearchParams(window.location.search).get("hotel") || "";
+}
+
+function resolvePinnedHotel(hotels) {
+  const entries = Array.isArray(hotels) ? hotels : [];
+  const requested = state.hotelSlug || state.loginHotel?.slug || "";
+  if (requested) {
+    return entries.find((hotel) => hotel.slug === requested || hotel.hotel_id === requested) || null;
+  }
+  return entries.length === 1 ? entries[0] : null;
+}
+
+function syncErpFavicon(url) {
+  if (!url) return;
+  let link = document.head.querySelector('link[rel="icon"][data-hotel-favicon]');
+  if (!link) {
+    link = document.createElement("link");
+    link.rel = "icon";
+    link.dataset.hotelFavicon = "";
+    document.head.append(link);
+  }
+  link.href = url;
+}
+
+function normalizeLogoScale(value) {
+  const scale = Number(value);
+  return Number.isFinite(scale) && scale >= 0.65 && scale <= 1.35 ? scale : 1;
 }
 
 function renderAll() {
