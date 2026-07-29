@@ -361,6 +361,12 @@
     font-size: 0.94rem;
   }
 
+  .guest-search-field input::-webkit-search-decoration,
+  .guest-search-field input::-webkit-search-cancel-button {
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
   .guest-search-field button {
     width: 40px;
     height: 40px;
