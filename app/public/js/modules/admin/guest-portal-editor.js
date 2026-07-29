@@ -10,6 +10,7 @@ import {
 } from "./shared/admin-session.js";
 import { escapeAttr, escapeHtml } from "./shared/format.js";
 import { portalFontOptions } from "../../core/portal-fonts.js";
+import { createSpecialDecorationsEditor } from "./special-decorations-editor.js";
 
 const SERVICE_KEYS = ["room-service", "emporio", "romantic-packages", "spa"];
 const SERVICE_LABELS = {
@@ -37,6 +38,7 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
     previewName: root.querySelector("#guestPortalPreviewName"),
     previewFrame: root.querySelector("#guestPortalPreviewFrame"),
     preview: root.querySelector("#guestPortalPreview"),
+    specialDecorationsDialog: root.querySelector("#specialDecorationsDialog"),
   };
   const state = {
     session: null,
@@ -54,6 +56,16 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
     loaded: false,
   };
   let bound = false;
+  const specialDecorationsEditor = createSpecialDecorationsEditor({
+    dialog: els.specialDecorationsDialog,
+    getHotel: () => state.hotel,
+    getMedia: () => state.media,
+    getSession: () => state.session,
+    onMediaAdded: (asset) => {
+      state.media = [asset, ...state.media.filter((entry) => entry.id !== asset.id)];
+    },
+    onStatus: setStatus,
+  });
 
   function open(session) {
     state.session = session;
@@ -148,6 +160,7 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
     else if (state.activeTab === "home") els.panel.innerHTML = renderHomePanel();
     else if (state.activeTab === "services") els.panel.innerHTML = renderServicesPanel();
     else if (state.activeTab === "emporio") els.panel.innerHTML = renderEmporioPanel();
+    else if (state.activeTab === "decorations") els.panel.innerHTML = renderDecorationsPanel();
     else if (state.activeTab === "spa") els.panel.innerHTML = renderSpaPanel();
     else els.panel.innerHTML = renderContentPanel();
     syncEditorChrome();
@@ -251,6 +264,29 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
       <section class="guest-editor-section">
         <header><strong>Estrutura protegida</strong><span>O Portal do Hóspede usa um único template oficial para todas as unidades.</span></header>
         <p class="guest-editor-help">Início, Serviços, Eventos, Hotel e Blog mantêm o mesmo fluxo. A identidade e os conteúdos mudam conforme a unidade selecionada.</p>
+      </section>`;
+  }
+
+  function renderDecorationsPanel() {
+    const module = moduleByKey("romantic-packages");
+    return `
+      <section class="guest-editor-section">
+        <header>
+          <strong>Decorações Especiais</strong>
+          <span>Gerencie categorias, experiências, adicionais, preços, textos e fotos desta unidade.</span>
+        </header>
+        <div class="guest-editor-special-decorations-card">
+          <span>${icon("sparkle")}</span>
+          <div>
+            <strong>${escapeHtml(module?.navigation_label || "Decorações Especiais")}</strong>
+            <small>O editor abre em uma janela ampla para você trabalhar com mais espaço.</small>
+          </div>
+          <button class="admin-primary-button" type="button" data-special-decorations-open>Abrir editor</button>
+        </div>
+      </section>
+      <section class="guest-editor-section">
+        <header><strong>Publicação por unidade</strong><span>O catálogo exibido depende sempre da unidade selecionada acima.</span></header>
+        <p class="guest-editor-help">Fotos enviadas por aqui ficam na Biblioteca de Mídia desta unidade e podem ser trocadas a qualquer momento.</p>
       </section>`;
   }
 
@@ -592,6 +628,10 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
   }
 
   function handleClick(event) {
+    if (event.target.closest("[data-special-decorations-open]")) {
+      specialDecorationsEditor.open();
+      return;
+    }
     const tab = event.target.closest("[data-guest-editor-tab]");
     if (tab) {
       state.activeTab = tab.dataset.guestEditorTab;
@@ -1257,9 +1297,17 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
   }
 
   function syncEditorChrome() {
-    const catalogMode = ["emporio", "spa"].includes(state.activeTab);
-    const modulePath = state.activeTab === "spa" ? "spa" : "emporio";
-    const moduleLabel = state.activeTab === "spa" ? "Spa" : "Empório";
+    const catalogMode = ["emporio", "spa", "decorations"].includes(state.activeTab);
+    const modulePath = state.activeTab === "spa"
+      ? "spa"
+      : state.activeTab === "decorations"
+        ? "romantic-packages"
+        : "emporio";
+    const moduleLabel = state.activeTab === "spa"
+      ? "Spa"
+      : state.activeTab === "decorations"
+        ? "Decorações Especiais"
+        : "Empório";
     els.save.hidden = catalogMode;
     els.publicLink.href = catalogMode ? `${publicPortalUrl()}/${modulePath}` : publicPortalUrl();
     els.publicLinkLabel.textContent = catalogMode ? `Abrir ${moduleLabel}` : "Abrir portal";
@@ -1363,6 +1411,7 @@ function icon(name) {
     edit: '<path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/>',
     bag: '<path d="M5 8h14l-1 12H6L5 8Z"/><path d="M9 9V7a3 3 0 0 1 6 0v2"/>',
     spa: '<path d="M12 20c-4 0-7-2.7-7-6 3.2 0 5.7 1.3 7 3.4C13.3 15.3 15.8 14 19 14c0 3.3-3 6-7 6Z"/><path d="M12 17c-2.4-1.5-4-4.1-4-7 2.9 0 5 1.8 5 4.4M12 17c2.4-1.5 4-4.1 4-7-1.2 0-2.3.3-3.1.9M12 3c1.5 1.4 2 3.1 1.5 5"/>',
+    sparkle: '<path d="m12 3 1.3 4.2L17.5 9l-4.2 1.6L12 15l-1.4-4.4L6.5 9l4.1-1.8L12 3Z"/><path d="m18.5 14 .8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2Z"/>',
   };
   return `<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[name] || paths.image}</svg>`;
 }

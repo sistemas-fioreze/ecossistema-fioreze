@@ -19,10 +19,10 @@ export async function render(container, context) {
     bootstrap: context.bootstrap,
     packages: [],
     selectedPackageId: packageIdFromUrl(),
-    isFiorezeCentro: context.bootstrap.hotel_id === "fiorezecentro",
+    usesEditorialLayout: true,
   };
 
-  container.innerHTML = renderShell(context.bootstrap, state.isFiorezeCentro);
+  container.innerHTML = renderShell(context.bootstrap, state.usesEditorialLayout);
   const cleanupMediaViewer = bindCatalogMediaViewer(container);
   bindActions(container, state);
 
@@ -48,16 +48,16 @@ export async function render(container, context) {
   };
 }
 
-function renderShell(bootstrap, isFiorezeCentro) {
+function renderShell(bootstrap, usesEditorialLayout) {
   const description = String(
     bootstrap.settings?.["portal.module.romantic-packages.description"]
       || "Experiências pensadas para celebrar momentos especiais a dois.",
   ).trim();
   return `
-    <section class="romantic-packages-app${isFiorezeCentro ? " is-fioreze-centro" : ""}">
+    <section class="romantic-packages-app${usesEditorialLayout ? " is-special-decorations" : ""}">
       <header class="romantic-packages-heading">
-        ${isFiorezeCentro ? "" : "<p>Experiências especiais</p>"}
-        ${isFiorezeCentro
+        ${usesEditorialLayout ? "" : "<p>Experiências especiais</p>"}
+        ${usesEditorialLayout
           ? '<h1><span>decorações</span><strong>ESPECIAIS</strong></h1>'
           : "<h1>Decorações especiais</h1>"}
         <span>${escapeHtml(description)}</span>
@@ -105,7 +105,7 @@ function renderPackages(container, state) {
       </div>`;
     return;
   }
-  if (!state.isFiorezeCentro) {
+  if (!state.usesEditorialLayout) {
     list.innerHTML = state.packages.map((item) => renderPackageCard(item, false)).join("");
     return;
   }
@@ -222,7 +222,7 @@ function renderPackageDetail(container, state) {
   const whatsapp = whatsappAction(state.bootstrap, item);
   const isAddOn = item.item_type === "add-on";
   const card = container.querySelector("[data-romantic-package-detail-card]");
-  card.classList.toggle("is-centro-detail", state.isFiorezeCentro);
+  card.classList.toggle("is-centro-detail", state.usesEditorialLayout);
   card.classList.toggle("is-add-on-detail", isAddOn);
   card.innerHTML = `
     <button class="romantic-package-detail-close catalog-detail-close" type="button" data-romantic-package-close aria-label="Fechar">${icon("close")}</button>
@@ -233,12 +233,12 @@ function renderPackageDetail(container, state) {
         label: `Ampliar imagem de ${item.name}`,
         placeholder: `<span class="romantic-package-placeholder" aria-hidden="true">${icon("sparkle")}</span>`,
       })}
-      ${image && state.isFiorezeCentro ? '<small class="romantic-detail-image-note">Foto meramente ilustrativa</small>' : ""}
+      ${image && state.usesEditorialLayout ? '<small class="romantic-detail-image-note">Foto meramente ilustrativa</small>' : ""}
     </div>
     <div class="romantic-package-detail-content catalog-detail-content">
       <p class="romantic-package-detail-category">${escapeHtml(item.category_name || "Decorações especiais")}</p>
       <p class="romantic-package-detail-kicker">${isAddOn ? "Adicional" : "Experiência especial"}</p>
-      <h2 id="romantic-package-title">${escapeHtml(state.isFiorezeCentro ? displayPackageName(item) : item.name)}</h2>
+      <h2 id="romantic-package-title">${escapeHtml(state.usesEditorialLayout ? displayPackageName(item) : item.name)}</h2>
       <strong class="romantic-package-detail-price">${formatPrice(item)}</strong>
       <p class="romantic-package-detail-description">${escapeHtml(item.description || "Uma experiência especial preparada pela equipe do hotel.")}</p>
       ${renderIncludedItems(item.included_items)}

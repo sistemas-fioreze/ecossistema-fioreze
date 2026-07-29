@@ -67,6 +67,13 @@ import {
   updateAdminEmporioItem,
 } from "./emporio-catalog.js";
 import {
+  createAdminSpecialDecorationCategory,
+  createAdminSpecialDecorationItem,
+  listAdminSpecialDecorationsCatalog,
+  updateAdminSpecialDecorationCategory,
+  updateAdminSpecialDecorationItem,
+} from "./special-decorations-catalog.js";
+import {
   createAdminSpaService,
   getAdminSpaCatalog,
   updateAdminSpaProfile,
@@ -602,6 +609,31 @@ export function registerAdminRoutes(router) {
   router.patch("/api/v1/admin/emporio/catalog/items/:id", async ({ request, env, params }) => {
     const session = await requireAuthentication({ request, env });
     return ok(await updateAdminEmporioItem({ request, env, session, itemId: params.id }));
+  });
+
+  router.get("/api/v1/admin/special-decorations/catalog", async ({ request, env, url }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await listAdminSpecialDecorationsCatalog({ env, session, url }));
+  });
+
+  router.post("/api/v1/admin/special-decorations/catalog/categories", async ({ request, env }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await createAdminSpecialDecorationCategory({ request, env, session }), { status: 201 });
+  });
+
+  router.patch("/api/v1/admin/special-decorations/catalog/categories/:id", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await updateAdminSpecialDecorationCategory({ request, env, session, categoryId: params.id }));
+  });
+
+  router.post("/api/v1/admin/special-decorations/catalog/items", async ({ request, env }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await createAdminSpecialDecorationItem({ request, env, session }), { status: 201 });
+  });
+
+  router.patch("/api/v1/admin/special-decorations/catalog/items/:id", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return ok(await updateAdminSpecialDecorationItem({ request, env, session, itemId: params.id }));
   });
 
   router.get("/api/v1/admin/spa/catalog", async ({ request, env }) => {
