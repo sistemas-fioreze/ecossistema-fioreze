@@ -14,7 +14,7 @@ const MODULE_DESCRIPTIONS = {
   "room-service": "Refeições e bebidas no conforto da sua acomodação.",
   emporio: "Chocolates, souvenirs e produtos selecionados.",
   spa: "Massagens, tratamentos e momentos de bem-estar.",
-  "romantic-packages": "Experiências especiais para celebrar a dois.",
+  "romantic-packages": "Decorações e experiências para momentos especiais.",
 };
 
 const EVENT_PAGE_SIZE = 8;
@@ -831,7 +831,7 @@ function moduleIcon(moduleKey) {
   if (moduleKey === "room-service") return "room-service";
   if (moduleKey === "emporio") return "bag";
   if (moduleKey === "spa") return "spa";
-  if (moduleKey === "romantic-packages") return "heart";
+  if (moduleKey === "romantic-packages") return "sparkle";
   return "sparkle";
 }
 
