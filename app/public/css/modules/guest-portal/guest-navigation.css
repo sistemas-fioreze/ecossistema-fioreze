@@ -331,6 +331,21 @@
     color: var(--guest-ink);
   }
 
+  .guest-shared-header.site-header.is-scrolled,
+  .portal-app-top .guest-shared-header.site-header.is-scrolled {
+    padding: 0 14px;
+    border-radius: 18px;
+    color: var(--guest-ink);
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
+    backdrop-filter: blur(22px) saturate(1.14);
+    -webkit-backdrop-filter: blur(22px) saturate(1.14);
+  }
+
+  .guest-shared-header.site-header.is-scrolled .guest-desktop-nav .guest-nav-item {
+    text-shadow: none;
+  }
+
   .guest-shared-header .guest-brand {
     min-height: 64px;
     display: grid;

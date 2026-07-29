@@ -315,7 +315,7 @@
 }
 
 .is-special-decorations .romantic-packages-heading h1 span {
-  font-family: "Brush Script MT", "Segoe Script", cursive;
+  font-family: var(--font-body);
   font-size: clamp(3.8rem, 10vw, 7.5rem);
   font-weight: 400;
   line-height: 0.9;
@@ -424,7 +424,7 @@
 
 .is-centro-experience .romantic-package-card-copy > strong {
   color: var(--centro-gold-deep);
-  font-family: "Brush Script MT", "Segoe Script", cursive;
+  font-family: var(--font-body);
   font-size: clamp(2.7rem, 5.6vw, 4.8rem);
   font-weight: 400;
   line-height: 0.82;
@@ -509,7 +509,7 @@
 .romantic-centro-addons-heading h2 {
   margin: 0;
   color: var(--centro-gold-deep);
-  font-family: "Brush Script MT", "Segoe Script", cursive;
+  font-family: var(--font-body);
   font-size: clamp(2.6rem, 5vw, 4.2rem);
   font-weight: 400;
   line-height: 0.9;
@@ -585,7 +585,7 @@
 
 .is-special-decorations .is-centro-detail .romantic-package-detail-content h2 {
   color: var(--centro-gold-deep);
-  font-family: "Brush Script MT", "Segoe Script", cursive;
+  font-family: var(--font-body);
   font-weight: 400;
 }
 
