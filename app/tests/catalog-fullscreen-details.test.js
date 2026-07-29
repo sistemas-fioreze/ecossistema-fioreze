@@ -97,9 +97,9 @@ test("Emporio e Pacotes Romanticos compartilham detalhe em tela cheia e zoom ace
   assert.match(sharedJs, /event\.key === "Escape"/);
   assert.match(sharedJs, /MAX_ZOOM = 3/);
   assert.match(romanticCss, /\.romantic-packages-grid/);
-  assert.match(romanticCss, /\.romantic-packages-app\.is-fioreze-centro/);
+  assert.match(romanticCss, /\.romantic-packages-app\.is-special-decorations/);
   assert.match(romanticCss, /\.romantic-centro-addon-list/);
-  assert.match(romantic, /context\.bootstrap\.hotel_id === "fiorezecentro"/);
+  assert.match(romantic, /usesEditorialLayout:\s*true/);
   assert.match(romantic, /Foto meramente ilustrativa/);
   assert.match(romantic, /Decorações especiais/);
   assert.doesNotMatch(romantic, /Encante o seu amor|Família Fioreze|<small>Surpresa<\/small>/);

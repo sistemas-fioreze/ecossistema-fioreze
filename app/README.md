@@ -76,7 +76,9 @@ Tabelas principais:
 - catalogos: `catalogs`, `categories`, `catalog_items`, `catalog_item_availability`;
 - pedidos: `orders`, `order_items`, `order_status_history`, `print_events`;
 - spa: `spa_services`, `spa_service_requests`, `spa_appointments`;
-- pacotes: `romantic_packages`, `romantic_package_requests`.
+- decorações especiais: `decoration_categories`, `romantic_packages`, `romantic_package_requests`.
+
+O identificador interno `romantic-packages` permanece estável, mas o produto é apresentado como **Decorações Especiais**. A Central permite editar categorias, experiências, adicionais, preços, textos e fotos por unidade em um editor modal amplo. O contrato e o rollout do catálogo estão documentados em `docs/arquitetura/SPECIAL_DECORATIONS.md`.
 
 ## Endpoints
 

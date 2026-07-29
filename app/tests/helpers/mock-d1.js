@@ -267,6 +267,7 @@ function createFixtureData() {
       availability("aurora-sandwich", "aurora-demo", 1),
     ],
     romanticPackages: [],
+    decorationCategories: [],
     spaSharedProfile: {
       id: "spa-zena",
       title: "Spa Zena",
@@ -945,6 +946,29 @@ class MockD1Database {
       const categoryRow = this.data.categories.find((entry) => entry.id === categoryId && entry.hotel_id === hotelId);
       const catalogRow = categoryRow && this.data.catalogs.find((entry) => entry.id === categoryRow.catalog_id && entry.module_key === moduleKey);
       return categoryRow && catalogRow ? { ...categoryRow, module_key: moduleKey } : null;
+    }
+
+    if (normalized.includes("from decoration_categories") && normalized.includes("where id = ?")) {
+      const [categoryId, hotelId, moduleKey] = params;
+      return this.data.decorationCategories.find(
+        (entry) => entry.id === categoryId && entry.hotel_id === hotelId && entry.module_key === moduleKey,
+      ) || null;
+    }
+
+    if (normalized.includes("from romantic_packages rp") && normalized.includes("where rp.id = ?")) {
+      const [itemId, hotelId, moduleKey] = params;
+      const item = this.data.romanticPackages.find(
+        (entry) => entry.id === itemId && entry.hotel_id === hotelId && entry.module_key === moduleKey,
+      );
+      if (!item) return null;
+      const media = this.data.mediaAssets.find(
+        (entry) => entry.id === item.media_asset_id && entry.hotel_id === hotelId && entry.status === "active",
+      );
+      return {
+        ...item,
+        image_url: media?.public_url || null,
+        image_alt: media?.alt_text || null,
+      };
     }
 
     if (normalized.includes("from catalog_items ci") && normalized.includes("left join catalog_item_availability") && normalized.includes("where ci.id = ?")) {
@@ -1970,12 +1994,20 @@ class MockD1Database {
         .sort((a, b) => a.category_sort_order - b.category_sort_order || a.sort_order - b.sort_order || a.name.localeCompare(b.name));
     }
 
+    if (normalized.includes("from decoration_categories") && normalized.includes("status != 'archived'")) {
+      const [hotelId, moduleKey] = params;
+      return this.data.decorationCategories
+        .filter((entry) => entry.hotel_id === hotelId && entry.module_key === moduleKey && entry.status !== "archived")
+        .sort((a, b) => Number(a.sort_order || 100) - Number(b.sort_order || 100) || a.name.localeCompare(b.name));
+    }
+
     if (normalized.includes("from romantic_packages rp")) {
       const [hotelId, moduleKey] = params;
+      const includeInactive = normalized.includes("rp.status != 'archived'");
       return this.data.romanticPackages
         .filter((entry) => entry.hotel_id === hotelId)
         .filter((entry) => entry.module_key === moduleKey)
-        .filter((entry) => entry.status === "active")
+        .filter((entry) => includeInactive ? entry.status !== "archived" : entry.status === "active")
         .map((entry) => {
           const media = this.data.mediaAssets.find(
             (candidate) =>
@@ -1983,8 +2015,19 @@ class MockD1Database {
               && candidate.hotel_id === entry.hotel_id
               && candidate.status === "active",
           );
+          const categoryRow = this.data.decorationCategories.find(
+            (candidate) =>
+              candidate.id === entry.category_id
+              && candidate.hotel_id === entry.hotel_id
+              && candidate.module_key === entry.module_key
+              && candidate.status === "active",
+          );
           return {
             ...entry,
+            category_key: categoryRow?.category_key || entry.category_key || null,
+            category_name: categoryRow?.name || entry.category_name || null,
+            category_description: categoryRow?.description || entry.category_description || null,
+            category_sort_order: categoryRow?.sort_order || entry.category_sort_order || null,
             image_url: media?.public_url || null,
             image_alt: media?.alt_text || null,
           };
@@ -2709,6 +2752,69 @@ class MockD1Database {
       return d1Result(1);
     }
 
+    if (normalized.startsWith("insert into decoration_categories")) {
+      const [id, hotel_id, module_key, category_key, name, description, sort_order, created_at, updated_at] = params;
+      if (this.data.decorationCategories.some((entry) =>
+        entry.hotel_id === hotel_id && entry.module_key === module_key && entry.category_key === category_key
+      )) {
+        throw new Error("UNIQUE constraint failed: decoration_categories.hotel_id, decoration_categories.module_key, decoration_categories.category_key");
+      }
+      this.data.decorationCategories.push({
+        id,
+        hotel_id,
+        module_key,
+        category_key,
+        name,
+        description,
+        status: "active",
+        sort_order,
+        created_at,
+        updated_at,
+        archived_at: null,
+      });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("insert into romantic_packages")) {
+      const [
+        id,
+        hotel_id,
+        module_key,
+        name,
+        description,
+        included_items_json,
+        price_cents,
+        currency,
+        status,
+        sort_order,
+        created_at,
+        updated_at,
+        archived_at,
+        media_asset_id,
+        item_type,
+        category_id,
+      ] = params;
+      this.data.romanticPackages.push({
+        id,
+        hotel_id,
+        module_key,
+        name,
+        description,
+        included_items_json,
+        price_cents,
+        currency,
+        status,
+        sort_order,
+        created_at,
+        updated_at,
+        archived_at,
+        media_asset_id,
+        item_type,
+        category_id,
+      });
+      return d1Result(1);
+    }
+
     if (normalized.startsWith("insert or ignore into catalogs")) {
       const [id, hotel_id, module_key, created_at, updated_at] = params;
       if (!this.data.catalogs.some((entry) => entry.id === id)) {
@@ -3297,6 +3403,55 @@ class MockD1Database {
       const category = this.data.categories.find((entry) => entry.id === categoryId && entry.hotel_id === hotelId && (entry.module_key === moduleKey || this.data.catalogs.find((catalogRow) => catalogRow.id === entry.catalog_id)?.module_key === moduleKey));
       if (!category) return d1Result(0);
       Object.assign(category, { name, description, status, sort_order, updated_at });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update decoration_categories")) {
+      const [name, description, status, sort_order, updated_at, archived_at, categoryId, hotelId, moduleKey] = params;
+      const category = this.data.decorationCategories.find(
+        (entry) => entry.id === categoryId && entry.hotel_id === hotelId && entry.module_key === moduleKey,
+      );
+      if (!category) return d1Result(0);
+      Object.assign(category, { name, description, status, sort_order, updated_at, archived_at });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update romantic_packages") && normalized.includes("set category_id = ?")) {
+      const [
+        category_id,
+        name,
+        description,
+        included_items_json,
+        price_cents,
+        currency,
+        status,
+        sort_order,
+        media_asset_id,
+        item_type,
+        updated_at,
+        archived_at,
+        itemId,
+        hotelId,
+        moduleKey,
+      ] = params;
+      const item = this.data.romanticPackages.find(
+        (entry) => entry.id === itemId && entry.hotel_id === hotelId && entry.module_key === moduleKey,
+      );
+      if (!item) return d1Result(0);
+      Object.assign(item, {
+        category_id,
+        name,
+        description,
+        included_items_json,
+        price_cents,
+        currency,
+        status,
+        sort_order,
+        media_asset_id,
+        item_type,
+        updated_at,
+        archived_at,
+      });
       return d1Result(1);
     }
 

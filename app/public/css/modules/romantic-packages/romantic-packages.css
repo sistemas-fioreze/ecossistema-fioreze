@@ -262,9 +262,9 @@
   text-align: center;
 }
 
-.romantic-packages-app.is-fioreze-centro {
-  --centro-gold: #c9aa43;
-  --centro-gold-deep: #8b6c1d;
+.romantic-packages-app.is-special-decorations {
+  --centro-gold: var(--color-accent, #c9aa43);
+  --centro-gold-deep: var(--color-primary, #8b6c1d);
   --centro-charcoal: #3f3a3b;
   --romantic-ink: var(--centro-charcoal);
   --romantic-muted: #6f6869;
@@ -274,7 +274,7 @@
   background: #fff;
 }
 
-.is-fioreze-centro .romantic-packages-heading {
+.is-special-decorations .romantic-packages-heading {
   width: 100%;
   max-width: none;
   min-height: 320px;
@@ -289,8 +289,8 @@
   text-align: center;
 }
 
-.is-fioreze-centro .romantic-packages-heading::before,
-.is-fioreze-centro .romantic-packages-heading::after {
+.is-special-decorations .romantic-packages-heading::before,
+.is-special-decorations .romantic-packages-heading::after {
   content: "";
   width: min(260px, 32vw);
   height: 1px;
@@ -298,23 +298,23 @@
   background: rgba(255, 255, 255, 0.72);
 }
 
-.is-fioreze-centro .romantic-packages-heading::before {
+.is-special-decorations .romantic-packages-heading::before {
   top: 32px;
   right: clamp(24px, 8vw, 110px);
 }
 
-.is-fioreze-centro .romantic-packages-heading::after {
+.is-special-decorations .romantic-packages-heading::after {
   bottom: 32px;
   left: clamp(24px, 8vw, 110px);
 }
 
-.is-fioreze-centro .romantic-packages-heading h1 {
+.is-special-decorations .romantic-packages-heading h1 {
   display: grid;
   justify-items: center;
   gap: 12px;
 }
 
-.is-fioreze-centro .romantic-packages-heading h1 span {
+.is-special-decorations .romantic-packages-heading h1 span {
   font-family: "Brush Script MT", "Segoe Script", cursive;
   font-size: clamp(3.8rem, 10vw, 7.5rem);
   font-weight: 400;
@@ -322,7 +322,7 @@
   text-transform: lowercase;
 }
 
-.is-fioreze-centro .romantic-packages-heading h1 strong {
+.is-special-decorations .romantic-packages-heading h1 strong {
   color: #3d3218;
   font-family: Georgia, "Times New Roman", serif;
   font-size: clamp(1.25rem, 3vw, 2.25rem);
@@ -330,12 +330,12 @@
   line-height: 1.1;
 }
 
-.is-fioreze-centro .romantic-packages-heading > span {
+.is-special-decorations .romantic-packages-heading > span {
   max-width: 44rem;
   color: rgba(255, 255, 255, 0.92);
 }
 
-.is-fioreze-centro .romantic-packages-grid {
+.is-special-decorations .romantic-packages-grid {
   width: min(1180px, calc(100% - 36px));
   display: block;
   margin-inline: auto;
@@ -566,11 +566,11 @@
   height: 18px;
 }
 
-.is-fioreze-centro .romantic-package-detail-card.is-centro-detail {
+.is-special-decorations .romantic-package-detail-card.is-centro-detail {
   --color-primary: var(--centro-gold-deep);
 }
 
-.is-fioreze-centro .is-centro-detail .romantic-package-detail-content {
+.is-special-decorations .is-centro-detail .romantic-package-detail-content {
   position: relative;
   border-left: 1px solid rgba(201, 170, 67, 0.35);
 }
@@ -583,13 +583,13 @@
   text-transform: uppercase;
 }
 
-.is-fioreze-centro .is-centro-detail .romantic-package-detail-content h2 {
+.is-special-decorations .is-centro-detail .romantic-package-detail-content h2 {
   color: var(--centro-gold-deep);
   font-family: "Brush Script MT", "Segoe Script", cursive;
   font-weight: 400;
 }
 
-.is-fioreze-centro .is-centro-detail .romantic-package-action {
+.is-special-decorations .is-centro-detail .romantic-package-action {
   background: var(--centro-gold-deep);
 }
 
@@ -605,11 +605,11 @@
   font-size: 0.65rem;
 }
 
-.is-fioreze-centro .is-add-on-detail .romantic-package-detail-media {
+.is-special-decorations .is-add-on-detail .romantic-package-detail-media {
   background: var(--centro-gold-deep);
 }
 
-.is-fioreze-centro .is-add-on-detail .romantic-package-placeholder {
+.is-special-decorations .is-add-on-detail .romantic-package-placeholder {
   color: var(--centro-gold);
   background: transparent;
 }
@@ -642,12 +642,12 @@
     padding-right: 38px;
   }
 
-  .is-fioreze-centro .romantic-packages-heading {
+  .is-special-decorations .romantic-packages-heading {
     min-height: 260px;
     padding: 44px 20px;
   }
 
-  .is-fioreze-centro .romantic-packages-grid {
+  .is-special-decorations .romantic-packages-grid {
     width: min(100% - 28px, 640px);
   }
 
@@ -676,7 +676,7 @@
     padding: 24px 20px;
   }
 
-  .is-fioreze-centro .is-centro-detail .romantic-package-detail-content {
+  .is-special-decorations .is-centro-detail .romantic-package-detail-content {
     border-top: 1px solid rgba(201, 170, 67, 0.35);
     border-left: 0;
   }

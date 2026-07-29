@@ -146,7 +146,7 @@ body[data-admin-design="workspace"][data-admin-shell="erp"]
 
 .guest-portal-editor-tabs {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 2px;
   padding: 10px;
   border-bottom: 1px solid #e6e9ed;
@@ -202,6 +202,56 @@ body[data-admin-design="workspace"][data-admin-shell="erp"]
   color: #757d87;
   font-size: .75rem;
   line-height: 1.45;
+}
+
+.guest-editor-special-decorations-card {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid #dfe3e8;
+  border-radius: 6px;
+  background: #f8f9fa;
+}
+
+.guest-editor-special-decorations-card > span {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border-radius: 5px;
+  background: #353a40;
+  color: #fff;
+}
+
+.guest-editor-special-decorations-card svg {
+  width: 22px;
+  height: 22px;
+}
+
+.guest-editor-special-decorations-card > div {
+  display: grid;
+  gap: 3px;
+}
+
+.guest-editor-special-decorations-card small {
+  color: #737b85;
+  font-size: .72rem;
+  line-height: 1.4;
+}
+
+.guest-editor-special-decorations-card button {
+  grid-column: 1 / -1;
+  min-height: 40px;
+  border: 0;
+  border-radius: 5px;
+  background: #353a40;
+  color: #fff;
+  font: inherit;
+  font-size: .76rem;
+  font-weight: 800;
+  cursor: pointer;
 }
 
 .guest-editor-field {
