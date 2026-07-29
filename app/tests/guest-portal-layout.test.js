@@ -291,6 +291,7 @@ test("central administra uma lista de mapas sem armazenar iframe livre", () => {
 
 test("desktop alinha logo e guias compartilhadas sem fundo", () => {
   assert.match(navigationCss, /@media \(min-width: 960px\)[\s\S]*?\.guest-shared-header\.site-header,[\s\S]*?background:\s*transparent;[\s\S]*?backdrop-filter:\s*none/);
+  assert.match(navigationCss, /\.guest-shared-header\.site-header\.is-scrolled,[\s\S]*?background:\s*rgba\(255,\s*255,\s*255,\s*0\.88\);[\s\S]*?backdrop-filter:\s*blur\(22px\)/);
   assert.match(navigationCss, /\.guest-shared-header \.brand-logo-img\s*\{[\s\S]*?object-fit:\s*contain/);
   assert.match(navigationCss, /\.guest-desktop-nav \.guest-nav-item\s*\{[\s\S]*?border-radius:\s*999px/);
   assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\) \.desktop-unit-cover::after\s*\{[\s\S]*?rgba\(14, 11, 9, 0\.68\)/);

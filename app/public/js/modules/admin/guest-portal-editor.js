@@ -38,7 +38,9 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
     previewName: root.querySelector("#guestPortalPreviewName"),
     previewFrame: root.querySelector("#guestPortalPreviewFrame"),
     preview: root.querySelector("#guestPortalPreview"),
+    emporioCatalogDialog: root.querySelector("#emporioCatalogDialog"),
     specialDecorationsDialog: root.querySelector("#specialDecorationsDialog"),
+    spaCatalogDialog: root.querySelector("#spaCatalogDialog"),
   };
   const state = {
     session: null,
@@ -94,6 +96,12 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
     els.root.addEventListener("change", handleChange);
     els.root.addEventListener("submit", handleSubmit);
     els.preview.addEventListener("load", postPreview);
+    for (const dialog of [els.emporioCatalogDialog, els.spaCatalogDialog]) {
+      dialog.addEventListener("cancel", (event) => {
+        event.preventDefault();
+        closeCatalogEditor(dialog);
+      });
+    }
   }
 
   function populateHotels() {
@@ -114,20 +122,20 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
     setStatus("Carregando portal...");
     els.panel.innerHTML = '<div class="guest-portal-editor-loading">Preparando o editor...</div>';
     try {
+      closeCatalogEditor(els.emporioCatalogDialog);
+      closeCatalogEditor(els.spaCatalogDialog);
       const requests = [
         adminApi(`/api/v1/admin/hotels/${encodeURIComponent(hotelId)}`),
         adminApi(`/api/v1/admin/hotels/${encodeURIComponent(hotelId)}/modules`),
-        adminApi(`/api/v1/admin/emporio/catalog?hotel_id=${encodeURIComponent(hotelId)}`),
-        adminApi("/api/v1/admin/spa/catalog"),
       ];
       if (hasPermission(state.session, PORTALS_MEDIA_READ_PERMISSION)) {
         requests.push(adminApi(`/api/v1/admin/media?hotel_id=${encodeURIComponent(hotelId)}&status=active`));
       }
-      const [hotelPayload, modulesPayload, catalogPayload, spaPayload, mediaPayload] = await Promise.all(requests);
+      const [hotelPayload, modulesPayload, mediaPayload] = await Promise.all(requests);
       state.hotel = structuredClone(hotelPayload.data.hotel);
       state.modules = structuredClone(modulesPayload.data.modules || []);
-      state.catalog = structuredClone(catalogPayload.data || { categories: [], category_options: [] });
-      state.spaCatalog = structuredClone(spaPayload.data || { profile: null, services: [] });
+      state.catalog = { categories: [], category_options: [] };
+      state.spaCatalog = { profile: null, services: [] };
       state.media = mediaPayload?.data?.assets || [];
       state.catalogEditor = null;
       state.spaEditor = null;
@@ -291,6 +299,16 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
   }
 
   function renderSpaPanel() {
+    return renderCatalogLauncher({
+      key: "spa",
+      title: "Spa",
+      description: "Gerencie informações, atendimento, serviços, duração, valores e fotos do catálogo compartilhado.",
+      note: "O Spa usa um catálogo compartilhado entre as unidades em que o módulo estiver habilitado.",
+      iconName: "spa",
+    });
+  }
+
+  function renderSpaWorkspace() {
     if (state.spaEditor?.kind === "service") return renderSpaServiceForm();
     const profile = state.spaCatalog.profile || {};
     const services = state.spaCatalog.services || [];
@@ -398,6 +416,16 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
   }
 
   function renderEmporioPanel() {
+    return renderCatalogLauncher({
+      key: "emporio",
+      title: "Empório",
+      description: "Gerencie carrossel, categorias, produtos, valores, disponibilidade e fotos desta unidade.",
+      note: "O catálogo publicado depende sempre da unidade selecionada acima.",
+      iconName: "bag",
+    });
+  }
+
+  function renderEmporioWorkspace() {
     if (state.catalogEditor?.kind === "category") return renderEmporioCategoryForm();
     if (state.catalogEditor?.kind === "product") return renderEmporioProductForm();
     const categories = state.catalog.category_options || [];
@@ -435,6 +463,104 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
           ${products.map(renderEmporioProductRow).join("") || '<p class="guest-editor-help">Nenhum produto cadastrado.</p>'}
         </div>
       </section>`;
+  }
+
+  function renderCatalogLauncher({ key, title, description, note, iconName }) {
+    const module = moduleByKey(key);
+    return `
+      <section class="guest-editor-section">
+        <header>
+          <strong>${escapeHtml(title)}</strong>
+          <span>${escapeHtml(description)}</span>
+        </header>
+        <div class="guest-editor-special-decorations-card">
+          <span>${icon(iconName)}</span>
+          <div>
+            <strong>${escapeHtml(module?.navigation_label || title)}</strong>
+            <small>O editor abre em uma janela ampla para você trabalhar com mais espaço.</small>
+          </div>
+          <button class="admin-primary-button" type="button" data-catalog-editor-open="${escapeAttr(key)}">Abrir editor</button>
+        </div>
+      </section>
+      <section class="guest-editor-section">
+        <header><strong>Publicação e acesso</strong><span>${escapeHtml(note)}</span></header>
+        <p class="guest-editor-help">Todos os usuários autorizados para esta área e para a unidade selecionada usam o mesmo editor.</p>
+      </section>`;
+  }
+
+  async function openCatalogEditor(kind) {
+    const dialog = catalogDialog(kind);
+    if (!dialog || !state.hotel) return;
+    if (!dialog.open) dialog.showModal();
+    renderCatalogLoading(kind);
+    try {
+      if (kind === "emporio") await loadEmporioCatalog({ render: false });
+      else await loadSpaCatalog({ render: false });
+      renderCatalogDialog(kind);
+    } catch (error) {
+      renderCatalogError(kind, error.message || "Não foi possível carregar o catálogo.");
+    }
+  }
+
+  function closeCatalogEditor(dialog) {
+    if (dialog?.open) dialog.close();
+    state.catalogEditor = null;
+    state.spaEditor = null;
+  }
+
+  function catalogDialog(kind) {
+    return kind === "emporio" ? els.emporioCatalogDialog : els.spaCatalogDialog;
+  }
+
+  function renderCatalogLoading(kind) {
+    const dialog = catalogDialog(kind);
+    dialog.innerHTML = `
+      <section class="portal-catalog-editor">
+        ${renderCatalogToolbar(kind)}
+        <div class="special-decorations-loading"><span aria-hidden="true"></span><p>Preparando o catálogo...</p></div>
+      </section>`;
+  }
+
+  function renderCatalogError(kind, message) {
+    const dialog = catalogDialog(kind);
+    dialog.innerHTML = `
+      <section class="portal-catalog-editor">
+        ${renderCatalogToolbar(kind)}
+        <div class="special-decorations-empty">
+          <strong>Catálogo indisponível</strong>
+          <span>${escapeHtml(message)}</span>
+          <button type="button" data-catalog-editor-open="${escapeAttr(kind)}">Tentar novamente</button>
+        </div>
+      </section>`;
+  }
+
+  function renderCatalogDialog(kind) {
+    const dialog = catalogDialog(kind);
+    if (!dialog?.open) return;
+    dialog.innerHTML = `
+      <section class="portal-catalog-editor">
+        ${renderCatalogToolbar(kind)}
+        <main class="portal-catalog-workspace">
+          ${kind === "emporio" ? renderEmporioWorkspace() : renderSpaWorkspace()}
+        </main>
+      </section>`;
+  }
+
+  function renderCatalogToolbar(kind) {
+    const isEmporio = kind === "emporio";
+    const title = isEmporio ? "Empório" : "Spa";
+    const publicUrl = `${window.location.origin}/${encodeURIComponent(state.hotel?.slug || "")}/${kind}`;
+    const scope = isEmporio
+      ? state.hotel?.short_name || state.hotel?.name || "Unidade"
+      : "Catálogo compartilhado";
+    return `
+      <header class="special-decorations-toolbar">
+        <div><span>${escapeHtml(title)}</span><strong>${escapeHtml(scope)}</strong></div>
+        <div>
+          <a href="${escapeAttr(publicUrl)}" target="_blank" rel="noopener noreferrer">${icon("external")} Abrir portal</a>
+          <button type="button" data-catalog-editor-close="${escapeAttr(kind)}" aria-label="Fechar editor">${icon("close")}</button>
+        </div>
+      </header>`;
   }
 
   function renderEmporioCarouselPanel() {
@@ -628,6 +754,16 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
   }
 
   function handleClick(event) {
+    const openCatalog = event.target.closest("[data-catalog-editor-open]");
+    if (openCatalog) {
+      openCatalogEditor(openCatalog.dataset.catalogEditorOpen);
+      return;
+    }
+    const closeCatalog = event.target.closest("[data-catalog-editor-close]");
+    if (closeCatalog) {
+      closeCatalogEditor(catalogDialog(closeCatalog.dataset.catalogEditorClose));
+      return;
+    }
     if (event.target.closest("[data-special-decorations-open]")) {
       specialDecorationsEditor.open();
       return;
@@ -694,7 +830,7 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
     const carouselField = event.target.closest("[data-emporio-carousel-field]");
     if (carouselField) {
       updateEmporioCarouselField(carouselField);
-      renderPanel();
+      renderCatalogDialog("emporio");
       return;
     }
     const emporioUpload = event.target.closest("[data-emporio-media-upload]");
@@ -784,7 +920,7 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
     if (action === "add-slide") {
       const slides = emporioCarouselSlides();
       if (slides.length < 8) slides.push({ title: "", media_asset_id: "" });
-      renderPanel();
+      renderCatalogDialog("emporio");
       return;
     }
     if (["slide-up", "slide-down", "remove-slide"].includes(action)) {
@@ -798,7 +934,7 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
           [slides[index], slides[target]] = [slides[target], slides[index]];
         }
       }
-      renderPanel();
+      renderCatalogDialog("emporio");
       return;
     }
     if (action === "save-carousel") {
@@ -807,7 +943,7 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
     }
     if (action === "cancel") {
       state.catalogEditor = null;
-      renderPanel();
+      renderCatalogDialog("emporio");
       return;
     }
     if (action === "new-category") {
@@ -828,7 +964,7 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
         value: structuredClone(catalogProducts().find((entry) => entry.id === button.dataset.id) || {}),
       };
     }
-    renderPanel();
+    renderCatalogDialog("emporio");
   }
 
   function handleSpaAction(button) {
@@ -852,7 +988,7 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
         ),
       };
     }
-    renderPanel();
+    renderCatalogDialog("spa");
   }
 
   async function submitSpaForm(form) {
@@ -926,10 +1062,10 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
     };
   }
 
-  async function loadSpaCatalog() {
+  async function loadSpaCatalog({ render = true } = {}) {
     const payload = await adminApi("/api/v1/admin/spa/catalog");
     state.spaCatalog = structuredClone(payload.data || { profile: null, services: [] });
-    renderPanel();
+    if (render) renderCatalogDialog("spa");
   }
 
   async function uploadSpaMedia(input) {
@@ -969,7 +1105,7 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
           image_url: asset.public_url,
         });
       }
-      renderPanel();
+      renderCatalogDialog("spa");
       setStatus("Imagem enviada e selecionada.", "success");
     } catch (error) {
       setStatus(error.message || "Não foi possível enviar a imagem.", "error");
@@ -977,10 +1113,10 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
     }
   }
 
-  async function loadEmporioCatalog() {
+  async function loadEmporioCatalog({ render = true } = {}) {
     const payload = await adminApi(`/api/v1/admin/emporio/catalog?hotel_id=${encodeURIComponent(state.hotel.hotel_id)}`);
     state.catalog = structuredClone(payload.data || { categories: [], category_options: [] });
-    renderPanel();
+    if (render) renderCatalogDialog("emporio");
   }
 
   async function uploadEmporioMedia(input) {
@@ -999,7 +1135,7 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
       const asset = payload.data.asset;
       state.media = [asset, ...state.media.filter((entry) => entry.id !== asset.id)];
       state.catalogEditor.value.media_asset_id = asset.id;
-      renderPanel();
+      renderCatalogDialog("emporio");
       setStatus("Imagem enviada e selecionada.", "success");
     } catch (error) {
       setStatus(error.message || "Não foi possível enviar a imagem.", "error");
@@ -1011,7 +1147,7 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
     const index = Number(input.dataset.emporioCarouselUpload);
     if (!file || !Number.isInteger(index)) return;
     input.disabled = true;
-    const status = els.panel.querySelector("[data-emporio-carousel-status]");
+    const status = els.emporioCatalogDialog.querySelector("[data-emporio-carousel-status]");
     if (status) status.textContent = "Enviando imagem...";
     const form = new FormData();
     form.set("hotel_id", state.hotel.hotel_id);
@@ -1023,7 +1159,7 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
       state.media = [asset, ...state.media.filter((entry) => entry.id !== asset.id)];
       const slide = emporioCarouselSlides()[index];
       if (slide) slide.media_asset_id = asset.id;
-      renderPanel();
+      renderCatalogDialog("emporio");
       setStatus("Imagem enviada e selecionada.", "success");
     } catch (error) {
       if (status) status.textContent = error.message || "Não foi possível enviar a imagem.";
@@ -1045,7 +1181,7 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
   }
 
   async function saveEmporioCarousel() {
-    const status = els.panel.querySelector("[data-emporio-carousel-status]");
+    const status = els.emporioCatalogDialog.querySelector("[data-emporio-carousel-status]");
     const description = String(
       state.hotel.settings?.["portal.module.emporio.description"] || "",
     ).trim();
@@ -1067,7 +1203,7 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
         },
       });
       state.hotel.settings = structuredClone(payload.data.settings || state.hotel.settings);
-      renderPanel();
+      renderCatalogDialog("emporio");
       setStatus("Carrossel do Empório atualizado.", "success");
     } catch (error) {
       if (status) status.textContent = error.message || "Não foi possível salvar o carrossel.";
@@ -1412,6 +1548,8 @@ function icon(name) {
     bag: '<path d="M5 8h14l-1 12H6L5 8Z"/><path d="M9 9V7a3 3 0 0 1 6 0v2"/>',
     spa: '<path d="M12 20c-4 0-7-2.7-7-6 3.2 0 5.7 1.3 7 3.4C13.3 15.3 15.8 14 19 14c0 3.3-3 6-7 6Z"/><path d="M12 17c-2.4-1.5-4-4.1-4-7 2.9 0 5 1.8 5 4.4M12 17c2.4-1.5 4-4.1 4-7-1.2 0-2.3.3-3.1.9M12 3c1.5 1.4 2 3.1 1.5 5"/>',
     sparkle: '<path d="m12 3 1.3 4.2L17.5 9l-4.2 1.6L12 15l-1.4-4.4L6.5 9l4.1-1.8L12 3Z"/><path d="m18.5 14 .8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2Z"/>',
+    external: '<path d="M14 4h6v6M20 4l-9 9"/><path d="M18 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h6"/>',
+    close: '<path d="m6 6 12 12M18 6 6 18"/>',
   };
   return `<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[name] || paths.image}</svg>`;
 }

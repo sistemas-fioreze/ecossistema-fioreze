@@ -70,6 +70,34 @@ test("editor de Decorações Especiais usa modal amplo, CRUD protegido e upload 
   assert.match(service, /admin_audit_log/);
 });
 
+test("Empório, Decorações e Spa usam editores amplos sem bloquear o editor principal", () => {
+  const html = fs.readFileSync(`${APP_ROOT}/public/admin/portais/index.html`, "utf8");
+  const editor = fs.readFileSync(
+    `${APP_ROOT}/public/js/modules/admin/guest-portal-editor.js`,
+    "utf8",
+  );
+  const css = fs.readFileSync(
+    `${APP_ROOT}/public/css/modules/admin/special-decorations-editor.css`,
+    "utf8",
+  );
+
+  for (const dialogId of ["emporioCatalogDialog", "specialDecorationsDialog", "spaCatalogDialog"]) {
+    assert.match(html, new RegExp(`id="${dialogId}"`));
+  }
+  assert.match(editor, /data-catalog-editor-open="\$\{escapeAttr\(key\)\}"/);
+  assert.match(editor, /function openCatalogEditor\(kind\)/);
+  assert.match(editor, /renderEmporioWorkspace\(\)/);
+  assert.match(editor, /renderSpaWorkspace\(\)/);
+  assert.match(editor, /loadEmporioCatalog\(\{ render: false \}\)/);
+  assert.match(editor, /loadSpaCatalog\(\{ render: false \}\)/);
+  assert.doesNotMatch(
+    editor,
+    /const requests = \[[\s\S]{0,500}\/api\/v1\/admin\/(?:emporio|spa)\/catalog/,
+  );
+  assert.match(css, /\.portal-catalog-editor\s*\{[\s\S]*height:\s*100%/);
+  assert.match(css, /\.portal-catalog-workspace\s*\{[\s\S]*overflow-y:\s*auto/);
+});
+
 test("layout editorial de Decorações Especiais é compartilhado por todas as unidades", () => {
   const moduleSource = fs.readFileSync(
     `${APP_ROOT}/public/js/modules/romantic-packages/index.js`,
@@ -85,6 +113,8 @@ test("layout editorial de Decorações Especiais é compartilhado por todas as u
   assert.match(css, /\.romantic-packages-app\.is-special-decorations/);
   assert.match(css, /--centro-gold:\s*var\(--color-accent/);
   assert.match(css, /--centro-gold-deep:\s*var\(--color-primary/);
+  assert.doesNotMatch(css, /Brush Script MT|Segoe Script|Comic Sans/i);
+  assert.equal((css.match(/font-family:\s*var\(--font-body\)/g) || []).length >= 5, true);
 });
 
 test("CRUD administrativo mantém catálogo, mídia e auditoria isolados por unidade", async () => {
