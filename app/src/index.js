@@ -66,6 +66,27 @@ async function handleRequest(request, env, ctx) {
     return servePublicNotFoundPage(request, env);
   }
 
+  const unitErpRoute = parseUnitErpRoute(url.pathname);
+  if (unitErpRoute) {
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      return servePublicNotFoundPage(request, env);
+    }
+    const tenant = await resolveTenantBySlug(env, unitErpRoute.hotelSlug);
+    if (!tenant.modules.some((module) => module.module_key === "room-service" && module.enabled !== false)) {
+      return servePublicNotFoundPage(request, env);
+    }
+    if (unitErpRoute.redirectTo) {
+      const canonicalUrl = new URL(request.url);
+      canonicalUrl.pathname = unitErpRoute.redirectTo;
+      return Response.redirect(canonicalUrl.toString(), 308);
+    }
+    return serveAsset(request, env, "/erp/room-service/");
+  }
+
+  if (isRetiredErpPath(url.pathname)) {
+    return servePublicNotFoundPage(request, env);
+  }
+
   if (
     url.pathname.startsWith("/api/") ||
     url.pathname.startsWith("/media/") ||
@@ -126,7 +147,6 @@ function isDirectAsset(pathname) {
 
 function resolveAdminAssetPath(pathname) {
   const routes = [
-    { canonical: "/erp/room-service/", assetPath: "/erp/room-service/" },
     { canonical: "/admin/portais/portal-hospede/", assetPath: "/admin/portais/" },
     { canonical: "/admin/portais/unidades/", assetPath: "/admin/portais/" },
     { canonical: "/admin/portais/media/", assetPath: "/admin/portais/" },
@@ -144,10 +164,6 @@ function resolveAdminAssetPath(pathname) {
     { canonical: "/admin/", assetPath: "/admin/" },
   ];
 
-  if (pathname === "/admin/room-service" || pathname.startsWith("/admin/room-service/")) {
-    return { redirectTo: pathname.replace(/^\/admin\/room-service\/?/, "/erp/room-service/") };
-  }
-
   if (pathname === "/admin/creator" || pathname.startsWith("/admin/creator/")) {
     return { redirectTo: "/admin/portais/portal-hospede/" };
   }
@@ -164,8 +180,29 @@ function resolveAdminAssetPath(pathname) {
   }
 
   if (pathname.startsWith("/admin/")) return { assetPath: "/admin/index.html" };
-  if (pathname.startsWith("/erp/")) return { assetPath: "/erp/room-service/index.html" };
   return null;
+}
+
+function parseUnitErpRoute(pathname) {
+  const match = String(pathname || "").match(
+    /^\/([a-z0-9]+(?:-[a-z0-9]+)*)\/admin\/erp(\/(?:.*)?)?$/,
+  );
+  if (!match) return null;
+  const hotelSlug = match[1];
+  const suffix = match[2] || "";
+  return {
+    hotelSlug,
+    redirectTo: suffix ? null : `/${hotelSlug}/admin/erp/`,
+  };
+}
+
+function isRetiredErpPath(pathname) {
+  return (
+    pathname === "/erp"
+    || pathname.startsWith("/erp/")
+    || pathname === "/admin/room-service"
+    || pathname.startsWith("/admin/room-service/")
+  );
 }
 
 async function serveAsset(request, env, overridePath = null) {
@@ -265,7 +302,7 @@ export default {
       const response = await handleRequest(request, env, ctx);
       return withSecurityHeaders(response, {
         embed: pathname.startsWith("/embed/"),
-        admin: pathname.startsWith("/admin/") || pathname.startsWith("/erp/"),
+        admin: isAdminRequestPath(pathname),
         shortLinkHost,
       });
     } catch (error) {
@@ -276,7 +313,7 @@ export default {
             : fail(error.status, error.code, error.message, error.details, { headers: error.headers });
         return withSecurityHeaders(response, {
           embed: pathname.startsWith("/embed/"),
-          admin: pathname.startsWith("/admin/") || pathname.startsWith("/erp/"),
+          admin: isAdminRequestPath(pathname),
           shortLinkHost,
         });
       }
@@ -286,7 +323,7 @@ export default {
         }),
         {
           embed: pathname.startsWith("/embed/"),
-          admin: pathname.startsWith("/admin/") || pathname.startsWith("/erp/"),
+          admin: isAdminRequestPath(pathname),
           shortLinkHost,
         },
       );
@@ -302,6 +339,16 @@ function isPublicHtmlNotFound(pathname, shortLinkHost) {
   return (
     shortLinkHost ||
     pathname.startsWith("/go/") ||
-    pathname.startsWith("/portal-content/")
+    pathname.startsWith("/portal-content/") ||
+    Boolean(parseUnitErpRoute(pathname)) ||
+    isRetiredErpPath(pathname)
+  );
+}
+
+function isAdminRequestPath(pathname) {
+  return (
+    pathname.startsWith("/admin/")
+    || pathname.startsWith("/erp/")
+    || Boolean(parseUnitErpRoute(pathname))
   );
 }

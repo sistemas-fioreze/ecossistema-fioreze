@@ -313,7 +313,14 @@ export async function updateAdminHotelBranding({ request, env, session, hotelId 
   requireAdminHotelAccess(session, hotelId);
   await ensureHotelVisible(env, session, hotelId);
   const payload = await readJson(request);
-  const allowed = new Set([...BRANDING_COLOR_FIELDS, ...BRANDING_MEDIA_FIELDS, "font_family", "font_asset_id", "theme"]);
+  const allowed = new Set([
+    ...BRANDING_COLOR_FIELDS,
+    ...BRANDING_MEDIA_FIELDS,
+    "font_family",
+    "font_asset_id",
+    "header_logo_scale",
+    "theme",
+  ]);
   rejectUnknown(payload, allowed);
 
   const current = await loadBranding(env, hotelId);
@@ -366,6 +373,15 @@ export async function updateAdminHotelBranding({ request, env, session, hotelId 
     const fontFamily = optionalString(payload.font_family, "font_family", { max: 160 }) || "Effra, Inter, system-ui, sans-serif";
     if (next.font_family !== fontFamily) changedFields.push("font_family");
     next.font_family = fontFamily;
+  }
+  if (Object.hasOwn(payload, "header_logo_scale")) {
+    const scale = Number(payload.header_logo_scale);
+    if (!Number.isFinite(scale) || scale < 0.65 || scale > 1.35) {
+      throw badRequest("Escala da logo invalida.");
+    }
+    const normalizedScale = Number(scale.toFixed(2));
+    if (Number(customNext.header_logo_scale || 1) !== normalizedScale) changedFields.push("header_logo_scale");
+    customNext.header_logo_scale = normalizedScale;
   }
   if (Object.hasOwn(payload, "theme")) {
     const theme = optionalString(payload.theme, "theme", { max: 20 }) || "light";
@@ -903,6 +919,7 @@ function formatBranding(row) {
     horizontal_logo_url: custom.horizontal_logo_url || null,
     icon_url: row?.icon_url || null,
     favicon_url: custom.favicon_url || null,
+    header_logo_scale: normalizeLogoScale(custom.header_logo_scale),
     cover_image_url: custom.cover_image_url || null,
     cover_media_type: custom.cover_media_type || (custom.cover_image_url ? "image" : null),
     social_image_url: custom.social_image_url || null,
@@ -1179,8 +1196,14 @@ function defaultBrandingJson() {
     surface_color: "#ffffff",
     muted_text_color: "#667085",
     browser_theme_color: "#513b2d",
+    header_logo_scale: 1,
     theme: "light",
   };
+}
+
+function normalizeLogoScale(value) {
+  const scale = Number(value);
+  return Number.isFinite(scale) && scale >= 0.65 && scale <= 1.35 ? scale : 1;
 }
 
 function parseJson(value, fallback) {

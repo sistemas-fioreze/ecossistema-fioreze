@@ -29,17 +29,18 @@ test("GET /admin/ entrega central de acesso administrativo", async () => {
   assert.equal(response.headers.has("location"), false);
 });
 
-test("GET /admin/room-service/ redireciona para a rota oficial do ERP", async () => {
+test("rotas genericas antigas do ERP deixam de expor uma unidade implicita", async () => {
   const { fetch } = createWorkerTestContext();
-  const response = await fetch("/admin/room-service/", { redirect: "manual" });
+  const oldAdmin = await fetch("/admin/room-service/", { redirect: "manual" });
+  const oldErp = await fetch("/erp/room-service/", { redirect: "manual" });
 
-  assert.equal(response.status, 308);
-  assert.equal(new URL(response.headers.get("location")).pathname, "/erp/room-service/");
+  assert.equal(oldAdmin.status, 404);
+  assert.equal(oldErp.status, 404);
 });
 
-test("GET /erp/room-service/ entrega o ERP Room Service oficial", async () => {
+test("GET /:hotel_slug/admin/erp/ entrega o ERP da unidade", async () => {
   const { fetch } = createWorkerTestContext();
-  const response = await fetch("/erp/room-service/", { redirect: "manual" });
+  const response = await fetch("/muller-fioreze/admin/erp/", { redirect: "manual" });
   const text = await response.text();
 
   assert.equal(response.status, 200);
@@ -79,14 +80,10 @@ test("rotas do criador descontinuado redirecionam ao editor do Portal do Hospede
 
 test("rotas administrativas sem barra final redirecionam para caminho canonico", async () => {
   const { fetch } = createWorkerTestContext();
-  const roomService = await fetch("/admin/room-service?x=1", { redirect: "manual" });
   const portals = await fetch("/admin/portais?x=1", { redirect: "manual" });
   const media = await fetch("/admin/portais/media?x=1", { redirect: "manual" });
-  const erp = await fetch("/erp/room-service?x=1", { redirect: "manual" });
+  const erp = await fetch("/muller-fioreze/admin/erp?x=1", { redirect: "manual" });
 
-  assert.equal(roomService.status, 308);
-  assert.equal(new URL(roomService.headers.get("location")).pathname, "/erp/room-service/");
-  assert.equal(new URL(roomService.headers.get("location")).search, "?x=1");
   assert.equal(portals.status, 308);
   assert.equal(new URL(portals.headers.get("location")).pathname, "/admin/portais/");
   assert.equal(new URL(portals.headers.get("location")).search, "?x=1");
@@ -94,25 +91,39 @@ test("rotas administrativas sem barra final redirecionam para caminho canonico",
   assert.equal(new URL(media.headers.get("location")).pathname, "/admin/portais/media/");
   assert.equal(new URL(media.headers.get("location")).search, "?x=1");
   assert.equal(erp.status, 308);
-  assert.equal(new URL(erp.headers.get("location")).pathname, "/erp/room-service/");
+  assert.equal(new URL(erp.headers.get("location")).pathname, "/muller-fioreze/admin/erp/");
   assert.equal(new URL(erp.headers.get("location")).search, "?x=1");
 });
 
 test("subrotas administrativas entregam o shell correto ao atualizar pagina", async () => {
   const { fetch } = createWorkerTestContext();
-  const roomService = await fetch("/erp/room-service/pedidos/abc", { redirect: "manual" });
+  const roomService = await fetch("/muller-fioreze/admin/erp/pedidos/abc", { redirect: "manual" });
   const oldRoomService = await fetch("/admin/room-service/pedidos/abc", { redirect: "manual" });
   const portals = await fetch("/admin/portais/hoteis", { redirect: "manual" });
   const media = await fetch("/admin/portais/media/asset/demo", { redirect: "manual" });
 
-  assert.equal(oldRoomService.status, 308);
-  assert.equal(new URL(oldRoomService.headers.get("location")).pathname, "/erp/room-service/pedidos/abc");
+  assert.equal(oldRoomService.status, 404);
   assert.equal(roomService.status, 200);
   assert.match(await roomService.text(), /ERP Room Service Fioreze/);
   assert.equal(portals.status, 200);
   assert.match(await portals.text(), /Central de Portais Fioreze/);
   assert.equal(media.status, 200);
   assert.match(await media.text(), /Central de Portais Fioreze/);
+});
+
+test("ERP por slug rejeita unidade inexistente e unidade sem Room Service", async () => {
+  const { fetch, env } = createWorkerTestContext();
+  const missing = await fetch("/hotel-inexistente/admin/erp/", { redirect: "manual" });
+  const auroraModule = env.__data.hotelModules.find(
+    (entry) => entry.hotel_id === "aurora-demo" && entry.module_key === "room-service",
+  );
+  auroraModule.enabled = 0;
+  const disabled = await fetch("/aurora-demo/admin/erp/", { redirect: "manual" });
+
+  assert.equal(missing.status, 404);
+  assert.equal(disabled.status, 404);
+  assert.match(missing.headers.get("content-type") || "", /text\/html/);
+  assert.match(disabled.headers.get("content-type") || "", /text\/html/);
 });
 
 test("configuracoes reune as areas de equipe sem criar outro shell", async () => {

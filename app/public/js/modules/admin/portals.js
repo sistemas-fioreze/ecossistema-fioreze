@@ -727,6 +727,14 @@ function renderTabPanels() {
     <div class="admin-media-picker-grid">
       ${mediaFields.map((name) => mediaPicker(name)).join("")}
     </div>
+    ${rangeField(
+      "Escala da logo no cabeçalho",
+      "header_logo_scale",
+      currentUnit.branding?.header_logo_scale || 1,
+      0.65,
+      1.35,
+      0.05,
+    )}
     ${fontSelectField("Fonte dos portais", "font_family", currentUnit.branding?.font_family)}
     ${mediaPicker("font_asset_id", "Fonte personalizada")}
   `;
@@ -1030,6 +1038,7 @@ async function saveBranding() {
     "text_color",
     "muted_text_color",
     "browser_theme_color",
+    "header_logo_scale",
     "font_family",
     ...brandingAssetFields,
   ]) {
@@ -2403,6 +2412,16 @@ function fontSelectField(label, name, value) {
   `;
 }
 
+function rangeField(label, name, value, min, max, step) {
+  const normalized = Number(value) || 1;
+  return `
+    <label class="admin-field admin-range-field">
+      <span>${escapeHtml(label)} <output data-range-value="${escapeAttr(name)}">${Math.round(normalized * 100)}%</output></span>
+      <input name="${escapeAttr(name)}" type="range" min="${min}" max="${max}" step="${step}" value="${normalized}">
+    </label>
+  `;
+}
+
 function colorField(label, name, value = null) {
   const color = value || branding(name) || "#513b2d";
   return `
@@ -2501,15 +2520,22 @@ function updatePreview() {
   const background = inputValue("background_color") || branding("background_color") || "#fbf8f4";
   const surface = inputValue("surface_color") || branding("surface_color") || "#ffffff";
   const text = inputValue("text_color") || branding("text_color") || "#202124";
+  const logoScale = Number(inputValue("header_logo_scale") || branding("header_logo_scale") || 1);
   els.brandingPreview.style.setProperty("--preview-primary", primary);
   els.brandingPreview.style.setProperty("--preview-accent", accent);
   els.brandingPreview.style.setProperty("--preview-background", background);
   els.brandingPreview.style.setProperty("--preview-surface", surface);
   els.brandingPreview.style.setProperty("--preview-text", text);
+  els.brandingPreview.style.setProperty("--preview-logo-scale", String(logoScale));
+  const scaleOutput = els.unitEditorForm.querySelector('[data-range-value="header_logo_scale"]');
+  if (scaleOutput) scaleOutput.textContent = `${Math.round(logoScale * 100)}%`;
   els.previewName.textContent = inputValue("short_name") || currentUnit?.short_name || "Unidade Fioreze";
-  const logo = inputValue("logo_url") || branding("logo_url");
+  const logo = inputValue("horizontal_logo_url") || branding("horizontal_logo_url") || inputValue("logo_url") || branding("logo_url");
   els.previewLogo.hidden = !logo || !logo.startsWith("/");
-  if (!els.previewLogo.hidden) els.previewLogo.src = logo;
+  if (!els.previewLogo.hidden) {
+    els.previewLogo.src = logo;
+    els.previewLogo.style.transform = `scale(${logoScale})`;
+  }
 }
 
 function renderEventsManager(session) {
@@ -3259,6 +3285,7 @@ function defaultBranding() {
     text_color: "#202124",
     muted_text_color: "#667085",
     browser_theme_color: "#513b2d",
+    header_logo_scale: 1,
     font_family: "Effra, Inter, system-ui, sans-serif",
   };
 }

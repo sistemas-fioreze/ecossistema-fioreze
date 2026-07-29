@@ -269,6 +269,8 @@ function formatLoginHotel(row) {
       logo_url: row.logo_url || null,
       horizontal_logo_url: custom.horizontal_logo_url || null,
       icon_url: row.icon_url || null,
+      favicon_url: custom.favicon_url || row.icon_url || row.logo_url || null,
+      header_logo_scale: normalizeLogoScale(custom.header_logo_scale),
       primary_color: row.primary_color || "#513b2d",
       secondary_color: row.secondary_color || "#f4f1ef",
       accent_color: row.accent_color || "#c1a94c",
@@ -277,6 +279,11 @@ function formatLoginHotel(row) {
       font_family: row.font_family || "Inter, system-ui, sans-serif",
     },
   };
+}
+
+function normalizeLogoScale(value) {
+  const scale = Number(value);
+  return Number.isFinite(scale) && scale >= 0.65 && scale <= 1.35 ? scale : 1;
 }
 
 function normalizeUserCode(value) {

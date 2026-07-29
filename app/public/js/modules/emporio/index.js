@@ -55,17 +55,9 @@ export async function render(container, context) {
 function renderShell(bootstrap) {
   const module = bootstrap.modules?.find((entry) => entry.module_key === MODULE_KEY);
   const cover = sanitizePublicAssetUrl(module?.background_image_url);
-  const description = String(
-    bootstrap.settings?.["portal.module.emporio.description"]
-      || "Produtos selecionados, presentes e lembranças para tornar sua experiência ainda mais especial.",
-  ).trim();
   const style = cover ? ` style="--emporio-cover: url('${escapeHtml(cover)}')"` : "";
   return `
     <section class="emporio-app"${style}>
-      <header class="emporio-intro-heading">
-        <h1>Empório</h1>
-        <p>${escapeHtml(description)}</p>
-      </header>
       <section class="emporio-intro">
         <div class="emporio-carousel" data-emporio-carousel aria-live="off">
           ${cover ? `<span class="emporio-carousel-slide is-active" style="--emporio-slide: url('${escapeHtml(cover)}')" aria-hidden="false"></span>` : ""}

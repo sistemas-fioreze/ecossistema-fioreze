@@ -11,18 +11,6 @@ body[data-erp="room-service"] {
   letter-spacing: 0;
 }
 
-.legacy-hotel-select {
-  width: min(430px, 42vw);
-  border: 0;
-  padding: 0 24px 0 0;
-  background: transparent;
-  color: inherit;
-  font-size: 1.125rem;
-  font-weight: 900;
-  line-height: 1.35;
-  outline: none;
-}
-
 .legacy-login-error {
   min-height: 18px;
   margin: -6px 0 8px;
@@ -125,11 +113,6 @@ body[data-erp="room-service"] {
 }
 
 @media (max-width: 860px) {
-  .legacy-hotel-select {
-    width: min(250px, 54vw);
-    font-size: 0.88rem;
-  }
-
   .legacy-toast-region {
     right: 16px;
     bottom: 16px;
@@ -170,19 +153,6 @@ body {
 
 .hover\:bg-\[\#3f2d22\]:hover {
   background-color: var(--accent-strong) !important;
-}
-
-.legacy-login-hotel-select {
-  width: 100%;
-  height: 46px;
-  border: 1px solid rgba(81, 59, 45, 0.12);
-  border-radius: 14px;
-  padding: 0 14px;
-  background: #fff;
-  color: var(--ink);
-  font-size: 12px;
-  font-weight: 800;
-  text-align: center;
 }
 
 .erp-user-card-head,

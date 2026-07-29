@@ -365,6 +365,7 @@ test("branding faz round-trip por public_url e remove referencias sem excluir mi
         icon_url: "media-muller-logo",
         horizontal_logo_url: "media-muller-logo",
         favicon_url: "media-muller-logo",
+        header_logo_scale: 1.2,
         cover_image_url: "media-muller-logo",
         social_image_url: "media-muller-logo",
       }),
@@ -400,6 +401,7 @@ test("branding faz round-trip por public_url e remove referencias sem excluir mi
 
   assert.equal(byId.response.status, 200);
   assert.equal(detailAfterId.body.data.branding.logo_url, "/assets/hotels/muller-fioreze/logo.png");
+  assert.equal(detailAfterId.body.data.branding.header_logo_scale, 1.2);
   assert.equal(byPublicUrl.response.status, 200);
   assert.equal(otherHotel.response.status, 400);
   assert.equal(arbitraryAssetPath.response.status, 400);
@@ -412,6 +414,18 @@ test("branding faz round-trip por public_url e remove referencias sem excluir mi
   assert.equal(removed.body.data.branding.cover_media_type, null);
   assert.equal(removed.body.data.branding.social_image_url, null);
   assert.equal(env.__data.mediaAssets.find((asset) => asset.id === "media-muller-logo").status, "active");
+});
+
+test("branding rejeita escala de logo fora do intervalo seguro", async () => {
+  const { json, env } = createWorkerTestContext();
+  grantPermissions(env);
+  const cookie = await createSessionCookie(env);
+  const { response } = await json(
+    "/api/v1/admin/hotels/muller-fioreze/branding",
+    withCookie(cookie, adminJson("PATCH", { header_logo_scale: 2 })),
+  );
+
+  assert.equal(response.status, 400);
 });
 
 test("settings valida texto seguro, horarios, email e URLs", async () => {
@@ -644,7 +658,7 @@ test("rotas da Central carregam shells sem quebrar admin, media e ERP Room Servi
   const units = await fetch("/admin/portais/unidades/", { redirect: "manual" });
   const unitsNested = await fetch("/admin/portais/unidades/muller-fioreze/", { redirect: "manual" });
   const media = await fetch("/admin/portais/media/", { redirect: "manual" });
-  const roomService = await fetch("/erp/room-service/", { redirect: "manual" });
+  const roomService = await fetch("/muller-fioreze/admin/erp/", { redirect: "manual" });
   const oldRoomService = await fetch("/admin/room-service/", { redirect: "manual" });
   const products = await json("/api/v1/public/hotels/muller-fioreze/room-service/products");
 
@@ -654,8 +668,7 @@ test("rotas da Central carregam shells sem quebrar admin, media e ERP Room Servi
   assert.equal(unitsNested.status, 200);
   assert.match(await units.text(), /unitsManager/);
   assert.equal(media.status, 200);
-  assert.equal(oldRoomService.status, 308);
-  assert.equal(new URL(oldRoomService.headers.get("location")).pathname, "/erp/room-service/");
+  assert.equal(oldRoomService.status, 404);
   assert.equal(roomService.status, 200);
   assert.equal(products.response.status, 200);
 });

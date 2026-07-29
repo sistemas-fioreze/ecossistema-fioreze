@@ -16,6 +16,7 @@ const navigationCss = fs.readFileSync(
 );
 const publicIndex = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const appScript = fs.readFileSync(new URL("../public/js/core/app.js", import.meta.url), "utf8");
+const themeScript = fs.readFileSync(new URL("../public/js/core/theme.js", import.meta.url), "utf8");
 const adminScript = fs.readFileSync(new URL("../public/js/modules/admin/portals.js", import.meta.url), "utf8");
 const roomServiceScript = fs.readFileSync(new URL("../public/js/modules/room-service/index.js", import.meta.url), "utf8");
 const guestPortalRoutes = fs.readFileSync(new URL("../src/modules/guest-portal/routes.js", import.meta.url), "utf8");
@@ -33,6 +34,16 @@ test("portal usa o layout de referencia com identidade e conteudo dinamicos", ()
   assert.match(portalCss, /@media \(min-width: 960px\)/);
   assert.match(publicIndex, /guest-portal\/guest-portal\.css/);
   assert.match(publicIndex, /guest-portal\/guest-navigation\.css/);
+});
+
+test("identidade da unidade controla favicon e escala uniforme da logo", () => {
+  assert.match(themeScript, /branding\.favicon_url/);
+  assert.match(themeScript, /data-hotel-favicon/);
+  assert.match(themeScript, /--header-logo-scale/);
+  assert.match(navigationCss, /object-fit:\s*contain/);
+  assert.match(navigationCss, /transform:\s*scale\(var\(--header-logo-scale,\s*1\)\)/);
+  assert.match(adminScript, /Escala da logo no cabeçalho/);
+  assert.match(adminScript, /header_logo_scale/);
 });
 
 test("portal integra blog, eventos ilustrados e capas dos servicos sem clima", () => {
@@ -82,18 +93,21 @@ test("shell abre o portal diretamente sem uma segunda tela de carregamento", () 
   assert.doesNotMatch(roomServiceScript, /Carregando cardápio|renderLoading/);
 });
 
-test("cabecalhos dos modulos exibem somente o titulo sem imagem", () => {
+test("cabecalhos dos modulos repetem o padrao icone e titulo do Portal do Hospede", () => {
   assert.match(appScript, /has-module-heading/);
   assert.match(appScript, /function renderModuleHeading/);
-  assert.match(appScript, /<h1>\$\{escapeText\(module\.navigation_label/);
-  assert.doesNotMatch(appScript, /public-module-hero|--module-hero-image|public-module-hero-shade|navigationIcon\(moduleKey\)|roomServiceHours/);
-  assert.match(appScript, /\["guest-portal", "emporio", "spa", "romantic-packages"\]\.includes\(moduleKey\)/);
-  assert.match(appScript, /\["emporio", "spa", "romantic-packages"\]\.includes\(moduleKey\)/);
+  assert.match(appScript, /class="app-top-title"/);
+  assert.match(appScript, /navigationIcon\(iconName\)/);
+  assert.match(appScript, /Seja bem-vindo ao Room Service digital/);
+  assert.match(appScript, /Use o ramal n° 9/);
+  assert.match(appScript, /O Room Service opera diariamente das/);
+  assert.doesNotMatch(appScript, /public-module-hero|--module-hero-image|public-module-hero-shade/);
   assert.match(navigationScript, /hideBrand = false/);
   assert.match(navigationScript, /is-brand-hidden/);
   assert.doesNotMatch(navigationCss, /public-module-hero|has-module-hero|--module-hero-image/);
   assert.match(navigationCss, /\.public-module-heading\s*\{[\s\S]*?background:\s*transparent;/);
   assert.match(navigationCss, /\.public-module-heading-copy h1/);
+  assert.match(navigationCss, /--header-logo-scale/);
 });
 
 test("header movel ganha blur somente depois da rolagem", () => {

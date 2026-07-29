@@ -328,7 +328,7 @@ test("seletores de mídia permitem upload contextual sem sair do formulário", (
 
 test("shells administrativos continuam respondendo sem fallback incorreto", async () => {
   const { fetch } = createWorkerTestContext();
-  for (const path of ["/admin/", "/admin/configuracoes/", "/admin/portais/", "/admin/portais/portal-hospede/", "/admin/portais/unidades/", "/admin/portais/media/", "/admin/portais/links/", "/erp/room-service/"]) {
+  for (const path of ["/admin/", "/admin/configuracoes/", "/admin/portais/", "/admin/portais/portal-hospede/", "/admin/portais/unidades/", "/admin/portais/media/", "/admin/portais/links/", "/muller-fioreze/admin/erp/"]) {
     const response = await fetch(path, { redirect: "manual" });
     const html = await response.text();
     assert.equal(response.status, 200, path);

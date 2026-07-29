@@ -32,6 +32,8 @@ export async function getHotelBranding(env, hotelId) {
     logo_url: row.logo_url,
     icon_url: row.icon_url,
     horizontal_logo_url: custom.horizontal_logo_url || row.logo_url || null,
+    favicon_url: custom.favicon_url || row.icon_url || row.logo_url || null,
+    header_logo_scale: normalizeLogoScale(custom.header_logo_scale),
     cover_image_url: custom.cover_image_url || null,
     cover_media_type: custom.cover_media_type || (custom.cover_image_url ? "image" : null),
     primary_color: row.primary_color,
@@ -110,6 +112,11 @@ function parseJsonObject(value) {
   } catch {
     return {};
   }
+}
+
+function normalizeLogoScale(value) {
+  const scale = Number(value);
+  return Number.isFinite(scale) && scale >= 0.65 && scale <= 1.35 ? scale : 1;
 }
 
 export async function getEnabledModules(env, hotelId, { publicOnly = true } = {}) {

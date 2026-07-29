@@ -19,6 +19,8 @@ test("bootstrap retorna hotel, branding e somente modulos publicos habilitados",
   assert.equal(response.status, 200);
   assert.equal(body.data.hotel_id, "muller-fioreze");
   assert.equal(body.data.branding.primary_color, "#17594a");
+  assert.equal(body.data.branding.favicon_url, "/assets/hotels/muller-fioreze/logo-ff.png");
+  assert.equal(body.data.branding.header_logo_scale, 1);
   assert.deepEqual(
     body.data.modules.map((module) => module.module_key),
     ["guest-portal", "room-service"],
