@@ -111,6 +111,8 @@ test("layout editorial de Decorações Especiais é compartilhado por todas as u
   assert.match(moduleSource, /usesEditorialLayout:\s*true/);
   assert.match(moduleSource, /groupPackagesByCategory/);
   assert.match(css, /\.romantic-packages-app\.is-special-decorations/);
+  assert.match(css, /\.romantic-centro-experience-grid:has\(\+ \.romantic-centro-addons\)\s*\{[\s\S]*?margin-bottom:/);
+  assert.match(css, /\.romantic-centro-addons\s*\{[\s\S]*?border-radius:\s*24px/);
   assert.match(css, /--centro-gold:\s*var\(--color-accent/);
   assert.match(css, /--centro-gold-deep:\s*var\(--color-primary/);
   assert.doesNotMatch(css, /Brush Script MT|Segoe Script|Comic Sans/i);

@@ -489,8 +489,9 @@ function renderServiceLandscape(module, bootstrap) {
   const imageUrl = sanitizePublicAssetUrl(module.background_image_url);
   const href = module.href === null ? null : getModulePath(bootstrap, module.module_key);
   const tag = href ? "a" : "article";
+  const isPool = module.module_key === "pool";
   return `
-    <${tag} class="home-landscape-card${imageUrl ? "" : " no-image"}"${href ? ` href="${escapeHtml(href)}"` : ""}>
+    <${tag} class="home-landscape-card${imageUrl ? "" : " no-image"}${isPool ? " is-static" : ""}"${href ? ` href="${escapeHtml(href)}"` : ""}>
       <span class="home-landscape-icon">${icon(moduleIcon(module.module_key))}</span>
       <span class="home-landscape-copy"><h3>${escapeHtml(module.navigation_label || module.name)}</h3><p>${escapeHtml(module.description || getModuleDescription(module, bootstrap))}</p>${module.meta ? `<small>${escapeHtml(module.meta)}</small>` : ""}</span>
       ${imageUrl ? `<img class="home-landscape-media" src="${escapeHtml(imageUrl)}" alt="" loading="lazy">` : ""}
@@ -499,12 +500,7 @@ function renderServiceLandscape(module, bootstrap) {
 }
 
 function getServiceExperiences(bootstrap) {
-  const modules = getServiceModules(bootstrap).map((module) => ({
-    ...module,
-    meta: module.module_key === "room-service"
-      ? formatRoomServiceHours(bootstrap.service_hours?.["room-service"])
-      : "",
-  }));
+  const modules = getServiceModules(bootstrap);
   const configured = bootstrap.settings?.["portal.services.extra_items"];
   const extras = Array.isArray(configured) ? configured : [];
   return [...modules, ...extras.filter((item) => item?.enabled !== false && item?.title).slice(0, 8).map((item, index) => ({

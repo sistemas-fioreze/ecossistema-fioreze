@@ -4,6 +4,11 @@ import { createCartStore, createOrderAttemptKey } from "./cart.js";
 import { filterCatalog, flattenCatalog, formatMoney, getCatalogItemMap, normalizeText } from "./catalog.js";
 import { describeServiceStatus, evaluateServiceStatus } from "./service-status.js";
 import { applyBranding, sanitizePublicAssetUrl } from "../../core/theme.js";
+import {
+  bindCatalogMediaViewer,
+  renderCatalogMediaViewer,
+  renderZoomableCatalogMedia,
+} from "../shared/catalog-media-viewer.js";
 
 const MODULE_KEY = "room-service";
 let cleanupCurrentRender = () => {};
@@ -11,6 +16,7 @@ let cleanupCurrentRender = () => {};
 export async function render(container, context) {
   cleanupCurrentRender();
   await loadCss("/css/modules/room-service/room-service.css");
+  await loadCss("/css/modules/shared/catalog-detail.css");
   const embedded = context.presentation === "portal-page";
   const requestedSlug = context.bootstrap?.slug || context.hotelSlug;
 
@@ -35,10 +41,12 @@ export async function render(container, context) {
     isSubmitting: false,
     cartOpen: false,
     statusTimer: null,
+    selectedProductId: null,
   };
 
   container.innerHTML = renderStaticShell({ embedded });
   bindStaticActions(container, state);
+  const cleanupMediaViewer = bindCatalogMediaViewer(container);
   const headerSearch = (event) => {
     state.query = event.detail?.query || "";
     const field = container.querySelector("[data-search]");
@@ -83,6 +91,8 @@ export async function render(container, context) {
   }
 
   cleanupCurrentRender = () => {
+    cleanupMediaViewer();
+    document.body.classList.remove("catalog-detail-open");
     window.removeEventListener("fioreze:portal-search", headerSearch);
     if (state.statusTimer) window.clearInterval(state.statusTimer);
   };
@@ -182,12 +192,10 @@ function renderStaticShell({ embedded = false } = {}) {
         </div>
       </section>
 
-      <section class="rs-image-viewer" data-image-viewer hidden role="dialog" aria-modal="true" aria-label="Imagem ampliada">
-        <div>
-          <img data-viewer-image src="" alt="">
-          <button type="button" data-image-close aria-label="Fechar imagem"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
-        </div>
+      <section class="rs-product-detail catalog-detail-layer" data-rs-product-detail hidden role="dialog" aria-modal="true" aria-labelledby="rs-product-detail-title">
+        <article class="rs-product-detail-card catalog-detail-surface" data-rs-product-detail-card></article>
       </section>
+      ${renderCatalogMediaViewer()}
 
       <section class="rs-submit-overlay" data-submit-overlay hidden aria-live="polite">
         <div>
@@ -221,9 +229,10 @@ function bindStaticActions(container, state) {
       return;
     }
 
-    const imageButton = event.target.closest("[data-view-image]");
-    if (imageButton) {
-      openImageViewer(container, imageButton.dataset.viewImage, imageButton.dataset.imageAlt);
+    const productCard = event.target.closest("[data-rs-product]");
+    if (productCard) {
+      state.selectedProductId = productCard.dataset.rsProduct;
+      renderProductDetail(container, state);
       return;
     }
 
@@ -250,8 +259,8 @@ function bindStaticActions(container, state) {
       return;
     }
 
-    if (event.target.closest("[data-image-close]") || event.target === container.querySelector("[data-image-viewer]")) {
-      closeImageViewer(container);
+    if (event.target.closest("[data-rs-product-detail-close]")) {
+      closeProductDetail(container, state);
     }
   });
 
@@ -266,8 +275,16 @@ function bindStaticActions(container, state) {
   });
 
   container.addEventListener("keydown", (event) => {
+    const productCard = event.target.closest("[data-rs-product]");
+    if (productCard && !event.target.closest("button, input, select, textarea, a") && ["Enter", " "].includes(event.key)) {
+      event.preventDefault();
+      state.selectedProductId = productCard.dataset.rsProduct;
+      renderProductDetail(container, state);
+      return;
+    }
     if (event.key !== "Escape") return;
-    if (!container.querySelector("[data-image-viewer]").hidden) closeImageViewer(container);
+    if (event.target.closest("[data-catalog-media-viewer]")) return;
+    if (state.selectedProductId) closeProductDetail(container, state);
     else if (!container.querySelector("[data-modal]").hidden) closeModal(container);
     else toggleCart(container, state, false);
   });
@@ -454,15 +471,15 @@ function renderCategoryNavigation(container, state) {
 function renderProductCard(item, state) {
   const card = document.createElement("article");
   card.className = "rs-product-card";
+  card.dataset.rsProduct = item.id;
+  card.tabIndex = 0;
+  card.setAttribute("role", "button");
+  card.setAttribute("aria-label", `Ver detalhes de ${item.name}`);
   card.classList.toggle("unavailable", item.available === false);
 
   if (item.image_url) {
-    const media = document.createElement("button");
-    media.type = "button";
+    const media = document.createElement("span");
     media.className = "rs-product-media";
-    media.dataset.viewImage = item.image_url;
-    media.dataset.imageAlt = item.image_alt || item.name;
-    media.setAttribute("aria-label", `Ampliar imagem de ${item.name}`);
     const image = document.createElement("img");
     image.src = item.image_url;
     image.alt = item.image_alt || item.name;
@@ -481,8 +498,15 @@ function renderProductCard(item, state) {
   const title = document.createElement("h4");
   title.textContent = item.name;
 
+  const descriptionParts = splitProductDescription(item.description);
+  const meta = document.createElement("p");
+  meta.className = "rs-product-meta";
+  meta.textContent = descriptionParts.meta;
+  meta.hidden = !descriptionParts.meta;
+
   const description = document.createElement("p");
-  description.textContent = item.description || "Item do cardápio.";
+  description.className = "rs-product-description";
+  description.textContent = descriptionParts.description || "Item do cardápio.";
 
   const footer = document.createElement("div");
   footer.className = "rs-product-footer";
@@ -498,9 +522,74 @@ function renderProductCard(item, state) {
   }</span>`;
   footer.append(price, button);
 
-  content.append(label, title, description, footer);
+  content.append(label, title, meta, description, footer);
   card.append(content);
   return card;
+}
+
+function renderProductDetail(container, state) {
+  const layer = container.querySelector("[data-rs-product-detail]");
+  if (!state.selectedProductId) {
+    layer.hidden = true;
+    document.body.classList.remove("catalog-detail-open");
+    return;
+  }
+  const item = state.itemMap.get(state.selectedProductId);
+  if (!item) {
+    state.selectedProductId = null;
+    layer.hidden = true;
+    document.body.classList.remove("catalog-detail-open");
+    return;
+  }
+  const image = sanitizePublicAssetUrl(item.image_url);
+  const descriptionParts = splitProductDescription(item.description);
+  const card = container.querySelector("[data-rs-product-detail-card]");
+  card.innerHTML = `
+    <button class="rs-product-detail-close catalog-detail-close" type="button" data-rs-product-detail-close aria-label="Fechar detalhes">
+      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </button>
+    <div class="rs-product-detail-media catalog-detail-media">
+      ${renderZoomableCatalogMedia({
+        image,
+        alt: item.image_alt || item.name,
+        label: `Ampliar imagem de ${item.name}`,
+        placeholder: '<span class="rs-product-detail-placeholder" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 16l5-5 4 4 2-2 5 5M15 8h.01"/></svg></span>',
+      })}
+    </div>
+    <div class="rs-product-detail-content catalog-detail-content">
+      <p class="rs-product-detail-category">${escapeHtml(item.category_name || "Room Service")}</p>
+      <h2 id="rs-product-detail-title">${escapeHtml(item.name)}</h2>
+      ${item.tag ? `<span class="rs-product-detail-tag">${escapeHtml(item.tag)}</span>` : ""}
+      <strong class="rs-product-detail-price">${escapeHtml(formatMoney(item.price_cents, item.currency, state.bootstrap.locale))}</strong>
+      ${descriptionParts.meta ? `<p class="rs-product-detail-meta">${escapeHtml(descriptionParts.meta)}</p>` : ""}
+      <p class="rs-product-detail-description">${escapeHtml(descriptionParts.description || "Item do cardápio.")}</p>
+      <div class="rs-product-detail-availability" data-available="${String(item.available !== false)}">
+        <span aria-hidden="true"></span>
+        <strong>${item.available === false ? escapeHtml(item.availability_label || "Indisponível no momento") : "Disponível para pedir"}</strong>
+      </div>
+      <button class="rs-add-button rs-product-detail-add" type="button" data-add-item="${escapeHtml(item.id)}" ${item.available === false ? "disabled" : ""}>
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+        <span>${item.available === false ? "Indisponível" : "Adicionar ao pedido"}</span>
+      </button>
+    </div>`;
+  layer.hidden = false;
+  document.body.classList.add("catalog-detail-open");
+  window.requestAnimationFrame(() => card.querySelector("[data-rs-product-detail-close]")?.focus({ preventScroll: true }));
+}
+
+function closeProductDetail(container, state) {
+  state.selectedProductId = null;
+  renderProductDetail(container, state);
+}
+
+function splitProductDescription(value) {
+  const description = String(value || "").trim();
+  if (!description) return { meta: "", description: "" };
+  const lines = description.split(/\r?\n/).map((part) => part.trim()).filter(Boolean);
+  if (lines.length > 1) return { meta: lines[0], description: lines.slice(1).join(" ") };
+  const parts = description.split(/\s*[•·]\s*/).map((part) => part.trim()).filter(Boolean);
+  if (parts.length > 1) return { meta: parts[0], description: parts.slice(1).join(" • ") };
+  return { meta: "", description };
 }
 
 function addItem(container, state, itemId) {
@@ -703,25 +792,6 @@ function closeModal(container) {
   container.querySelector("[data-modal]").hidden = true;
 }
 
-function openImageViewer(container, source, alt) {
-  const safeSource = sanitizeAssetPath(source);
-  if (!safeSource) return;
-  const viewer = container.querySelector("[data-image-viewer]");
-  const image = container.querySelector("[data-viewer-image]");
-  image.src = safeSource;
-  image.alt = alt || "Imagem do item";
-  viewer.hidden = false;
-  container.querySelector("[data-image-close]").focus();
-}
-
-function closeImageViewer(container) {
-  const viewer = container.querySelector("[data-image-viewer]");
-  const image = container.querySelector("[data-viewer-image]");
-  viewer.hidden = true;
-  image.removeAttribute("src");
-  image.alt = "";
-}
-
 function scrollCategoryIntoView(container, categoryId) {
   if (categoryId === "all") return;
   const target = container.querySelector(`[data-category-section="${cssEscape(categoryId)}"]`);
@@ -758,6 +828,7 @@ export const internalsForTests = {
   buildNotes,
   renderStaticShell,
   sanitizeAssetPath,
+  splitProductDescription,
   submitOrder,
   syncSubmitButton,
   updateServiceStatus,
