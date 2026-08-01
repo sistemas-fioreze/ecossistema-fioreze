@@ -865,7 +865,7 @@ async function openOrder(orderId) {
     setText("detLocal", order.delivery?.location || "Acomodacao");
     setText("detStaff", order.origin === "admin_pdv" ? "ERP" : "Portal");
     setText("detTotal", money(order.total_cents, order.currency));
-    byId("detItems").innerHTML = (order.items || []).map((item) => `<li class="flex justify-between gap-3"><span>${Number(item.quantity || 0)}x ${escapeHtml(displayBusinessText(item.name || item.name_snapshot, "Item"))}</span><strong>${money(item.line_total_cents, order.currency)}</strong></li>`).join("") || "<li>Sem itens.</li>";
+    byId("detItems").innerHTML = (order.items || []).map((item) => `<li class="flex justify-between gap-3"><span>${Number(item.quantity || 0)}x ${escapeHtml(displayBusinessText(item.name || item.name_snapshot, "Item"))}${item.selected_options?.note ? `<small class="block text-slate-500 mt-1">Observação: ${escapeHtml(item.selected_options.note)}</small>` : ""}</span><strong>${money(item.line_total_cents, order.currency)}</strong></li>`).join("") || "<li>Sem itens.</li>";
     const notes = order.notes || "";
     byId("detObsBox").classList.toggle("hidden", !notes);
     setText("detObs", notes);

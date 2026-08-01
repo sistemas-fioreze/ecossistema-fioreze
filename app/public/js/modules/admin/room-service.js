@@ -247,6 +247,7 @@ function renderItem(item) {
       <div>
         <strong>${escapeHtml(item.name)}</strong>
         <p class="admin-muted">${Number(item.quantity)} x ${formatMoney(item.unit_price_cents)}</p>
+        ${item.selected_options?.note ? `<p class="admin-muted">Observação: ${escapeHtml(item.selected_options.note)}</p>` : ""}
       </div>
       <strong>${formatMoney(item.line_total_cents)}</strong>
     </div>

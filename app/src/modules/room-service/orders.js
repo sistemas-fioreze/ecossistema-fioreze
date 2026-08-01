@@ -36,6 +36,7 @@ export async function createRoomServiceOrder({ request, env, tenant }) {
   const items = requireArray(payload.items, "items", { min: 1, max: 30 }).map((item, index) => ({
     catalog_item_id: requireString(item.catalog_item_id, `items[${index}].catalog_item_id`, { max: 80 }),
     quantity: requirePositiveInteger(item.quantity, `items[${index}].quantity`, { min: 1, max: 20 }),
+    note: optionalString(item.note, `items[${index}].note`, { max: 180 }),
     client_unit_price_cents: Number.isInteger(item.unit_price_cents) ? item.unit_price_cents : null,
     client_total_cents: Number.isInteger(item.total_cents) ? item.total_cents : null,
   }));
@@ -89,6 +90,7 @@ export async function createRoomServiceOrder({ request, env, tenant }) {
       unit_price_cents: row.price_cents,
       currency: row.currency,
       quantity: item.quantity,
+      note: item.note,
       line_total_cents: lineTotalCents,
     });
   }
@@ -160,7 +162,7 @@ export async function createRoomServiceOrder({ request, env, tenant }) {
           item.unit_price_cents,
           item.quantity,
           item.line_total_cents,
-          null,
+          item.note ? JSON.stringify({ note: item.note }) : null,
           createdAt,
         ],
       ),
@@ -183,6 +185,7 @@ export async function createRoomServiceOrder({ request, env, tenant }) {
       catalog_item_id: item.catalog_item_id,
       name: item.name,
       quantity: item.quantity,
+      note: item.note,
       unit_price_cents: item.unit_price_cents,
       line_total_cents: item.line_total_cents,
     })),
