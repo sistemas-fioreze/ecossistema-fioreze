@@ -478,22 +478,43 @@ function renderInformationSection(state) {
 }
 
 function renderServicesView(state) {
-  const services = getServiceModules(state.bootstrap);
-  return `${renderAppTop(state, "Serviços", "Room Service, Empório, Spa e experiências em uma área dedicada.", "services")}
-    <main class="embed-shell portal-content-shell">
+  const services = getServiceExperiences(state.bootstrap);
+  return `${renderAppTop(state, "Serviços e Experiências", "Nossos serviços e experiências para tornar sua hospedagem ainda mais especial.", "services")}
+    <main class="embed-shell portal-content-shell services-experience-shell">
       ${services.length ? `<div class="home-landscape-list">${services.map((module) => renderServiceLandscape(module, state.bootstrap)).join("")}</div>` : renderEmptyState("Nenhum serviço disponível no momento.")}
     </main>`;
 }
 
 function renderServiceLandscape(module, bootstrap) {
   const imageUrl = sanitizePublicAssetUrl(module.background_image_url);
+  const href = module.href === null ? null : getModulePath(bootstrap, module.module_key);
+  const tag = href ? "a" : "article";
   return `
-    <a class="home-landscape-card${imageUrl ? "" : " no-image"}" href="${escapeHtml(getModulePath(bootstrap, module.module_key))}">
+    <${tag} class="home-landscape-card${imageUrl ? "" : " no-image"}"${href ? ` href="${escapeHtml(href)}"` : ""}>
+      <span class="home-landscape-icon">${icon(moduleIcon(module.module_key))}</span>
+      <span class="home-landscape-copy"><h3>${escapeHtml(module.navigation_label || module.name)}</h3><p>${escapeHtml(module.description || getModuleDescription(module, bootstrap))}</p>${module.meta ? `<small>${escapeHtml(module.meta)}</small>` : ""}</span>
       ${imageUrl ? `<img class="home-landscape-media" src="${escapeHtml(imageUrl)}" alt="" loading="lazy">` : ""}
-      <span class="home-landscape-overlay"></span>
-      <span class="home-landscape-copy"><h3>${escapeHtml(module.navigation_label || module.name)}</h3><p>${escapeHtml(getModuleDescription(module, bootstrap))}</p></span>
-      ${icon("chevron")}
-    </a>`;
+      ${href ? `<span class="home-landscape-action">${icon("chevron")}</span>` : ""}
+    </${tag}>`;
+}
+
+function getServiceExperiences(bootstrap) {
+  const modules = getServiceModules(bootstrap).map((module) => ({
+    ...module,
+    meta: module.module_key === "room-service"
+      ? formatRoomServiceHours(bootstrap.service_hours?.["room-service"])
+      : "",
+  }));
+  const configured = bootstrap.settings?.["portal.services.extra_items"];
+  const extras = Array.isArray(configured) ? configured : [];
+  return [...modules, ...extras.filter((item) => item?.enabled !== false && item?.title).slice(0, 8).map((item, index) => ({
+    module_key: String(item.icon_key || "sparkle"),
+    navigation_label: String(item.title).slice(0, 100),
+    description: String(item.description || "").slice(0, 280),
+    background_image_url: item.image_url || null,
+    href: null,
+    sort_order: Number(item.sort_order || 500 + index),
+  }))].sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
 }
 
 function renderEventsView(state) {
@@ -644,8 +665,9 @@ function renderEventDetail(state) {
 
 function renderHotelView(state) {
   const maps = renderMapsSection(state);
-  const guideLayout = state.bootstrap.settings?.["portal.hotel_information.layout"] === "guest-guide";
-  const information = state.content.information.map((item) => item.info_key === "room-service"
+  const guideLayout = state.bootstrap.settings?.["portal.hotel_information.layout"] !== "cards";
+  const orderedInformation = guideLayout ? arrangeGuideInformation(state.content.information) : state.content.information;
+  const information = orderedInformation.map((item) => item.info_key === "room-service"
     ? { ...item, body: formatRoomServiceHours(state.bootstrap.service_hours?.["room-service"]) }
     : item);
   return `${renderAppTop(state, "Hotel", "Horários, serviços, localização e informações úteis para a sua estadia.", "hotel")}
@@ -653,6 +675,19 @@ function renderHotelView(state) {
       ${maps}
       ${information.length ? `<div class="hotel-info-grid">${information.map((item) => renderHotelInfoCard(item, guideLayout)).join("")}</div>` : renderEmptyState("As informações da unidade estarão disponíveis aqui.")}
     </main>`;
+}
+
+function arrangeGuideInformation(information = []) {
+  const wifiIndex = information.findIndex((item) => item.info_key === "wifi");
+  const babyIndex = information.findIndex((item) => item.info_key === "baby-kitchen");
+  if (wifiIndex < 0 || babyIndex < 0) return information;
+  const pairIndex = Math.min(wifiIndex, babyIndex);
+  const remaining = information.filter((item) => !["wifi", "baby-kitchen"].includes(item.info_key));
+  remaining.splice(pairIndex, 0,
+    information[wifiIndex],
+    information[babyIndex],
+  );
+  return remaining;
 }
 
 function renderMapsSection(state) {
@@ -838,6 +873,7 @@ function moduleIcon(moduleKey) {
   if (moduleKey === "emporio") return "bag";
   if (moduleKey === "spa") return "spa";
   if (moduleKey === "romantic-packages") return "sparkle";
+  if (moduleKey === "pool") return "pool";
   return "sparkle";
 }
 
@@ -886,12 +922,13 @@ function icon(name) {
     phone: '<path d="M7 3h3l1 5-2 1a15 15 0 0 0 6 6l1-2 5 1v3c0 2-2 4-4 4A16 16 0 0 1 3 7c0-2 2-4 4-4Z"/>',
     "no-smoking": '<path d="M4 17h16M7 13h10a2 2 0 0 1 2 2v2H5v-2a2 2 0 0 1 2-2Z"/><path d="M14 8c0-2 3-2 3-4M3 3l18 18"/>',
     reception: '<circle cx="12" cy="7" r="3"/><path d="M5 20v-2a7 7 0 0 1 14 0v2M3 20h18"/>',
-    baby: '<circle cx="12" cy="8" r="4"/><path d="M7 14c1.5 1.8 3.2 2.7 5 2.7s3.5-.9 5-2.7M8 20h8M9 7h.01M15 7h.01"/>',
+    baby: '<path d="M10 2h4l1 3H9l1-3Z"/><path d="M9 5h6v3l2 3v8a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-8l2-3V5Z"/><path d="M9 9h6M9 13h5M9 17h4"/>',
     fitness: '<path d="M4 10v4M7 8v8M17 8v8M20 10v4M7 12h10"/>',
     kids: '<circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M3 20v-2a5 5 0 0 1 10 0v2M11 20v-2a5 5 0 0 1 10 0v2"/>',
     lounge: '<path d="M5 12V8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4M4 12h16v7H4v-7ZM7 19v2M17 19v2"/>',
     tech: '<rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 7h6M10 17h4"/>',
     chimarrao: '<path d="M7 9h10l-1 7a4 4 0 0 1-4 3 4 4 0 0 1-4-3L7 9Z"/><path d="m15 10 3-7M18 3h2M9 13h6"/>',
+    pool: '<path d="M3 16c2 0 2 1.5 4 1.5S9 16 11 16s2 1.5 4 1.5 2-1.5 4-1.5 2 1.5 2 1.5M3 20c2 0 2 1.5 4 1.5S9 20 11 20s2 1.5 4 1.5 2-1.5 4-1.5 2 1.5 2 1.5M7 14V7a3 3 0 0 1 6 0M13 14V9h5"/>',
     voltage: '<path d="m13 2-8 12h7l-1 8 8-12h-7l1-8Z"/>',
     quiet: '<path d="M6 9v6h4l5 4V5l-5 4H6ZM19 9l3 6M22 9l-3 6"/>',
     info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>',

@@ -22,6 +22,11 @@ const themeScript = fs.readFileSync(new URL("../public/js/core/theme.js", import
 const adminScript = fs.readFileSync(new URL("../public/js/modules/admin/portals.js", import.meta.url), "utf8");
 const roomServiceScript = fs.readFileSync(new URL("../public/js/modules/room-service/index.js", import.meta.url), "utf8");
 const guestPortalRoutes = fs.readFileSync(new URL("../src/modules/guest-portal/routes.js", import.meta.url), "utf8");
+const poolExperienceMigration = fs.readFileSync(
+  new URL("../migrations/0036_fioreze_centro_pool_experience.sql", import.meta.url),
+  "utf8",
+);
+const poolImageUrl = new URL("../public/assets/hotels/fioreze-centro/piscina.jpg", import.meta.url);
 
 test("portal usa o layout de referencia com identidade e conteudo dinamicos", () => {
   assert.match(navigationScript, /branding\?\.horizontal_logo_url/);
@@ -324,7 +329,7 @@ test("menu lateral inclui todas as secoes e modulos publicos habilitados", () =>
 
 test("informacoes do hotel suportam guia visual editavel e programacao", () => {
   assert.match(navigationScript, /\["eventos", "Programação", "calendar"\]/);
-  assert.match(portalScript, /portal\.hotel_information\.layout/);
+  assert.match(portalScript, /portal\.hotel_information\.layout.*!== "cards"/);
   assert.match(portalScript, /is-guest-guide/);
   assert.match(portalScript, /renderAppTop\(state, "Programação"/);
   assert.match(portalCss, /\.is-guest-guide \.hotel-info-grid/);
@@ -332,7 +337,31 @@ test("informacoes do hotel suportam guia visual editavel e programacao", () => {
   assert.match(portalCss, /\.info-key-espaco-tche/);
   assert.match(portalScript, /chimarrao/);
   assert.match(portalScript, /formatRoomServiceHours/);
+  assert.match(portalScript, /arrangeGuideInformation/);
+  assert.match(portalScript, /information\[wifiIndex\][\s\S]*information\[babyIndex\]/);
+  assert.match(portalScript, /baby:.*M10 2h4l1 3H9/);
   assert.match(adminScript, /Programação/);
+});
+
+test("servicos usam lista editorial, imagens configuradas e experiencias extras", () => {
+  assert.match(portalScript, /Serviços e Experiências/);
+  assert.match(portalScript, /portal\.services\.extra_items/);
+  assert.match(portalScript, /home-landscape-icon/);
+  assert.match(portalScript, /home-landscape-media/);
+  assert.match(portalScript, /moduleIcon\(module\.module_key\)/);
+  assert.match(portalCss, /grid-template-columns:\s*42px minmax\(0, 1fr\) 126px/);
+  assert.match(portalCss, /\.home-landscape-media\s*\{[\s\S]*?object-fit:\s*cover/);
+  assert.match(portalCss, /\.home-landscape-card\.no-image \.home-landscape-action\s*\{[\s\S]*?right:\s*0;[\s\S]*?transform:\s*translateY\(-50%\)/);
+  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.app-top-card\s*\{[\s\S]*?margin:\s*72px auto 0/);
+});
+
+test("experiencia da piscina do Centro possui configuracao publica e imagem local", () => {
+  assert.match(poolExperienceMigration, /'fiorezecentro'/);
+  assert.match(poolExperienceMigration, /'portal\.services\.extra_items'/);
+  assert.match(poolExperienceMigration, /Piscina \(Origem e Quero-Quero\)/);
+  assert.match(poolExperienceMigration, /\/assets\/hotels\/fioreze-centro\/piscina\.jpg/);
+  assert.ok(fs.existsSync(poolImageUrl));
+  assert.ok(fs.statSync(poolImageUrl).size > 0);
 });
 
 test("guia do hotel usa o horario canonico do ERP no card de Room Service", () => {
