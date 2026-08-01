@@ -3162,6 +3162,20 @@
     background: linear-gradient(180deg, rgba(14, 11, 9, 0.48) 0%, rgba(14, 11, 9, 0.3) 72%, rgba(14, 11, 9, 0) 100%);
   }
 
+  .guest-portal-root:has(.desktop-unit-cover) .services-experience-shell .home-landscape-list,
+  .guest-portal-root:has(.desktop-unit-cover) .services-experience-shell .home-landscape-card {
+    border-color: rgba(255, 255, 255, 0.38);
+  }
+
+  .guest-portal-root:has(.desktop-unit-cover) .services-experience-shell .home-landscape-copy h3 {
+    color: #fff;
+    text-shadow: 0 2px 16px rgba(0, 0, 0, 0.48);
+  }
+
+  .guest-portal-root:has(.desktop-unit-cover) .services-experience-shell .home-landscape-copy p {
+    color: rgba(255, 255, 255, 0.84);
+  }
+
   .guest-portal-root:has(.desktop-unit-cover) .guest-shell:has(.home-hero-copy) {
     position: relative;
     isolation: isolate;

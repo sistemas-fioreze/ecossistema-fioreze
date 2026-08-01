@@ -353,6 +353,8 @@ test("servicos usam lista editorial, imagens configuradas e experiencias extras"
   assert.match(portalCss, /\.home-landscape-media\s*\{[\s\S]*?object-fit:\s*cover/);
   assert.match(portalCss, /\.home-landscape-card\.no-image \.home-landscape-action\s*\{[\s\S]*?right:\s*0;[\s\S]*?transform:\s*translateY\(-50%\)/);
   assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.app-top-card\s*\{[\s\S]*?margin:\s*72px auto 0/);
+  assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\) \.services-experience-shell \.home-landscape-copy h3\s*\{[\s\S]*?color:\s*#fff/);
+  assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\) \.services-experience-shell \.home-landscape-copy p\s*\{[\s\S]*?rgba\(255, 255, 255, 0\.84\)/);
 });
 
 test("experiencia da piscina do Centro possui configuracao publica e imagem local", () => {
