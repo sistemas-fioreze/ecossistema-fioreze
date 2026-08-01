@@ -9,6 +9,7 @@ import {
   syncGuestHeader,
 } from "./guest-navigation.js";
 import { sanitizePublicAssetUrl } from "./theme.js";
+import { formatRoomServiceHours } from "./service-hours.js";
 
 const MODULE_DESCRIPTIONS = {
   "room-service": "Refeições e bebidas no conforto da sua acomodação.",
@@ -644,10 +645,13 @@ function renderEventDetail(state) {
 function renderHotelView(state) {
   const maps = renderMapsSection(state);
   const guideLayout = state.bootstrap.settings?.["portal.hotel_information.layout"] === "guest-guide";
+  const information = state.content.information.map((item) => item.info_key === "room-service"
+    ? { ...item, body: formatRoomServiceHours(state.bootstrap.service_hours?.["room-service"]) }
+    : item);
   return `${renderAppTop(state, "Hotel", "Horários, serviços, localização e informações úteis para a sua estadia.", "hotel")}
     <main class="embed-shell portal-content-shell hotel-info-shell${guideLayout ? " is-guest-guide" : ""}">
       ${maps}
-      ${state.content.information.length ? `<div class="hotel-info-grid">${state.content.information.map((item) => renderHotelInfoCard(item, guideLayout)).join("")}</div>` : renderEmptyState("As informações da unidade estarão disponíveis aqui.")}
+      ${information.length ? `<div class="hotel-info-grid">${information.map((item) => renderHotelInfoCard(item, guideLayout)).join("")}</div>` : renderEmptyState("As informações da unidade estarão disponíveis aqui.")}
     </main>`;
 }
 
@@ -839,6 +843,8 @@ function moduleIcon(moduleKey) {
 
 function infoIcon(key = "") {
   const normalized = String(key).toLowerCase();
+  if (normalized.includes("room-service")) return "room-service";
+  if (normalized.includes("tche") || normalized.includes("chimarrao") || normalized.includes("mate")) return "chimarrao";
   if (normalized.includes("wifi")) return "wifi";
   if (normalized.includes("breakfast") || normalized.includes("cafe")) return "coffee";
   if (normalized.includes("smoking")) return "no-smoking";
@@ -885,6 +891,7 @@ function icon(name) {
     kids: '<circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M3 20v-2a5 5 0 0 1 10 0v2M11 20v-2a5 5 0 0 1 10 0v2"/>',
     lounge: '<path d="M5 12V8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4M4 12h16v7H4v-7ZM7 19v2M17 19v2"/>',
     tech: '<rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 7h6M10 17h4"/>',
+    chimarrao: '<path d="M7 9h10l-1 7a4 4 0 0 1-4 3 4 4 0 0 1-4-3L7 9Z"/><path d="m15 10 3-7M18 3h2M9 13h6"/>',
     voltage: '<path d="m13 2-8 12h7l-1 8 8-12h-7l1-8Z"/>',
     quiet: '<path d="M6 9v6h4l5 4V5l-5 4H6ZM19 9l3 6M22 9l-3 6"/>',
     info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>',

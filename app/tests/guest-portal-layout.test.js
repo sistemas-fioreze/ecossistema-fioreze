@@ -3,6 +3,7 @@ import fs from "node:fs";
 import test from "node:test";
 import { renderGuestNavigation } from "../public/js/core/guest-navigation.js";
 import { getModulePath, resolvePortalSwipe } from "../public/js/core/portal-home.js";
+import { formatRoomServiceHours } from "../public/js/core/service-hours.js";
 
 const portalScript = fs.readFileSync(new URL("../public/js/core/portal-home.js", import.meta.url), "utf8");
 const portalCss = fs.readFileSync(
@@ -16,6 +17,7 @@ const navigationCss = fs.readFileSync(
 );
 const publicIndex = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const appScript = fs.readFileSync(new URL("../public/js/core/app.js", import.meta.url), "utf8");
+const serviceHoursScript = fs.readFileSync(new URL("../public/js/core/service-hours.js", import.meta.url), "utf8");
 const themeScript = fs.readFileSync(new URL("../public/js/core/theme.js", import.meta.url), "utf8");
 const adminScript = fs.readFileSync(new URL("../public/js/modules/admin/portals.js", import.meta.url), "utf8");
 const roomServiceScript = fs.readFileSync(new URL("../public/js/modules/room-service/index.js", import.meta.url), "utf8");
@@ -173,7 +175,7 @@ test("cabecalhos dos modulos repetem o padrao icone e titulo do Portal do Hosped
   assert.match(appScript, /navigationIcon\(iconName\)/);
   assert.match(appScript, /Seja bem-vindo ao Room Service digital/);
   assert.match(appScript, /Use o ramal n° 9/);
-  assert.match(appScript, /O Room Service opera diariamente das/);
+  assert.match(serviceHoursScript, /O Room Service opera diariamente das/);
   assert.doesNotMatch(appScript, /public-module-hero|--module-hero-image|public-module-hero-shade/);
   assert.match(navigationScript, /hideBrand = false/);
   assert.match(navigationScript, /is-brand-hidden/);
@@ -327,7 +329,22 @@ test("informacoes do hotel suportam guia visual editavel e programacao", () => {
   assert.match(portalScript, /renderAppTop\(state, "Programação"/);
   assert.match(portalCss, /\.is-guest-guide \.hotel-info-grid/);
   assert.match(portalCss, /\.info-key-baby-kitchen/);
+  assert.match(portalCss, /\.info-key-espaco-tche/);
+  assert.match(portalScript, /chimarrao/);
+  assert.match(portalScript, /formatRoomServiceHours/);
   assert.match(adminScript, /Programação/);
+});
+
+test("guia do hotel usa o horario canonico do ERP no card de Room Service", () => {
+  const everyDay = Array.from({ length: 7 }, (_, day) => ({
+    day_of_week: day,
+    opens_at: "16:00",
+    closes_at: "22:00",
+    is_closed: false,
+  }));
+
+  assert.equal(formatRoomServiceHours(everyDay), "O Room Service opera diariamente das 16:00 às 22:00.");
+  assert.match(formatRoomServiceHours([]), /Consulte a recepção/);
 });
 
 test("links dos modulos seguem o slug atual mesmo com navegacao antiga", () => {

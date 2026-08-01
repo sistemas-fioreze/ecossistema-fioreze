@@ -8,6 +8,7 @@ import {
   syncGuestHeader,
 } from "./guest-navigation.js";
 import { loadModule } from "./module-loader.js";
+import { formatRoomServiceHours } from "./service-hours.js";
 import { resolveModuleFromPath, resolveSlugFromPath } from "./tenant.js";
 import { applyBranding } from "./theme.js";
 
@@ -117,28 +118,6 @@ function renderRoomServiceHeading(bootstrap) {
     <p><strong>Seja bem-vindo ao Room Service digital do ${escapeText(hotelName)}.</strong></p>
     <p><strong>${escapeText(support)}</strong></p>
     <p><strong>${escapeText(formatRoomServiceHours(bootstrap.service_hours?.["room-service"]))}</strong></p>`;
-}
-
-function formatRoomServiceHours(serviceHours = []) {
-  const active = serviceHours.filter((slot) => !slot.is_closed && slot.opens_at && slot.closes_at);
-  const days = new Map();
-  for (const slot of active) {
-    const day = Number(slot.day_of_week);
-    if (!days.has(day)) days.set(day, []);
-    days.get(day).push(`${formatTime(slot.opens_at)} até ${formatTime(slot.closes_at)}`);
-  }
-  const commonWindow = [...new Set(days.get(0) || [])]
-    .find((window) => Array.from({ length: 7 }, (_, day) => days.get(day)?.includes(window)).every(Boolean));
-  if (commonWindow) return `O Room Service opera diariamente das ${commonWindow}.`;
-  if (active.length) {
-    const first = active[0];
-    return `Consulte os horários do Room Service. O próximo período cadastrado é das ${formatTime(first.opens_at)} até ${formatTime(first.closes_at)}.`;
-  }
-  return "Consulte a equipe para confirmar o horário de funcionamento do Room Service.";
-}
-
-function formatTime(value) {
-  return String(value || "").slice(0, 5);
 }
 
 function moduleDescription(bootstrap, moduleKey) {

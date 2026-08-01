@@ -2425,6 +2425,7 @@
   margin-top: 5px;
   font-size: 0.76rem;
   line-height: 1.45;
+  white-space: pre-line;
 }
 
 .is-guest-guide .info-key-checkout {
@@ -2442,7 +2443,8 @@
 .is-guest-guide .info-key-fitness,
 .is-guest-guide .info-key-kids,
 .is-guest-guide .info-key-lounge,
-.is-guest-guide .info-key-tech {
+.is-guest-guide .info-key-tech,
+.is-guest-guide .info-key-espaco-tche {
   grid-column: span 3;
   grid-template-columns: 1fr;
   justify-items: center;
@@ -2472,6 +2474,7 @@
   .is-guest-guide .info-key-kids,
   .is-guest-guide .info-key-lounge,
   .is-guest-guide .info-key-tech,
+  .is-guest-guide .info-key-espaco-tche,
   .is-guest-guide .info-key-voltage,
   .is-guest-guide .info-key-quiet-hours {
     grid-column: span 1;
