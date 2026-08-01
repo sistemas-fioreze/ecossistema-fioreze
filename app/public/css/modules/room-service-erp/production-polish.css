@@ -1,3 +1,13 @@
+:root:not(.dark),
+:root:not(.dark) body {
+  color-scheme: light;
+}
+
+:root.dark,
+:root.dark body {
+  color-scheme: dark;
+}
+
 .app-sidebar {
   overflow: hidden;
 }
