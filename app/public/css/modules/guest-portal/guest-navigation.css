@@ -483,6 +483,14 @@
 }
 
 @media (min-width: 960px) {
+  .guest-portal-root .portal-app-top:has(+ .hotel-info-shell) .app-top-card {
+    margin-top: 72px;
+  }
+
+  .guest-portal-root .portal-app-top + .hotel-info-shell {
+    margin-top: 250px;
+  }
+
   .guest-menu-toggle,
   .guest-navigation-drawer,
   .guest-drawer-backdrop {

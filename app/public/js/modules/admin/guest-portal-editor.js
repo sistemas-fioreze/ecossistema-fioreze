@@ -263,7 +263,7 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
       <section class="guest-editor-section">
         <header><strong>Conteúdo do template</strong><span>Estas áreas alimentam automaticamente o mesmo portal em desktop e mobile.</span></header>
         <div class="guest-editor-content-links">
-          ${contentLink("/admin/portais/eventos/", "calendar", "Eventos", "Agenda, imagens, períodos e botões de ação")}
+          ${contentLink("/admin/portais/eventos/", "calendar", "Programação", "Agenda, imagens, períodos e botões de ação")}
           ${contentLink(`/admin/portais/unidades/${encodeURIComponent(state.hotel.hotel_id)}/`, "hotel", "Informações do hotel", "Horários, contatos, mapas e dados da hospedagem")}
           ${contentLink("/admin/portais/media/", "image", "Biblioteca de mídia", "Logos, capas, fotos e vídeos da unidade")}
           ${contentLink("/admin/portais/areas/", "services", "Disponibilidade dos serviços", "Ativação e imagens de Room Service, Empório, Spa e pacotes")}
@@ -271,7 +271,7 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
       </section>
       <section class="guest-editor-section">
         <header><strong>Estrutura protegida</strong><span>O Portal do Hóspede usa um único template oficial para todas as unidades.</span></header>
-        <p class="guest-editor-help">Início, Serviços, Eventos, Hotel e Blog mantêm o mesmo fluxo. A identidade e os conteúdos mudam conforme a unidade selecionada.</p>
+        <p class="guest-editor-help">Início, Serviços, Programação, Hotel e Blog mantêm o mesmo fluxo. A identidade e os conteúdos mudam conforme a unidade selecionada.</p>
       </section>`;
   }
 

@@ -498,7 +498,7 @@ function renderServiceLandscape(module, bootstrap) {
 function renderEventsView(state) {
   const controls = renderEventControls(state);
   const body = state.eventMode === "calendar" ? renderCalendarView(state) : renderEventList(state);
-  return `${renderAppTop(state, "Eventos", "Experiências, avisos e novidades durante a sua estadia.", "calendar", controls)}${body}`;
+  return `${renderAppTop(state, "Programação", "Experiências, avisos e novidades durante a sua estadia.", "calendar", controls)}${body}`;
 }
 
 function renderEventControls(state) {
@@ -643,10 +643,11 @@ function renderEventDetail(state) {
 
 function renderHotelView(state) {
   const maps = renderMapsSection(state);
+  const guideLayout = state.bootstrap.settings?.["portal.hotel_information.layout"] === "guest-guide";
   return `${renderAppTop(state, "Hotel", "Horários, serviços, localização e informações úteis para a sua estadia.", "hotel")}
-    <main class="embed-shell portal-content-shell hotel-info-shell">
+    <main class="embed-shell portal-content-shell hotel-info-shell${guideLayout ? " is-guest-guide" : ""}">
       ${maps}
-      ${state.content.information.length ? `<div class="hotel-info-grid">${state.content.information.map(renderHotelInfoCard).join("")}</div>` : renderEmptyState("As informações da unidade estarão disponíveis aqui.")}
+      ${state.content.information.length ? `<div class="hotel-info-grid">${state.content.information.map((item) => renderHotelInfoCard(item, guideLayout)).join("")}</div>` : renderEmptyState("As informações da unidade estarão disponíveis aqui.")}
     </main>`;
 }
 
@@ -662,8 +663,9 @@ function renderMapsSection(state) {
     </section>`;
 }
 
-function renderHotelInfoCard(item) {
-  return `<article class="hotel-info-card">${icon(infoIcon(item.info_key))}<div><small>INFORMAÇÃO DO HOTEL</small><h2>${escapeHtml(item.title)}</h2><p>${escapeHtml(item.body)}</p></div></article>`;
+function renderHotelInfoCard(item, guideLayout = false) {
+  const keyClass = String(item.info_key || "information").toLowerCase().replace(/[^a-z0-9-]+/g, "-");
+  return `<article class="hotel-info-card info-key-${escapeHtml(keyClass)}">${icon(infoIcon(item.info_key))}<div>${guideLayout ? "" : "<small>INFORMAÇÃO DO HOTEL</small>"}<h2>${escapeHtml(item.title)}</h2><p>${escapeHtml(item.body)}</p></div></article>`;
 }
 
 function renderBlogView(state) {
@@ -839,6 +841,15 @@ function infoIcon(key = "") {
   const normalized = String(key).toLowerCase();
   if (normalized.includes("wifi")) return "wifi";
   if (normalized.includes("breakfast") || normalized.includes("cafe")) return "coffee";
+  if (normalized.includes("smoking")) return "no-smoking";
+  if (normalized.includes("reception")) return "reception";
+  if (normalized.includes("baby")) return "baby";
+  if (normalized.includes("fitness")) return "fitness";
+  if (normalized.includes("kids")) return "kids";
+  if (normalized.includes("lounge")) return "lounge";
+  if (normalized.includes("tech")) return "tech";
+  if (normalized.includes("voltage")) return "voltage";
+  if (normalized.includes("quiet")) return "quiet";
   if (normalized.includes("check") || normalized.includes("hour")) return "clock";
   if (normalized.includes("location") || normalized.includes("endereco") || normalized.includes("map")) return "map";
   if (normalized.includes("phone") || normalized.includes("contact")) return "phone";
@@ -867,6 +878,15 @@ function icon(name) {
     wifi: '<path d="M4 9a12 12 0 0 1 16 0M7 12a8 8 0 0 1 10 0M10 15a3 3 0 0 1 4 0"/><circle cx="12" cy="19" r="1"/>',
     coffee: '<path d="M5 8h11v7a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V8Z"/><path d="M16 10h2a2 2 0 0 1 0 4h-2M8 4v2M12 4v2"/>',
     phone: '<path d="M7 3h3l1 5-2 1a15 15 0 0 0 6 6l1-2 5 1v3c0 2-2 4-4 4A16 16 0 0 1 3 7c0-2 2-4 4-4Z"/>',
+    "no-smoking": '<path d="M4 17h16M7 13h10a2 2 0 0 1 2 2v2H5v-2a2 2 0 0 1 2-2Z"/><path d="M14 8c0-2 3-2 3-4M3 3l18 18"/>',
+    reception: '<circle cx="12" cy="7" r="3"/><path d="M5 20v-2a7 7 0 0 1 14 0v2M3 20h18"/>',
+    baby: '<circle cx="12" cy="8" r="4"/><path d="M7 14c1.5 1.8 3.2 2.7 5 2.7s3.5-.9 5-2.7M8 20h8M9 7h.01M15 7h.01"/>',
+    fitness: '<path d="M4 10v4M7 8v8M17 8v8M20 10v4M7 12h10"/>',
+    kids: '<circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M3 20v-2a5 5 0 0 1 10 0v2M11 20v-2a5 5 0 0 1 10 0v2"/>',
+    lounge: '<path d="M5 12V8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4M4 12h16v7H4v-7ZM7 19v2M17 19v2"/>',
+    tech: '<rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 7h6M10 17h4"/>',
+    voltage: '<path d="m13 2-8 12h7l-1 8 8-12h-7l1-8Z"/>',
+    quiet: '<path d="M6 9v6h4l5 4V5l-5 4H6ZM19 9l3 6M22 9l-3 6"/>',
     info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>',
     "chevron-back": '<path d="m15 5-7 7 7 7"/>',
     "external-link": '<path d="M14 4h6v6M20 4l-9 9"/><path d="M18 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h6"/>',

@@ -348,6 +348,8 @@ test("ERP Room Service oficial nao usa CDN, webhook legado ou Postimg", () => {
 
 test("ERP Room Service preserva shell visual, SVGs, abas e dashboard do legado sanitizado", () => {
   const html = fs.readFileSync("public/erp/room-service/index.html", "utf8");
+  const tailwindCss = fs.readFileSync("public/css/modules/room-service-erp/legacy-tailwind.css", "utf8");
+  const polishCss = fs.readFileSync("public/css/modules/room-service-erp/production-polish.css", "utf8");
   const svgCount = (html.match(/<svg\b/g) || []).length;
 
   assert.ok(svgCount >= 40, `esperava ao menos 40 SVGs locais, recebeu ${svgCount}`);
@@ -370,5 +372,9 @@ test("ERP Room Service preserva shell visual, SVGs, abas e dashboard do legado s
   assert.match(html, /legacy-tailwind\.css/);
   assert.match(html, /legacy-adapter\.css/);
   assert.match(html, /room-service-erp\/app\.js/);
+  assert.doesNotMatch(tailwindCss, /@media \(prefers-color-scheme:dark\)/);
+  assert.match(tailwindCss, /\.dark \.dark\\:bg-gray-900\{/);
+  assert.match(polishCss, /:root:not\(\.dark\),[\s\S]*?color-scheme:\s*light/);
+  assert.match(polishCss, /:root\.dark,[\s\S]*?color-scheme:\s*dark/);
   assert.doesNotMatch(html, /\son[a-z]+=/i);
 });

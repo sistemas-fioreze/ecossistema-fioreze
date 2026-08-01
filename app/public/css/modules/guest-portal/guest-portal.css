@@ -2377,6 +2377,122 @@
   line-height: 1.5;
 }
 
+.hotel-info-shell.is-guest-guide {
+  --guide-rule: color-mix(in srgb, var(--guest-ink) 20%, transparent);
+  max-width: 920px;
+}
+
+.is-guest-guide .hotel-info-grid {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--guide-rule);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--guest-surface) 96%, #fff);
+}
+
+.is-guest-guide .hotel-info-card {
+  grid-column: span 6;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  min-height: 126px;
+  padding: 24px;
+  border: 0;
+  border-right: 1px solid var(--guide-rule);
+  border-bottom: 1px solid var(--guide-rule);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.is-guest-guide .hotel-info-card:nth-child(even) {
+  border-right: 0;
+}
+
+.is-guest-guide .hotel-info-card > svg {
+  width: 31px;
+  height: 31px;
+  color: color-mix(in srgb, var(--guest-primary) 78%, var(--guest-ink));
+}
+
+.is-guest-guide .hotel-info-card h2 {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.is-guest-guide .hotel-info-card p {
+  margin-top: 5px;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.is-guest-guide .info-key-checkout {
+  grid-column: span 8;
+}
+
+.is-guest-guide .info-key-baby-kitchen {
+  grid-column: 1 / -1;
+}
+
+.is-guest-guide .info-key-no-smoking {
+  grid-column: span 4;
+}
+
+.is-guest-guide .info-key-fitness,
+.is-guest-guide .info-key-kids,
+.is-guest-guide .info-key-lounge,
+.is-guest-guide .info-key-tech {
+  grid-column: span 3;
+  grid-template-columns: 1fr;
+  justify-items: center;
+  min-height: 142px;
+  text-align: center;
+}
+
+.is-guest-guide .info-key-wifi,
+.is-guest-guide .info-key-voltage,
+.is-guest-guide .info-key-quiet-hours {
+  grid-column: span 4;
+  grid-template-columns: 1fr;
+  justify-items: center;
+  min-height: 136px;
+  text-align: center;
+}
+
+@media (max-width: 639px) {
+  .is-guest-guide .hotel-info-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border-radius: 18px;
+  }
+
+  .is-guest-guide .hotel-info-card,
+  .is-guest-guide .info-key-no-smoking,
+  .is-guest-guide .info-key-fitness,
+  .is-guest-guide .info-key-kids,
+  .is-guest-guide .info-key-lounge,
+  .is-guest-guide .info-key-tech,
+  .is-guest-guide .info-key-voltage,
+  .is-guest-guide .info-key-quiet-hours {
+    grid-column: span 1;
+    grid-template-columns: 1fr;
+    justify-items: center;
+    min-height: 148px;
+    padding: 20px 14px;
+    text-align: center;
+  }
+
+  .is-guest-guide .info-key-checkout,
+  .is-guest-guide .info-key-baby-kitchen,
+  .is-guest-guide .info-key-wifi {
+    grid-column: 1 / -1;
+    grid-template-columns: 38px minmax(0, 1fr);
+    justify-items: start;
+    min-height: 116px;
+    text-align: left;
+  }
+}
+
 @media (min-width: 640px) {
   .event-card-grid,
   .guest-blog-grid,
