@@ -174,7 +174,7 @@ const portalCards = [
   ["unidades", "Unidades", "Cadastre hotéis, identidade visual e informações institucionais.", "/admin/portais/unidades/"],
   ["media", "Biblioteca de mídia", "Gerencie imagens, vídeos e pastas dos portais e módulos.", "/admin/portais/media/"],
   ["links", "Links e QR Codes", "Crie endereços curtos, QR Codes e acompanhe acessos.", "/admin/portais/links/"],
-  ["eventos", "Eventos", "Planeje a agenda e publique experiências em cada unidade.", "/admin/portais/eventos/"],
+  ["eventos", "Programação", "Planeje a agenda e publique experiências em cada unidade.", "/admin/portais/eventos/"],
   ["conteudos", "Portal do Hóspede", "Personalize identidade, capas, conteúdos e serviços no template oficial.", "/admin/portais/portal-hospede/"],
 ];
 const mediaFields = [
@@ -531,7 +531,7 @@ function renderNav(session) {
     ["Unidades", "/admin/portais/unidades/", canAccessUnits(session)],
     ["Biblioteca", "/admin/portais/media/", canAccessMediaLibrary(session)],
     ["Links", "/admin/portais/links/", canAccessLinks(session)],
-    ["Eventos", "/admin/portais/eventos/", canAccessContent(session)],
+    ["Programação", "/admin/portais/eventos/", canAccessContent(session)],
   ];
   els.portalsNav.innerHTML = items
     .map(([label, href, enabled]) =>
@@ -1253,7 +1253,7 @@ function portalPageLabel(pageKey) {
   return ({
     inicio: "Início",
     servicos: "Serviços",
-    eventos: "Eventos",
+    eventos: "Programação",
     hotel: "Hotel",
     blog: "Blog",
     "room-service": "Room Service",
@@ -2553,7 +2553,7 @@ function updatePreview() {
 
 function renderEventsManager(session) {
   const allowed = canAccessContent(session);
-  setHeading("Eventos", "Planeje e publique a agenda de cada unidade.");
+  setHeading("Programação", "Planeje e publique a agenda de cada unidade.");
   showPortalSection(allowed ? els.eventsManager : null);
   els.portalsDenied.hidden = allowed;
   if (!allowed) return;

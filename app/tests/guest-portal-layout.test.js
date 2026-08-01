@@ -313,11 +313,21 @@ test("menu lateral inclui todas as secoes e modulos publicos habilitados", () =>
       { module_key: "oculto", name: "Oculto", enabled: false },
     ],
   });
-  for (const label of ["Início", "Serviços", "Eventos", "Hotel", "Blog", "Room Service", "Empório", "Spa", "Pacotes"]) {
+  for (const label of ["Início", "Serviços", "Programação", "Hotel", "Blog", "Room Service", "Empório", "Spa", "Pacotes"]) {
     assert.match(html, new RegExp(label));
   }
   assert.doesNotMatch(html, />Admin</);
   assert.doesNotMatch(html, />Oculto</);
+});
+
+test("informacoes do hotel suportam guia visual editavel e programacao", () => {
+  assert.match(navigationScript, /\["eventos", "Programação", "calendar"\]/);
+  assert.match(portalScript, /portal\.hotel_information\.layout/);
+  assert.match(portalScript, /is-guest-guide/);
+  assert.match(portalScript, /renderAppTop\(state, "Programação"/);
+  assert.match(portalCss, /\.is-guest-guide \.hotel-info-grid/);
+  assert.match(portalCss, /\.info-key-baby-kitchen/);
+  assert.match(adminScript, /Programação/);
 });
 
 test("links dos modulos seguem o slug atual mesmo com navegacao antiga", () => {

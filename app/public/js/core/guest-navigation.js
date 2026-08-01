@@ -4,7 +4,7 @@ import { sanitizePublicAssetUrl } from "./theme.js";
 export const PORTAL_NAV_ITEMS = [
   ["inicio", "Início", "home"],
   ["servicos", "Serviços", "services"],
-  ["eventos", "Eventos", "calendar"],
+  ["eventos", "Programação", "calendar"],
   ["hotel", "Hotel", "hotel"],
   ["blog", "Blog", "blog"],
 ];
