@@ -6,7 +6,13 @@ import { filterCatalog, flattenCatalog, formatMoney, getCatalogItemMap, sanitize
 import { internalsForTests } from "../public/js/modules/room-service/index.js";
 import { evaluateServiceStatus } from "../public/js/modules/room-service/service-status.js";
 
-const { renderStaticShell, submitOrder, syncSubmitButton, updateServiceStatus } = internalsForTests;
+const {
+  renderStaticShell,
+  splitProductDescription,
+  submitOrder,
+  syncSubmitButton,
+  updateServiceStatus,
+} = internalsForTests;
 
 const CATEGORIES = [
   {
@@ -69,7 +75,8 @@ test("shell do Room Service preserva a hierarquia do cardapio sob o header compa
   assert.doesNotMatch(shell, /data-rs-loader|data-hotel-logo-shell/);
   assert.doesNotMatch(shell, /class="rs-mobile-header"|data-hotel-icon|Carregando cardápio/);
   assert.match(shell, /Resumo do Pedido/);
-  assert.match(shell, /data-image-viewer/);
+  assert.match(shell, /data-rs-product-detail/);
+  assert.match(shell, /data-catalog-media-viewer/);
   assert.match(shell, /data-submit-overlay/);
   assert.doesNotMatch(shell, /data-mobile-cart|script\.google|cdn\.tailwindcss|postimg/i);
   assert.match(css, /grid-template-columns:\s*380px minmax\(0, 1fr\)/);
@@ -82,8 +89,22 @@ test("shell do Room Service preserva a hierarquia do cardapio sob o header compa
   assert.match(css, /@media \(max-width: 959px\)[\s\S]*?\.rs-product-label\s*\{[\s\S]*?border:\s*0;[\s\S]*?background:\s*transparent/);
   assert.match(css, /max\(18px, env\(safe-area-inset-left\)\)/);
   assert.match(script, /classList\.toggle\("active", state\.activeCategory === category\.id\)/);
+  assert.match(script, /data-rs-product/);
+  assert.match(script, /catalog-detail-layer/);
+  assert.match(script, /renderZoomableCatalogMedia/);
   assert.doesNotMatch(script, /renderLoading|Carregando cardápio/);
   assert.doesNotMatch(script, /IntersectionObserver/);
+});
+
+test("card do Room Service separa quantidade da descricao e abre detalhe compartilhado", () => {
+  assert.deepEqual(splitProductDescription("450g • Serve até 2 pessoas. Escolha o recheio."), {
+    meta: "450g",
+    description: "Serve até 2 pessoas. Escolha o recheio.",
+  });
+  assert.deepEqual(splitProductDescription("Serve até 2 pessoas."), {
+    meta: "",
+    description: "Serve até 2 pessoas.",
+  });
 });
 
 test("aviso fechado usa mensagem curta e mantém respiro do formulário", () => {

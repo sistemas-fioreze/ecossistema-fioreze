@@ -64,8 +64,8 @@ export function renderGuestNavigation(
     <div class="guest-drawer-backdrop" data-guest-menu-close hidden></div>
     <aside class="guest-navigation-drawer is-${drawerTheme}" id="guest-navigation-drawer" data-guest-navigation-drawer aria-hidden="true" aria-label="Navegação do hotel">
       <div class="guest-drawer-head">
-        <a class="guest-drawer-brand" href="${escapeHtml(homePath)}" aria-label="Ir para o início">${drawerBrand}</a>
         <button type="button" class="guest-menu-close" data-guest-menu-close aria-label="Fechar navegação">${navigationIcon("close")}</button>
+        <a class="guest-drawer-brand" href="${escapeHtml(homePath)}" aria-label="Ir para o início">${drawerBrand}</a>
       </div>
       <nav class="guest-drawer-nav">
         <p>Portal do hóspede</p>

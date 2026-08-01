@@ -74,7 +74,8 @@ test("normalizacao publica de pacotes rejeita inclusoes malformadas", () => {
   assert.equal(routeInternals.publicPackage({}).category_name, "Experiências");
 });
 
-test("Emporio e Pacotes Romanticos compartilham detalhe em tela cheia e zoom acessivel", () => {
+test("Room Service, Emporio e Pacotes Romanticos compartilham detalhe em tela cheia e zoom acessivel", () => {
+  const roomService = fs.readFileSync(`${APP_ROOT}/public/js/modules/room-service/index.js`, "utf8");
   const emporio = fs.readFileSync(`${APP_ROOT}/public/js/modules/emporio/index.js`, "utf8");
   const romantic = fs.readFileSync(`${APP_ROOT}/public/js/modules/romantic-packages/index.js`, "utf8");
   const sharedJs = fs.readFileSync(`${APP_ROOT}/public/js/modules/shared/catalog-media-viewer.js`, "utf8");
@@ -82,7 +83,7 @@ test("Emporio e Pacotes Romanticos compartilham detalhe em tela cheia e zoom ace
   const romanticCss = fs.readFileSync(`${APP_ROOT}/public/css/modules/romantic-packages/romantic-packages.css`, "utf8");
   const loader = fs.readFileSync(`${APP_ROOT}/public/js/core/module-loader.js`, "utf8");
 
-  for (const source of [emporio, romantic]) {
+  for (const source of [roomService, emporio, romantic]) {
     assert.match(source, /catalog-detail-layer/);
     assert.match(source, /catalog-detail-surface/);
     assert.match(source, /renderZoomableCatalogMedia/);

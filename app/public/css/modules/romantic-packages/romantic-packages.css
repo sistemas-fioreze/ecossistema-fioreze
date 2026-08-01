@@ -386,6 +386,10 @@
   gap: clamp(36px, 7vw, 84px) clamp(24px, 5vw, 62px);
 }
 
+.romantic-centro-experience-grid:has(+ .romantic-centro-addons) {
+  margin-bottom: clamp(64px, 9vw, 112px);
+}
+
 .is-centro-experience > button {
   gap: 24px;
   text-align: center;
@@ -484,6 +488,7 @@
 .romantic-centro-addons {
   margin: 0 0 clamp(50px, 8vw, 92px);
   border: 1px solid var(--centro-gold);
+  border-radius: 24px;
   padding: clamp(28px, 5vw, 56px);
   background: #fff;
 }
@@ -678,6 +683,7 @@
 
   .romantic-centro-addons {
     padding: 24px 20px;
+    border-radius: 20px;
   }
 
   .is-special-decorations .is-centro-detail .romantic-package-detail-content {

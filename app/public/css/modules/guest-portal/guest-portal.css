@@ -1613,8 +1613,8 @@
 
 .home-landscape-list {
   display: grid;
-  gap: 0;
-  border-top: 1px solid var(--guest-line);
+  gap: 14px;
+  border: 0;
 }
 
 .home-landscape-card {
@@ -1624,14 +1624,24 @@
   grid-template-columns: 42px minmax(0, 1fr) 126px;
   align-items: center;
   gap: 16px;
-  padding: 16px 0;
-  border: 0;
-  border-bottom: 1px solid var(--guest-line);
-  border-radius: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--guest-line);
+  border-radius: 18px;
   color: var(--guest-ink);
-  background: transparent;
+  background: rgba(255, 255, 255, 0.72);
   box-shadow: none;
   text-decoration: none;
+  transition: border-color 180ms ease, transform 180ms ease, background-color 180ms ease;
+}
+
+a.home-landscape-card:hover {
+  border-color: color-mix(in srgb, var(--guest-primary) 42%, var(--guest-line));
+  transform: translateY(-2px);
+}
+
+.home-landscape-card.is-static {
+  border-color: transparent;
+  background: transparent;
 }
 
 .home-landscape-icon {
@@ -2650,7 +2660,7 @@
     min-height: 146px;
     grid-template-columns: 52px minmax(0, 1fr) 170px;
     gap: 22px;
-    padding: 18px 0;
+    padding: 18px 20px;
   }
 
   .home-landscape-icon {
@@ -3165,6 +3175,17 @@
   .guest-portal-root:has(.desktop-unit-cover) .services-experience-shell .home-landscape-list,
   .guest-portal-root:has(.desktop-unit-cover) .services-experience-shell .home-landscape-card {
     border-color: rgba(255, 255, 255, 0.38);
+  }
+
+  .guest-portal-root:has(.desktop-unit-cover) .services-experience-shell .home-landscape-card:not(.is-static) {
+    background: rgba(20, 17, 15, 0.18);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .guest-portal-root:has(.desktop-unit-cover) .services-experience-shell .home-landscape-card.is-static {
+    border-color: transparent;
+    background: transparent;
   }
 
   .guest-portal-root:has(.desktop-unit-cover) .services-experience-shell .home-landscape-copy h3 {

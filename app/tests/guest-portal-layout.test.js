@@ -95,6 +95,9 @@ test("pesquisa mobile da header encontra portais e encaminha filtros dos catalog
   assert.match(navigationCss, /\.guest-search-panel:not\(\[hidden\]\)/);
   assert.match(navigationCss, /grid-template-columns:\s*44px minmax\(0,\s*1fr\) 44px/);
   assert.match(navigationCss, /\.guest-search-field input::\x2dwebkit-search-cancel-button\s*\{[\s\S]*?\x2dwebkit-appearance:\s*none/);
+  assert.ok(navigationScript.indexOf("data-guest-menu-close") < navigationScript.indexOf("guest-drawer-brand"));
+  assert.match(navigationCss, /\.guest-drawer-head\s*\{[\s\S]*?border:\s*0/);
+  assert.match(navigationCss, /\.guest-search-panel:not\(\[hidden\]\)\s*\{[\s\S]*?top:\s*0;[\s\S]*?width:\s*100%/);
 });
 
 test("cabecalhos mobile nao acumulam espacamento e Emporio compartilha o mesmo fundo", () => {
@@ -349,12 +352,21 @@ test("servicos usam lista editorial, imagens configuradas e experiencias extras"
   assert.match(portalScript, /home-landscape-icon/);
   assert.match(portalScript, /home-landscape-media/);
   assert.match(portalScript, /moduleIcon\(module\.module_key\)/);
+  assert.match(portalScript, /const isPool = module\.module_key === "pool"/);
+  assert.match(portalScript, /home-landscape-card\$\{imageUrl \? "" : " no-image"\}\$\{isPool \? " is-static" : ""\}/);
   assert.match(portalCss, /grid-template-columns:\s*42px minmax\(0, 1fr\) 126px/);
+  assert.match(portalCss, /\.home-landscape-list\s*\{[\s\S]*?border:\s*0/);
+  assert.match(portalCss, /\.home-landscape-card\s*\{[\s\S]*?border:\s*1px solid var\(--guest-line\);[\s\S]*?border-radius:\s*18px/);
+  assert.match(portalCss, /\.home-landscape-card\.is-static\s*\{[\s\S]*?border-color:\s*transparent/);
   assert.match(portalCss, /\.home-landscape-media\s*\{[\s\S]*?object-fit:\s*cover/);
   assert.match(portalCss, /\.home-landscape-card\.no-image \.home-landscape-action\s*\{[\s\S]*?right:\s*0;[\s\S]*?transform:\s*translateY\(-50%\)/);
   assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.app-top-card\s*\{[\s\S]*?margin:\s*72px auto 0/);
   assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\) \.services-experience-shell \.home-landscape-copy h3\s*\{[\s\S]*?color:\s*#fff/);
   assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\) \.services-experience-shell \.home-landscape-copy p\s*\{[\s\S]*?rgba\(255, 255, 255, 0\.84\)/);
+  const serviceExperiencesSource = portalScript.match(
+    /function getServiceExperiences\(bootstrap\) \{[\s\S]*?\n\}/,
+  )?.[0] || "";
+  assert.doesNotMatch(serviceExperiencesSource, /formatRoomServiceHours/);
 });
 
 test("experiencia da piscina do Centro possui configuracao publica e imagem local", () => {
