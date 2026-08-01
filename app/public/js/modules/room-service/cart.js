@@ -16,7 +16,7 @@ export function createCartStore({ hotelId, moduleKey = "room-service", storage =
     catalog = new Map(nextCatalogItems.map((item) => [item.id, item]));
     rows = rows
       .filter((row) => catalog.has(row.id))
-      .map((row) => ({ id: row.id, quantity: clampQuantity(row.quantity) }));
+      .map((row) => ({ id: row.id, quantity: clampQuantity(row.quantity), note: normalizeNote(row.note) }));
     persist();
     return snapshot();
   }
@@ -28,7 +28,24 @@ export function createCartStore({ hotelId, moduleKey = "room-service", storage =
     }
     const existing = rows.find((row) => row.id === itemId);
     if (existing) existing.quantity = clampQuantity(existing.quantity + 1);
-    else rows.push({ id: itemId, quantity: 1 });
+    else rows.push({ id: itemId, quantity: 1, note: "" });
+    persist();
+    return snapshot();
+  }
+
+  function set(itemId, quantity, note = "") {
+    const item = catalog.get(itemId);
+    if (!item || item.available === false) {
+      throw new Error(item?.availability_label || "Item indisponivel.");
+    }
+    const nextRow = {
+      id: itemId,
+      quantity: clampQuantity(quantity),
+      note: normalizeNote(note),
+    };
+    const existingIndex = rows.findIndex((row) => row.id === itemId);
+    if (existingIndex >= 0) rows[existingIndex] = nextRow;
+    else rows.push(nextRow);
     persist();
     return snapshot();
   }
@@ -63,6 +80,7 @@ export function createCartStore({ hotelId, moduleKey = "room-service", storage =
         return {
           ...item,
           quantity: row.quantity,
+          note: normalizeNote(row.note),
           line_total_cents: lineTotalCents,
         };
       })
@@ -72,7 +90,7 @@ export function createCartStore({ hotelId, moduleKey = "room-service", storage =
     return { items, total_cents: totalCents, total_quantity: totalQuantity };
   }
 
-  return { hydrate, add, change, remove, clear, snapshot };
+  return { hydrate, add, set, change, remove, clear, snapshot };
 }
 
 export function createOrderAttemptKey() {
@@ -83,6 +101,10 @@ function clampQuantity(value) {
   return Math.max(1, Math.min(MAX_QUANTITY, Number.parseInt(value, 10) || 1));
 }
 
+function normalizeNote(value) {
+  return String(value || "").trim().slice(0, 180);
+}
+
 function readRows(storage, key) {
   try {
     const raw = storage?.getItem(key);
@@ -90,7 +112,7 @@ function readRows(storage, key) {
     if (!Array.isArray(parsed)) return [];
     return parsed
       .filter((row) => typeof row?.id === "string")
-      .map((row) => ({ id: row.id, quantity: clampQuantity(row.quantity) }));
+      .map((row) => ({ id: row.id, quantity: clampQuantity(row.quantity), note: normalizeNote(row.note) }));
   } catch {
     return [];
   }

@@ -10,6 +10,7 @@ const VALID_ORDER = {
     {
       catalog_item_id: "muller-sandwich",
       quantity: 2,
+      note: "Sem cebola.",
     },
     {
       catalog_item_id: "muller-juice",
@@ -29,8 +30,26 @@ test("cria pedido de Room Service recalculando total pelo banco", async () => {
   assert.equal(body.data.impression.enabled, false);
   assert.equal(env.__data.orders.length, 1);
   assert.equal(env.__data.orderItems.length, 2);
+  assert.equal(body.data.items[0].note, "Sem cebola.");
+  assert.deepEqual(JSON.parse(env.__data.orderItems[0].selected_options_snapshot), { note: "Sem cebola." });
+  assert.equal(env.__data.orderItems[1].selected_options_snapshot, null);
   assert.equal(env.__data.orderStatusHistory.length, 1);
   assert.equal(env.__data.printEvents.length, 0);
+});
+
+test("rejeita observacao de item acima do limite", async () => {
+  const { json, env } = createWorkerTestContext();
+  const { response, body } = await json(
+    "/api/v1/public/hotels/muller-fioreze/room-service/orders",
+    jsonPost({
+      ...VALID_ORDER,
+      items: [{ catalog_item_id: "muller-sandwich", quantity: 1, note: "x".repeat(181) }],
+    }),
+  );
+
+  assert.equal(response.status, 400);
+  assert.equal(body.error.code, "bad_request");
+  assert.equal(env.__data.orders.length, 0);
 });
 
 test("idempotency-key repetida retorna o pedido existente", async () => {

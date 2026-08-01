@@ -7,6 +7,7 @@ import { internalsForTests } from "../public/js/modules/room-service/index.js";
 import { evaluateServiceStatus } from "../public/js/modules/room-service/service-status.js";
 
 const {
+  clampDetailQuantity,
   renderStaticShell,
   splitProductDescription,
   submitOrder,
@@ -76,20 +77,30 @@ test("shell do Room Service preserva a hierarquia do cardapio sob o header compa
   assert.doesNotMatch(shell, /class="rs-mobile-header"|data-hotel-icon|Carregando cardápio/);
   assert.match(shell, /Resumo do Pedido/);
   assert.match(shell, /data-rs-product-detail/);
+  assert.match(shell, /data-category-sentinel/);
   assert.match(shell, /data-catalog-media-viewer/);
   assert.match(shell, /data-submit-overlay/);
   assert.doesNotMatch(shell, /data-mobile-cart|script\.google|cdn\.tailwindcss|postimg/i);
   assert.match(css, /grid-template-columns:\s*380px minmax\(0, 1fr\)/);
-  assert.match(css, /\.rs-product-card\s*\{[\s\S]*?min-height:\s*220px/);
-  assert.match(css, /\.rs-product-media\s*\{[\s\S]*?position:\s*absolute/);
+  assert.match(css, /\.rs-product-card\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) 112px/);
+  assert.match(css, /\.rs-product-card\s*\{[\s\S]*?border-bottom:\s*1px solid/);
+  assert.match(css, /\.rs-product-card\s*\{[\s\S]*?background:\s*transparent/);
+  assert.match(css, /\.rs-product-media\s*\{[\s\S]*?grid-column:\s*2/);
   assert.match(css, /\.rs-product-media\s*\{[\s\S]*?border:\s*0;[\s\S]*?background:\s*transparent;[\s\S]*?box-shadow:\s*none/);
   assert.match(css, /\.rs-product-card:has\(\.rs-product-media\) \.rs-product-content\s*\{\s*padding-right:\s*0/);
-  assert.match(css, /\.rs-product-card:has\(\.rs-product-media\) \.rs-product-label,[\s\S]*?max-width:\s*calc\(100% - 76px\)/);
-  assert.match(css, /@media \(max-width: 959px\)[\s\S]*?\.rs-category-button\.active[\s\S]*?background:\s*transparent/);
-  assert.match(css, /@media \(max-width: 959px\)[\s\S]*?\.rs-product-label\s*\{[\s\S]*?border:\s*0;[\s\S]*?background:\s*transparent/);
+  assert.match(css, /\.rs-product-card:has\(\.rs-product-media\) \.rs-product-label,[\s\S]*?max-width:\s*100%/);
+  assert.match(css, /@media \(max-width: 959px\)[\s\S]*?\.rs-search-panel\.is-stuck[\s\S]*?backdrop-filter:\s*blur\(18px\)/);
+  assert.match(css, /@media \(max-width: 959px\)[\s\S]*?\.rs-search-panel\.is-stuck \.rs-search-field\s*\{\s*display:\s*block/);
+  assert.match(css, /overflow-x:\s*clip/);
+  assert.match(css, /\.public-module-root \.rs-search-panel\s*\{\s*top:\s*calc\(64px \+ env\(safe-area-inset-top\)\)/);
+  assert.match(css, /@media \(max-width: 959px\)[\s\S]*?\.rs-category-button\.active[\s\S]*?background:\s*var\(--rs-primary\)/);
   assert.match(css, /max\(18px, env\(safe-area-inset-left\)\)/);
   assert.match(script, /classList\.toggle\("active", state\.activeCategory === category\.id\)/);
   assert.match(script, /data-rs-product/);
+  assert.match(script, /data-rs-item-note/);
+  assert.match(script, /data-rs-detail-quantity-action/);
+  assert.match(script, /data-rs-detail-add/);
+  assert.doesNotMatch(script, /data-add-item/);
   assert.match(script, /catalog-detail-layer/);
   assert.match(script, /renderZoomableCatalogMedia/);
   assert.doesNotMatch(script, /renderLoading|Carregando cardápio/);
@@ -105,6 +116,9 @@ test("card do Room Service separa quantidade da descricao e abre detalhe compart
     meta: "",
     description: "Serve até 2 pessoas.",
   });
+  assert.equal(clampDetailQuantity(-1), 1);
+  assert.equal(clampDetailQuantity(4), 4);
+  assert.equal(clampDetailQuantity(99), 20);
 });
 
 test("aviso fechado usa mensagem curta e mantém respiro do formulário", () => {
@@ -157,6 +171,21 @@ test("carrinho adiciona, incrementa, diminui, remove e calcula total", () => {
   cart.remove("sanduiche");
   snapshot = cart.snapshot();
   assert.deepEqual(snapshot.items.map((item) => item.id), ["cafe"]);
+});
+
+test("carrinho configura quantidade e observacao do item sem perder dados na hidratacao", () => {
+  const storage = memoryStorage();
+  const catalog = flattenCatalog(CATEGORIES);
+  const cart = createCartStore({ hotelId: "muller-fioreze", storage, catalogItems: catalog });
+
+  cart.set("cafe", 3, "Sem açúcar");
+  let snapshot = cart.snapshot();
+  assert.equal(snapshot.items[0].quantity, 3);
+  assert.equal(snapshot.items[0].note, "Sem açúcar");
+  assert.equal(snapshot.total_cents, 2700);
+
+  snapshot = cart.hydrate(catalog);
+  assert.equal(snapshot.items[0].note, "Sem açúcar");
 });
 
 test("carrinho persiste por hotel e nao mistura tenants", () => {

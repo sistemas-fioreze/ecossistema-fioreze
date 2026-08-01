@@ -65,7 +65,7 @@ function renderOrderDetail(order) {
       ${detail("Total", formatMoney(order.total_cents, order.currency))}
     </div>
     <h3>Itens</h3>
-    ${(order.items || []).map((item) => `<div class="rs-detail-row"><span>${escapeHtml(item.quantity)}x ${escapeHtml(item.name)}</span><strong>${formatMoney(item.line_total_cents, order.currency)}</strong></div>`).join("") || '<div class="rs-empty">Sem itens.</div>'}
+    ${(order.items || []).map((item) => `<div class="rs-detail-row"><span>${escapeHtml(item.quantity)}x ${escapeHtml(item.name)}${item.selected_options?.note ? `<small class="rs-muted">Observação: ${escapeHtml(item.selected_options.note)}</small>` : ""}</span><strong>${formatMoney(item.line_total_cents, order.currency)}</strong></div>`).join("") || '<div class="rs-empty">Sem itens.</div>'}
     <h3>Historico</h3>
     ${(order.history || []).map((entry) => `<div class="rs-detail-row"><span>${statusLabel(entry.status)}</span><small>${escapeHtml(formatDate(entry.created_at, order.timezone))}</small></div>`).join("") || '<div class="rs-empty">Sem historico.</div>'}
     <h3>Impressao</h3>

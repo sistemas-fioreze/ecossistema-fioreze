@@ -42,10 +42,13 @@ export async function render(container, context) {
     cartOpen: false,
     statusTimer: null,
     selectedProductId: null,
+    selectedProductQuantity: 1,
+    selectedProductNote: "",
   };
 
   container.innerHTML = renderStaticShell({ embedded });
   bindStaticActions(container, state);
+  const cleanupStickyCatalog = bindStickyCatalogHeader(container);
   const cleanupMediaViewer = bindCatalogMediaViewer(container);
   const headerSearch = (event) => {
     state.query = event.detail?.query || "";
@@ -92,6 +95,7 @@ export async function render(container, context) {
 
   cleanupCurrentRender = () => {
     cleanupMediaViewer();
+    cleanupStickyCatalog();
     document.body.classList.remove("catalog-detail-open");
     window.removeEventListener("fioreze:portal-search", headerSearch);
     if (state.statusTimer) window.clearInterval(state.statusTimer);
@@ -162,6 +166,7 @@ function renderStaticShell({ embedded = false } = {}) {
           </aside>
 
           <section class="rs-menu-column">
+            <span class="rs-category-sentinel" data-category-sentinel aria-hidden="true"></span>
             <section class="rs-search-panel" aria-label="Busca e categorias do cardápio">
               <label class="rs-search-field">
                 <span class="sr-only">Pesquisar no cardápio</span>
@@ -209,9 +214,19 @@ function renderStaticShell({ embedded = false } = {}) {
 
 function bindStaticActions(container, state) {
   container.addEventListener("click", (event) => {
-    const addButton = event.target.closest("[data-add-item]");
-    if (addButton) {
-      addItem(container, state, addButton.dataset.addItem);
+    const detailQuantityButton = event.target.closest("[data-rs-detail-quantity-action]");
+    if (detailQuantityButton) {
+      state.selectedProductNote = readDetailNote(container);
+      state.selectedProductQuantity = clampDetailQuantity(
+        state.selectedProductQuantity + Number(detailQuantityButton.dataset.rsDetailQuantityAction),
+      );
+      renderProductDetail(container, state);
+      return;
+    }
+
+    const detailAddButton = event.target.closest("[data-rs-detail-add]");
+    if (detailAddButton) {
+      addConfiguredItem(container, state);
       return;
     }
 
@@ -231,8 +246,7 @@ function bindStaticActions(container, state) {
 
     const productCard = event.target.closest("[data-rs-product]");
     if (productCard) {
-      state.selectedProductId = productCard.dataset.rsProduct;
-      renderProductDetail(container, state);
+      openProductDetail(container, state, productCard.dataset.rsProduct);
       return;
     }
 
@@ -278,8 +292,7 @@ function bindStaticActions(container, state) {
     const productCard = event.target.closest("[data-rs-product]");
     if (productCard && !event.target.closest("button, input, select, textarea, a") && ["Enter", " "].includes(event.key)) {
       event.preventDefault();
-      state.selectedProductId = productCard.dataset.rsProduct;
-      renderProductDetail(container, state);
+      openProductDetail(container, state, productCard.dataset.rsProduct);
       return;
     }
     if (event.key !== "Escape") return;
@@ -288,6 +301,24 @@ function bindStaticActions(container, state) {
     else if (!container.querySelector("[data-modal]").hidden) closeModal(container);
     else toggleCart(container, state, false);
   });
+}
+
+function bindStickyCatalogHeader(container) {
+  const panel = container.querySelector(".rs-search-panel");
+  const sentinel = container.querySelector("[data-category-sentinel]");
+  if (!panel || !sentinel) return () => {};
+  const sync = () => {
+    const mobile = window.matchMedia("(max-width: 959px)").matches;
+    const top = container.closest(".public-module-root") ? 72 : 0;
+    panel.classList.toggle("is-stuck", mobile && sentinel.getBoundingClientRect().top <= top);
+  };
+  window.addEventListener("scroll", sync, { passive: true });
+  window.addEventListener("resize", sync);
+  sync();
+  return () => {
+    window.removeEventListener("scroll", sync);
+    window.removeEventListener("resize", sync);
+  };
 }
 
 function renderHotelHeader(container, state) {
@@ -512,19 +543,19 @@ function renderProductCard(item, state) {
   footer.className = "rs-product-footer";
   const price = document.createElement("strong");
   price.textContent = formatMoney(item.price_cents, item.currency, state.bootstrap.locale);
-  const button = document.createElement("button");
-  button.className = "rs-add-button";
-  button.type = "button";
-  button.dataset.addItem = item.id;
-  button.disabled = item.available === false;
-  button.innerHTML = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>${
-    item.available === false ? "Indisponível" : "Adicionar"
-  }</span>`;
-  footer.append(price, button);
+  footer.append(price);
 
   content.append(label, title, meta, description, footer);
   card.append(content);
   return card;
+}
+
+function openProductDetail(container, state, itemId) {
+  const existing = state.cart?.snapshot().items.find((item) => item.id === itemId);
+  state.selectedProductId = itemId;
+  state.selectedProductQuantity = existing?.quantity || 1;
+  state.selectedProductNote = existing?.note || "";
+  renderProductDetail(container, state);
 }
 
 function renderProductDetail(container, state) {
@@ -563,14 +594,24 @@ function renderProductDetail(container, state) {
       <strong class="rs-product-detail-price">${escapeHtml(formatMoney(item.price_cents, item.currency, state.bootstrap.locale))}</strong>
       ${descriptionParts.meta ? `<p class="rs-product-detail-meta">${escapeHtml(descriptionParts.meta)}</p>` : ""}
       <p class="rs-product-detail-description">${escapeHtml(descriptionParts.description || "Item do cardápio.")}</p>
+      <label class="rs-product-detail-note">
+        <span>Observação do item</span>
+        <textarea data-rs-item-note maxlength="180" rows="3" placeholder="Ex.: sem cebola, ponto da carne ou outra preferência">${escapeHtml(state.selectedProductNote)}</textarea>
+      </label>
       <div class="rs-product-detail-availability" data-available="${String(item.available !== false)}">
         <span aria-hidden="true"></span>
         <strong>${item.available === false ? escapeHtml(item.availability_label || "Indisponível no momento") : "Disponível para pedir"}</strong>
       </div>
-      <button class="rs-add-button rs-product-detail-add" type="button" data-add-item="${escapeHtml(item.id)}" ${item.available === false ? "disabled" : ""}>
-        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-        <span>${item.available === false ? "Indisponível" : "Adicionar ao pedido"}</span>
-      </button>
+      <div class="rs-product-detail-actions">
+        <div class="rs-product-detail-quantity" aria-label="Quantidade do item">
+          <button type="button" data-rs-detail-quantity-action="-1" aria-label="Diminuir quantidade" ${state.selectedProductQuantity <= 1 ? "disabled" : ""}>−</button>
+          <strong data-rs-detail-quantity>${state.selectedProductQuantity}</strong>
+          <button type="button" data-rs-detail-quantity-action="1" aria-label="Aumentar quantidade" ${state.selectedProductQuantity >= 20 ? "disabled" : ""}>+</button>
+        </div>
+        <button class="rs-add-button rs-product-detail-add" type="button" data-rs-detail-add ${item.available === false ? "disabled" : ""}>
+          <span>${item.available === false ? "Indisponível" : `Adicionar · ${escapeHtml(formatMoney(item.price_cents * state.selectedProductQuantity, item.currency, state.bootstrap.locale))}`}</span>
+        </button>
+      </div>
     </div>`;
   layer.hidden = false;
   document.body.classList.add("catalog-detail-open");
@@ -579,7 +620,17 @@ function renderProductDetail(container, state) {
 
 function closeProductDetail(container, state) {
   state.selectedProductId = null;
+  state.selectedProductQuantity = 1;
+  state.selectedProductNote = "";
   renderProductDetail(container, state);
+}
+
+function readDetailNote(container) {
+  return String(container.querySelector("[data-rs-item-note]")?.value || "").trim().slice(0, 180);
+}
+
+function clampDetailQuantity(value) {
+  return Math.max(1, Math.min(20, Number.parseInt(value, 10) || 1));
 }
 
 function splitProductDescription(value) {
@@ -592,11 +643,13 @@ function splitProductDescription(value) {
   return { meta: "", description };
 }
 
-function addItem(container, state, itemId) {
+function addConfiguredItem(container, state) {
   try {
-    state.cart.add(itemId);
+    state.selectedProductNote = readDetailNote(container);
+    state.cart.set(state.selectedProductId, state.selectedProductQuantity, state.selectedProductNote);
     renderCart(container, state);
     showToast(container, "Item adicionado ao pedido");
+    closeProductDetail(container, state);
   } catch (error) {
     showModal(container, "Item indisponível", error.message);
   }
@@ -640,6 +693,12 @@ function renderCartItem(item, state) {
   const price = document.createElement("span");
   price.textContent = formatMoney(item.line_total_cents, item.currency, state.bootstrap.locale);
   info.append(title, price);
+  if (item.note) {
+    const note = document.createElement("small");
+    note.className = "rs-cart-item-note";
+    note.textContent = item.note;
+    info.append(note);
+  }
 
   const controls = document.createElement("div");
   controls.className = "rs-qty-controls";
@@ -720,6 +779,7 @@ async function submitOrder(container, state, form) {
         items: snapshot.items.map((item) => ({
           catalog_item_id: item.id,
           quantity: item.quantity,
+          note: item.note,
           unit_price_cents: item.price_cents,
           total_cents: item.line_total_cents,
         })),
@@ -829,6 +889,7 @@ export const internalsForTests = {
   renderStaticShell,
   sanitizeAssetPath,
   splitProductDescription,
+  clampDetailQuantity,
   submitOrder,
   syncSubmitButton,
   updateServiceStatus,
