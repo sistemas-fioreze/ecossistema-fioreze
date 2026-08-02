@@ -576,7 +576,7 @@ Rotas protegidas do ERP:
 - `POST /api/v1/admin/room-service/printing/enrollment-codes`
 - `PATCH /api/v1/admin/room-service/printing/devices/:id`
 
-O ambiente continua seguro com `IMPRESSION_ENABLED=false`: nenhuma fila automatica e criada e nenhum agente recebe trabalho. A ativacao de impressora real exige homologacao separada.
+No ambiente de desenvolvimento, `IMPRESSION_ENABLED=true` libera a fila global. A impressao efetiva continua condicionada a `room-service.printing_enabled=true` para a unidade, a um modelo ativo e a um agente Windows vinculado. Cada unidade pode ser pausada no ERP sem alterar as demais.
 
 ## Ainda Falta Migrar
 
