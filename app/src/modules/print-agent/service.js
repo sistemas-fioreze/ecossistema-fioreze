@@ -11,9 +11,11 @@ const CLAIM_TTL_MS = 90_000;
 export async function listPrintAgentEnrollmentHotels(env) {
   const hotels = await all(
     env,
-    `SELECT h.id AS hotel_id, h.slug, h.name, h.short_name
+    `SELECT h.id AS hotel_id, h.slug, h.name, h.short_name,
+            COALESCE(hb.icon_url, hb.logo_url) AS icon_url
        FROM hotels h
        JOIN hotel_modules hm ON hm.hotel_id = h.id
+       LEFT JOIN hotel_branding hb ON hb.hotel_id = h.id
       WHERE h.status = 'active'
         AND h.archived_at IS NULL
         AND hm.module_key = ?
@@ -36,10 +38,12 @@ export async function enrollPrintAgent({ request, env }) {
   const codeHash = await sha256Hex(activationCode);
   const code = await first(
     env,
-    `SELECT pec.id, pec.hotel_id, pec.module_key, pec.expires_at,
-            pt.id AS template_id, h.name AS hotel_name, h.slug AS hotel_slug
+      `SELECT pec.id, pec.hotel_id, pec.module_key, pec.expires_at,
+            pt.id AS template_id, h.name AS hotel_name, h.slug AS hotel_slug,
+            COALESCE(hb.icon_url, hb.logo_url) AS hotel_icon_url
        FROM printer_enrollment_codes pec
        JOIN hotels h ON h.id = pec.hotel_id
+       LEFT JOIN hotel_branding hb ON hb.hotel_id = h.id
        LEFT JOIN printer_templates pt
          ON pt.hotel_id = pec.hotel_id AND pt.module_key = pec.module_key
         AND pt.is_default = 1 AND pt.status = 'active'
@@ -81,7 +85,12 @@ export async function enrollPrintAgent({ request, env }) {
   }
   return {
     device: { id: deviceId, hotel_id: code.hotel_id, name, status: "active", template_id: code.template_id },
-    hotel: { hotel_id: code.hotel_id, slug: code.hotel_slug, name: code.hotel_name },
+    hotel: {
+      hotel_id: code.hotel_id,
+      slug: code.hotel_slug,
+      name: code.hotel_name,
+      icon_url: code.hotel_icon_url || null,
+    },
     access_token: token,
   };
 }

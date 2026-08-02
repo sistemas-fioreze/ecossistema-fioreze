@@ -13,6 +13,8 @@ Substituir a leitura de Google Sheets do sistema anterior por uma fila autentica
 - `printer_templates`: modelos versionaveis por unidade.
 - `app/print-agent`: aplicativo Windows empacotavel em EXE.
 
+No primeiro acesso, o aplicativo reaproveita as impressoras instaladas no Windows para que o operador selecione a unidade e a impressora. Depois do vinculo, ele fica na bandeja com a logo reduzida publica da unidade. A impressora pode ser atualizada sem reinstalar o programa.
+
 ## Seguranca
 
 - O codigo de conexao e armazenado somente como SHA-256 e expira rapidamente.
@@ -35,6 +37,8 @@ O conteudo vem do snapshot do pedido no D1. Nenhum arquivo, credencial, endpoint
 ## Empacotamento
 
 O workflow `build-print-agent-windows.yml` executa testes de renderizacao e cria `Fioreze-Impressao.exe` com PyInstaller em Windows. O executavel inclui Python e dependencias. O build nao conecta impressora e o artefato nao contem configuracao de unidade ou token.
+
+A saida oficial fica em `release/Fioreze-Impressao-Windows/` e inclui somente o EXE, instrucoes, versao e checksum SHA-256. O workflow publica o ZIP dessa pasta como artefato.
 
 ## Ativacao por etapas
 

@@ -45,6 +45,7 @@ temp/
 
 # Build/cache
 dist/
+release/
 build/
 .cache/
 .parcel-cache/
