@@ -577,6 +577,11 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
           <span>Descrição abaixo do título do Empório</span>
           <textarea data-emporio-carousel-description maxlength="240" placeholder="Apresente brevemente o que o hóspede encontrará.">${escapeHtml(description)}</textarea>
         </label>
+        <label class="guest-editor-field">
+          <span>WhatsApp de atendimento da unidade</span>
+          <input data-emporio-whatsapp inputmode="tel" autocomplete="tel" maxlength="24" value="${escapeAttr(state.hotel.settings?.["contact.whatsapp"] || "")}" placeholder="Ex.: 55 54 99999-0000">
+          <small>Usado nos contatos do Empório e das experiências da unidade.</small>
+        </label>
         <div class="emporio-carousel-editor-list">
           ${slides.map((slide, index) => {
             const selected = mediaByRef(slide.media_asset_id);
@@ -798,6 +803,11 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
   }
 
   function handleInput(event) {
+    const emporioWhatsapp = event.target.closest("[data-emporio-whatsapp]");
+    if (emporioWhatsapp) {
+      state.hotel.settings["contact.whatsapp"] = emporioWhatsapp.value;
+      return;
+    }
     const carouselDescription = event.target.closest("[data-emporio-carousel-description]");
     if (carouselDescription) {
       state.hotel.settings["portal.module.emporio.description"] = carouselDescription.value;
@@ -1185,6 +1195,7 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
     const description = String(
       state.hotel.settings?.["portal.module.emporio.description"] || "",
     ).trim();
+    const whatsapp = String(state.hotel.settings?.["contact.whatsapp"] || "").trim();
     const slides = emporioCarouselSlides().map((slide) => ({
       title: String(slide.title || "").trim(),
       media_asset_id: String(slide.media_asset_id || "").trim(),
@@ -1198,6 +1209,7 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
       const payload = await adminApi(`/api/v1/admin/hotels/${encodeURIComponent(state.hotel.hotel_id)}/settings`, {
         method: "PATCH",
         body: {
+          "contact.whatsapp": whatsapp,
           "portal.module.emporio.description": description,
           "emporio.carousel_slides": slides,
         },

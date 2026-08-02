@@ -191,6 +191,10 @@ test("frontend do Emporio oferece catalogo e WhatsApp sem carrinho ou checkout",
   assert.match(editor, /data-emporio-action="add-slide"/);
   assert.match(editor, /data-emporio-action="save-carousel"/);
   assert.match(editor, /data-emporio-carousel-description/);
+  assert.match(editor, /data-emporio-whatsapp/);
+  assert.match(editor, /"contact\.whatsapp": whatsapp/);
+  assert.match(moduleCss, /\.emporio-detail-availability\s*\{[^}]*border:\s*0/s);
+  assert.match(moduleCss, /\.emporio-root \.public-module-heading,[^}]*background:\s*#fff/s);
   assert.match(editor, /"portal\.module\.emporio\.description": description/);
   assert.match(editor, /de 8 páginas configuradas/);
   assert.doesNotMatch(navigation, /guest-drawer-brand[^]*bootstrap\.short_name/);

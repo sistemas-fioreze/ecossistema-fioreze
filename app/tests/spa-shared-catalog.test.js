@@ -114,13 +114,17 @@ test("frontend do Spa replica o layout legado sem loader ou Apps Script", () => 
   assert.match(source, /data-spa-search/);
   assert.match(source, /data-spa-detail/);
   assert.match(source, /data-spa-about-modal/);
+  assert.match(source, /data-spa-about-logo/);
+  assert.doesNotMatch(source, /class="spa-zena-brand"/);
+  assert.doesNotMatch(source, /data-spa-logo/);
   assert.match(source, /data-spa-location/);
   assert.match(source, /https:\/\/wa\.me\//);
   assert.doesNotMatch(source, /script\.google\.com|Apps Script|data-spa-loading|Preparando o catalogo/i);
   assert.match(css, /font-family: "EB Garamond"/);
   assert.match(css, /grid-template-columns: 340px minmax\(0, 1fr\)/);
   assert.match(css, /\.spa-zena-service-media img/);
-  assert.match(css, /\.spa-zena-monogram\s*\{[\s\S]*?border:\s*0;[\s\S]*?border-radius:\s*0;/);
+  assert.match(css, /\.spa-zena-about-logo\s*\{[\s\S]*?margin:\s*0 auto 24px;/);
+  assert.doesNotMatch(css, /\.spa-zena-monogram\s*\{/);
   assert.match(css, /\.spa-zena-location/);
   assert.match(css, /@media \(max-width: 959px\)/);
   assert.match(shell, /spa:\s*"spa"/);

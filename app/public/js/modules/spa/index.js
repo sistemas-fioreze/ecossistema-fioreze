@@ -48,14 +48,6 @@ function renderShell(state) {
     <section class="spa-zena" data-spa-root>
       <main class="spa-zena-layout">
         <aside class="spa-zena-aside">
-          <div class="spa-zena-brand">
-            <span class="spa-zena-monogram" data-spa-logo aria-hidden="true">Z</span>
-            <div>
-              <p data-spa-title>${escapeHtml(state.profile.title)}</p>
-              <h1>${escapeHtml(state.bootstrap.short_name || state.bootstrap.name)}</h1>
-            </div>
-          </div>
-
           <div class="spa-zena-introduction">
             <p class="spa-zena-location">${icon("location")}<span data-spa-location>${escapeHtml(state.profile.location_text)}</span></p>
             <p data-spa-subtitle>${escapeHtml(state.profile.subtitle)}</p>
@@ -104,6 +96,7 @@ function renderShell(state) {
         <button class="spa-zena-modal-backdrop" type="button" data-spa-about-close aria-label="Fechar apresentação"></button>
         <article class="spa-zena-about-card">
           <button class="spa-zena-modal-close" type="button" data-spa-about-close aria-label="Fechar apresentação">${icon("close")}</button>
+          <div class="spa-zena-about-logo" data-spa-about-logo aria-hidden="true">Z</div>
           <h2 id="spa-about-title">Quem Somos</h2>
           <p data-spa-about-text></p>
         </article>
@@ -154,14 +147,13 @@ function bindActions(container, state) {
 }
 
 function renderProfile(container, state) {
-  setText(container, "[data-spa-title]", state.profile.title);
   setText(container, "[data-spa-location]", state.profile.location_text);
   setText(container, "[data-spa-subtitle]", state.profile.subtitle);
   setText(container, "[data-spa-intro]", state.profile.intro_text);
   setText(container, "[data-spa-booking-title]", state.profile.booking_title);
   setText(container, "[data-spa-booking-text]", state.profile.booking_text);
   const logo = sanitizePublicAssetUrl(state.profile.logo_url);
-  container.querySelector("[data-spa-logo]").innerHTML = logo
+  container.querySelector("[data-spa-about-logo]").innerHTML = logo
     ? `<img src="${escapeHtml(logo)}" alt="${escapeHtml(state.profile.logo_alt || state.profile.title)}">`
     : "Z";
   const rules = Array.isArray(state.profile.usage_rules) ? state.profile.usage_rules : [];

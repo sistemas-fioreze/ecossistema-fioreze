@@ -766,7 +766,7 @@ function renderTabPanels() {
       ${field("Latitude", "contact.latitude", setting("contact.latitude"), "number")}
       ${field("Longitude", "contact.longitude", setting("contact.longitude"), "number")}
       ${field("Telefone", "contact.phone", setting("contact.phone"))}
-      ${field("WhatsApp", "contact.whatsapp", setting("contact.whatsapp"))}
+      ${field("WhatsApp de atendimento dos serviços", "contact.whatsapp", setting("contact.whatsapp"))}
       ${field("E-mail", "contact.email", setting("contact.email"), "email")}
       ${field("Site", "contact.website", setting("contact.website"), "url")}
       ${field("Google Maps ou Place", "contact.maps_url", setting("contact.maps_url"))}
