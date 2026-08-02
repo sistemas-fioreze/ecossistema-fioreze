@@ -103,6 +103,21 @@ export function updateOrderPreferences(body) {
   return adminApi("/api/v1/admin/room-service/operations/preferences", { method: "PATCH", body });
 }
 
+export function getPrinting({ hotelId } = {}) {
+  return adminApi(`/api/v1/admin/room-service/printing?${hotelParams(hotelId)}`);
+}
+
+export function updatePrinting(body) {
+  return adminApi("/api/v1/admin/room-service/printing", { method: "PATCH", body });
+}
+
+export function createPrinterEnrollment(body) {
+  return adminApi("/api/v1/admin/room-service/printing/enrollment-codes", { method: "POST", body });
+}
+
+export function updatePrinterDevice(deviceId, body) {
+  return adminApi(`/api/v1/admin/room-service/printing/devices/${encodeURIComponent(deviceId)}`, { method: "PATCH", body });
+}
 export function listRooms({ hotelId } = {}) {
   return adminApi(`/api/v1/admin/room-service/rooms?${hotelParams(hotelId)}`);
 }

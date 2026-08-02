@@ -1,0 +1,40 @@
+name: Build do agente de impressao Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "app/print-agent/**"
+      - ".github/workflows/build-print-agent-windows.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: app/print-agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: app/print-agent/requirements-build.txt
+      - name: Testar renderizacao sem impressora
+        shell: pwsh
+        run: |
+          $env:PYTHONPATH = "."
+          python -m unittest discover -s tests -v
+      - name: Empacotar executavel
+        shell: pwsh
+        run: .\build-windows.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Fioreze-Impressao-Windows
+          path: app/print-agent/dist/Fioreze-Impressao.exe
+          if-no-files-found: error
+          retention-days: 30

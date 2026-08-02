@@ -4,6 +4,7 @@ import {
   createCatalogItem,
   createErpUser,
   createPdvOrder,
+  createPrinterEnrollment,
   createRoom,
   deleteOwnAvatar,
   getBilling,
@@ -13,6 +14,7 @@ import {
   getGuests,
   getLoginContext,
   getOperations,
+  getPrinting,
   getOrder,
   getSession,
   listErpPermissions,
@@ -28,6 +30,8 @@ import {
   updateErpUser,
   updateOrderStatus,
   updateOrderPreferences,
+  updatePrinterDevice,
+  updatePrinting,
   updateRoom,
   updateSchedule,
   uploadErpMedia,
@@ -74,6 +78,8 @@ const state = {
   users: [],
   userPermissions: [],
   operations: null,
+  printing: null,
+  printerEnrollment: null,
   rooms: [],
   media: [],
   catalogCategory: "all",
@@ -365,6 +371,7 @@ function renderSettingsHome() {
   const cards = [
     permissions.has("room-service.settings.manage") ? settingsCard("operation", "clock", "Funcionamento", "Abertura, fechamento e horarios") : "",
     permissions.has("room-service.settings.manage") ? settingsCard("rooms", "rooms", "Acomodacoes", "Quartos disponiveis para atendimento") : "",
+    permissions.has("room-service.settings.manage") ? settingsCard("printing", "printer", "Impressao", "Computadores, impressoras e comprovantes") : "",
     permissions.has("room-service.users.manage") ? settingsCard("users", "users", "Usuarios do ERP", "Acessos e permissoes da equipe") : "",
     settingsCard("account", "account", "Minha conta", "Perfil e senha"),
     settingsCard("appearance", "palette", "Aparencia", "Marca e escala da interface"),
@@ -397,6 +404,16 @@ function renderRoomSettings() {
   if (!state.session?.permissions?.includes("room-service.settings.manage")) return restrictedSettings();
   const rooms = state.rooms || [];
   return `<button type="button" class="erp-back" data-settings-view="home">${settingsIcon("back")} Configuracoes</button><section class="erp-settings-detail"><div class="erp-panel-head"><div><p class="erp-panel-title">Acomodacoes da unidade</p><p class="erp-v3-subtitle">Somente acomodacoes ativas aparecem no portal e aceitam pedidos.</p></div><button id="newRoomButton" type="button" class="admin-primary-btn">Nova acomodacao</button></div><div class="erp-rooms-list">${rooms.length ? rooms.map((room) => `<button type="button" class="erp-room-card" data-edit-room="${escapeAttr(room.id)}"><span><strong>${escapeHtml(room.code)}</strong><small>${escapeHtml(displayBusinessText(room.label || room.room_type, "Sem descricao"))}</small></span><span class="erp-chip ${room.status === "active" ? "" : "off"}">${room.status === "active" ? "Ativa" : "Inativa"}</span></button>`).join("") : '<div class="legacy-list-empty">Nenhuma acomodacao cadastrada.</div>'}</div></section>`;
+}
+
+function renderPrintingSettings() {
+  if (!state.session?.permissions?.includes("room-service.settings.manage")) return restrictedSettings();
+  const printing = state.printing || { global_enabled: false, unit_enabled: false, effective_enabled: false, templates: [], devices: [] };
+  const templates = printing.templates || [];
+  const devices = printing.devices || [];
+  const defaultTemplate = templates.find((entry) => Number(entry.is_default) === 1)?.id || "";
+  const activation = state.printerEnrollment;
+  return `<button type="button" class="erp-back" data-settings-view="home">${settingsIcon("back")} Configuracoes</button><section class="erp-settings-detail"><div class="erp-panel-head"><div><p class="erp-panel-title">Impressao automatica</p><p class="erp-v3-subtitle">Vincule o computador da unidade e escolha o modelo do comprovante.</p></div><span class="erp-chip ${printing.effective_enabled ? "" : "off"}">${printing.effective_enabled ? "Ativa" : "Desativada"}</span></div>${!printing.global_enabled ? '<div class="legacy-list-empty">A impressao permanece desativada no ambiente atual. A configuracao pode ser preparada sem enviar nada a uma impressora.</div>' : ""}<form id="printingSettingsForm" class="erp-order-preferences"><label><span><strong>Impressao automatica desta unidade</strong><small>Cria uma comanda quando um pedido e recebido.</small></span><input type="checkbox" name="enabled" ${printing.unit_enabled ? "checked" : ""}></label><label><span><strong>Modelo do comprovante</strong><small>O modelo classico preserva as duas vias do sistema anterior.</small></span><select name="template_id">${templates.map((template) => `<option value="${escapeAttr(template.id)}" ${template.id === defaultTemplate ? "selected" : ""}>${escapeHtml(template.name)}</option>`).join("")}</select></label><button type="submit" class="admin-primary-btn">Salvar impressao</button></form><article class="erp-panel"><div class="erp-panel-head"><div><strong class="erp-panel-title">Conectar computador</strong><p class="erp-v3-subtitle">O codigo e valido por 15 minutos e pode ser usado uma unica vez.</p></div><button id="createPrinterEnrollmentButton" type="button" class="admin-primary-btn">Gerar codigo</button></div>${activation ? `<div class="erp-printer-code"><small>Codigo de conexao</small><strong>${escapeHtml(activation.activation_code)}</strong><span>Expira em ${escapeHtml(formatDateTime(activation.expires_at))}</span></div>` : ""}</article><div class="erp-panel-head"><div><strong class="erp-panel-title">Computadores vinculados</strong><p class="erp-v3-subtitle">Pause ou revogue um computador sem alterar os demais.</p></div><button id="refreshPrintingButton" type="button" class="admin-secondary-btn">Atualizar</button></div><div class="erp-rooms-list">${devices.length ? devices.map((device) => `<article class="erp-room-card"><span><strong>${escapeHtml(device.name)}</strong><small>${escapeHtml(device.printer_name || "Impressora ainda nao informada")} · ${device.last_seen_at ? `visto em ${escapeHtml(formatDateTime(device.last_seen_at))}` : "aguardando primeiro acesso"}</small></span><span class="erp-v3-actions"><span class="erp-chip ${device.status === "active" ? "" : "off"}">${device.status === "active" ? "Ativo" : device.status === "paused" ? "Pausado" : "Revogado"}</span>${device.status !== "revoked" ? `<button type="button" class="admin-secondary-btn" data-printer-device="${escapeAttr(device.id)}" data-printer-status="${device.status === "active" ? "paused" : "active"}">${device.status === "active" ? "Pausar" : "Retomar"}</button><button type="button" class="admin-secondary-btn" data-printer-device="${escapeAttr(device.id)}" data-printer-status="revoked">Revogar</button>` : ""}</span></article>`).join("") : '<div class="legacy-list-empty">Nenhum computador conectado.</div>'}</div></section>`;
 }
 
 function renderUserSettings() {
@@ -474,6 +491,10 @@ async function handleSettingsClick(event) {
     return;
   }
   if (event.target.closest("#newRoomButton")) return openRoomModal();
+  if (event.target.closest("#createPrinterEnrollmentButton")) return generatePrinterEnrollment();
+  if (event.target.closest("#refreshPrintingButton")) return refreshPrinting();
+  const printerDevice = event.target.closest("[data-printer-device]");
+  if (printerDevice) return changePrinterDeviceStatus(printerDevice.dataset.printerDevice, printerDevice.dataset.printerStatus);
   const room = event.target.closest("[data-edit-room]");
   if (room) return openRoomModal(state.rooms.find((entry) => entry.id === room.dataset.editRoom));
   if (event.target.closest("#newErpUserButton")) return openUserModal();
@@ -493,6 +514,7 @@ async function handleSettingsSubmit(event) {
   event.preventDefault();
   if (event.target.id === "operationScheduleForm") return saveOperationSchedule(event.target);
   if (event.target.id === "orderPreferencesForm") return saveOrderPreferences(event.target);
+  if (event.target.id === "printingSettingsForm") return savePrintingSettings(event.target);
   if (event.target.id === "accountAvatarForm") return saveOwnAvatar(event.target);
   if (event.target.id === "accountPasswordForm") return saveOwnPassword(event.target);
 }
@@ -590,7 +612,7 @@ async function refreshAll() {
     const canManageUsers = permissions.has("room-service.users.manage");
     const canManageCatalog = permissions.has("room-service.catalog.manage");
     const canManageSettings = permissions.has("room-service.settings.manage");
-    const [context, dashboard, orders, catalog, guests, billing, users, userPermissions, operations, media, rooms] = await Promise.all([
+    const [context, dashboard, orders, catalog, guests, billing, users, userPermissions, operations, media, rooms, printing] = await Promise.all([
       getContext({ hotelId }),
       permissions.has("room-service.dashboard.read") || canRead ? getDashboard({ hotelId }) : null,
       canRead ? listOrders({ hotelId }) : null,
@@ -602,6 +624,7 @@ async function refreshAll() {
       canManageSettings ? getOperations({ hotelId }) : null,
       canManageCatalog ? listErpMedia({ hotelId }) : null,
       canManageSettings ? listRooms({ hotelId }) : null,
+      canManageSettings ? getPrinting({ hotelId }) : null,
     ]);
     state.context = context.data;
     state.dashboard = dashboard?.data || null;
@@ -615,6 +638,8 @@ async function refreshAll() {
     state.operations = operations?.data || { operation: context.data.operation, rooms: context.data.rooms || [] };
     state.rooms = rooms?.data?.rooms || operations?.data?.rooms || context.data.rooms || [];
     state.media = media?.data?.assets || [];
+    state.printing = printing?.data || null;
+    state.printerEnrollment = null;
     state.scheduleViewMode = null;
     updateBranding();
     updateHeaderState();
@@ -1109,6 +1134,7 @@ function renderAdmin() {
   if (state.settingsView === "home") target.innerHTML = renderSettingsHome();
   if (state.settingsView === "operation") target.innerHTML = renderOperationSettings();
   if (state.settingsView === "rooms") target.innerHTML = renderRoomSettings();
+  if (state.settingsView === "printing") target.innerHTML = renderPrintingSettings();
   if (state.settingsView === "users") target.innerHTML = renderUserSettings();
   if (state.settingsView === "account") target.innerHTML = renderAccountSettings();
   if (state.settingsView === "appearance") target.innerHTML = renderAppearanceSettings();
@@ -1447,6 +1473,56 @@ async function saveOrderPreferences(form) {
   }
 }
 
+async function refreshPrinting() {
+  setPageBusy(true, "Atualizando impressao...");
+  try {
+    state.printing = (await getPrinting({ hotelId: state.hotelId })).data;
+    renderAdmin();
+  } catch (error) {
+    notify(error.message || "Nao foi possivel atualizar a impressao.");
+  } finally {
+    setPageBusy(false);
+  }
+}
+
+async function savePrintingSettings(form) {
+  setPageBusy(true, "Salvando impressao...");
+  try {
+    await updatePrinting({ hotel_id: state.hotelId, enabled: form.elements.enabled.checked, template_id: form.elements.template_id.value });
+    await refreshPrinting();
+    notify("Configuracao de impressao atualizada.");
+  } catch (error) {
+    notify(error.message || "Nao foi possivel salvar a impressao.");
+  } finally {
+    setPageBusy(false);
+  }
+}
+
+async function generatePrinterEnrollment() {
+  setPageBusy(true, "Gerando codigo...");
+  try {
+    state.printerEnrollment = (await createPrinterEnrollment({ hotel_id: state.hotelId })).data;
+    renderAdmin();
+    notify("Codigo de conexao criado.");
+  } catch (error) {
+    notify(error.message || "Nao foi possivel gerar o codigo.");
+  } finally {
+    setPageBusy(false);
+  }
+}
+
+async function changePrinterDeviceStatus(deviceId, status) {
+  setPageBusy(true, "Atualizando computador...");
+  try {
+    await updatePrinterDevice(deviceId, { hotel_id: state.hotelId, status });
+    await refreshPrinting();
+    notify(status === "revoked" ? "Computador revogado." : status === "paused" ? "Computador pausado." : "Computador reativado.");
+  } catch (error) {
+    notify(error.message || "Nao foi possivel atualizar o computador.");
+  } finally {
+    setPageBusy(false);
+  }
+}
 async function saveOwnAvatar(form) {
   const file = form.querySelector("input[type=file]").files?.[0];
   if (!file) return;
@@ -2000,6 +2076,7 @@ function settingsIcon(type) {
     account: '<circle cx="12" cy="8" r="4"/><path d="M4 22a8 8 0 0116 0"/>',
     palette: '<path d="M12 3a9 9 0 100 18h1.5a2 2 0 001.5-3.3 2 2 0 011.5-3.3H18A3 3 0 0021 11a8 8 0 00-9-8z"/><circle cx="7.5" cy="11" r=".5"/><circle cx="10" cy="7" r=".5"/><circle cx="15" cy="7" r=".5"/>',
     bell: '<path d="M18 8a6 6 0 00-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',
+    printer: '<path d="M6 9V3h12v6M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v7H6z"/>',
     chevron: '<path d="M9 6l6 6-6 6"/>',
     back: '<path d="M19 12H5M12 19l-7-7 7-7"/>',
   };

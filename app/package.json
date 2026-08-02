@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "test": "node --test \"tests/**/*.test.js\"",
+    "test:print-agent": "cd print-agent && PYTHONPATH=. python3 -m unittest discover -s tests -v",
     "validate": "npm run structure:check && npm run lint && npm run pages:check && npm test && npm run wrangler:check",
     "lint": "node scripts/lint-no-remote.js",
     "wrangler:check": "node scripts/validate-wrangler-config.js",
