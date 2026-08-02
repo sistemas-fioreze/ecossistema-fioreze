@@ -27,6 +27,7 @@ import {
   updateCatalogItem,
   updateErpUser,
   updateOrderStatus,
+  updateOrderPreferences,
   updateRoom,
   updateSchedule,
   uploadErpMedia,
@@ -44,17 +45,15 @@ const ROUTES = {
 };
 
 const STATUS_LABELS = {
-  received: "Recebido",
-  preparing: "Em preparo",
-  ready: "Pronto",
-  completed: "Concluido",
+  sent: "Enviado",
+  printed: "Impresso",
+  delivered: "Entregue",
   cancelled: "Cancelado",
 };
 
 const NEXT_STATUS = {
-  received: "preparing",
-  preparing: "ready",
-  ready: "completed",
+  sent: "printed",
+  printed: "delivered",
 };
 
 const state = {
@@ -330,7 +329,7 @@ function installDashboardInterface() {
 
 function installBillingInterface() {
   const target = byId("faturamentoContainer");
-  target.innerHTML = `<div class="erp-v3-shell erp-billing-shell"><header class="erp-v3-header"><div><p class="admin-kicker">Resultados</p><h2 class="erp-v3-title">Faturamento</h2><p id="histRangeLabel" class="erp-v3-subtitle">Periodo selecionado</p></div><div class="erp-billing-filters"><label>De<input type="date" id="histFrom"></label><label>Ate<input type="date" id="histTo"></label><button id="billingRefreshButton" type="button" class="admin-secondary-btn">Atualizar</button><button id="billingExportButton" type="button" class="admin-primary-btn">Exportar CSV</button></div></header><section class="erp-v3-grid"><article class="erp-stat"><small class="erp-stat-label">Total faturado</small><strong id="histKpiRevenue" class="erp-stat-value">R$ 0,00</strong><small class="erp-stat-meta">Pedidos concluidos</small></article><article class="erp-stat"><small class="erp-stat-label">Pedidos concluidos</small><strong id="histKpiOrders" class="erp-stat-value">0</strong><small class="erp-stat-meta">No periodo selecionado</small></article><article class="erp-stat"><small class="erp-stat-label">Ticket medio</small><strong id="histKpiTicket" class="erp-stat-value">R$ 0,00</strong><small class="erp-stat-meta">Media por pedido</small></article><article class="erp-stat"><small class="erp-stat-label">Com observacao</small><strong id="histKpiObs" class="erp-stat-value">0</strong><small class="erp-stat-meta">Pedidos que exigem atencao</small></article></section><section class="erp-billing-overview"><article class="erp-panel"><div class="erp-panel-head"><strong class="erp-panel-title">Faturamento por dia</strong><span id="billingDailyMeta" class="erp-panel-meta">0 dias</span></div><div id="billingDailyChart" class="erp-billing-chart"></div></article><article class="erp-panel"><div class="erp-panel-head"><strong class="erp-panel-title">Situacao dos pedidos</strong><span class="erp-panel-meta">Distribuicao</span></div><div id="histTopItems" class="dash-bars"></div></article><article class="erp-panel"><div class="erp-panel-head"><strong class="erp-panel-title">Locais de entrega</strong><span class="erp-panel-meta">Atendimento</span></div><div id="histLegendLocal" class="dash-bars"></div></article></section><section class="erp-panel erp-billing-table-panel"><div class="erp-panel-head"><div><strong class="erp-panel-title">Pedidos do periodo</strong><p id="histTableMeta" class="erp-v3-subtitle">0 pedidos</p></div></div><div class="erp-billing-table-wrap"><table><thead><tr><th>Data e hora</th><th>Pedido</th><th>Acomodacao</th><th>Status</th><th>Total</th><th></th></tr></thead><tbody id="histTableBody"></tbody></table></div></section></div>`;
+  target.innerHTML = `<div class="erp-v3-shell erp-billing-shell"><header class="erp-v3-header"><div><p class="admin-kicker">Resultados</p><h2 class="erp-v3-title">Faturamento</h2><p id="histRangeLabel" class="erp-v3-subtitle">Periodo selecionado</p></div><div class="erp-billing-filters"><label>De<input type="date" id="histFrom"></label><label>Ate<input type="date" id="histTo"></label><button id="billingRefreshButton" type="button" class="admin-secondary-btn">Atualizar</button><button id="billingExportButton" type="button" class="admin-primary-btn">Exportar CSV</button></div></header><section class="erp-v3-grid"><article class="erp-stat"><small class="erp-stat-label">Total faturado</small><strong id="histKpiRevenue" class="erp-stat-value">R$ 0,00</strong><small class="erp-stat-meta">Pedidos entregues</small></article><article class="erp-stat"><small class="erp-stat-label">Pedidos entregues</small><strong id="histKpiOrders" class="erp-stat-value">0</strong><small class="erp-stat-meta">No periodo selecionado</small></article><article class="erp-stat"><small class="erp-stat-label">Ticket medio</small><strong id="histKpiTicket" class="erp-stat-value">R$ 0,00</strong><small class="erp-stat-meta">Media por pedido</small></article><article class="erp-stat"><small class="erp-stat-label">Com observacao</small><strong id="histKpiObs" class="erp-stat-value">0</strong><small class="erp-stat-meta">Pedidos que exigem atencao</small></article></section><section class="erp-billing-overview"><article class="erp-panel"><div class="erp-panel-head"><strong class="erp-panel-title">Faturamento por dia</strong><span id="billingDailyMeta" class="erp-panel-meta">0 dias</span></div><div id="billingDailyChart" class="erp-billing-chart"></div></article><article class="erp-panel"><div class="erp-panel-head"><strong class="erp-panel-title">Situacao dos pedidos</strong><span class="erp-panel-meta">Distribuicao</span></div><div id="histTopItems" class="dash-bars"></div></article><article class="erp-panel"><div class="erp-panel-head"><strong class="erp-panel-title">Locais de entrega</strong><span class="erp-panel-meta">Atendimento</span></div><div id="histLegendLocal" class="dash-bars"></div></article></section><section class="erp-panel erp-billing-table-panel"><div class="erp-panel-head"><div><strong class="erp-panel-title">Pedidos do periodo</strong><p id="histTableMeta" class="erp-v3-subtitle">0 pedidos</p></div></div><div class="erp-billing-table-wrap"><table><thead><tr><th>Data e hora</th><th>Pedido</th><th>Acomodacao</th><th>Status</th><th>Total</th><th></th></tr></thead><tbody id="histTableBody"></tbody></table></div></section></div>`;
   const to = byId("histTo");
   const from = byId("histFrom");
   const today = localDateKey(new Date());
@@ -377,6 +376,7 @@ function renderSettingsHome() {
 function renderOperationSettings() {
   if (!state.session?.permissions?.includes("room-service.settings.manage")) return restrictedSettings();
   const operation = state.operations?.operation || state.context?.operation || { mode: "automatic", service_hours: [] };
+  const preferences = operation.preferences || { order_scheduling_enabled: false, order_notes_enabled: true };
   const hours = operation.service_hours || [];
   const layout = state.scheduleViewMode || inferScheduleViewMode(hours);
   state.scheduleViewMode = layout;
@@ -390,7 +390,7 @@ function renderOperationSettings() {
   const scheduleEditor = layout === "same"
     ? `<div class="erp-common-hours"><label>Abre as<input type="time" name="common_opens" value="${escapeAttr(firstOpen.opens_at || "16:00")}" required></label><label>Fecha as<input type="time" name="common_closes" value="${escapeAttr(firstOpen.closes_at || "22:00")}" required></label><span>Todos os dias</span></div>`
     : `<div class="erp-schedule-list">${rows}</div>`;
-  return `<button type="button" class="erp-back" data-settings-view="home">${settingsIcon("back")} Configuracoes</button><section class="erp-settings-detail"><div><p class="erp-panel-title">Funcionamento do Room Service</p><p class="erp-v3-subtitle">Defina como a operacao deve funcionar.</p></div><div class="erp-mode-segment">${["automatic", "forced_open", "forced_closed"].map((mode) => `<button type="button" class="erp-mode-button ${operation.mode === mode ? "active" : ""}" data-operation-mode="${mode}">${mode === "automatic" ? "Automatico" : mode === "forced_open" ? "Abrir agora" : "Fechar agora"}</button>`).join("")}</div><form id="operationScheduleForm" class="erp-v3-shell" data-schedule-layout="${layout}"><div class="erp-panel-head"><div><strong class="erp-panel-title">Horario semanal</strong><div class="erp-schedule-layout"><button type="button" class="${layout === "same" ? "active" : ""}" data-schedule-layout-option="same">Mesmo horario todos os dias</button><button type="button" class="${layout === "custom" ? "active" : ""}" data-schedule-layout-option="custom">Horarios por dia</button></div></div><button type="submit" class="admin-primary-btn">Salvar horarios</button></div>${scheduleEditor}</form></section>`;
+  return `<button type="button" class="erp-back" data-settings-view="home">${settingsIcon("back")} Configuracoes</button><section class="erp-settings-detail"><div><p class="erp-panel-title">Funcionamento do Room Service</p><p class="erp-v3-subtitle">Defina como a operacao deve funcionar.</p></div><div class="erp-mode-segment">${["automatic", "forced_open", "forced_closed"].map((mode) => `<button type="button" class="erp-mode-button ${operation.mode === mode ? "active" : ""}" data-operation-mode="${mode}">${mode === "automatic" ? "Automatico" : mode === "forced_open" ? "Abrir agora" : "Fechar agora"}</button>`).join("")}</div><form id="orderPreferencesForm" class="erp-order-preferences"><label><span><strong>Agendamento para o mesmo dia</strong><small>Permite que o hospede escolha um horario de entrega.</small></span><input type="checkbox" name="order_scheduling_enabled" ${preferences.order_scheduling_enabled ? "checked" : ""}></label><label><span><strong>Observacoes nos pedidos</strong><small>Exibe observacoes gerais e por item no portal.</small></span><input type="checkbox" name="order_notes_enabled" ${preferences.order_notes_enabled ? "checked" : ""}></label><button type="submit" class="admin-secondary-btn">Salvar preferencias</button></form><form id="operationScheduleForm" class="erp-v3-shell" data-schedule-layout="${layout}"><div class="erp-panel-head"><div><strong class="erp-panel-title">Horario semanal</strong><div class="erp-schedule-layout"><button type="button" class="${layout === "same" ? "active" : ""}" data-schedule-layout-option="same">Mesmo horario todos os dias</button><button type="button" class="${layout === "custom" ? "active" : ""}" data-schedule-layout-option="custom">Horarios por dia</button></div></div><button type="submit" class="admin-primary-btn">Salvar horarios</button></div>${scheduleEditor}</form></section>`;
 }
 
 function renderRoomSettings() {
@@ -492,6 +492,7 @@ async function handleSettingsClick(event) {
 async function handleSettingsSubmit(event) {
   event.preventDefault();
   if (event.target.id === "operationScheduleForm") return saveOperationSchedule(event.target);
+  if (event.target.id === "orderPreferencesForm") return saveOrderPreferences(event.target);
   if (event.target.id === "accountAvatarForm") return saveOwnAvatar(event.target);
   if (event.target.id === "accountPasswordForm") return saveOwnPassword(event.target);
 }
@@ -740,10 +741,10 @@ function renderActiveRoute() {
 function renderDashboardV3() {
   const summary = state.dashboard?.summary || {};
   const orders = filteredOrders(byId("topSearchInput")?.value);
-  const completed = orders.filter((order) => order.status === "completed");
+  const completed = orders.filter((order) => order.status === "delivered");
   const revenue = summary.revenue_cents ?? completed.reduce((total, order) => total + Number(order.total_cents || 0), 0);
   const origins = countBy(orders, (order) => order.origin || "portal");
-  const statuses = countBy(orders, (order) => order.status || "received");
+  const statuses = countBy(orders, (order) => order.status || "sent");
   setText("dashSummaryLabel", `${state.context?.hotel?.name || "Unidade"} - indicadores em tempo real`);
   setText("kpiVendas", summary.today_orders ?? orders.length);
   setText("kpiReceita", money(revenue));
@@ -759,10 +760,10 @@ function renderDashboardV3() {
 
   const total = Math.max(1, orders.length);
   const slices = [
-    Number(statuses.received || 0),
-    Number(statuses.preparing || 0),
-    Number(statuses.ready || 0),
-    Math.max(0, total - Number(statuses.received || 0) - Number(statuses.preparing || 0) - Number(statuses.ready || 0)),
+    Number(statuses.sent || 0),
+    Number(statuses.printed || 0),
+    Number(statuses.delivered || 0),
+    Math.max(0, total - Number(statuses.sent || 0) - Number(statuses.printed || 0) - Number(statuses.delivered || 0)),
   ];
   const points = slices.reduce((result, value, index) => {
     const start = index ? result[index - 1] : 0;
@@ -797,7 +798,7 @@ function renderDashboardV3() {
 function renderDashboard() {
   const selectedDate = byId("dashDate", false)?.value || localDateKey(new Date());
   const orders = state.orders.filter((order) => dateKeyInHotelTimezone(order.created_at) === selectedDate);
-  const completed = orders.filter((order) => order.status === "completed");
+  const completed = orders.filter((order) => order.status === "delivered");
   const revenue = completed.reduce((total, order) => total + Number(order.total_cents || 0), 0);
   const origins = countBy(orders, (order) => originLabel(order.origin));
   const topItems = state.dashboard?.top_items || [];
@@ -858,7 +859,10 @@ async function openOrder(orderId) {
     const payload = await getOrder(orderId);
     const order = payload.data.order;
     state.selectedOrderId = order.id;
-    setText("detDate", `${order.public_id || "Pedido"} - ${formatDate(order.created_at)}`);
+    const preparation = order.preparation_mode === "scheduled" && order.scheduled_for
+      ? `Agendado para ${formatDate(order.scheduled_for, { hour: "2-digit", minute: "2-digit" })}`
+      : "Preparo imediato";
+    setText("detDate", `${order.public_id || "Pedido"} - ${formatDate(order.created_at)} · ${preparation}`);
     setText("detLinha", order.id);
     setText("detRoom", order.delivery?.room_code || order.room_code || "-");
     setText("detGuest", displayBusinessText(order.guest_name, "Nao informado"));
@@ -883,7 +887,7 @@ function renderStatusActions(order) {
   const next = NEXT_STATUS[order.status];
   const buttons = [];
   if (next) buttons.push(`<button type="button" class="order-action-primary" data-status-target="${next}">Avancar para ${escapeHtml(statusLabel(next))}</button>`);
-  if (!["completed", "cancelled"].includes(order.status)) buttons.push('<button type="button" class="order-action-secondary" data-status-target="cancelled">Cancelar pedido</button>');
+  if (!["delivered", "cancelled"].includes(order.status)) buttons.push('<button type="button" class="order-action-secondary" data-status-target="cancelled">Cancelar pedido</button>');
   buttons.push('<button type="button" class="order-action-secondary legacy-print-disabled" disabled>Impressao indisponivel</button>');
   target.innerHTML = `<div class="legacy-status-actions">${buttons.join("")}</div>`;
   target.querySelectorAll("[data-status-target]").forEach((button) => button.addEventListener("click", () => changeOrderStatus(order, button.dataset.statusTarget)));
@@ -1037,7 +1041,7 @@ function renderBilling() {
     const date = dateKeyInHotelTimezone(order.created_at);
     return date >= from && date <= to;
   });
-  const completed = orders.filter((order) => order.status === "completed");
+  const completed = orders.filter((order) => order.status === "delivered");
   const revenue = completed.reduce((total, order) => total + Number(order.total_cents || 0), 0);
   const daily = countMoneyBy(completed, (order) => dateKeyInHotelTimezone(order.created_at));
   const dateEntries = Object.entries(daily).sort((a, b) => a[0].localeCompare(b[0]));
@@ -1423,6 +1427,26 @@ async function saveOperationSchedule(form) {
   }
 }
 
+async function saveOrderPreferences(form) {
+  setPageBusy(true, "Salvando preferencias...");
+  try {
+    const payload = await updateOrderPreferences({
+      hotel_id: state.hotelId,
+      order_scheduling_enabled: form.elements.order_scheduling_enabled.checked,
+      order_notes_enabled: form.elements.order_notes_enabled.checked,
+    });
+    const preferences = payload.data.preferences;
+    state.operations.operation.preferences = preferences;
+    state.context.operation.preferences = preferences;
+    renderAdmin();
+    notify("Preferencias de pedidos atualizadas.");
+  } catch (error) {
+    notify(error.message || "Nao foi possivel salvar as preferencias.");
+  } finally {
+    setPageBusy(false);
+  }
+}
+
 async function saveOwnAvatar(form) {
   const file = form.querySelector("input[type=file]").files?.[0];
   if (!file) return;
@@ -1625,7 +1649,7 @@ async function pollNewOrders() {
     state.notifications = state.notifications.slice(0, 20);
     renderNotifications();
     playNotificationSound();
-    notify(`${newOrders.length} ${newOrders.length === 1 ? "novo pedido recebido" : "novos pedidos recebidos"}.`);
+    notify(`${newOrders.length} ${newOrders.length === 1 ? "novo pedido recebido" : "novos pedidos recebidos"}.`, { duration: 5000, progress: true });
     const [dashboard, billing] = await Promise.all([getDashboard({ hotelId: state.hotelId }), getBilling({ hotelId: state.hotelId })]);
     state.dashboard = dashboard.data;
     state.billing = billing.data;
@@ -1801,12 +1825,19 @@ function allCatalogItems() {
   return (state.catalog?.categories || []).flatMap((category) => category.items || []);
 }
 
-function notify(message) {
+function notify(message, { duration = 4200, progress = false } = {}) {
   const toast = document.createElement("div");
-  toast.className = "legacy-toast";
-  toast.textContent = message;
+  toast.className = `legacy-toast${progress ? " has-progress" : ""}`;
+  const text = document.createElement("span");
+  text.textContent = message;
+  toast.append(text);
+  if (progress) {
+    const bar = document.createElement("i");
+    bar.style.setProperty("--toast-duration", `${duration}ms`);
+    toast.append(bar);
+  }
   toastRegion.append(toast);
-  window.setTimeout(() => toast.remove(), 4200);
+  window.setTimeout(() => toast.remove(), duration);
 }
 
 function byId(id, required = true) {

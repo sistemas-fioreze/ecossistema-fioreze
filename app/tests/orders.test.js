@@ -97,7 +97,7 @@ test("aceita pedido em segunda faixa do mesmo dia", async () => {
   );
 
   assert.equal(response.status, 201);
-  assert.equal(body.data.status, "received");
+  assert.equal(body.data.status, "sent");
 });
 
 test("aceita pedido em horario que atravessa meia-noite", async () => {
@@ -113,7 +113,100 @@ test("aceita pedido em horario que atravessa meia-noite", async () => {
   );
 
   assert.equal(response.status, 201);
-  assert.equal(body.data.status, "received");
+  assert.equal(body.data.status, "sent");
+});
+
+test("agenda entrega somente para o mesmo dia e dentro do horario da unidade", async () => {
+  const { json, env } = createWorkerTestContext();
+  env.__data.settings.push({
+    hotel_id: "muller-fioreze",
+    setting_key: "room-service.order_scheduling_enabled",
+    setting_value: "true",
+    value_type: "boolean",
+    is_public: 1,
+  });
+  const scheduledFor = "2026-07-05T21:30:00.000Z";
+  const { response, body } = await json(
+    "/api/v1/public/hotels/muller-fioreze/room-service/orders",
+    jsonPost(
+      { ...VALID_ORDER, preparation_mode: "scheduled", scheduled_for: scheduledFor },
+      { "x-fioreze-test-now": "2026-07-05T20:00:00.000Z" },
+    ),
+  );
+
+  assert.equal(response.status, 201);
+  assert.equal(body.data.preparation_mode, "scheduled");
+  assert.equal(body.data.scheduled_for, scheduledFor);
+  assert.equal(env.__data.orders[0].scheduled_for, scheduledFor);
+});
+
+test("rejeita agendamento para outro dia ou quando a unidade desabilita a opcao", async () => {
+  const { json, env } = createWorkerTestContext();
+  const disabled = await json(
+    "/api/v1/public/hotels/muller-fioreze/room-service/orders",
+    jsonPost({ ...VALID_ORDER, preparation_mode: "scheduled", scheduled_for: "2026-07-05T21:30:00.000Z" }),
+  );
+  env.__data.settings.push({
+    hotel_id: "muller-fioreze",
+    setting_key: "room-service.order_scheduling_enabled",
+    setting_value: "true",
+    value_type: "boolean",
+    is_public: 1,
+  });
+  const nextDay = await json(
+    "/api/v1/public/hotels/muller-fioreze/room-service/orders",
+    jsonPost({ ...VALID_ORDER, preparation_mode: "scheduled", scheduled_for: "2026-07-06T21:30:00.000Z" }),
+  );
+
+  assert.equal(disabled.response.status, 422);
+  assert.equal(nextDay.response.status, 422);
+  assert.equal(env.__data.orders.length, 0);
+});
+
+test("desabilitar observacoes bloqueia notas gerais e por item", async () => {
+  const { json, env } = createWorkerTestContext();
+  env.__data.settings.push({
+    hotel_id: "muller-fioreze",
+    setting_key: "room-service.order_notes_enabled",
+    setting_value: "false",
+    value_type: "boolean",
+    is_public: 1,
+  });
+  const { response, body } = await json(
+    "/api/v1/public/hotels/muller-fioreze/room-service/orders",
+    jsonPost({ ...VALID_ORDER, order_note: "Observacao que deve ser bloqueada." }),
+  );
+
+  assert.equal(response.status, 422);
+  assert.match(body.error.message, /Observacoes estao desativadas/);
+  assert.equal(env.__data.orders.length, 0);
+});
+
+test("acompanhamento recente exige a chave do proprio pedido e preserva isolamento", async () => {
+  const { json } = createWorkerTestContext();
+  const trackingKey = "tracking-order-demo";
+  const created = await json(
+    "/api/v1/public/hotels/muller-fioreze/room-service/orders",
+    jsonPost(VALID_ORDER, { "idempotency-key": trackingKey }),
+  );
+  const publicId = created.body.data.public_id;
+  const tracked = await json(
+    `/api/v1/public/hotels/muller-fioreze/room-service/orders/${publicId}/status`,
+    { headers: { "X-Order-Tracking-Key": trackingKey } },
+  );
+  const wrongKey = await json(
+    `/api/v1/public/hotels/muller-fioreze/room-service/orders/${publicId}/status`,
+    { headers: { "X-Order-Tracking-Key": "tracking-order-wrong" } },
+  );
+  const otherHotel = await json(
+    `/api/v1/public/hotels/aurora-demo/room-service/orders/${publicId}/status`,
+    { headers: { "X-Order-Tracking-Key": trackingKey } },
+  );
+
+  assert.equal(tracked.response.status, 200);
+  assert.equal(tracked.body.data.status, "sent");
+  assert.equal(wrongKey.response.status, 404);
+  assert.equal(otherHotel.response.status, 404);
 });
 
 test("rejeita produto inexistente", async () => {

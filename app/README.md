@@ -452,10 +452,13 @@ O shell `/admin/room-service/` exibe:
 - mudanca de status controlada;
 - editor de categorias e produtos com disponibilidade, ordenacao e imagens no R2;
 - agenda semanal e controle manual de abertura ou fechamento;
+- preferencias por unidade para agendamento no mesmo dia e campos de observacao;
 - cadastro de quartos e acomodacoes validas por hotel;
 - configuracoes em secoes para funcionamento, quartos, usuarios, conta, aparencia e notificacoes.
 
 O funcionamento do Room Service usa `service_hours` no modo `automatic`. O setting publico `room-service.operation_mode` pode assumir `automatic`, `forced_open` ou `forced_closed`; o Worker aplica a mesma regra no bootstrap, na interface publica e na criacao do pedido. Esconder ou trocar o texto do botao no navegador nunca substitui essa validacao no servidor.
+
+O setting publico `room-service.order_scheduling_enabled` libera a opcao **Agendar entrega** apenas para horarios futuros do mesmo dia e dentro de `service_hours`. O setting `room-service.order_notes_enabled` controla as observacoes gerais e por item; o backend rejeita observacoes quando essa preferencia esta desativada. A migration `0037_room_service_scheduling.sql` adiciona `preparation_mode` e `scheduled_for` aos pedidos sem alterar registros existentes.
 
 Quartos ativos em `rooms` sao publicados pela API e formam a lista de acomodacoes do pedido. Quartos inativos ou arquivados nao aparecem e nao sao aceitos pelo Worker. O cadastro e generico por `hotel_id`, sem numeracao fixa do Muller.
 
@@ -529,11 +532,11 @@ Exemplo local:
 Fluxo de status exposto pela API:
 
 ```text
-received -> preparing -> ready -> completed
-received|preparing|ready -> cancelled
+Enviado -> Impresso -> Entregue
+Enviado|Impresso -> Cancelado
 ```
 
-Por compatibilidade com o schema atual, `completed` e persistido em `orders.status` como `delivered` e traduzido de volta para `completed` nas APIs administrativas. Uma migration futura pode alinhar o CHECK do banco para aceitar `completed` diretamente.
+Por compatibilidade com pedidos historicos, os estados internos `received`, `accepted` e `preparing` sao apresentados como `sent`; `ready` e apresentado como `printed`; e `delivered` permanece `delivered`. Novas transicoes administrativas aceitam somente `sent`, `printed`, `delivered` e o cancelamento excepcional.
 
 Cancelamento exige nota. Toda mudanca valida registra `order_status_history` e `admin_audit_log`. Repetir a mesma mudanca nao cria historico duplicado.
 

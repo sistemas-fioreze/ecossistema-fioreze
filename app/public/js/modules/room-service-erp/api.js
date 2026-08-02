@@ -99,6 +99,10 @@ export function updateSchedule(body) {
   return adminApi("/api/v1/admin/room-service/operations/schedule", { method: "PATCH", body });
 }
 
+export function updateOrderPreferences(body) {
+  return adminApi("/api/v1/admin/room-service/operations/preferences", { method: "PATCH", body });
+}
+
 export function listRooms({ hotelId } = {}) {
   return adminApi(`/api/v1/admin/room-service/rooms?${hotelParams(hotelId)}`);
 }

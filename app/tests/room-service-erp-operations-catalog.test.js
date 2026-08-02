@@ -63,6 +63,31 @@ test("agenda semanal substitui faixas antigas e volta ao modo automatico", async
   assert.ok(env.__data.adminAuditLog.some((entry) => entry.action === "room-service.schedule.updated"));
 });
 
+test("preferencias de pedido sao configuradas por unidade e publicadas no bootstrap", async () => {
+  const { env, json } = createWorkerTestContext();
+  const cookie = await createSessionCookie(env);
+  const updated = await json(
+    "/api/v1/admin/room-service/operations/preferences",
+    adminJson(cookie, "PATCH", {
+      hotel_id: "muller-fioreze",
+      order_scheduling_enabled: true,
+      order_notes_enabled: false,
+    }),
+  );
+  const bootstrap = await json("/api/v1/public/hotels/muller-fioreze/bootstrap");
+  const aurora = await json("/api/v1/public/hotels/aurora-demo/bootstrap");
+
+  assert.equal(updated.response.status, 200);
+  assert.deepEqual(updated.body.data.preferences, {
+    order_scheduling_enabled: true,
+    order_notes_enabled: false,
+  });
+  assert.equal(bootstrap.body.data.settings["room-service.order_scheduling_enabled"], true);
+  assert.equal(bootstrap.body.data.settings["room-service.order_notes_enabled"], false);
+  assert.equal(aurora.body.data.settings["room-service.order_scheduling_enabled"], undefined);
+  assert.ok(env.__data.adminAuditLog.some((entry) => entry.action === "room-service.order_preferences.updated"));
+});
+
 test("quartos administrativos controlam as acomodacoes aceitas no portal", async () => {
   const { env, json } = createWorkerTestContext();
   const cookie = await createSessionCookie(env);

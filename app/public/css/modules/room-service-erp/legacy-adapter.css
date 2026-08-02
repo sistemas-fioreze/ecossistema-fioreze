@@ -59,9 +59,67 @@ body[data-erp="room-service"] {
   color: #b91c1c;
 }
 
-.legacy-status-chip[data-status="completed"] {
+.legacy-status-chip[data-status="delivered"] {
   background: #dcfce7;
   color: #15803d;
+}
+
+.legacy-status-chip[data-status="printed"] {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.legacy-toast.has-progress {
+  position: relative;
+  overflow: hidden;
+  padding-bottom: 18px;
+}
+
+.legacy-toast.has-progress i {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 4px;
+  background: var(--accent, #513b2d);
+  transform-origin: left;
+  animation: legacy-toast-progress var(--toast-duration, 5000ms) linear forwards;
+}
+
+@keyframes legacy-toast-progress {
+  to { transform: scaleX(0); }
+}
+
+.erp-order-preferences {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid rgba(81, 59, 45, 0.12);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.erp-order-preferences label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 10px 0;
+}
+
+.erp-order-preferences label span {
+  display: grid;
+  gap: 3px;
+}
+
+.erp-order-preferences small {
+  color: #6b7280;
+}
+
+.erp-order-preferences input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent, #513b2d);
 }
 
 .legacy-dashboard-empty,

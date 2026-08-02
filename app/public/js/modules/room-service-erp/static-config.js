@@ -46,10 +46,9 @@ export const NAV_ITEMS = [
 ];
 
 export const STATUS_LABELS = {
-  received: "Recebido",
-  preparing: "Em preparo",
-  ready: "Pronto",
-  completed: "Concluido",
+  sent: "Enviado",
+  printed: "Impresso",
+  delivered: "Entregue",
   cancelled: "Cancelado",
 };
 

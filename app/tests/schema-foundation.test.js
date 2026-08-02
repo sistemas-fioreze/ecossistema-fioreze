@@ -14,6 +14,7 @@ const guestPortalReferenceMigration = fs.readFileSync("migrations/0021_guest_por
 const guestPortalEventDetailsMigration = fs.readFileSync("migrations/0022_guest_portal_event_details.sql", "utf8");
 const guestPortalEventActionsMigration = fs.readFileSync("migrations/0023_guest_portal_event_actions.sql", "utf8");
 const portalEventPermanenceMigration = fs.readFileSync("migrations/0027_portal_event_permanence.sql", "utf8");
+const roomServiceSchedulingMigration = fs.readFileSync("migrations/0037_room_service_scheduling.sql", "utf8");
 const seed = fs.readFileSync("seeds/dev.sql", "utf8");
 const wranglerConfig = JSON.parse(fs.readFileSync("wrangler.jsonc", "utf8"));
 const normalizedMigration = normalize(migration);
@@ -27,6 +28,7 @@ const normalizedGuestPortalReferenceMigration = normalize(guestPortalReferenceMi
 const normalizedGuestPortalEventDetailsMigration = normalize(guestPortalEventDetailsMigration);
 const normalizedGuestPortalEventActionsMigration = normalize(guestPortalEventActionsMigration);
 const normalizedPortalEventPermanenceMigration = normalize(portalEventPermanenceMigration);
+const normalizedRoomServiceSchedulingMigration = normalize(roomServiceSchedulingMigration);
 
 test("migration 0007 cria service_hours e media_assets", () => {
   assert.match(normalizedMigration, /create table if not exists service_hours/);
@@ -119,6 +121,14 @@ test("migration 0027 adiciona permanencia de eventos sem alterar registros exist
   assert.match(normalizedPortalEventPermanenceMigration, /check \(is_permanent in \(0, 1\)\)/);
   assert.match(normalizedPortalEventPermanenceMigration, /create index if not exists idx_events_public_lifecycle/);
   assert.equal(/insert into|update events|delete from/i.test(portalEventPermanenceMigration), false);
+});
+
+test("migration 0037 adiciona preparo e agendamento sem modificar pedidos existentes", () => {
+  assert.match(normalizedRoomServiceSchedulingMigration, /alter table orders add column preparation_mode text not null default 'now'/);
+  assert.match(normalizedRoomServiceSchedulingMigration, /check \(preparation_mode in \('now', 'scheduled'\)\)/);
+  assert.match(normalizedRoomServiceSchedulingMigration, /alter table orders add column scheduled_for text/);
+  assert.match(normalizedRoomServiceSchedulingMigration, /idx_orders_hotel_module_scheduled/);
+  assert.equal(/insert into orders|update orders|delete from orders/i.test(roomServiceSchedulingMigration), false);
 });
 
 test("wrangler declara MEDIA_BUCKET privado de desenvolvimento", () => {

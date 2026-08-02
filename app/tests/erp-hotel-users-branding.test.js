@@ -178,13 +178,13 @@ test("mudanca de status feita no ERP registra o usuario operacional sem imprimir
   const cookie = await createErpSessionCookie(env);
   const result = await json(
     "/api/v1/admin/room-service/orders/order-erp-actor-demo/status",
-    withCookie(cookie, jsonRequest("POST", { status: "preparing" }, true)),
+    withCookie(cookie, jsonRequest("POST", { status: "printed" }, true)),
   );
 
   assert.equal(result.response.status, 200);
-  assert.equal(env.__data.orders.find((order) => order.id === "order-erp-actor-demo").status, "preparing");
+  assert.equal(env.__data.orders.find((order) => order.id === "order-erp-actor-demo").status, "ready");
   const history = env.__data.orderStatusHistory.find(
-    (entry) => entry.order_id === "order-erp-actor-demo" && entry.status === "preparing",
+    (entry) => entry.order_id === "order-erp-actor-demo" && entry.status === "printed",
   );
   const audit = env.__data.adminAuditLog.find(
     (entry) => entry.entity_id === "order-erp-actor-demo" && entry.action === "room-service.order.status_changed",

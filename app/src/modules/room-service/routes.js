@@ -2,7 +2,7 @@ import { ok } from "../../core/responses.js";
 import { resolveTenantBySlug } from "../../core/tenant.js";
 import { requireEnabledModule } from "../../middleware/require-module.js";
 import { groupProductsByCategory, listRoomServiceProducts } from "./products.js";
-import { createRoomServiceOrder } from "./orders.js";
+import { createRoomServiceOrder, getRoomServiceOrderStatus } from "./orders.js";
 import { listPublicRoomServiceRooms } from "./rooms.js";
 
 const MODULE_KEY = "room-service";
@@ -34,5 +34,11 @@ export function registerRoomServiceRoutes(router) {
     await requireEnabledModule(env, tenant.hotel_id, MODULE_KEY);
     const order = await createRoomServiceOrder({ request, env, tenant });
     return ok(order, { status: order.idempotent ? 200 : 201 });
+  });
+
+  router.get("/api/v1/public/hotels/:hotel_slug/room-service/orders/:public_id/status", async ({ request, env, params }) => {
+    const tenant = await resolveTenantBySlug(env, params.hotel_slug);
+    await requireEnabledModule(env, tenant.hotel_id, MODULE_KEY);
+    return ok(await getRoomServiceOrderStatus({ request, env, tenant, publicId: params.public_id }));
   });
 }

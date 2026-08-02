@@ -4,7 +4,13 @@ import { createPublicId, isValidIdempotencyKey } from "../../core/identifiers.js
 import { multiplyCents } from "../../core/money.js";
 import { nowIso } from "../../core/time.js";
 import { optionalString, readJson, requireArray, requirePositiveInteger, requireString } from "../../core/validation.js";
-import { assertRoomServiceOpen } from "./service-hours.js";
+import {
+  applyOperationMode,
+  assertRoomServiceOpen,
+  evaluateServiceHours,
+  getLocalDateKey,
+  getRequestDate,
+} from "./service-hours.js";
 
 const MODULE_KEY = "room-service";
 
@@ -18,20 +24,16 @@ export async function createRoomServiceOrder({ request, env, tenant }) {
 
   const existing = await findOrderByIdempotencyKey(env, tenant.hotel_id, idempotencyKey);
   if (existing) {
-    return { ...existing, idempotent: true };
-  }
-
-  const serviceStatus = assertRoomServiceOpen({ request, env, tenant, moduleKey: MODULE_KEY });
-  if (!serviceStatus.open) {
-    throw unprocessable("Room Service fechado no momento.", {
-      next_opening: serviceStatus.next_opening,
-    });
+    return { ...existing, status: publicOrderStatus(existing.status), idempotent: true };
   }
 
   const payload = await readJson(request);
+  const preparation = validatePreparation({ request, env, tenant, payload });
+  const notesEnabled = tenant.settings?.[`${MODULE_KEY}.order_notes_enabled`] !== false;
   const guestName = requireString(payload.guest_name, "guest_name", { max: 120 });
   const roomCode = requireString(payload.room_code, "room_code", { max: 24 });
   const notes = optionalString(payload.notes, "notes", { max: 500 });
+  const orderNote = optionalString(payload.order_note, "order_note", { max: 500 });
   const origin = optionalString(payload.origin, "origin", { max: 40 }) || "public-web";
   const items = requireArray(payload.items, "items", { min: 1, max: 30 }).map((item, index) => ({
     catalog_item_id: requireString(item.catalog_item_id, `items[${index}].catalog_item_id`, { max: 80 }),
@@ -40,6 +42,10 @@ export async function createRoomServiceOrder({ request, env, tenant }) {
     client_unit_price_cents: Number.isInteger(item.unit_price_cents) ? item.unit_price_cents : null,
     client_total_cents: Number.isInteger(item.total_cents) ? item.total_cents : null,
   }));
+
+  if (!notesEnabled && (orderNote || items.some((item) => item.note))) {
+    throw unprocessable("Observacoes estao desativadas para esta unidade.");
+  }
 
   const room = await first(
     env,
@@ -113,8 +119,9 @@ export async function createRoomServiceOrder({ request, env, tenant }) {
       `INSERT INTO orders (
          id, public_id, hotel_id, module_key, origin, room_id, room_code,
          guest_name, notes, currency, subtotal_cents, discount_cents,
-         total_cents, status, idempotency_key, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 'received', ?, ?, ?)`,
+         total_cents, status, idempotency_key, created_at, updated_at,
+         preparation_mode, scheduled_for
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 'received', ?, ?, ?, ?, ?)`,
       [
         orderId,
         orderPublicId,
@@ -131,6 +138,8 @@ export async function createRoomServiceOrder({ request, env, tenant }) {
         idempotencyKey,
         createdAt,
         createdAt,
+        preparation.mode,
+        preparation.scheduled_for,
       ],
     ),
     statement(
@@ -176,7 +185,9 @@ export async function createRoomServiceOrder({ request, env, tenant }) {
     public_id: orderPublicId,
     hotel_id: tenant.hotel_id,
     module_key: MODULE_KEY,
-    status: "received",
+    status: "sent",
+    preparation_mode: preparation.mode,
+    scheduled_for: preparation.scheduled_for,
     room_code: room.code,
     currency,
     subtotal_cents: subtotalCents,
@@ -202,7 +213,8 @@ async function findOrderByIdempotencyKey(env, hotelId, idempotencyKey) {
   return first(
     env,
     `SELECT id, public_id, hotel_id, module_key, status, room_code,
-            currency, subtotal_cents, total_cents, created_at
+            currency, subtotal_cents, total_cents, preparation_mode,
+            scheduled_for, created_at
        FROM orders
       WHERE hotel_id = ?
         AND module_key = ?
@@ -210,4 +222,71 @@ async function findOrderByIdempotencyKey(env, hotelId, idempotencyKey) {
       LIMIT 1`,
     [hotelId, MODULE_KEY, idempotencyKey],
   );
+}
+
+export async function getRoomServiceOrderStatus({ request, env, tenant, publicId }) {
+  const trackingKey = request.headers.get("X-Order-Tracking-Key") || "";
+  if (!isValidIdempotencyKey(trackingKey)) throw notFoundError("Pedido nao encontrado.");
+  const order = await first(
+    env,
+    `SELECT public_id, status, preparation_mode, scheduled_for, created_at, updated_at
+       FROM orders
+      WHERE hotel_id = ?
+        AND module_key = ?
+        AND public_id = ?
+        AND idempotency_key = ?
+      LIMIT 1`,
+    [tenant.hotel_id, MODULE_KEY, publicId, trackingKey],
+  );
+  if (!order) throw notFoundError("Pedido nao encontrado.");
+  return {
+    public_id: order.public_id,
+    status: publicOrderStatus(order.status),
+    preparation_mode: order.preparation_mode || "now",
+    scheduled_for: order.scheduled_for || null,
+    created_at: order.created_at,
+    updated_at: order.updated_at,
+  };
+}
+
+function validatePreparation({ request, env, tenant, payload }) {
+  const mode = String(payload.preparation_mode || "now").trim().toLowerCase();
+  if (!new Set(["now", "scheduled"]).has(mode)) throw badRequest("preparation_mode invalido.");
+  if (mode === "now") {
+    const serviceStatus = assertRoomServiceOpen({ request, env, tenant, moduleKey: MODULE_KEY });
+    if (!serviceStatus.open) {
+      throw unprocessable("Room Service fechado no momento.", { next_opening: serviceStatus.next_opening });
+    }
+    return { mode, scheduled_for: null };
+  }
+
+  if (tenant.settings?.[`${MODULE_KEY}.order_scheduling_enabled`] !== true) {
+    throw unprocessable("Agendamento de pedidos indisponivel para esta unidade.");
+  }
+  const rawScheduledFor = requireString(payload.scheduled_for, "scheduled_for", { max: 40 });
+  const scheduledDate = new Date(rawScheduledFor);
+  if (Number.isNaN(scheduledDate.getTime())) throw badRequest("scheduled_for deve ser uma data valida.");
+  const now = getRequestDate(request, env);
+  if (scheduledDate.getTime() <= now.getTime()) throw unprocessable("Escolha um horario futuro para hoje.");
+  const timezone = tenant.timezone || "America/Sao_Paulo";
+  if (getLocalDateKey(scheduledDate, timezone) !== getLocalDateKey(now, timezone)) {
+    throw unprocessable("O pedido so pode ser agendado para o mesmo dia.");
+  }
+  const schedule = applyOperationMode(
+    evaluateServiceHours({
+      serviceHours: tenant.service_hours?.[MODULE_KEY] || [],
+      timezone,
+      now: scheduledDate,
+    }),
+    tenant.settings?.[`${MODULE_KEY}.operation_mode`],
+  );
+  if (!schedule.open) throw unprocessable("O horario escolhido esta fora do funcionamento do Room Service.");
+  return { mode, scheduled_for: scheduledDate.toISOString() };
+}
+
+function publicOrderStatus(status) {
+  if (["received", "accepted", "preparing"].includes(status)) return "sent";
+  if (status === "ready") return "printed";
+  if (status === "delivered") return "delivered";
+  return status;
 }

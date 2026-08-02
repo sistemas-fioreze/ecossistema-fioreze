@@ -4,8 +4,8 @@ export function renderDashboard({ outlet, orders, hotel, dashboard }) {
   const todayOrders = dashboard?.recent_orders || orders || [];
   const summary = dashboard?.summary || {};
   const total = summary.revenue_cents ?? todayOrders.reduce((sum, order) => sum + Number(order.total_cents || 0), 0);
-  const active = summary.active_orders ?? todayOrders.filter((order) => ["received", "preparing", "ready"].includes(order.status)).length;
-  const completed = summary.completed_orders ?? todayOrders.filter((order) => order.status === "completed").length;
+  const active = summary.active_orders ?? todayOrders.filter((order) => ["sent", "printed"].includes(order.status)).length;
+  const completed = summary.completed_orders ?? todayOrders.filter((order) => order.status === "delivered").length;
   const cancelled = summary.cancelled_orders ?? todayOrders.filter((order) => order.status === "cancelled").length;
   const byStatus = Object.keys(STATUS_LABELS).map((status) => ({
     status,
@@ -24,8 +24,8 @@ export function renderDashboard({ outlet, orders, hotel, dashboard }) {
       </header>
       <section class="rs-dashboard-grid">
         ${stat("Pedidos", summary.total_orders ?? todayOrders.length, "Total registrado")}
-        ${stat("Em andamento", active, "Recebido, preparo e pronto")}
-        ${stat("Concluidos", completed, "Finalizados")}
+        ${stat("Em andamento", active, "Enviado ou impresso")}
+        ${stat("Entregues", completed, "Finalizados")}
         ${stat("Cancelados", cancelled, "Interrompidos")}
       </section>
       <section class="rs-dashboard-columns">
