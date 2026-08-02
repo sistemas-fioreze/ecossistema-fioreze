@@ -88,6 +88,12 @@ import {
   updateRoomServiceRoom,
   updateRoomServiceSchedule,
 } from "./erp-operations.js";
+import {
+  createPrinterEnrollment,
+  getRoomServicePrinting,
+  updatePrinterDevice,
+  updateRoomServicePrinting,
+} from "./erp-printing.js";
 import { listRoomServiceErpMedia, uploadRoomServiceErpMedia } from "./erp-media.js";
 import {
   changeOwnRoomServiceErpPassword,
@@ -707,6 +713,25 @@ export function registerAdminRoutes(router) {
     return ok(await updateRoomServiceOrderPreferences({ request, env, session }));
   });
 
+  router.get("/api/v1/admin/room-service/printing", async ({ request, env, url }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(await getRoomServicePrinting({ env, session, url }));
+  });
+
+  router.patch("/api/v1/admin/room-service/printing", async ({ request, env }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(await updateRoomServicePrinting({ request, env, session }));
+  });
+
+  router.post("/api/v1/admin/room-service/printing/enrollment-codes", async ({ request, env }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(await createPrinterEnrollment({ request, env, session }), { status: 201 });
+  });
+
+  router.patch("/api/v1/admin/room-service/printing/devices/:id", async ({ request, env, params }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(await updatePrinterDevice({ request, env, session, deviceId: params.id }));
+  });
   router.get("/api/v1/admin/room-service/rooms", async ({ request, env, url }) => {
     const session = await getCurrentRoomServiceErpSession({ request, env });
     return ok(await listRoomServiceRooms({ env, session, url }));

@@ -122,6 +122,33 @@ body[data-erp="room-service"] {
   accent-color: var(--accent, #513b2d);
 }
 
+.erp-printer-code {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 16px;
+  background: #f4f5f6;
+  border-radius: 8px;
+}
+
+.erp-printer-code small {
+  font-size: 10px;
+  text-transform: uppercase;
+  font-weight: 900;
+  color: #7b828b;
+}
+
+.erp-printer-code strong {
+  font-size: 24px;
+  letter-spacing: 2px;
+  color: var(--accent);
+}
+
+.erp-printer-code span {
+  font-size: 10px;
+  color: #7b828b;
+}
 .legacy-dashboard-empty,
 .legacy-list-empty {
   padding: 28px;

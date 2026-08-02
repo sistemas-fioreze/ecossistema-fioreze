@@ -555,9 +555,28 @@ Se duas requisicoes simultaneas solicitarem o mesmo status, a vencedora grava st
 
 ## Impressao
 
-Impressao permanece desativada com `IMPRESSION_ENABLED=false`. O `PrintProvider` e apenas uma interface inicial. Nenhuma rota chama servidor antigo, Python, localhost, impressora, Apps Script ou planilha.
+A impressao usa uma fila D1 desacoplada e o agente Windows em `print-agent/`. O Worker nunca acessa spooler, caminho de rede ou servidor local. Quando `IMPRESSION_ENABLED=true` e `room-service.printing_enabled=true` para a unidade, o pedido cria um `print_event` idempotente na mesma operacao D1.
 
-No ERP, a mensagem exibida e `Impressao desativada neste ambiente.`. Mudar status nao cria `print_events` nem aciona qualquer recurso externo.
+O agente e vinculado a uma unica unidade por um codigo de 15 minutos. A API entrega um token aleatorio uma unica vez; somente o hash fica no D1 e o Windows protege o token local com DPAPI. O agente assume cada trabalho com claim temporario, renderiza o template selecionado e confirma o resultado. Pedidos agendados so ficam disponiveis no horario programado.
+
+O template inicial `legacy-thermal-42` preserva a estrutura funcional do comprovante legado em duas vias. Novos templates ficam em `printer_templates` e podem ser selecionados por unidade ou computador.
+
+Rotas do agente:
+
+- `GET /api/v1/print-agent/enrollment/hotels`
+- `POST /api/v1/print-agent/enroll`
+- `POST /api/v1/print-agent/heartbeat`
+- `POST /api/v1/print-agent/jobs/claim`
+- `POST /api/v1/print-agent/jobs/:id/complete`
+- `POST /api/v1/print-agent/jobs/:id/fail`
+
+Rotas protegidas do ERP:
+
+- `GET|PATCH /api/v1/admin/room-service/printing`
+- `POST /api/v1/admin/room-service/printing/enrollment-codes`
+- `PATCH /api/v1/admin/room-service/printing/devices/:id`
+
+O ambiente continua seguro com `IMPRESSION_ENABLED=false`: nenhuma fila automatica e criada e nenhum agente recebe trabalho. A ativacao de impressora real exige homologacao separada.
 
 ## Ainda Falta Migrar
 

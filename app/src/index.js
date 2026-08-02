@@ -11,6 +11,7 @@ import { redirectShortLink } from "./modules/short-links/public.js";
 import { extractCustomDomainSlug, isShortLinkCustomDomainRequest } from "./modules/short-links/shared.js";
 import { serveCustomPortalPage } from "./modules/portal-pages/public.js";
 import { archiveExpiredPortalEvents } from "./services/portal-event-lifecycle.js";
+import { registerPrintAgentRoutes } from "./modules/print-agent/routes.js";
 import {
   isGuestPortalPublicHost,
   isRetiredCustomPortalPath,
@@ -43,6 +44,7 @@ router.get("/api/v1/public/hotels/:hotel_slug/modules", async ({ env, params }) 
 registerModuleRoutes(router);
 registerAdminRoutes(router);
 registerEmbedRoutes(router);
+registerPrintAgentRoutes(router);
 
 router.get("/media/:id", async ({ request, env, params }) => servePublicMedia({ request, env, params }));
 router.head("/media/:id", async ({ request, env, params }) => servePublicMedia({ request, env, params, head: true }));

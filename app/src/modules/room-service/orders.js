@@ -11,6 +11,7 @@ import {
   getLocalDateKey,
   getRequestDate,
 } from "./service-hours.js";
+import { PrintProvider } from "../../services/print-provider.js";
 
 const MODULE_KEY = "room-service";
 
@@ -178,6 +179,14 @@ export async function createRoomServiceOrder({ request, env, tenant }) {
     );
   }
 
+  const impression = await new PrintProvider(env).prepareQueueStatement({
+    hotelId: tenant.hotel_id,
+    moduleKey: MODULE_KEY,
+    orderId,
+    createdAt,
+  });
+  if (impression.statement) statements.push(impression.statement);
+
   await batch(env, statements);
 
   return {
@@ -201,8 +210,8 @@ export async function createRoomServiceOrder({ request, env, tenant }) {
       line_total_cents: item.line_total_cents,
     })),
     impression: {
-      enabled: false,
-      queued: false,
+      enabled: impression.enabled,
+      queued: impression.queued,
     },
     created_at: createdAt,
     idempotent: false,
