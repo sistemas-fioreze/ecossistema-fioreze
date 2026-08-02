@@ -11,21 +11,24 @@ const READ_PERMISSION = "room-service.orders.read";
 const WRITE_PERMISSION = "room-service.orders.write";
 
 const PUBLIC_TO_STORAGE_STATUS = {
-  received: "received",
-  preparing: "preparing",
-  ready: "ready",
-  completed: "delivered",
+  sent: "received",
+  printed: "ready",
+  delivered: "delivered",
   cancelled: "cancelled",
 };
 
 const STORAGE_TO_PUBLIC_STATUS = {
-  delivered: "completed",
+  received: "sent",
+  accepted: "sent",
+  preparing: "sent",
+  ready: "printed",
+  delivered: "delivered",
+  completed: "delivered",
 };
 
 const ALLOWED_TRANSITIONS = {
-  received: ["preparing", "cancelled"],
-  preparing: ["ready", "cancelled"],
-  ready: ["completed", "cancelled"],
+  sent: ["printed", "cancelled"],
+  printed: ["delivered", "cancelled"],
 };
 
 export async function listAdminHotels({ env, session }) {
@@ -51,9 +54,13 @@ export async function listAdminOrders({ env, session, url, permissionKey = READ_
   params.push(...hotelIds);
 
   if (status) {
-    const storageStatus = toStorageStatus(status);
-    filters.push("o.status = ?");
-    params.push(storageStatus);
+    const publicStatus = toPublicStatus(toStorageStatus(status));
+    if (publicStatus === "sent") {
+      filters.push("o.status IN ('received', 'accepted', 'preparing')");
+    } else {
+      filters.push("o.status = ?");
+      params.push(toStorageStatus(publicStatus));
+    }
   }
 
   if (search) {
@@ -67,7 +74,7 @@ export async function listAdminOrders({ env, session, url, permissionKey = READ_
     `SELECT o.id, o.public_id, o.hotel_id, h.name AS hotel_name,
             h.timezone, o.module_key, o.origin, o.room_code, o.guest_name,
             o.currency, o.subtotal_cents, o.total_cents, o.status,
-            o.created_at, o.updated_at,
+            o.preparation_mode, o.scheduled_for, o.created_at, o.updated_at,
             COUNT(oi.id) AS item_count
        FROM orders o
        JOIN hotels h ON h.id = o.hotel_id
@@ -118,7 +125,7 @@ export async function updateAdminOrderStatus({ request, env, session, orderId })
   const targetStorageStatus = toStorageStatus(targetPublicStatus);
   const normalizedTargetPublicStatus = toPublicStatus(targetStorageStatus);
 
-  if (current.status === targetStorageStatus) {
+  if (currentPublicStatus === normalizedTargetPublicStatus) {
     const detail = await loadOrderDetail(env, orderId, session.hotel_ids);
     return {
       idempotent: true,
@@ -319,7 +326,7 @@ async function loadOrderDetail(env, orderId, hotelIds) {
             h.timezone, h.locale, o.module_key, o.origin, o.room_code,
             o.guest_name, o.notes, o.currency, o.subtotal_cents,
             o.discount_cents, o.total_cents, o.status, o.created_at,
-            o.updated_at, o.cancelled_at
+            o.updated_at, o.cancelled_at, o.preparation_mode, o.scheduled_for
        FROM orders o
        JOIN hotels h ON h.id = o.hotel_id
       WHERE o.id = ?
@@ -385,6 +392,8 @@ function formatOrderListRow(row) {
     subtotal_cents: row.subtotal_cents,
     total_cents: row.total_cents,
     status: toPublicStatus(row.status),
+    preparation_mode: row.preparation_mode || "now",
+    scheduled_for: row.scheduled_for || null,
     created_at: row.created_at,
     updated_at: row.updated_at,
     item_count: Number(row.item_count || 0),
@@ -495,9 +504,8 @@ function toPublicStatus(status) {
 
 function defaultStatusNote(status) {
   const notes = {
-    preparing: "Pedido em preparo.",
-    ready: "Pedido pronto.",
-    completed: "Pedido concluido.",
+    printed: "Pedido impresso.",
+    delivered: "Pedido entregue.",
     cancelled: "Pedido cancelado.",
   };
   return notes[status] || "Status atualizado.";

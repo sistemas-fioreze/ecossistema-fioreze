@@ -1022,6 +1022,19 @@ class MockD1Database {
       return { ...row, is_available: itemAvailability?.is_available ?? 1 };
     }
 
+    if (normalized.includes("from orders") && normalized.includes("public_id = ?") && normalized.includes("idempotency_key = ?")) {
+      const [hotelId, moduleKey, publicId, idempotencyKey] = params;
+      return (
+        this.data.orders.find(
+          (order) =>
+            order.hotel_id === hotelId &&
+            order.module_key === moduleKey &&
+            order.public_id === publicId &&
+            order.idempotency_key === idempotencyKey,
+        ) || null
+      );
+    }
+
     if (normalized.includes("from orders") && normalized.includes("idempotency_key = ?")) {
       const [hotelId, moduleKey, idempotencyKey] = params;
       return (
@@ -1942,11 +1955,13 @@ class MockD1Database {
       let cursor = 1 + hotelCount;
       const hasStatus = normalized.includes("o.status = ?");
       const status = hasStatus ? params[cursor++] : null;
+      const hasSentStatuses = normalized.includes("o.status in ('received', 'accepted', 'preparing')");
       const hasSearch = normalized.includes("o.public_id like ?");
       const search = hasSearch ? String(params[cursor] || "").replaceAll("%", "").toLowerCase() : "";
       return this.data.orders
         .filter((order) => order.module_key === moduleKey && hotelIds.includes(order.hotel_id))
         .filter((order) => !status || order.status === status)
+        .filter((order) => !hasSentStatuses || ["received", "accepted", "preparing"].includes(order.status))
         .filter((order) => {
           if (!search) return true;
           return [order.public_id, order.room_code, order.guest_name]
@@ -2389,6 +2404,8 @@ class MockD1Database {
         idempotency_key,
         created_at,
         updated_at,
+        preparation_mode,
+        scheduled_for,
       ] = params;
       this.data.orders.push({
         id,
@@ -2408,6 +2425,8 @@ class MockD1Database {
         idempotency_key,
         created_at,
         updated_at,
+        preparation_mode: preparation_mode || "now",
+        scheduled_for: scheduled_for || null,
       });
       return d1Result(1);
     }
@@ -3851,7 +3870,11 @@ class MockD1Database {
     if (normalized.startsWith("insert into hotel_settings")) {
       const usesLiteralMetadata = params.length === 6;
       const [id, hotel_id, setting_key, setting_value] = params;
-      const value_type = usesLiteralMetadata ? "string" : params[4];
+      const value_type = usesLiteralMetadata
+        ? normalized.includes("'boolean'")
+          ? "boolean"
+          : "string"
+        : params[4];
       const is_public = usesLiteralMetadata ? 1 : params[5];
       const created_at = params[usesLiteralMetadata ? 4 : 6];
       const updated_at = params[usesLiteralMetadata ? 5 : 7];

@@ -41,6 +41,7 @@ export async function render(container, context) {
     isSubmitting: false,
     cartOpen: false,
     statusTimer: null,
+    recentStatusTimer: null,
     selectedProductId: null,
     selectedProductQuantity: 1,
     selectedProductNote: "",
@@ -84,11 +85,14 @@ export async function render(container, context) {
       catalogItems: items,
     });
     state.cart.hydrate(items);
+    syncOrderPreferenceFields(container, state);
     updateServiceStatus(container, state);
     state.statusTimer = window.setInterval(() => updateServiceStatus(container, state), 60000);
     renderCatalog(container, state);
     renderRoomOptions(container, state);
     renderCart(container, state);
+    await refreshRecentOrders(container, state);
+    state.recentStatusTimer = window.setInterval(() => refreshRecentOrders(container, state), 30000);
   } catch (error) {
     renderCatalogError(container, error);
   }
@@ -99,6 +103,7 @@ export async function render(container, context) {
     document.body.classList.remove("catalog-detail-open");
     window.removeEventListener("fioreze:portal-search", headerSearch);
     if (state.statusTimer) window.clearInterval(state.statusTimer);
+    if (state.recentStatusTimer) window.clearInterval(state.recentStatusTimer);
   };
 }
 
@@ -108,6 +113,7 @@ function renderStaticShell({ embedded = false } = {}) {
       <section class="rs-shell" data-rs-shell>
         <div class="rs-layout">
           <aside class="rs-order-column">
+            <section class="rs-recent-orders" data-recent-orders hidden aria-live="polite"></section>
             <div class="rs-service-note" data-service-note hidden></div>
 
             <section class="rs-cart-panel" data-cart-panel aria-label="Resumo do pedido">
@@ -128,7 +134,7 @@ function renderStaticShell({ embedded = false } = {}) {
                   <input name="room_code" list="rs-room-options" autocomplete="off" maxlength="40" placeholder="Número da acomodação" required>
                   <datalist id="rs-room-options" data-room-options></datalist>
                 </label>
-                <label class="rs-icon-field rs-textarea-field">
+                <label class="rs-icon-field rs-textarea-field" data-order-note-field>
                   <span class="sr-only">Observação do pedido</span>
                   <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M7 8h10M7 12h6M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H8l-4 4Z"/></svg>
                   <textarea name="notes" rows="3" maxlength="500" placeholder="Observação do pedido (opcional)"></textarea>
@@ -161,6 +167,7 @@ function renderStaticShell({ embedded = false } = {}) {
                   </button>
                   <p class="rs-form-status" data-form-status aria-live="polite" hidden></p>
                 </div>
+                <section class="rs-order-review" data-order-review hidden></section>
               </form>
             </section>
           </aside>
@@ -273,6 +280,17 @@ function bindStaticActions(container, state) {
       return;
     }
 
+    if (event.target.closest("[data-review-back]")) {
+      closeOrderReview(container);
+      return;
+    }
+
+    const preparationOption = event.target.closest("[data-preparation-option]");
+    if (preparationOption) {
+      selectPreparationOption(container, preparationOption.dataset.preparationOption);
+      return;
+    }
+
     if (event.target.closest("[data-rs-product-detail-close]")) {
       closeProductDetail(container, state);
     }
@@ -339,6 +357,21 @@ function renderHotelHeader(container, state) {
   setText(container, "[data-hotel-support]", settings["room-service.support_text"] || "Em caso de dúvidas, fale com a recepção.");
 }
 
+function syncOrderPreferenceFields(container, state) {
+  const notesEnabled = orderNotesEnabled(state);
+  const field = container.querySelector("[data-order-note-field]");
+  if (field) field.hidden = !notesEnabled;
+  if (!notesEnabled && field?.querySelector("textarea")) field.querySelector("textarea").value = "";
+}
+
+function orderNotesEnabled(state) {
+  return state.bootstrap?.settings?.[`${MODULE_KEY}.order_notes_enabled`] !== false;
+}
+
+function orderSchedulingEnabled(state) {
+  return state.bootstrap?.settings?.[`${MODULE_KEY}.order_scheduling_enabled`] === true;
+}
+
 function renderLogo(target, url, hotelName, loading) {
   target.textContent = "";
   if (!url) {
@@ -399,28 +432,44 @@ function syncSubmitButton(container, state) {
   if (!button) return;
 
   const closed = !state.status?.open;
-  const disabled = Boolean(state.isSubmitting || closed);
-  const label = state.isSubmitting ? "Enviando pedido..." : closed ? "Room Service fechado" : "Finalizar Pedido";
+  const schedulingAvailable = canScheduleToday(state);
+  const disabled = Boolean(state.isSubmitting || (closed && !schedulingAvailable));
+  const label = state.isSubmitting
+    ? "Enviando pedido..."
+    : closed && schedulingAvailable
+    ? "Programar pedido"
+    : closed
+    ? "Room Service fechado"
+    : "Finalizar Pedido";
 
   button.disabled = disabled;
   const labelTarget = button.querySelector?.("[data-submit-label]");
   if (labelTarget) labelTarget.textContent = label;
   else button.textContent = label;
   button.setAttribute("aria-disabled", String(disabled));
-  button.classList.toggle("is-closed", closed && !state.isSubmitting);
+  button.classList.toggle("is-closed", closed && !schedulingAvailable && !state.isSubmitting);
   button.classList.toggle("is-submitting", Boolean(state.isSubmitting));
 
   if (state.isSubmitting) {
     button.setAttribute("aria-label", "Enviando pedido...");
     button.removeAttribute("title");
-  } else if (closed) {
+  } else if (closed && !schedulingAvailable) {
     const detail = state.status ? describeServiceStatus(state.status).detail : "Pedidos indisponiveis no momento.";
     button.setAttribute("aria-label", `Room Service fechado. ${detail}`);
     button.setAttribute("title", detail);
   } else {
-    button.setAttribute("aria-label", "Finalizar pedido");
+    button.setAttribute("aria-label", closed ? "Programar pedido para hoje" : "Finalizar pedido");
     button.removeAttribute("title");
   }
+}
+
+function canScheduleToday(state) {
+  if (!orderSchedulingEnabled(state) || !state.status || state.status.mode === "forced_closed") return false;
+  const nowMinutes = state.status.local.hour * 60 + state.status.local.minute;
+  return (state.status.today_slots || []).some((slot) => {
+    const [hour, minute] = String(slot.closes_at || "00:00").split(":").map(Number);
+    return hour * 60 + minute > nowMinutes;
+  });
 }
 
 function renderCatalogError(container, error) {
@@ -594,10 +643,10 @@ function renderProductDetail(container, state) {
       <strong class="rs-product-detail-price">${escapeHtml(formatMoney(item.price_cents, item.currency, state.bootstrap.locale))}</strong>
       ${descriptionParts.meta ? `<p class="rs-product-detail-meta">${escapeHtml(descriptionParts.meta)}</p>` : ""}
       <p class="rs-product-detail-description">${escapeHtml(descriptionParts.description || "Item do cardápio.")}</p>
-      <label class="rs-product-detail-note">
+      ${orderNotesEnabled(state) ? `<label class="rs-product-detail-note">
         <span>Observação do item</span>
         <textarea data-rs-item-note maxlength="180" rows="3" placeholder="Ex.: sem cebola, ponto da carne ou outra preferência">${escapeHtml(state.selectedProductNote)}</textarea>
-      </label>
+      </label>` : ""}
       <div class="rs-product-detail-availability" data-available="${String(item.available !== false)}">
         <span aria-hidden="true"></span>
         <strong>${item.available === false ? escapeHtml(item.availability_label || "Indisponível no momento") : "Disponível para pedir"}</strong>
@@ -645,7 +694,7 @@ function splitProductDescription(value) {
 
 function addConfiguredItem(container, state) {
   try {
-    state.selectedProductNote = readDetailNote(container);
+    state.selectedProductNote = orderNotesEnabled(state) ? readDetailNote(container) : "";
     state.cart.set(state.selectedProductId, state.selectedProductQuantity, state.selectedProductNote);
     renderCart(container, state);
     showToast(container, "Item adicionado ao pedido");
@@ -732,7 +781,7 @@ function quantityValue(quantity) {
 async function submitOrder(container, state, form) {
   if (state.isSubmitting) return;
   updateServiceStatus(container, state);
-  if (!state.status?.open) {
+  if (!state.status?.open && !canScheduleToday(state)) {
     showModal(container, "Room Service fechado no momento", describeServiceStatus(state.status).detail);
     return;
   }
@@ -757,6 +806,25 @@ async function submitOrder(container, state, form) {
     return;
   }
 
+  if (form.dataset.reviewing !== "true") {
+    renderOrderReview(container, state, form, snapshot, data);
+    return;
+  }
+
+  const preparationMode = form.querySelector("[name='preparation_mode']:checked")?.value || "now";
+  let scheduledFor = null;
+  if (preparationMode === "scheduled") {
+    const scheduledTime = form.querySelector("[name='scheduled_time']")?.value || "";
+    if (!scheduledTime) {
+      showModal(container, "Escolha um horário", "Selecione o horário de entrega para hoje.");
+      return;
+    }
+    scheduledFor = hotelLocalTimeToIso(scheduledTime, state.bootstrap.timezone);
+  } else if (!state.status?.open) {
+    showModal(container, "Escolha um horário", "O Room Service está fechado agora. Programe a entrega para hoje.");
+    return;
+  }
+
   const status = container.querySelector("[data-form-status]");
   state.isSubmitting = true;
   syncSubmitButton(container, state);
@@ -767,36 +835,38 @@ async function submitOrder(container, state, form) {
   state.orderAttemptKey ||= createOrderAttemptKey();
 
   try {
+    const trackingKey = state.orderAttemptKey;
     const order = await apiPost(
       `/api/v1/public/hotels/${encodeURIComponent(state.slug)}/room-service/orders`,
       {
         guest_name: guestName,
         room_code: roomCode,
-        notes: buildNotes(data),
+        notes: buildNotes(data, { notesEnabled: orderNotesEnabled(state) }),
+        order_note: orderNotesEnabled(state) ? String(data.get("notes") || "").trim() : "",
+        preparation_mode: preparationMode,
+        scheduled_for: scheduledFor,
         origin: "public-web",
         subtotal_cents: snapshot.total_cents,
         total_cents: snapshot.total_cents,
         items: snapshot.items.map((item) => ({
           catalog_item_id: item.id,
           quantity: item.quantity,
-          note: item.note,
+          note: orderNotesEnabled(state) ? item.note : "",
           unit_price_cents: item.price_cents,
           total_cents: item.line_total_cents,
         })),
       },
       { idempotencyKey: state.orderAttemptKey },
     );
+    rememberRecentOrder(state, order, trackingKey);
     state.cart.clear();
     state.orderAttemptKey = null;
     form.reset();
+    closeOrderReview(container);
     renderCart(container, state);
     toggleCart(container, state, false);
-    showModal(
-      container,
-      "Pedido confirmado!",
-      `Recebemos seu pedido ${order.public_id || ""}. Total confirmado: ${formatMoney(order.total_cents, order.currency, state.bootstrap.locale)}.`,
-      { success: true },
-    );
+    await refreshRecentOrders(container, state, { justSent: true });
+    showToast(container, "Pedido enviado com sucesso");
   } catch (error) {
     status.classList.add("error");
     status.textContent = error.message;
@@ -808,15 +878,227 @@ async function submitOrder(container, state, form) {
   }
 }
 
-function buildNotes(data) {
+function renderOrderReview(container, state, form, snapshot, data) {
+  const review = container.querySelector("[data-order-review]");
+  const schedulingAvailable = canScheduleToday(state);
+  const nowAvailable = Boolean(state.status?.open);
+  const defaultMode = nowAvailable ? "now" : "scheduled";
+  const scheduledTime = getDefaultScheduledTime(state);
+  const guestName = String(data.get("guest_name") || "").trim();
+  const roomCode = String(data.get("room_code") || "").trim();
+  const location = String(data.get("delivery_location") || "Acomodação").trim();
+  const note = orderNotesEnabled(state) ? String(data.get("notes") || "").trim() : "";
+  review.innerHTML = `
+    <header class="rs-review-header">
+      <button type="button" data-review-back aria-label="Voltar para editar o pedido">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+      </button>
+      <div><span>Revise antes de enviar</span><h2>Seu pedido</h2></div>
+    </header>
+    <div class="rs-review-customer">
+      <strong>${escapeHtml(guestName)}</strong>
+      <span>${escapeHtml(location)} · ${escapeHtml(roomCode)}</span>
+      ${note ? `<small>${escapeHtml(note)}</small>` : ""}
+    </div>
+    <div class="rs-review-items">
+      ${snapshot.items.map((item) => `
+        <div><span><b>${item.quantity}×</b> ${escapeHtml(item.name)}</span><strong>${escapeHtml(formatMoney(item.line_total_cents, item.currency, state.bootstrap.locale))}</strong></div>
+      `).join("")}
+    </div>
+    <div class="rs-review-total"><span>Total</span><strong>${escapeHtml(formatMoney(snapshot.total_cents, state.bootstrap.currency, state.bootstrap.locale))}</strong></div>
+    <fieldset class="rs-preparation-options">
+      <legend>Quando deseja receber?</legend>
+      ${nowAvailable ? renderPreparationOption("now", "Agora", "Preparar assim que o pedido for enviado", defaultMode === "now") : ""}
+      ${schedulingAvailable ? renderPreparationOption("scheduled", "Agendar entrega", "Escolha um horário ainda hoje", defaultMode === "scheduled") : ""}
+      ${schedulingAvailable ? `<label class="rs-scheduled-time" data-scheduled-time ${defaultMode === "scheduled" ? "" : "hidden"}>
+        <span>Horário de entrega</span>
+        <input type="time" name="scheduled_time" value="${escapeHtml(scheduledTime)}" ${defaultMode === "scheduled" ? "required" : "disabled"}>
+      </label>` : ""}
+    </fieldset>
+    <button class="rs-primary-button" type="submit">
+      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg>
+      Enviar pedido
+    </button>`;
+  form.dataset.reviewing = "true";
+  review.hidden = false;
+  review.querySelector("[name='preparation_mode']:checked")?.focus({ preventScroll: true });
+}
+
+function renderPreparationOption(value, title, description, checked) {
+  return `<label class="rs-preparation-option" data-preparation-option="${value}">
+    <input type="radio" name="preparation_mode" value="${value}" ${checked ? "checked" : ""}>
+    <span><strong>${title}</strong><small>${description}</small></span>
+    <i aria-hidden="true"></i>
+  </label>`;
+}
+
+function selectPreparationOption(container, mode) {
+  const radio = container.querySelector(`[name='preparation_mode'][value='${cssEscape(mode)}']`);
+  if (radio) radio.checked = true;
+  const time = container.querySelector("[data-scheduled-time]");
+  if (time) {
+    const input = time.querySelector("input");
+    const scheduled = mode === "scheduled";
+    time.hidden = !scheduled;
+    if (input) {
+      input.disabled = !scheduled;
+      input.required = scheduled;
+    }
+  }
+}
+
+function closeOrderReview(container) {
+  const form = container.querySelector("[data-order-form]");
+  const review = container.querySelector("[data-order-review]");
+  if (form) delete form.dataset.reviewing;
+  if (review) {
+    review.hidden = true;
+    review.innerHTML = "";
+  }
+}
+
+function getDefaultScheduledTime(state) {
+  if (!state.status) return "";
+  const current = state.status.local.hour * 60 + state.status.local.minute;
+  const rounded = Math.ceil((current + 15) / 15) * 15;
+  for (const slot of state.status.today_slots || []) {
+    const start = clockValueToMinutes(slot.opens_at);
+    const end = clockValueToMinutes(slot.closes_at);
+    const candidate = Math.max(start, rounded);
+    if (candidate < end) return minutesToClock(candidate);
+  }
+  return "";
+}
+
+function clockValueToMinutes(value) {
+  const [hour, minute] = String(value || "00:00").split(":").map(Number);
+  return hour * 60 + minute;
+}
+
+function minutesToClock(value) {
+  return `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
+}
+
+function hotelLocalTimeToIso(time, timezone = "America/Sao_Paulo", now = new Date()) {
+  const dateParts = getHotelDateParts(now, timezone);
+  const [hour, minute] = String(time).split(":").map(Number);
+  const desired = Date.UTC(dateParts.year, dateParts.month - 1, dateParts.day, hour, minute, 0, 0);
+  let instant = desired;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const observed = getHotelDateParts(new Date(instant), timezone);
+    const observedValue = Date.UTC(observed.year, observed.month - 1, observed.day, observed.hour, observed.minute, 0, 0);
+    instant += desired - observedValue;
+  }
+  return new Date(instant).toISOString();
+}
+
+function getHotelDateParts(date, timezone) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const value = (type) => Number(parts.find((part) => part.type === type)?.value || 0);
+  return { year: value("year"), month: value("month"), day: value("day"), hour: value("hour"), minute: value("minute") };
+}
+
+function buildNotes(data, { notesEnabled = true } = {}) {
   const lines = [];
   const location = String(data.get("delivery_location") || "").trim();
   const phone = String(data.get("guest_phone") || "").trim();
-  const notes = String(data.get("notes") || "").trim();
+  const notes = notesEnabled ? String(data.get("notes") || "").trim() : "";
   if (location) lines.push(`Local de entrega: ${location}`);
   if (phone) lines.push(`Contato: ${phone}`);
   if (notes) lines.push(notes);
   return lines.join("\n").slice(0, 500);
+}
+
+function recentOrdersStorageKey(state) {
+  return `fioreze:room-service:recent:${state.bootstrap.hotel_id}`;
+}
+
+function readRecentOrders(state) {
+  try {
+    const value = JSON.parse(window.sessionStorage.getItem(recentOrdersStorageKey(state)) || "[]");
+    return Array.isArray(value) ? value.slice(0, 3) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeRecentOrders(state, orders) {
+  try {
+    window.sessionStorage.setItem(recentOrdersStorageKey(state), JSON.stringify(orders.slice(0, 3)));
+  } catch {
+    // O acompanhamento e apenas uma conveniencia local; o pedido ja foi persistido no servidor.
+  }
+}
+
+function rememberRecentOrder(state, order, trackingKey) {
+  const current = readRecentOrders(state).filter((entry) => entry.public_id !== order.public_id);
+  writeRecentOrders(state, [{
+    public_id: order.public_id,
+    tracking_key: trackingKey,
+    status: "sent",
+    preparation_mode: order.preparation_mode || "now",
+    scheduled_for: order.scheduled_for || null,
+    created_at: order.created_at || new Date().toISOString(),
+  }, ...current]);
+}
+
+async function refreshRecentOrders(container, state, { justSent = false } = {}) {
+  const stored = readRecentOrders(state);
+  if (!stored.length) {
+    renderRecentOrders(container, state, [], { justSent });
+    return;
+  }
+  const refreshed = (await Promise.all(stored.map(async (entry) => {
+    try {
+      const response = await fetch(
+        `/api/v1/public/hotels/${encodeURIComponent(state.slug)}/room-service/orders/${encodeURIComponent(entry.public_id)}/status`,
+        { headers: { accept: "application/json", "X-Order-Tracking-Key": entry.tracking_key } },
+      );
+      if (response.status === 404) return null;
+      const payload = await response.json();
+      return response.ok && payload?.ok ? { ...entry, ...payload.data } : entry;
+    } catch {
+      return entry;
+    }
+  }))).filter(Boolean);
+  writeRecentOrders(state, refreshed);
+  renderRecentOrders(container, state, refreshed, { justSent });
+}
+
+function renderRecentOrders(container, state, orders, { justSent = false } = {}) {
+  const section = container.querySelector("[data-recent-orders]");
+  if (!section) return;
+  section.hidden = !orders.length;
+  if (!orders.length) {
+    section.innerHTML = "";
+    return;
+  }
+  section.innerHTML = `
+    ${justSent ? `<div class="rs-order-sent"><strong>Pedido enviado</strong><span>A unidade já recebeu sua solicitação.</span></div>` : ""}
+    <header><span>Pedidos recentes</span><small>Neste dispositivo</small></header>
+    <div>${orders.map((order) => {
+      const status = ["sent", "printed", "delivered"].includes(order.status) ? order.status : "sent";
+      const statusLabel = { sent: "Enviado", printed: "Impresso", delivered: "Entregue" }[status];
+      const created = formatLocalTime(order.created_at, state.bootstrap.locale, state.bootstrap.timezone);
+      const scheduled = order.preparation_mode === "scheduled" && order.scheduled_for
+        ? ` · entrega ${formatLocalTime(order.scheduled_for, state.bootstrap.locale, state.bootstrap.timezone)}`
+        : "";
+      return `<article><span><strong>Pedido das ${escapeHtml(created)}</strong><small>${escapeHtml(scheduled.replace(/^ · /, ""))}</small></span><b data-status="${status}">${statusLabel}</b></article>`;
+    }).join("")}</div>`;
+}
+
+function formatLocalTime(value, locale = "pt-BR", timezone = "America/Sao_Paulo") {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "--:--";
+  return new Intl.DateTimeFormat(locale || "pt-BR", { timeZone: timezone, hour: "2-digit", minute: "2-digit" }).format(date);
 }
 
 function toggleCart(container, state, open) {
@@ -886,6 +1168,8 @@ async function loadCss(path) {
 
 export const internalsForTests = {
   buildNotes,
+  canScheduleToday,
+  hotelLocalTimeToIso,
   renderStaticShell,
   sanitizeAssetPath,
   splitProductDescription,

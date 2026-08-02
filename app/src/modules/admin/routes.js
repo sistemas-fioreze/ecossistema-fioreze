@@ -84,6 +84,7 @@ import {
   getRoomServiceOperations,
   listRoomServiceRooms,
   setRoomServiceOperationMode,
+  updateRoomServiceOrderPreferences,
   updateRoomServiceRoom,
   updateRoomServiceSchedule,
 } from "./erp-operations.js";
@@ -699,6 +700,11 @@ export function registerAdminRoutes(router) {
   router.patch("/api/v1/admin/room-service/operations/schedule", async ({ request, env }) => {
     const session = await getCurrentRoomServiceErpSession({ request, env });
     return ok(await updateRoomServiceSchedule({ request, env, session }));
+  });
+
+  router.patch("/api/v1/admin/room-service/operations/preferences", async ({ request, env }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(await updateRoomServiceOrderPreferences({ request, env, session }));
   });
 
   router.get("/api/v1/admin/room-service/rooms", async ({ request, env, url }) => {

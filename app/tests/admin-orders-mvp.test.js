@@ -269,18 +269,16 @@ test("pedido inexistente retorna 404", async () => {
   assert.equal(body.error.code, "not_found");
 });
 
-test("transicoes validas chegam a completed sem acionar impressao", async () => {
+test("transicoes validas chegam a entregue sem acionar impressao", async () => {
   const { json, env } = createWorkerTestContext();
   const created = await createOrder(json, "/api/v1/public/hotels/muller-fioreze/room-service/orders", MULLER_ORDER);
   const cookie = cookieFrom((await loginAdmin(json)).response);
 
-  const preparing = await changeStatus(json, cookie, created.body.data.id, "preparing");
-  const ready = await changeStatus(json, cookie, created.body.data.id, "ready");
-  const completed = await changeStatus(json, cookie, created.body.data.id, "completed");
+  const printed = await changeStatus(json, cookie, created.body.data.id, "printed");
+  const delivered = await changeStatus(json, cookie, created.body.data.id, "delivered");
 
-  assert.equal(preparing.body.data.order.status, "preparing");
-  assert.equal(ready.body.data.order.status, "ready");
-  assert.equal(completed.body.data.order.status, "completed");
+  assert.equal(printed.body.data.order.status, "printed");
+  assert.equal(delivered.body.data.order.status, "delivered");
   assert.equal(env.__data.orders[0].status, "delivered");
   assert.equal(env.__data.printEvents.length, 0);
 });
@@ -290,13 +288,13 @@ test("ambiente test ainda usa x-fioreze-test-now no historico de status", async 
   const created = await createOrder(json, "/api/v1/public/hotels/muller-fioreze/room-service/orders", MULLER_ORDER);
   const cookie = cookieFrom((await loginAdmin(json)).response);
 
-  const changed = await changeStatus(json, cookie, created.body.data.id, "preparing");
-  const preparingHistory = env.__data.orderStatusHistory.find(
-    (entry) => entry.order_id === created.body.data.id && entry.status === "preparing",
+  const changed = await changeStatus(json, cookie, created.body.data.id, "printed");
+  const printedHistory = env.__data.orderStatusHistory.find(
+    (entry) => entry.order_id === created.body.data.id && entry.status === "printed",
   );
 
   assert.equal(changed.response.status, 200);
-  assert.equal(preparingHistory.created_at, "2026-07-05T21:00:00.000Z");
+  assert.equal(printedHistory.created_at, "2026-07-05T21:00:00.000Z");
 });
 
 test("development ignora x-fioreze-test-now futuro no historico de status", async () => {
@@ -306,19 +304,19 @@ test("development ignora x-fioreze-test-now futuro no historico de status", asyn
   const cookie = cookieFrom((await loginAdmin(json)).response);
   const before = Date.now();
 
-  const changed = await changeStatus(json, cookie, created.body.data.id, "preparing", "", {
+  const changed = await changeStatus(json, cookie, created.body.data.id, "printed", "", {
     "x-fioreze-test-now": "2099-01-01T00:00:00.000Z",
   });
   const after = Date.now();
-  const preparingHistory = env.__data.orderStatusHistory.find(
-    (entry) => entry.order_id === created.body.data.id && entry.status === "preparing",
+  const printedHistory = env.__data.orderStatusHistory.find(
+    (entry) => entry.order_id === created.body.data.id && entry.status === "printed",
   );
-  const createdAt = Date.parse(preparingHistory.created_at);
+  const createdAt = Date.parse(printedHistory.created_at);
 
   assert.equal(changed.response.status, 200);
   assert.ok(createdAt >= before - 1000);
   assert.ok(createdAt <= after + 1000);
-  assert.notEqual(preparingHistory.created_at, "2099-01-01T00:00:00.000Z");
+  assert.notEqual(printedHistory.created_at, "2099-01-01T00:00:00.000Z");
 });
 
 test("transicao invalida retorna erro claro", async () => {
@@ -326,7 +324,7 @@ test("transicao invalida retorna erro claro", async () => {
   const created = await createOrder(json, "/api/v1/public/hotels/muller-fioreze/room-service/orders", MULLER_ORDER);
   const cookie = cookieFrom((await loginAdmin(json)).response);
 
-  const { response, body } = await changeStatus(json, cookie, created.body.data.id, "ready");
+  const { response, body } = await changeStatus(json, cookie, created.body.data.id, "delivered");
 
   assert.equal(response.status, 409);
   assert.equal(body.error.code, "conflict");
@@ -348,8 +346,8 @@ test("mudanca de status idempotente nao duplica historico", async () => {
   const created = await createOrder(json, "/api/v1/public/hotels/muller-fioreze/room-service/orders", MULLER_ORDER);
   const cookie = cookieFrom((await loginAdmin(json)).response);
 
-  const first = await changeStatus(json, cookie, created.body.data.id, "preparing");
-  const second = await changeStatus(json, cookie, created.body.data.id, "preparing");
+  const first = await changeStatus(json, cookie, created.body.data.id, "printed");
+  const second = await changeStatus(json, cookie, created.body.data.id, "printed");
 
   assert.equal(first.body.data.idempotent, false);
   assert.equal(second.body.data.idempotent, true);
@@ -363,8 +361,8 @@ test("mudanca de status concorrente registra uma unica transicao", async () => {
   env.DB.adminStatusBatchDelayMs = 10;
 
   const results = await Promise.all([
-    changeStatus(json, cookie, created.body.data.id, "preparing"),
-    changeStatus(json, cookie, created.body.data.id, "preparing"),
+    changeStatus(json, cookie, created.body.data.id, "printed"),
+    changeStatus(json, cookie, created.body.data.id, "printed"),
   ]);
 
   assert.deepEqual(
@@ -375,9 +373,9 @@ test("mudanca de status concorrente registra uma unica transicao", async () => {
     results.map((result) => result.body.data.idempotent).sort(),
     [false, true],
   );
-  assert.equal(env.__data.orders.find((order) => order.id === created.body.data.id).status, "preparing");
+  assert.equal(env.__data.orders.find((order) => order.id === created.body.data.id).status, "ready");
   assert.equal(
-    env.__data.orderStatusHistory.filter((entry) => entry.order_id === created.body.data.id && entry.status === "preparing").length,
+    env.__data.orderStatusHistory.filter((entry) => entry.order_id === created.body.data.id && entry.status === "printed").length,
     1,
   );
   assert.equal(env.__data.orderStatusHistory.filter((entry) => entry.order_id === created.body.data.id).length, 2);
@@ -392,11 +390,11 @@ test("mudanca concorrente para status diferentes nao cria historico fantasma", a
   env.DB.adminStatusBatchDelayMs = 10;
 
   const attempts = await Promise.all([
-    changeStatus(json, cookie, created.body.data.id, "preparing"),
+    changeStatus(json, cookie, created.body.data.id, "printed"),
     changeStatus(json, cookie, created.body.data.id, "cancelled", "Cancelamento concorrente de teste."),
   ]);
   const labelled = [
-    { target: "preparing", result: attempts[0] },
+    { target: "printed", result: attempts[0] },
     { target: "cancelled", result: attempts[1] },
   ];
   const winners = labelled.filter((entry) => entry.result.response.status === 200);
@@ -420,7 +418,7 @@ test("mudanca concorrente para status diferentes nao cria historico fantasma", a
   assert.equal(env.__data.orderStatusHistory.some((entry) => entry.order_id === created.body.data.id && entry.status === loser.target), false);
   assert.equal(env.__data.adminAuditLog.length, 1);
   assert.equal(auditMetadata.target_status, winner.target);
-  assert.equal(auditMetadata.previous_status, "received");
+  assert.equal(auditMetadata.previous_status, "sent");
   assert.equal(auditMetadata.storage_status, storageStatus(winner.target));
   assert.equal(env.__data.adminAuditLog.some((entry) => JSON.parse(entry.metadata_json).target_status === loser.target), false);
   assert.equal(env.__data.printEvents.length, 0);
@@ -431,7 +429,7 @@ test("mudanca de status registra auditoria administrativa", async () => {
   const created = await createOrder(json, "/api/v1/public/hotels/muller-fioreze/room-service/orders", MULLER_ORDER);
   const cookie = cookieFrom((await loginAdmin(json)).response);
 
-  await changeStatus(json, cookie, created.body.data.id, "preparing");
+  await changeStatus(json, cookie, created.body.data.id, "printed");
 
   assert.equal(env.__data.adminAuditLog.length, 1);
   assert.equal(env.__data.adminAuditLog[0].action, "room-service.order.status_changed");
@@ -456,7 +454,7 @@ test("usuario sem acesso nao altera status de outro hotel", async () => {
   const created = await createOrder(json, "/api/v1/public/hotels/aurora-demo/room-service/orders", AURORA_ORDER);
   const cookie = cookieFrom((await loginAdmin(json)).response);
 
-  const { response, body } = await changeStatus(json, cookie, created.body.data.id, "preparing");
+  const { response, body } = await changeStatus(json, cookie, created.body.data.id, "printed");
 
   assert.equal(response.status, 404);
   assert.equal(body.error.code, "not_found");
@@ -469,7 +467,7 @@ test("mudanca de status autenticada exige header administrativo customizado", as
 
   const { response, body } = await json(
     `/api/v1/admin/orders/${created.body.data.id}/status`,
-    withCookie(cookie, adminPostUnprotected({ status: "preparing" })),
+    withCookie(cookie, adminPostUnprotected({ status: "printed" })),
   );
 
   assert.equal(response.status, 403);
@@ -483,7 +481,7 @@ test("mudanca de status autenticada rejeita origin diferente", async () => {
   const created = await createOrder(json, "/api/v1/public/hotels/muller-fioreze/room-service/orders", MULLER_ORDER);
   const cookie = cookieFrom((await loginAdmin(json)).response);
 
-  const { response, body } = await changeStatus(json, cookie, created.body.data.id, "preparing", "", {
+  const { response, body } = await changeStatus(json, cookie, created.body.data.id, "printed", "", {
     origin: "https://admin.evil.invalid",
   });
 
@@ -581,5 +579,5 @@ function cookieFrom(response) {
 }
 
 function storageStatus(publicStatus) {
-  return publicStatus === "completed" ? "delivered" : publicStatus;
+  return publicStatus === "printed" ? "ready" : publicStatus;
 }

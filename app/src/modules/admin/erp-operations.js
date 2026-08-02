@@ -13,25 +13,27 @@ import { erpActorIds } from "../../services/erp-auth.js";
 
 export const ERP_SETTINGS_PERMISSION = "room-service.settings.manage";
 export const OPERATION_MODE_KEY = "room-service.operation_mode";
+export const ORDER_SCHEDULING_KEY = "room-service.order_scheduling_enabled";
+export const ORDER_NOTES_KEY = "room-service.order_notes_enabled";
 const MODULE_KEY = "room-service";
 const OPERATION_MODES = new Set(["automatic", "forced_open", "forced_closed"]);
 const ROOM_STATUSES = new Set(["active", "inactive", "archived"]);
 const CLOCK_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 
 export async function loadRoomServiceOperationState({ env, hotelId, timezone, now = new Date() }) {
-  const [hours, setting] = await Promise.all([
+  const [hours, settings] = await Promise.all([
     listActiveServiceHours(env, hotelId),
-    first(
+    all(
       env,
-      `SELECT setting_value
+      `SELECT setting_key, setting_value
          FROM hotel_settings
         WHERE hotel_id = ?
-          AND setting_key = ?
-        LIMIT 1`,
-      [hotelId, OPERATION_MODE_KEY],
+          AND setting_key IN (?, ?, ?)`,
+      [hotelId, OPERATION_MODE_KEY, ORDER_SCHEDULING_KEY, ORDER_NOTES_KEY],
     ),
   ]);
-  const mode = normalizeStoredMode(setting?.setting_value);
+  const values = new Map(settings.map((entry) => [entry.setting_key, entry.setting_value]));
+  const mode = normalizeStoredMode(values.get(OPERATION_MODE_KEY));
   const schedule = evaluateServiceHours({ serviceHours: hours, timezone, now });
   return {
     mode,
@@ -42,6 +44,10 @@ export async function loadRoomServiceOperationState({ env, hotelId, timezone, no
     next_opening: schedule.next_opening,
     local: schedule.local,
     service_hours: hours,
+    preferences: {
+      order_scheduling_enabled: parseStoredBoolean(values.get(ORDER_SCHEDULING_KEY), false),
+      order_notes_enabled: parseStoredBoolean(values.get(ORDER_NOTES_KEY), true),
+    },
   };
 }
 
@@ -160,6 +166,57 @@ export async function updateRoomServiceSchedule({ request, env, session }) {
   );
   await batch(env, statements);
   return { hotel_id: hotelId, service_hours: await listActiveServiceHours(env, hotelId) };
+}
+
+export async function updateRoomServiceOrderPreferences({ request, env, session }) {
+  requirePermission(session, ERP_SETTINGS_PERMISSION);
+  assertAdminMutationAllowed({ request });
+  const payload = await readJson(request);
+  const hotelId = requestedHotel(session, payload.hotel_id);
+  const schedulingEnabled = requireBoolean(payload.order_scheduling_enabled, "order_scheduling_enabled");
+  const notesEnabled = requireBoolean(payload.order_notes_enabled, "order_notes_enabled");
+  const now = requestNow({ request, env });
+  const actor = erpActorIds(session);
+  const preferences = [
+    [ORDER_SCHEDULING_KEY, schedulingEnabled],
+    [ORDER_NOTES_KEY, notesEnabled],
+  ];
+  const statements = preferences.map(([settingKey, enabled]) =>
+    statement(
+      env,
+      `INSERT INTO hotel_settings (
+         id, hotel_id, setting_key, setting_value, value_type, is_public, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, 'boolean', 1, ?, ?)
+       ON CONFLICT(hotel_id, setting_key) DO UPDATE SET
+         setting_value = excluded.setting_value,
+         value_type = 'boolean',
+         is_public = 1,
+         updated_at = excluded.updated_at`,
+      [createPublicId("setting"), hotelId, settingKey, String(enabled), now, now],
+    ),
+  );
+  statements.push(
+    auditStatement(env, actor, {
+      hotelId,
+      action: "room-service.order_preferences.updated",
+      entityType: "hotel_setting",
+      entityId: hotelId,
+      metadata: {
+        order_scheduling_enabled: schedulingEnabled,
+        order_notes_enabled: notesEnabled,
+      },
+      createdAt: now,
+    }),
+  );
+  await batch(env, statements);
+  const hotel = session.hotels.find((entry) => entry.hotel_id === hotelId);
+  const operation = await loadRoomServiceOperationState({
+    env,
+    hotelId,
+    timezone: hotel?.timezone || "America/Sao_Paulo",
+    now: new Date(now),
+  });
+  return { hotel_id: hotelId, preferences: operation.preferences };
 }
 
 export async function listRoomServiceRooms({ env, session, url }) {
@@ -320,6 +377,16 @@ function requestedHotel(session, value) {
 
 function normalizeStoredMode(value) {
   return OPERATION_MODES.has(value) ? value : "automatic";
+}
+
+function parseStoredBoolean(value, fallback) {
+  if (value == null || value === "") return fallback;
+  return value === true || value === 1 || value === "1" || value === "true";
+}
+
+function requireBoolean(value, label) {
+  if (typeof value !== "boolean") throw badRequest(`${label} deve ser booleano.`);
+  return value;
 }
 
 function normalizeRoomCode(value) {

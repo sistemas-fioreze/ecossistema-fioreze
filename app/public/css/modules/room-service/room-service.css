@@ -181,6 +181,275 @@
   display: block;
 }
 
+.rs-order-form[data-reviewing="true"] > :not(.rs-order-review) {
+  display: none !important;
+}
+
+.rs-recent-orders {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 14px;
+  border: 1px solid var(--rs-line);
+  border-radius: 18px;
+  background: #fff;
+}
+
+.rs-recent-orders > header,
+.rs-recent-orders article,
+.rs-review-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rs-recent-orders > header span {
+  color: var(--rs-ink);
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.rs-recent-orders > header small {
+  color: #8b929c;
+  font-size: 0.7rem;
+}
+
+.rs-recent-orders > div:last-child {
+  display: grid;
+  gap: 8px;
+}
+
+.rs-recent-orders article {
+  min-height: 42px;
+  padding-top: 8px;
+  border-top: 1px solid #ecebea;
+}
+
+.rs-recent-orders article > span {
+  display: grid;
+  gap: 2px;
+}
+
+.rs-recent-orders article strong,
+.rs-recent-orders article small {
+  font-size: 0.78rem;
+}
+
+.rs-recent-orders article small {
+  color: #767d86;
+}
+
+.rs-recent-orders article b {
+  padding: 5px 9px;
+  border-radius: 999px;
+  color: #315b44;
+  background: #e9f7ef;
+  font-size: 0.7rem;
+}
+
+.rs-recent-orders article b[data-status="printed"] {
+  color: #695216;
+  background: #fff6d8;
+}
+
+.rs-recent-orders article b[data-status="delivered"] {
+  color: #3d4754;
+  background: #eef0f2;
+}
+
+.rs-order-sent {
+  display: grid;
+  gap: 2px;
+  padding: 12px;
+  border-radius: 14px;
+  color: #24533a;
+  background: #eaf8ef;
+}
+
+.rs-order-sent strong {
+  font-size: 0.88rem;
+}
+
+.rs-order-sent span {
+  font-size: 0.76rem;
+}
+
+.rs-order-review {
+  display: grid;
+  gap: 18px;
+}
+
+.rs-review-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rs-review-header button {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: var(--rs-ink);
+  background: var(--rs-soft);
+  cursor: pointer;
+}
+
+.rs-review-header svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.rs-review-header span,
+.rs-review-header h2 {
+  display: block;
+  margin: 0;
+}
+
+.rs-review-header span {
+  color: #7b8188;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.rs-review-header h2 {
+  color: var(--rs-ink);
+  font-size: 1.2rem;
+}
+
+.rs-review-customer {
+  display: grid;
+  gap: 3px;
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--rs-soft);
+}
+
+.rs-review-customer span,
+.rs-review-customer small {
+  color: #68707a;
+  font-size: 0.78rem;
+}
+
+.rs-review-items {
+  display: grid;
+  gap: 10px;
+}
+
+.rs-review-items > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  color: #525962;
+  font-size: 0.8rem;
+}
+
+.rs-review-items b {
+  color: var(--rs-primary);
+}
+
+.rs-review-total {
+  padding-top: 16px;
+  border-top: 1px solid var(--rs-line);
+  color: var(--rs-ink);
+}
+
+.rs-review-total strong {
+  color: var(--rs-primary);
+  font-size: 1.15rem;
+}
+
+.rs-preparation-options {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.rs-preparation-options legend {
+  margin-bottom: 8px;
+  color: var(--rs-ink);
+  font-size: 0.86rem;
+  font-weight: 850;
+}
+
+.rs-preparation-option {
+  display: grid;
+  min-height: 60px;
+  grid-template-columns: minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--rs-line);
+  border-radius: 16px;
+  cursor: pointer;
+}
+
+.rs-preparation-option:has(input:checked) {
+  border-color: var(--rs-primary);
+  background: color-mix(in srgb, var(--rs-primary) 6%, #fff);
+}
+
+.rs-preparation-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.rs-preparation-option > span {
+  display: grid;
+  gap: 2px;
+}
+
+.rs-preparation-option small {
+  color: #757c85;
+  font-size: 0.72rem;
+}
+
+.rs-preparation-option i {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #c7cbd0;
+  border-radius: 50%;
+}
+
+.rs-preparation-option:has(input:checked) i {
+  border: 5px solid var(--rs-primary);
+}
+
+.rs-scheduled-time {
+  display: grid;
+  gap: 7px;
+  margin-top: 3px;
+  color: var(--rs-ink);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.rs-scheduled-time input {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 14px;
+  border: 1px solid var(--rs-line);
+  border-radius: 14px;
+  color: var(--rs-ink);
+  background: #fff;
+  font: inherit;
+}
+
 .rs-icon-field {
   position: relative;
   display: block;

@@ -30,10 +30,8 @@ const ERP_PERMISSIONS = [
 ];
 
 const STATUS_GROUPS = {
-  received: "active",
-  preparing: "active",
-  ready: "active",
-  completed: "final",
+  sent: "active",
+  printed: "active",
   delivered: "final",
   cancelled: "cancelled",
   archived: "archived",
@@ -194,7 +192,7 @@ export async function getRoomServiceErpBilling({ env, session, url }) {
       permissionKey: session.permissions.includes(BILLING_PERMISSION) ? BILLING_PERMISSION : READ_PERMISSION,
     })
   ).orders;
-  const billable = orders.filter((order) => order.status === "completed");
+  const billable = orders.filter((order) => order.status === "delivered");
   const totalCents = billable.reduce((total, order) => total + Number(order.total_cents || 0), 0);
   return {
     hotel_id: hotelId,

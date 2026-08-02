@@ -75,6 +75,17 @@ export function getLocalClock(date, timezone) {
   };
 }
 
+export function getLocalDateKey(date, timezone) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const part = (type) => parts.find((entry) => entry.type === type)?.value || "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+
 export function clockToMinutes(value) {
   const [hour, minute] = String(value || "00:00").split(":").map((part) => Number.parseInt(part, 10) || 0);
   return Math.max(0, Math.min(23, hour)) * 60 + Math.max(0, Math.min(59, minute));

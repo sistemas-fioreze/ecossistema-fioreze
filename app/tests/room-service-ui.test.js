@@ -7,7 +7,10 @@ import { internalsForTests } from "../public/js/modules/room-service/index.js";
 import { evaluateServiceStatus } from "../public/js/modules/room-service/service-status.js";
 
 const {
+  buildNotes,
+  canScheduleToday,
   clampDetailQuantity,
+  hotelLocalTimeToIso,
   renderStaticShell,
   splitProductDescription,
   submitOrder,
@@ -136,6 +139,67 @@ test("Room Service incorporado usa o cabecalho do portal e abre sem tela de carr
   assert.doesNotMatch(shell, /rs-mobile-header|rs-loader|data-rs-loader/);
   assert.match(shell, /data-catalog/);
   assert.match(shell, /Resumo do Pedido/);
+});
+
+test("fluxo visual inclui revisao, preparo e acompanhamento recente sem exibir ID tecnico", () => {
+  const shell = renderStaticShell();
+  const script = fs.readFileSync(new URL("../public/js/modules/room-service/index.js", import.meta.url), "utf8");
+
+  assert.match(shell, /data-order-review/);
+  assert.match(shell, /data-recent-orders/);
+  assert.match(script, /Revise antes de enviar/);
+  assert.match(script, /Agendar entrega/);
+  assert.match(script, /Pedido enviado com sucesso/);
+  assert.doesNotMatch(script, /Recebemos seu pedido \$\{order\.public_id/);
+});
+
+test("agendamento visual fica limitado ao restante do mesmo dia", () => {
+  const state = {
+    bootstrap: { settings: { "room-service.order_scheduling_enabled": true } },
+    status: {
+      mode: "automatic",
+      local: { hour: 17, minute: 0 },
+      today_slots: [{ opens_at: "16:00", closes_at: "22:00" }],
+    },
+  };
+
+  assert.equal(canScheduleToday(state), true);
+  state.status.local = { hour: 22, minute: 0 };
+  assert.equal(canScheduleToday(state), false);
+  assert.equal(
+    hotelLocalTimeToIso("19:30", "America/Sao_Paulo", new Date("2026-07-05T20:00:00.000Z")),
+    "2026-07-05T22:30:00.000Z",
+  );
+});
+
+test("observacao desabilitada nao entra no texto persistido do pedido", () => {
+  const data = new FormData();
+  data.set("delivery_location", "Acomodação");
+  data.set("guest_phone", "[TELEFONE FICTICIO]");
+  data.set("notes", "Observação que não deve ser enviada");
+
+  const notes = buildNotes(data, { notesEnabled: false });
+  assert.match(notes, /Local de entrega/);
+  assert.match(notes, /Contato/);
+  assert.doesNotMatch(notes, /não deve ser enviada/);
+});
+
+test("botao oferece programacao quando a loja esta fechada mas ainda abre hoje", () => {
+  const { button, container } = submitButtonFixture();
+  const state = {
+    bootstrap: { settings: { "room-service.order_scheduling_enabled": true } },
+    status: {
+      open: false,
+      mode: "automatic",
+      local: { hour: 14, minute: 0 },
+      today_slots: [{ opens_at: "16:00", closes_at: "22:00" }],
+    },
+    isSubmitting: false,
+  };
+
+  syncSubmitButton(container, state);
+  assert.equal(button.disabled, false);
+  assert.equal(button.textContent, "Programar pedido");
 });
 
 test("catalogo filtra por categoria e busca textual", () => {
