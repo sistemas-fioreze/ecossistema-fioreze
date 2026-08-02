@@ -10,6 +10,7 @@ const agentUrl = new URL("../print-agent/fioreze_print_agent/worker.py", import.
 const appUrl = new URL("../print-agent/fioreze_print_agent/app.py", import.meta.url);
 const trayUrl = new URL("../print-agent/fioreze_print_agent/tray.py", import.meta.url);
 const buildUrl = new URL("../print-agent/build-windows.ps1", import.meta.url);
+const erpAppUrl = new URL("../public/js/modules/room-service-erp/legacy-app.js", import.meta.url);
 
 test("migration cria fila segura, dispositivos e templates por unidade", async () => {
   const sql = await readFile(migrationUrl, "utf8");
@@ -71,6 +72,13 @@ test("build Windows gera pacote separado sem configuracao ou credencial", async 
   assert.match(source, /Fioreze-Impressao-Windows\.zip/i);
   assert.match(source, /SHA256SUMS\.txt/i);
   assert.doesNotMatch(source, /Copy-Item[^\n]*(config\.json|token|credential)/i);
+});
+
+test("ERP formata validade do codigo e atividade dos dispositivos com helper existente", async () => {
+  const source = await readFile(erpAppUrl, "utf8");
+  assert.match(source, /Expira em \$\{escapeHtml\(formatDate\(activation\.expires_at\)\)\}/);
+  assert.match(source, /formatDate\(device\.last_seen_at\)/);
+  assert.doesNotMatch(source, /formatDateTime\(/);
 });
 
 test("tokens e codigos de vinculo possuem entropia e somente hashes persistiveis", async () => {
