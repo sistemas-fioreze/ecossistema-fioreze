@@ -90,7 +90,8 @@ test("shell do Room Service preserva a hierarquia do cardapio sob o header compa
   assert.match(css, /\.rs-product-card:has\(\.rs-product-media\) \.rs-product-content\s*\{\s*padding-right:\s*0/);
   assert.match(css, /\.rs-product-card:has\(\.rs-product-media\) \.rs-product-label,[\s\S]*?max-width:\s*100%/);
   assert.match(css, /@media \(max-width: 959px\)[\s\S]*?\.rs-search-panel\.is-stuck[\s\S]*?backdrop-filter:\s*blur\(18px\)/);
-  assert.match(css, /@media \(max-width: 959px\)[\s\S]*?\.rs-search-panel\.is-stuck \.rs-search-field\s*\{\s*display:\s*block/);
+  assert.doesNotMatch(css, /\.rs-search-panel\.is-stuck \.rs-search-field\s*\{\s*display:\s*block/);
+  assert.match(css, /@media \(max-width: 959px\)[\s\S]*?\.rs-search-field\s*\{\s*display:\s*none/);
   assert.match(css, /overflow-x:\s*clip/);
   assert.match(css, /\.public-module-root \.rs-search-panel\s*\{\s*top:\s*calc\(64px \+ env\(safe-area-inset-top\)\)/);
   assert.match(css, /@media \(max-width: 959px\)[\s\S]*?\.rs-category-button\.active[\s\S]*?background:\s*var\(--rs-primary\)/);

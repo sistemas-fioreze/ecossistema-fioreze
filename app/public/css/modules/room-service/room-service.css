@@ -1161,17 +1161,6 @@
     -webkit-backdrop-filter: blur(18px);
   }
 
-  .rs-search-panel.is-stuck .rs-search-field {
-    display: block;
-  }
-
-  .rs-search-panel.is-stuck .rs-search-field input {
-    min-height: 44px;
-    border: 0;
-    border-radius: 999px;
-    background: #f1f1f0;
-  }
-
   .rs-category-button {
     min-height: 32px;
     padding: 6px 13px;

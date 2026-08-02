@@ -108,7 +108,7 @@ test("cabecalhos mobile nao acumulam espacamento e Emporio compartilha o mesmo f
 
   assert.match(navigationCss, /\.public-module-root \.public-module-heading\s*\{\s*padding-top:\s*0/);
   assert.match(navigationCss, /\.public-module-heading-copy\s*\{[^]*?padding-top:\s*calc\(74px \+ env\(safe-area-inset-top\)\)/);
-  assert.match(emporioCss, /\.emporio-root \.public-module-heading,[^]*?background:\s*#fafafa/);
+  assert.match(emporioCss, /\.emporio-root \.public-module-heading,[^]*?background:\s*#fff/);
   assert.match(emporioCss, /@media \(max-width: 959px\)[^]*?\.emporio-search\s*\{\s*display:\s*none/);
 });
 
