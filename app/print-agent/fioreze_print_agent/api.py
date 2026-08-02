@@ -1,6 +1,7 @@
 import json
 import urllib.error
 import urllib.request
+from urllib.parse import urljoin, urlparse
 
 
 class ApiError(RuntimeError):
@@ -27,13 +28,13 @@ class PrintAgentApi:
                 "activation_code": activation_code,
                 "device_name": device_name,
                 "platform": "windows",
-                "app_version": "1.0.0",
+                "app_version": "1.1.0",
                 "printer_name": printer_name,
             },
         )["data"]
 
     def heartbeat(self, printer_name):
-        return self._request("POST", "/api/v1/print-agent/heartbeat", {"app_version": "1.0.0", "printer_name": printer_name})["data"]
+        return self._request("POST", "/api/v1/print-agent/heartbeat", {"app_version": "1.1.0", "printer_name": printer_name})["data"]
 
     def claim(self):
         return self._request("POST", "/api/v1/print-agent/jobs/claim", {})["data"]
@@ -44,9 +45,34 @@ class PrintAgentApi:
     def fail(self, job_id, claim_token, message):
         return self._request("POST", f"/api/v1/print-agent/jobs/{job_id}/fail", {"claim_token": claim_token, "message": str(message)[:300]})["data"]
 
+    def download_public_image(self, path, max_bytes=2_000_000):
+        if not path:
+            return None
+        url = urljoin(f"{self.origin}/", str(path).lstrip("/"))
+        if urlparse(url).netloc != urlparse(self.origin).netloc:
+            raise ApiError("A identidade visual da unidade possui uma origem invalida.")
+        request = urllib.request.Request(
+            url,
+            headers={"Accept": "image/*", "User-Agent": "FiorezePrintAgent/1.1"},
+            method="GET",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                content_type = response.headers.get_content_type()
+                if not content_type.startswith("image/"):
+                    raise ApiError("A identidade visual da unidade nao e uma imagem valida.")
+                payload = response.read(max_bytes + 1)
+        except urllib.error.HTTPError as error:
+            raise ApiError("Nao foi possivel carregar a identidade visual da unidade.") from error
+        except (urllib.error.URLError, TimeoutError) as error:
+            raise ApiError("Nao foi possivel carregar a identidade visual da unidade.") from error
+        if len(payload) > max_bytes:
+            raise ApiError("A identidade visual da unidade excede o tamanho permitido.")
+        return payload
+
     def _request(self, method, path, payload=None):
         body = None if payload is None else json.dumps(payload, ensure_ascii=False).encode("utf-8")
-        headers = {"Accept": "application/json", "User-Agent": "FiorezePrintAgent/1.0"}
+        headers = {"Accept": "application/json", "User-Agent": "FiorezePrintAgent/1.1"}
         if body is not None:
             headers["Content-Type"] = "application/json"
         if self.token:
