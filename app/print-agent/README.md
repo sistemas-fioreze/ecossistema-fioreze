@@ -1,6 +1,6 @@
 # Fioreze Suite para Windows
 
-Aplicativo unico para preparar o computador da unidade, criar o atalho identificado do ERP e, opcionalmente, instalar o agente de impressao automatica. O executavel inclui Python e suas dependencias; a recepcao nao precisa instalar componentes manualmente.
+Aplicativo unico para preparar o computador da unidade, instalar o ERP desktop identificado e, opcionalmente, instalar o agente de impressao automatica. O pacote inclui Electron, Python e suas dependencias; a recepcao nao precisa instalar componentes manualmente.
 
 ## Instalacao
 
@@ -12,7 +12,7 @@ Aplicativo unico para preparar o computador da unidade, criar o atalho identific
 
 O codigo expira em 15 minutos e funciona uma unica vez. O instalador nunca pede a senha administrativa: o vinculo usa o codigo descartavel e recebe um token exclusivo do computador. Esse token e protegido com DPAPI no perfil do Windows.
 
-O atalho do ERP usa a rota da unidade, `/<slug>/admin/erp/`, e o icone reduzido configurado na Central. O agente instalado inicia com o Windows e permanece na bandeja com o mesmo icone.
+O atalho abre o `Fioreze-ERP.exe`, que usa a rota da unidade `/<slug>/admin/erp/` e o icone reduzido configurado na Central. Como o aplicativo carrega a versao web oficial, as mudancas publicadas no ERP aparecem sem reinstalacao. O agente instalado inicia com o Windows e permanece na bandeja com o mesmo icone.
 
 ## Operacao
 
@@ -26,6 +26,10 @@ Na janela e no menu da bandeja, o operador pode:
 - abrir o ERP da unidade.
 
 O ERP mostra o computador como online quando recebeu contato nos ultimos dois minutos. Tambem mostra versao, impressora, template, ultimo contato e permite pausar ou revogar o dispositivo.
+
+No aplicativo desktop, o ERP tambem consulta o estado local e pode solicitar o reinicio do agente.
+O estado e gravado em `%LOCALAPPDATA%\Fioreze\PrintAgent\runtime-status.json` sem token,
+senha ou credencial. Nenhuma porta HTTP local e aberta.
 
 ## Templates
 
@@ -58,4 +62,4 @@ Os testes renderizam bytes em memoria e usam pastas temporarias. Eles nunca cham
 powershell -ExecutionPolicy Bypass -File .\build-windows.ps1
 ```
 
-O build gera `release/Fioreze-Suite-Windows/` e `release/Fioreze-Suite-Windows.zip`, com executavel, instrucoes, versao e checksum SHA-256.
+O build gera `release/Fioreze-Suite-Windows/` e `release/Fioreze-Suite-Windows.zip`, com `Fioreze-Suite.exe`, a pasta `Fioreze-ERP/`, instrucoes, versao e checksums SHA-256.

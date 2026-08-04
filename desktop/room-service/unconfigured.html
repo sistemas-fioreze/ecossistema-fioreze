@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+    <title>Fioreze ERP</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; margin: 0; }
+      body { font-family: Arial, sans-serif; color: #202124; background: #f7f7f6; }
+      header { height: 40px; display: flex; align-items: stretch; justify-content: space-between; background: #202124; color: #fff; user-select: none; }
+      header strong { display: flex; align-items: center; padding: 0 14px; font-size: 11px; -webkit-app-region: drag; }
+      nav { display: flex; -webkit-app-region: no-drag; }
+      button { width: 46px; height: 40px; border: 0; color: inherit; background: transparent; cursor: pointer; }
+      button:hover { background: rgba(255, 255, 255, .12); }
+      button:last-child:hover { background: #c42b1c; }
+      svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.5; }
+      main { height: calc(100% - 40px); display: grid; place-items: center; padding: 32px; text-align: center; }
+      section { max-width: 460px; }
+      .mark { width: 54px; height: 54px; display: grid; place-items: center; margin: 0 auto 22px; border-radius: 8px; background: #202124; color: #fff; font-size: 24px; font-weight: 800; }
+      h1 { margin: 0 0 10px; font-size: 24px; }
+      p { margin: 0; color: #69717c; font-size: 14px; line-height: 1.6; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <strong>Fioreze ERP</strong>
+      <nav aria-label="Controles da janela">
+        <button id="minimize" aria-label="Minimizar"><svg viewBox="0 0 20 20"><path d="M5 10h10"/></svg></button>
+        <button id="maximize" aria-label="Maximizar"><svg viewBox="0 0 20 20"><rect x="5.5" y="5.5" width="9" height="9" rx="1"/></svg></button>
+        <button id="close" aria-label="Fechar"><svg viewBox="0 0 20 20"><path d="m6 6 8 8M14 6l-8 8"/></svg></button>
+      </nav>
+    </header>
+    <main>
+      <section>
+        <div class="mark">F</div>
+        <h1>Unidade ainda nao configurada</h1>
+        <p>Abra o Fioreze Suite, selecione a unidade e conclua a instalacao do ERP neste computador.</p>
+      </section>
+    </main>
+    <script>
+      document.getElementById("minimize").addEventListener("click", () => window.fiorezeDesktop.minimize());
+      document.getElementById("maximize").addEventListener("click", () => window.fiorezeDesktop.toggleMaximize());
+      document.getElementById("close").addEventListener("click", () => window.fiorezeDesktop.close());
+    </script>
+  </body>
+</html>

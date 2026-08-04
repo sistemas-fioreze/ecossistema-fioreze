@@ -2,15 +2,18 @@
 
 const { app, BrowserWindow, ipcMain, shell } = require("electron");
 const path = require("node:path");
+const { readErpConfiguration, readPrintAgentStatus, restartPrintAgent, suitePaths } = require("./runtime.cjs");
 
-const DEFAULT_ERP_URL = "http://127.0.0.1:8787/erp/room-service/";
 const DEFAULT_ALLOWED_HOSTS = [
   "127.0.0.1",
   "localhost",
+  "portal.hoteisfioreze.com.br",
   "fioreze-portais-dev.marketing1-840.workers.dev",
+  "fioreze-portais-pages-dev.pages.dev",
 ];
 
-const configuredUrl = process.env.FIOREZE_ROOM_SERVICE_ERP_URL || DEFAULT_ERP_URL;
+const erpConfiguration = readErpConfiguration();
+const configuredUrl = erpConfiguration.url;
 const allowedHosts = parseAllowedHosts(process.env.FIOREZE_ROOM_SERVICE_ALLOWED_HOSTS);
 
 let mainWindow;
@@ -18,7 +21,7 @@ let mainWindow;
 app.whenReady().then(async () => {
   registerWindowControls();
   mainWindow = createMainWindow();
-  await mainWindow.loadURL(normalizeErpUrl(configuredUrl).toString());
+  await loadConfiguredContent(mainWindow);
 });
 
 app.on("window-all-closed", () => {
@@ -28,7 +31,7 @@ app.on("window-all-closed", () => {
 app.on("activate", async () => {
   if (BrowserWindow.getAllWindows().length) return;
   mainWindow = createMainWindow();
-  await mainWindow.loadURL(normalizeErpUrl(configuredUrl).toString());
+  await loadConfiguredContent(mainWindow);
 });
 
 function createMainWindow() {
@@ -38,8 +41,11 @@ function createMainWindow() {
     minWidth: 1024,
     minHeight: 680,
     title: "ERP Room Service Fioreze",
+    frame: false,
     autoHideMenuBar: true,
     backgroundColor: "#f6f1ec",
+    icon: suitePaths().iconFile,
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
@@ -49,6 +55,8 @@ function createMainWindow() {
       devTools: process.env.FIOREZE_DESKTOP_DEVTOOLS === "true",
     },
   });
+
+  window.once("ready-to-show", () => window.show());
 
   window.webContents.setWindowOpenHandler(({ url }) => {
     handleExternalUrl(url);
@@ -64,6 +72,14 @@ function createMainWindow() {
   return window;
 }
 
+async function loadConfiguredContent(window) {
+  if (erpConfiguration.source === "unconfigured") {
+    await window.loadFile(path.join(__dirname, "unconfigured.html"));
+    return;
+  }
+  await window.loadURL(normalizeErpUrl(configuredUrl).toString());
+}
+
 function registerWindowControls() {
   ipcMain.handle("fioreze:window:minimize", (event) => {
     BrowserWindow.fromWebContents(event.sender)?.minimize();
@@ -77,6 +93,18 @@ function registerWindowControls() {
   ipcMain.handle("fioreze:window:close", (event) => {
     BrowserWindow.fromWebContents(event.sender)?.close();
   });
+  ipcMain.handle("fioreze:window:state", (event) => {
+    const window = BrowserWindow.fromWebContents(event.sender);
+    return { maximized: Boolean(window?.isMaximized()) };
+  });
+  ipcMain.handle("fioreze:print-agent:status", (event) => {
+    assertTrustedSender(event);
+    return readPrintAgentStatus();
+  });
+  ipcMain.handle("fioreze:print-agent:restart", (event) => {
+    assertTrustedSender(event);
+    return restartPrintAgent();
+  });
 }
 
 function normalizeErpUrl(value) {
@@ -84,8 +112,8 @@ function normalizeErpUrl(value) {
   if (!isAllowedHost(url.hostname)) {
     throw new Error("ERP host is not allowed for this desktop wrapper.");
   }
-  if (!url.pathname.startsWith("/erp/room-service/")) {
-    url.pathname = "/erp/room-service/";
+  if (!isAllowedAppPath(url.pathname)) {
+    throw new Error("ERP path is not allowed for this desktop wrapper.");
   }
   url.hash = "";
   return url;
@@ -94,7 +122,7 @@ function normalizeErpUrl(value) {
 function isAllowedAppUrl(value) {
   try {
     const url = new URL(value);
-    return isAllowedHost(url.hostname) && url.pathname.startsWith("/erp/room-service/");
+    return isAllowedHost(url.hostname) && isAllowedAppPath(url.pathname);
   } catch {
     return false;
   }
@@ -120,4 +148,14 @@ function parseAllowedHosts(value) {
 
 function isAllowedHost(hostname) {
   return allowedHosts.has(String(hostname || "").toLowerCase());
+}
+
+function isAllowedAppPath(pathname) {
+  return pathname.startsWith("/erp/room-service/") || /^\/[a-z0-9]+(?:-[a-z0-9]+)*\/admin\/erp\//.test(pathname);
+}
+
+function assertTrustedSender(event) {
+  if (!isAllowedAppUrl(event.senderFrame?.url || event.sender?.getURL?.())) {
+    throw new Error("Desktop request rejected.");
+  }
 }

@@ -22,6 +22,8 @@ test("ERP Room Service exposes desktop controls only through the adapter", () =>
   assert.match(adapter, /dataset\.fiorezeDesktop = "browser"/);
   assert.match(adapter, /dataset\.fiorezeDesktop = "electron"/);
   assert.match(css, /body\[data-fioreze-desktop="electron"\] \.rs-window-controls/);
+  assert.match(html, /rs-desktop-titlebar/);
+  assert.match(css, /-webkit-app-region:\s*drag/);
   assert.doesNotMatch(html, /require\("electron"\)|require\('electron'\)/);
 });
 
@@ -34,12 +36,24 @@ test("Electron wrapper is thin, hardened, and does not duplicate backend access"
   assert.match(main, /contextIsolation:\s*true/);
   assert.match(main, /nodeIntegration:\s*false/);
   assert.match(main, /sandbox:\s*true/);
+  assert.match(main, /frame:\s*false/);
   assert.match(main, /\/erp\/room-service\//);
   assert.match(main, /setWindowOpenHandler/);
   assert.match(main, /will-navigate/);
   assert.match(preload, /contextBridge\.exposeInMainWorld\(\s*"fiorezeDesktop"/);
+  assert.match(preload, /getPrintAgentStatus/);
+  assert.match(preload, /restartPrintAgent/);
 
   const combined = `${main}\n${preload}`;
   assert.doesNotMatch(combined, /script\.google\.com|spreadsheets|private_key|client_email/i);
   assert.doesNotMatch(combined, /D1|R2|MEDIA_BUCKET|DB\b/);
+});
+
+test("ERP printing settings can copy an enrollment code and control the local agent", () => {
+  const app = read("app/public/js/modules/room-service-erp/legacy-app.js");
+  assert.match(app, /id="copyPrinterEnrollmentCode"/);
+  assert.match(app, /navigator\.clipboard\.writeText/);
+  assert.match(app, /refreshLocalPrintAgentStatus/);
+  assert.match(app, /restartLocalPrintAgent/);
+  assert.match(app, /Reiniciar servidor/);
 });
