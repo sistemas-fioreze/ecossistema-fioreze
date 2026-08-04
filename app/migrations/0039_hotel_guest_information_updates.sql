@@ -21,16 +21,16 @@ ON CONFLICT(hotel_id, setting_key) DO UPDATE SET
 WITH muller_information (
   id, hotel_id, info_key, title, body, is_public, sort_order, created_at, updated_at
 ) AS (VALUES
-  ('info-muller-checkout', 'muller-fioreze', 'checkout', 'Check-out · até 12h', 'Informe-se na recepção sobre disponibilidade e valores para late check-out.', 1, 10, '2026-08-04T15:00:00.000Z', '2026-08-04T15:00:00.000Z'),
-  ('info-muller-no-smoking', 'muller-fioreze', 'no-smoking', 'Proibido fumar', 'Não é permitido fumar nas dependências do hotel.', 1, 20, '2026-08-04T15:00:00.000Z', '2026-08-04T15:00:00.000Z'),
-  ('info-muller-reception', 'muller-fioreze', 'reception', 'Recepção', 'Uma equipe sempre disposta a ajudá-lo, 24 horas por dia.' || char(10) || 'Ramal n° 9 do telefone da acomodação.', 1, 30, '2026-08-04T15:00:00.000Z', '2026-08-04T15:00:00.000Z'),
-  ('info-muller-breakfast', 'muller-fioreze', 'breakfast', 'Café da manhã', 'Servido diariamente das 7h às 10h.', 1, 40, '2026-08-04T15:00:00.000Z', '2026-08-04T15:00:00.000Z'),
-  ('info-muller-room-service', 'muller-fioreze', 'room-service', 'Room Service', 'Consulte o horário de funcionamento do Room Service.', 1, 45, '2026-08-04T15:00:00.000Z', '2026-08-04T15:00:00.000Z'),
-  ('info-muller-fitness', 'muller-fioreze', 'fitness', 'Academia', 'Consulte a recepção.', 1, 60, '2026-08-04T15:00:00.000Z', '2026-08-04T15:00:00.000Z'),
-  ('info-muller-lounge', 'muller-fioreze', 'lounge', 'Sala de Estar', 'Disponível 24 horas.', 1, 80, '2026-08-04T15:00:00.000Z', '2026-08-04T15:00:00.000Z'),
-  ('info-muller-wifi', 'muller-fioreze', 'wifi', 'Wi-Fi', 'Rede: Müller & Fioreze - Hotel Boutique' || char(10) || 'Rede aberta, sem senha', 1, 100, '2026-08-04T15:00:00.000Z', '2026-08-04T15:00:00.000Z'),
-  ('info-muller-voltage', 'muller-fioreze', 'voltage', 'Voltagem', '220 V.', 1, 110, '2026-08-04T15:00:00.000Z', '2026-08-04T15:00:00.000Z'),
-  ('info-muller-quiet-hours', 'muller-fioreze', 'quiet-hours', 'Horário de silêncio', 'Das 22h às 8h.', 1, 120, '2026-08-04T15:00:00.000Z', '2026-08-04T15:00:00.000Z')
+  ('info-muller-guide-checkout', 'muller-fioreze', 'checkout', 'Check-out · até 12h', 'Informe-se na recepção sobre disponibilidade e valores para late check-out.', 1, 10, '2026-08-04T15:00:00.000Z', '2026-08-04T15:00:00.000Z'),
+  ('info-muller-guide-no-smoking', 'muller-fioreze', 'no-smoking', 'Proibido fumar', 'Não é permitido fumar nas dependências do hotel.', 1, 20, '2026-08-04T15:00:00.000Z', '2026-08-04T15:00:00.000Z'),
+  ('info-muller-guide-reception', 'muller-fioreze', 'reception', 'Recepção', 'Uma equipe sempre disposta a ajudá-lo, 24 horas por dia.' || char(10) || 'Ramal n° 9 do telefone da acomodação.', 1, 30, '2026-08-04T15:00:00.000Z', '2026-08-04T15:00:00.000Z'),
+  ('info-muller-guide-breakfast', 'muller-fioreze', 'breakfast', 'Café da manhã', 'Servido diariamente das 7h às 10h.', 1, 40, '2026-08-04T15:00:00.000Z', '2026-08-04T15:00:00.000Z'),
+  ('info-muller-guide-room-service', 'muller-fioreze', 'room-service', 'Room Service', 'Consulte o horário de funcionamento do Room Service.', 1, 45, '2026-08-04T15:00:00.000Z', '2026-08-04T15:00:00.000Z'),
+  ('info-muller-guide-fitness', 'muller-fioreze', 'fitness', 'Academia', 'Consulte a recepção.', 1, 60, '2026-08-04T15:00:00.000Z', '2026-08-04T15:00:00.000Z'),
+  ('info-muller-guide-lounge', 'muller-fioreze', 'lounge', 'Sala de Estar', 'Disponível 24 horas.', 1, 80, '2026-08-04T15:00:00.000Z', '2026-08-04T15:00:00.000Z'),
+  ('info-muller-guide-wifi', 'muller-fioreze', 'wifi', 'Wi-Fi', 'Rede: Müller & Fioreze - Hotel Boutique' || char(10) || 'Rede aberta, sem senha', 1, 100, '2026-08-04T15:00:00.000Z', '2026-08-04T15:00:00.000Z'),
+  ('info-muller-guide-voltage', 'muller-fioreze', 'voltage', 'Voltagem', '220 V.', 1, 110, '2026-08-04T15:00:00.000Z', '2026-08-04T15:00:00.000Z'),
+  ('info-muller-guide-quiet-hours', 'muller-fioreze', 'quiet-hours', 'Horário de silêncio', 'Das 22h às 8h.', 1, 120, '2026-08-04T15:00:00.000Z', '2026-08-04T15:00:00.000Z')
 )
 INSERT INTO hotel_information (
   id, hotel_id, info_key, title, body, is_public, sort_order, created_at, updated_at
