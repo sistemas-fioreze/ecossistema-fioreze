@@ -11,6 +11,15 @@ export const desktop = {
   close() {
     window.fiorezeDesktop?.close?.();
   },
+  windowState() {
+    return window.fiorezeDesktop?.getWindowState?.() || Promise.resolve({ maximized: false });
+  },
+  printAgentStatus() {
+    return window.fiorezeDesktop?.getPrintAgentStatus?.() || Promise.resolve(null);
+  },
+  restartPrintAgent() {
+    return window.fiorezeDesktop?.restartPrintAgent?.() || Promise.resolve({ ok: false, action: "browser" });
+  },
   platform() {
     return window.fiorezeDesktop?.platform || "browser";
   },
@@ -26,9 +35,12 @@ export function setupDesktopControls(root = document) {
   }
 
   document.body.dataset.fiorezeDesktop = "electron";
-  const controls = root.querySelector(".rs-window-controls");
-  controls?.removeAttribute("hidden");
+  root.getElementById("desktopTitlebar")?.removeAttribute("hidden");
   root.getElementById("desktopMinimize")?.addEventListener("click", () => desktop.minimize());
-  root.getElementById("desktopMaximize")?.addEventListener("click", () => desktop.toggleMaximize());
+  root.getElementById("desktopMaximize")?.addEventListener("click", async () => {
+    await desktop.toggleMaximize();
+    const state = await desktop.windowState();
+    root.getElementById("desktopMaximize")?.setAttribute("aria-label", state.maximized ? "Restaurar janela" : "Maximizar janela");
+  });
   root.getElementById("desktopClose")?.addEventListener("click", () => desktop.close());
 }

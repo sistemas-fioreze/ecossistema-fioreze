@@ -239,6 +239,82 @@ body[data-erp="room-service"] {
   gap: 6px;
 }
 
+.rs-desktop-titlebar {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 100000;
+  height: 40px;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  background: #202124;
+  color: #fff;
+  user-select: none;
+}
+
+.rs-desktop-titlebar[hidden] {
+  display: none;
+}
+
+.rs-desktop-drag-region {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  -webkit-app-region: drag;
+}
+
+.rs-desktop-titlebar .rs-window-controls {
+  display: inline-flex;
+  gap: 0;
+  -webkit-app-region: no-drag;
+}
+
+.rs-desktop-titlebar .rs-window-button {
+  width: 46px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 0 !important;
+  background: transparent;
+  color: #fff;
+}
+
+.rs-desktop-titlebar .rs-window-button svg {
+  width: 15px !important;
+  height: 15px !important;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+
+.rs-desktop-titlebar .rs-window-button:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  transform: none;
+}
+
+.rs-desktop-titlebar .rs-window-button-danger:hover {
+  background: #c42b1c !important;
+}
+
+body[data-fioreze-desktop="electron"] {
+  padding-top: 40px;
+  box-sizing: border-box;
+}
+
+body[data-fioreze-desktop="electron"] .app-shell {
+  height: calc(100vh - 40px) !important;
+  min-height: 0 !important;
+}
+
+body[data-fioreze-desktop="electron"] #loginOverlay {
+  top: 40px !important;
+}
+
 body[data-fioreze-desktop="electron"] .rs-window-controls {
   display: inline-flex;
 }

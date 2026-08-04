@@ -1,14 +1,18 @@
+import os
 import platform
 import queue
+import subprocess
 import sys
+import time
 import tkinter as tk
 from tkinter import messagebox, ttk
 
 from .api import ApiError, PrintAgentApi
 from .branding import load_unit_tray_icon
 from .config import load_config, save_config
-from .installer import install_suite
+from .installer import INSTALLED_ERP_EXE, install_suite
 from .printer import list_printers, print_raw
+from .runtime import consume_restart_request, write_runtime_status
 from .templates import render_test_page
 from .tray import TrayController
 from .worker import PrintWorker
@@ -26,10 +30,14 @@ class AgentApplication:
         self.worker = None
         self.tray = None
         self.config = load_config()
+        self.runtime_message = "Fioreze Suite aguardando configuracao"
+        self.last_runtime_write = 0
+        self.restarting = False
         self.root.protocol("WM_DELETE_WINDOW", self.close)
         if self.config.get("token"):
             self.show_status()
         else:
+            write_runtime_status("not_configured", self.runtime_message, self.config)
             self.show_setup()
         self.root.after(250, self.process_events)
 
@@ -141,6 +149,8 @@ class AgentApplication:
         ttk.Label(frame, text="Fioreze Suite", font=("Segoe UI", 20, "bold")).pack(anchor="w")
         ttk.Label(frame, text=self.config.get("hotel_name", "Unidade vinculada"), font=("Segoe UI", 12)).pack(anchor="w", pady=(4, 24))
         self.status = tk.StringVar(value="Iniciando conexao segura...")
+        self.runtime_message = self.status.get()
+        write_runtime_status("starting", self.runtime_message, self.config)
         ttk.Label(frame, textvariable=self.status, wraplength=480).pack(anchor="w")
         ttk.Separator(frame).pack(fill="x", pady=22)
         ttk.Label(frame, text=f"Computador: {self.config.get('device_name', '-')}").pack(anchor="w")
@@ -220,12 +230,33 @@ class AgentApplication:
             self.root.withdraw()
 
     def process_events(self):
+        if consume_restart_request():
+            self.restart_application()
+            return
         try:
             while True:
-                self.status.set(self.events.get_nowait())
+                self.runtime_message = self.events.get_nowait()
+                self.status.set(self.runtime_message)
         except queue.Empty:
             pass
+        now = time.monotonic()
+        if self.config.get("token") and now - self.last_runtime_write >= 2:
+            write_runtime_status("running", self.runtime_message, self.config)
+            self.last_runtime_write = now
         self.root.after(250, self.process_events)
+
+    def restart_application(self):
+        self.restarting = True
+        write_runtime_status("restarting", "Reiniciando agente de impressao", self.config)
+        if getattr(sys, "frozen", False):
+            command = [sys.executable, "--tray"]
+        else:
+            command = [sys.executable, "-m", "fioreze_print_agent", "--tray"]
+        kwargs = {"close_fds": True, "shell": False}
+        if sys.platform == "win32":
+            kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS
+        subprocess.Popen(command, **kwargs)
+        self.exit_application()
 
     def test_connection(self):
         try:
@@ -260,6 +291,9 @@ class AgentApplication:
             messagebox.showerror("Pagina de teste", str(error))
 
     def open_erp(self):
+        if os.name == "nt" and INSTALLED_ERP_EXE.exists():
+            os.startfile(INSTALLED_ERP_EXE)
+            return
         import webbrowser
 
         slug = self.config.get("hotel_slug")
@@ -278,6 +312,8 @@ class AgentApplication:
         if self.tray:
             tray, self.tray = self.tray, None
             tray.stop()
+        if not self.restarting:
+            write_runtime_status("stopped", "Agente de impressao encerrado", self.config)
         self.root.destroy()
 
 

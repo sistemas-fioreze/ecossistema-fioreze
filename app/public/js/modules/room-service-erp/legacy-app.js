@@ -37,6 +37,7 @@ import {
   uploadErpMedia,
   uploadOwnAvatar,
 } from "./api.js";
+import { desktop } from "./desktop-adapter.js";
 
 const ROUTES = {
   dashboard: { button: "btnTabDashboard", container: "dashboardContainer" },
@@ -80,6 +81,7 @@ const state = {
   operations: null,
   printing: null,
   printerEnrollment: null,
+  localPrintAgent: null,
   rooms: [],
   media: [],
   catalogCategory: "all",
@@ -413,7 +415,16 @@ function renderPrintingSettings() {
   const devices = printing.devices || [];
   const defaultTemplate = templates.find((entry) => Number(entry.is_default) === 1)?.id || "";
   const activation = state.printerEnrollment;
-  return `<button type="button" class="erp-back" data-settings-view="home">${settingsIcon("back")} Configuracoes</button><section class="erp-settings-detail"><div class="erp-panel-head"><div><p class="erp-panel-title">Impressao automatica</p><p class="erp-v3-subtitle">Vincule o computador da unidade e escolha o modelo do comprovante.</p></div><span class="erp-chip ${printing.effective_enabled ? "" : "off"}">${printing.effective_enabled ? "Ativa" : "Desativada"}</span></div>${!printing.global_enabled ? '<div class="legacy-list-empty">A impressao permanece desativada no ambiente atual. A configuracao pode ser preparada sem enviar nada a uma impressora.</div>' : ""}<form id="printingSettingsForm" class="erp-order-preferences"><label><span><strong>Impressao automatica desta unidade</strong><small>Cria uma comanda quando um pedido e recebido.</small></span><input type="checkbox" name="enabled" ${printing.unit_enabled ? "checked" : ""}></label><label><span><strong>Modelo do comprovante</strong><small>Cada unidade pode usar o formato adequado a sua impressora.</small></span><select name="template_id">${templates.map((template) => `<option value="${escapeAttr(template.id)}" ${template.id === defaultTemplate ? "selected" : ""}>${escapeHtml(template.name)}</option>`).join("")}</select></label><button type="submit" class="admin-primary-btn">Salvar impressao</button></form><article class="erp-panel"><div class="erp-panel-head"><div><strong class="erp-panel-title">Instalar computador</strong><p class="erp-v3-subtitle">Use o Fioreze Suite e informe o codigo abaixo. Ele vale por 15 minutos e uma unica instalacao.</p></div><button id="createPrinterEnrollmentButton" type="button" class="admin-primary-btn">Gerar codigo</button></div>${activation ? `<div class="erp-printer-code"><small>Codigo de conexao</small><strong>${escapeHtml(activation.activation_code)}</strong><span>Expira em ${escapeHtml(formatDate(activation.expires_at))}</span></div>` : ""}</article><div class="erp-panel-head"><div><strong class="erp-panel-title">Computadores vinculados</strong><p class="erp-v3-subtitle">Acompanhe conexao, impressora e modelo de cada computador.</p></div><button id="refreshPrintingButton" type="button" class="admin-secondary-btn">Atualizar</button></div><div class="erp-rooms-list">${devices.length ? devices.map((device) => `<article class="erp-room-card"><span><strong>${escapeHtml(device.name)}</strong><small>${escapeHtml(device.printer_name || "Impressora ainda nao informada")} · ${escapeHtml(device.template_name || "Modelo padrao")} · versao ${escapeHtml(device.app_version || "nao informada")}</small><small>${device.last_seen_at ? `Ultimo contato em ${escapeHtml(formatDate(device.last_seen_at))}` : "Aguardando primeiro contato"}</small></span><span class="erp-v3-actions"><span class="erp-chip ${device.connection_status === "online" ? "" : "off"}">${device.connection_status === "online" ? "Online" : device.connection_status === "offline" ? "Offline" : device.connection_status === "paused" ? "Pausado" : "Revogado"}</span>${device.status !== "revoked" ? `<button type="button" class="admin-secondary-btn" data-printer-device="${escapeAttr(device.id)}" data-printer-status="${device.status === "active" ? "paused" : "active"}">${device.status === "active" ? "Pausar" : "Retomar"}</button><button type="button" class="admin-secondary-btn" data-printer-device="${escapeAttr(device.id)}" data-printer-status="revoked">Revogar</button>` : ""}</span></article>`).join("") : '<div class="legacy-list-empty">Nenhum computador conectado.</div>'}</div></section>`;
+  return `<button type="button" class="erp-back" data-settings-view="home">${settingsIcon("back")} Configuracoes</button><section class="erp-settings-detail"><div class="erp-panel-head"><div><p class="erp-panel-title">Impressao automatica</p><p class="erp-v3-subtitle">Vincule o computador da unidade e escolha o modelo do comprovante.</p></div><span class="erp-chip ${printing.effective_enabled ? "" : "off"}">${printing.effective_enabled ? "Ativa" : "Desativada"}</span></div>${!printing.global_enabled ? '<div class="legacy-list-empty">A impressao permanece desativada no ambiente atual. A configuracao pode ser preparada sem enviar nada a uma impressora.</div>' : ""}<form id="printingSettingsForm" class="erp-order-preferences"><label><span><strong>Impressao automatica desta unidade</strong><small>Cria uma comanda quando um pedido e recebido.</small></span><input type="checkbox" name="enabled" ${printing.unit_enabled ? "checked" : ""}></label><label><span><strong>Modelo do comprovante</strong><small>Cada unidade pode usar o formato adequado a sua impressora.</small></span><select name="template_id">${templates.map((template) => `<option value="${escapeAttr(template.id)}" ${template.id === defaultTemplate ? "selected" : ""}>${escapeHtml(template.name)}</option>`).join("")}</select></label><button type="submit" class="admin-primary-btn">Salvar impressao</button></form><article class="erp-panel"><div class="erp-panel-head"><div><strong class="erp-panel-title">Instalar computador</strong><p class="erp-v3-subtitle">Use o Fioreze Suite e informe o codigo abaixo. Ele vale por 15 minutos e uma unica instalacao.</p></div><button id="createPrinterEnrollmentButton" type="button" class="admin-primary-btn">Gerar codigo</button></div>${activation ? `<div class="erp-printer-code"><small>Codigo de conexao</small><strong>${escapeHtml(activation.activation_code)}</strong><div class="erp-printer-code-actions"><span>Expira em ${escapeHtml(formatDate(activation.expires_at))}</span><button id="copyPrinterEnrollmentCode" type="button" class="admin-secondary-btn" aria-label="Copiar codigo de conexao">${settingsIcon("copy")} Copiar codigo</button></div></div>` : ""}</article>${renderLocalPrintAgent()}<div class="erp-panel-head"><div><strong class="erp-panel-title">Computadores vinculados</strong><p class="erp-v3-subtitle">Acompanhe conexao, impressora e modelo de cada computador.</p></div><button id="refreshPrintingButton" type="button" class="admin-secondary-btn">Atualizar</button></div><div class="erp-rooms-list">${devices.length ? devices.map((device) => `<article class="erp-room-card"><span><strong>${escapeHtml(device.name)}</strong><small>${escapeHtml(device.printer_name || "Impressora ainda nao informada")} · ${escapeHtml(device.template_name || "Modelo padrao")} · versao ${escapeHtml(device.app_version || "nao informada")}</small><small>${device.last_seen_at ? `Ultimo contato em ${escapeHtml(formatDate(device.last_seen_at))}` : "Aguardando primeiro contato"}</small></span><span class="erp-v3-actions"><span class="erp-chip ${device.connection_status === "online" ? "" : "off"}">${device.connection_status === "online" ? "Online" : device.connection_status === "offline" ? "Offline" : device.connection_status === "paused" ? "Pausado" : "Revogado"}</span>${device.status !== "revoked" ? `<button type="button" class="admin-secondary-btn" data-printer-device="${escapeAttr(device.id)}" data-printer-status="${device.status === "active" ? "paused" : "active"}">${device.status === "active" ? "Pausar" : "Retomar"}</button><button type="button" class="admin-secondary-btn" data-printer-device="${escapeAttr(device.id)}" data-printer-status="revoked">Revogar</button>` : ""}</span></article>`).join("") : '<div class="legacy-list-empty">Nenhum computador conectado.</div>'}</div></section>`;
+}
+
+function renderLocalPrintAgent() {
+  if (!desktop.isElectron) return "";
+  const agent = state.localPrintAgent;
+  const online = Boolean(agent?.running);
+  const status = !agent ? "Verificando" : online ? "Online" : agent.status === "not_installed" ? "Nao instalado" : "Offline";
+  const detail = !agent ? "Consultando o agente instalado neste computador." : agent.message || "Sem informacoes locais.";
+  return `<article class="erp-panel erp-local-agent"><div><small>Este computador</small><strong>Fioreze Print Agent</strong><span>${escapeHtml(detail)}</span>${agent?.printer_name ? `<span>Impressora: ${escapeHtml(agent.printer_name)}</span>` : ""}</div><div class="erp-v3-actions"><span class="erp-chip ${online ? "" : "off"}">${status}</span><button id="refreshLocalPrintAgentButton" type="button" class="admin-secondary-btn">Atualizar</button><button id="restartLocalPrintAgentButton" type="button" class="admin-primary-btn" ${agent?.status === "not_installed" ? "disabled" : ""}>Reiniciar servidor</button></div></article>`;
 }
 
 function renderUserSettings() {
@@ -456,6 +467,7 @@ function openSettingsView(view) {
   byId("accountPopover")?.classList.add("hidden");
   switchTab("admin");
   renderAdmin();
+  if (view === "printing" && desktop.isElectron) void refreshLocalPrintAgentStatus();
 }
 
 async function handleCatalogClick(event) {
@@ -492,7 +504,10 @@ async function handleSettingsClick(event) {
   }
   if (event.target.closest("#newRoomButton")) return openRoomModal();
   if (event.target.closest("#createPrinterEnrollmentButton")) return generatePrinterEnrollment();
+  if (event.target.closest("#copyPrinterEnrollmentCode")) return copyPrinterEnrollmentCode();
   if (event.target.closest("#refreshPrintingButton")) return refreshPrinting();
+  if (event.target.closest("#refreshLocalPrintAgentButton")) return refreshLocalPrintAgentStatus();
+  if (event.target.closest("#restartLocalPrintAgentButton")) return restartLocalPrintAgent();
   const printerDevice = event.target.closest("[data-printer-device]");
   if (printerDevice) return changePrinterDeviceStatus(printerDevice.dataset.printerDevice, printerDevice.dataset.printerStatus);
   const room = event.target.closest("[data-edit-room]");
@@ -1511,6 +1526,63 @@ async function generatePrinterEnrollment() {
   }
 }
 
+async function copyPrinterEnrollmentCode() {
+  const code = state.printerEnrollment?.activation_code;
+  if (!code) return notify("Gere um codigo de conexao primeiro.");
+  try {
+    await copyTextToClipboard(code);
+    notify("Codigo de conexao copiado.");
+  } catch {
+    notify("Nao foi possivel copiar o codigo.");
+  }
+}
+
+async function refreshLocalPrintAgentStatus() {
+  if (!desktop.isElectron) return;
+  try {
+    state.localPrintAgent = await desktop.printAgentStatus();
+  } catch {
+    state.localPrintAgent = { running: false, status: "offline", message: "Nao foi possivel consultar o agente local." };
+  }
+  if (state.settingsView === "printing") renderAdmin();
+}
+
+async function restartLocalPrintAgent() {
+  if (!desktop.isElectron) return;
+  const button = byId("restartLocalPrintAgentButton", false);
+  if (button) button.disabled = true;
+  try {
+    const result = await desktop.restartPrintAgent();
+    if (!result?.ok) {
+      notify(result?.action === "not_installed" ? "Fioreze Suite nao esta instalado neste computador." : "Nao foi possivel iniciar o agente de impressao.");
+      return;
+    }
+    notify(result.action === "started" ? "Servidor de impressao iniciado." : "Reinicio do servidor solicitado.", { progress: true });
+    window.setTimeout(() => void refreshLocalPrintAgentStatus(), 2500);
+  } catch {
+    notify("Nao foi possivel reiniciar o servidor de impressao.");
+  } finally {
+    if (button?.isConnected) button.disabled = false;
+  }
+}
+
+async function copyTextToClipboard(value) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+  const field = document.createElement("textarea");
+  field.value = value;
+  field.setAttribute("readonly", "");
+  field.style.position = "fixed";
+  field.style.opacity = "0";
+  document.body.append(field);
+  field.select();
+  const copied = document.execCommand("copy");
+  field.remove();
+  if (!copied) throw new Error("Clipboard unavailable");
+}
+
 async function changePrinterDeviceStatus(deviceId, status) {
   setPageBusy(true, "Atualizando computador...");
   try {
@@ -2077,6 +2149,7 @@ function settingsIcon(type) {
     palette: '<path d="M12 3a9 9 0 100 18h1.5a2 2 0 001.5-3.3 2 2 0 011.5-3.3H18A3 3 0 0021 11a8 8 0 00-9-8z"/><circle cx="7.5" cy="11" r=".5"/><circle cx="10" cy="7" r=".5"/><circle cx="15" cy="7" r=".5"/>',
     bell: '<path d="M18 8a6 6 0 00-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',
     printer: '<path d="M6 9V3h12v6M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v7H6z"/>',
+    copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2"/>',
     chevron: '<path d="M9 6l6 6-6 6"/>',
     back: '<path d="M19 12H5M12 19l-7-7 7-7"/>',
   };

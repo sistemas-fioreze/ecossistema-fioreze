@@ -517,3 +517,101 @@
     display: none !important;
   }
 }
+.rs-desktop-titlebar {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 100000;
+  height: 40px;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  background: #202124;
+  color: #fff;
+  user-select: none;
+}
+
+.rs-desktop-titlebar[hidden] { display: none; }
+.rs-desktop-drag-region {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  font-size: 11px;
+  font-weight: 800;
+  -webkit-app-region: drag;
+}
+.rs-desktop-titlebar .rs-window-controls {
+  display: inline-flex;
+  gap: 0;
+  -webkit-app-region: no-drag;
+}
+.rs-desktop-titlebar .rs-window-button {
+  width: 46px !important;
+  height: 40px !important;
+  display: grid !important;
+  place-items: center;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #fff !important;
+}
+.rs-desktop-titlebar .rs-window-button svg {
+  width: 15px !important;
+  height: 15px !important;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+.rs-desktop-titlebar .rs-window-button:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  transform: none !important;
+}
+.rs-desktop-titlebar .rs-window-button-danger:hover { background: #c42b1c !important; }
+body[data-fioreze-desktop="electron"] {
+  padding-top: 40px;
+  box-sizing: border-box;
+}
+body[data-fioreze-desktop="electron"] #appShell {
+  height: calc(100vh - 40px) !important;
+  min-height: calc(100vh - 40px) !important;
+}
+body[data-fioreze-desktop="electron"] #loginOverlay { top: 40px !important; }
+
+.erp-printer-code-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.erp-printer-code-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.erp-printer-code-actions svg { width: 15px !important; height: 15px !important; }
+.erp-local-agent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.erp-local-agent > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.erp-local-agent small {
+  color: #8a929d;
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+}
+.erp-local-agent strong { color: #202124; font-size: 14px; }
+.erp-local-agent span { color: #69717c; font-size: 11px; font-weight: 700; }
+@media (max-width: 720px) {
+  .erp-local-agent { align-items: stretch; flex-direction: column; }
+  .erp-local-agent .erp-v3-actions { justify-content: flex-start; }
+}

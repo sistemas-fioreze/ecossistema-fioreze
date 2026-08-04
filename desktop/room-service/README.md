@@ -1,6 +1,6 @@
 # ERP Room Service Desktop
 
-Wrapper Electron fino para abrir o ERP Room Service oficial em `/erp/room-service/`.
+Wrapper Electron fino para abrir o ERP Room Service oficial em `/<slug-da-unidade>/admin/erp/`.
 
 ## Papel do pacote
 
@@ -8,6 +8,9 @@ Wrapper Electron fino para abrir o ERP Room Service oficial em `/erp/room-servic
 - Nao acessa D1, R2, Apps Script, Google Sheets ou impressora diretamente.
 - Nao embute credenciais, tokens ou senhas.
 - Usa a sessao administrativa controlada pelo Worker.
+- Usa uma janela sem moldura nativa, com minimizar, maximizar e fechar no proprio ERP.
+- Carrega a URL oficial da unidade; alteracoes publicadas aparecem sem reinstalar o aplicativo.
+- Consulta e reinicia o Fioreze Print Agent por um canal local restrito.
 
 ## Desenvolvimento local
 
@@ -24,16 +27,19 @@ npm ci
 npm start
 ```
 
-Por padrao, o app carrega:
+Em desenvolvimento, configure:
 
 ```text
-http://127.0.0.1:8787/erp/room-service/
+FIOREZE_ROOM_SERVICE_ERP_URL=http://127.0.0.1:8787/muller-fioreze/admin/erp/
 ```
 
-Para apontar para outro ambiente autorizado:
+Na instalacao, o Fioreze Suite grava `%LOCALAPPDATA%\Fioreze\Suite\erp-config.json`
+somente com origem, slug e nome da unidade. Nenhuma senha ou credencial e gravada nesse arquivo.
+
+Para apontar manualmente para outro ambiente autorizado:
 
 ```bash
-FIOREZE_ROOM_SERVICE_ERP_URL=https://fioreze-portais-dev.marketing1-840.workers.dev/erp/room-service/ npm start
+FIOREZE_ROOM_SERVICE_ERP_URL=https://fioreze-portais-dev.marketing1-840.workers.dev/muller-fioreze/admin/erp/ npm start
 ```
 
 ## Variaveis
@@ -48,7 +54,7 @@ FIOREZE_ROOM_SERVICE_ERP_URL=https://fioreze-portais-dev.marketing1-840.workers.
 - `nodeIntegration: false`
 - `sandbox: true`
 - preload minimo
-- navegacao do app limitada a `/erp/room-service/` em hosts permitidos
+- navegacao do app limitada ao ERP da unidade em hosts permitidos
 - links externos somente `https` e em hosts permitidos
 - sem credenciais no repositorio
 
@@ -62,10 +68,29 @@ window.fiorezeDesktop = {
   minimize,
   toggleMaximize,
   close,
+  getWindowState,
+  getPrintAgentStatus,
+  restartPrintAgent,
   platform,
   version
 }
 ```
+
+O status e lido de `%LOCALAPPDATA%\Fioreze\PrintAgent\runtime-status.json`, que
+contem apenas dados operacionais sanitizados. Se o agente estiver parado, somente
+`%LOCALAPPDATA%\Fioreze\Suite\Fioreze-Suite.exe --tray` pode ser iniciado.
+
+## Build Windows
+
+```powershell
+npm ci
+npm test
+npm run dist:win
+```
+
+O aplicativo e criado em `release/win-unpacked/` e incorporado pelo build da Suite como `Fioreze-ERP/`.
+O usuario abre somente o atalho `ERP <unidade>`, que aponta para `Fioreze ERP.exe` dentro da instalacao local.
+Se a Suite ainda nao tiver configurado uma unidade, o aplicativo mostra apenas uma tela local de orientacao e os controles da janela.
 
 No navegador comum, `desktop-adapter.js` usa no-op seguro e os controles de janela ficam ocultos.
 
