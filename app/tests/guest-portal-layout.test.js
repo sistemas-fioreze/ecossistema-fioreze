@@ -373,6 +373,8 @@ test("servicos usam lista editorial, imagens configuradas e experiencias extras"
 });
 
 test("Müller e Centro recebem informações públicas específicas por unidade", () => {
+  assert.match(hotelInformationUpdateMigration, /'info-muller-guide-checkout', 'muller-fioreze', 'checkout'/);
+  assert.doesNotMatch(hotelInformationUpdateMigration, /'info-muller-checkout', 'muller-fioreze', 'checkout'/);
   assert.match(hotelInformationUpdateMigration, /'muller-fioreze',[\s\S]*?'Café da manhã',[\s\S]*?'Servido diariamente das 7h às 10h\.'/);
   assert.match(hotelInformationUpdateMigration, /'Academia', 'Consulte a recepção\.'/);
   assert.match(hotelInformationUpdateMigration, /Müller & Fioreze - Hotel Boutique/);
