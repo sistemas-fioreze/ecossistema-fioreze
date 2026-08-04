@@ -34,7 +34,7 @@ jobs:
         run: .\build-windows.ps1
       - uses: actions/upload-artifact@v4
         with:
-          name: Fioreze-Impressao-Windows
-          path: app/print-agent/release/Fioreze-Impressao-Windows.zip
+          name: Fioreze-Suite-Windows
+          path: app/print-agent/release/Fioreze-Suite-Windows.zip
           if-no-files-found: error
           retention-days: 30

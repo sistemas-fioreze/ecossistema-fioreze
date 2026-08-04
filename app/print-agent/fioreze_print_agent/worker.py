@@ -44,7 +44,14 @@ class PrintWorker(threading.Thread):
             self.on_status("Confirmacao de impressao sincronizada")
             return
         try:
-            payload = render_print_job(job)
+            logo = None
+            logo_url = job.get("order", {}).get("logo_url")
+            if logo_url:
+                try:
+                    logo = api.download_public_image(logo_url)
+                except ApiError:
+                    logo = None
+            payload = render_print_job(job, logo)
             print_raw(self.config["printer_name"], payload, f"Fioreze {job['order']['public_id']}")
             self.journal.record(job["id"])
         except Exception as error:

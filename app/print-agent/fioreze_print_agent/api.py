@@ -3,6 +3,8 @@ import urllib.error
 import urllib.request
 from urllib.parse import urljoin, urlparse
 
+from .version import APP_VERSION
+
 
 class ApiError(RuntimeError):
     pass
@@ -28,13 +30,23 @@ class PrintAgentApi:
                 "activation_code": activation_code,
                 "device_name": device_name,
                 "platform": "windows",
-                "app_version": "1.1.0",
+                "app_version": APP_VERSION,
                 "printer_name": printer_name,
             },
         )["data"]
 
     def heartbeat(self, printer_name):
-        return self._request("POST", "/api/v1/print-agent/heartbeat", {"app_version": "1.1.0", "printer_name": printer_name})["data"]
+        return self._request("POST", "/api/v1/print-agent/heartbeat", {"app_version": APP_VERSION, "printer_name": printer_name})["data"]
+
+    def settings(self):
+        return self._request("GET", "/api/v1/print-agent/settings")["data"]
+
+    def update_settings(self, printer_name, template_id):
+        return self._request(
+            "PATCH",
+            "/api/v1/print-agent/settings",
+            {"printer_name": printer_name, "template_id": template_id, "app_version": APP_VERSION},
+        )["data"]
 
     def claim(self):
         return self._request("POST", "/api/v1/print-agent/jobs/claim", {})["data"]
@@ -53,7 +65,7 @@ class PrintAgentApi:
             raise ApiError("A identidade visual da unidade possui uma origem invalida.")
         request = urllib.request.Request(
             url,
-            headers={"Accept": "image/*", "User-Agent": "FiorezePrintAgent/1.1"},
+            headers={"Accept": "image/*", "User-Agent": f"FiorezePrintAgent/{APP_VERSION}"},
             method="GET",
         )
         try:
@@ -72,7 +84,7 @@ class PrintAgentApi:
 
     def _request(self, method, path, payload=None):
         body = None if payload is None else json.dumps(payload, ensure_ascii=False).encode("utf-8")
-        headers = {"Accept": "application/json", "User-Agent": "FiorezePrintAgent/1.1"}
+        headers = {"Accept": "application/json", "User-Agent": f"FiorezePrintAgent/{APP_VERSION}"}
         if body is not None:
             headers["Content-Type"] = "application/json"
         if self.token:
