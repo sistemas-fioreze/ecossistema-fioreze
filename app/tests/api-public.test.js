@@ -211,6 +211,25 @@ test("consulta de produtos e isolada por hotel", async () => {
   assert.equal(body.data.categories[0].items.every((item) => typeof item.image_alt === "string"), true);
 });
 
+test("catalogo publico normaliza opcoes legadas sem expor metadata interna", async () => {
+  const { json, env } = createWorkerTestContext();
+  const pizza = env.__data.catalogItems.find((item) => item.id === "muller-sandwich");
+  pizza.name = "Pizza Artesanal Salgada";
+  pizza.metadata_json = JSON.stringify({ legacy_meta: "Dado interno", options: ["Calabresa", "Marguerita"] });
+
+  const { response, body } = await json("/api/v1/public/hotels/muller-fioreze/room-service/products");
+  const item = body.data.categories.flatMap((category) => category.items).find((entry) => entry.id === pizza.id);
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(item.options, [{
+    key: "selection",
+    label: "Escolha o sabor",
+    required: true,
+    values: ["Calabresa", "Marguerita"],
+  }]);
+  assert.equal("metadata_json" in item, false);
+});
+
 test("shell publico e servido para rotas de hotel sem baixar HTML remoto", async () => {
   const { fetch } = createWorkerTestContext();
   const response = await fetch("/muller-fioreze/room-service");

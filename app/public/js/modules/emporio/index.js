@@ -335,7 +335,7 @@ function renderProductDetail(container, state) {
       <h2 id="emporio-product-title">${escapeHtml(item.name)}</h2>
       ${item.tag ? `<span class="emporio-detail-tag">${escapeHtml(item.tag)}</span>` : ""}
       <strong class="emporio-detail-price">${formatMoney(item.price_cents, item.currency)}</strong>
-      <p class="emporio-detail-description">${escapeHtml(item.description || "Produto selecionado pelo Empório da unidade.")}</p>
+      ${renderDetailDescription(item.description || "Produto selecionado pelo Empório da unidade.")}
       <div class="emporio-detail-availability" data-available="${String(Boolean(item.available))}">
         <span aria-hidden="true"></span>
         <div><strong>${item.available ? "Disponibilidade sob consulta" : "Indisponível no momento"}</strong><small>${escapeHtml(item.availability_label || (item.available ? "Confirme com a recepção antes de retirar." : "Consulte a equipe para outras opções."))}</small></div>
@@ -349,6 +349,13 @@ function renderProductDetail(container, state) {
   document.body.classList.add("emporio-detail-open");
   document.body.classList.add("catalog-detail-open");
   window.requestAnimationFrame(() => card.querySelector("[data-emporio-close]")?.focus({ preventScroll: true }));
+}
+
+function renderDetailDescription(value) {
+  const text = String(value || "").trim();
+  const paragraphs = text.split(/\n+/).map((part) => part.trim()).filter(Boolean);
+  return `<div class="emporio-detail-description">${(paragraphs.length ? paragraphs : [text])
+    .map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("")}</div>`;
 }
 
 function closeProductDetail(container, state) {

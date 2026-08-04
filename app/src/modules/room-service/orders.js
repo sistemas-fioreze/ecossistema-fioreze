@@ -12,6 +12,7 @@ import {
   getRequestDate,
 } from "./service-hours.js";
 import { PrintProvider } from "../../services/print-provider.js";
+import { parseCatalogOptions } from "./products.js";
 
 const MODULE_KEY = "room-service";
 
@@ -40,6 +41,7 @@ export async function createRoomServiceOrder({ request, env, tenant }) {
     catalog_item_id: requireString(item.catalog_item_id, `items[${index}].catalog_item_id`, { max: 80 }),
     quantity: requirePositiveInteger(item.quantity, `items[${index}].quantity`, { min: 1, max: 20 }),
     note: optionalString(item.note, `items[${index}].note`, { max: 180 }),
+    selected_options: validateSelectedOptionsShape(item.selected_options, `items[${index}].selected_options`),
     client_unit_price_cents: Number.isInteger(item.unit_price_cents) ? item.unit_price_cents : null,
     client_total_cents: Number.isInteger(item.total_cents) ? item.total_cents : null,
   }));
@@ -64,7 +66,7 @@ export async function createRoomServiceOrder({ request, env, tenant }) {
     const row = await first(
       env,
       `SELECT ci.id, ci.hotel_id, ci.module_key, ci.catalog_id, ci.name, ci.description,
-              ci.price_cents, ci.currency, ci.status, ca.is_available
+              ci.price_cents, ci.currency, ci.status, ci.metadata_json, ca.is_available
          FROM catalog_items ci
          JOIN catalogs c ON c.id = ci.catalog_id
          LEFT JOIN catalog_item_availability ca
@@ -80,6 +82,11 @@ export async function createRoomServiceOrder({ request, env, tenant }) {
     if (!row) throw notFoundError("Produto inexistente para este hotel e modulo.");
     if (row.status !== "active") throw unprocessable("Produto arquivado ou inativo.");
     if (row.is_available === 0) throw unprocessable("Produto indisponivel.");
+
+    const selectedOptions = validateCatalogSelections(
+      parseCatalogOptions(row.metadata_json, row.name),
+      item.selected_options,
+    );
 
     const lineTotalCents = multiplyCents(row.price_cents, item.quantity);
     if (item.client_unit_price_cents != null && item.client_unit_price_cents !== row.price_cents) {
@@ -98,6 +105,7 @@ export async function createRoomServiceOrder({ request, env, tenant }) {
       currency: row.currency,
       quantity: item.quantity,
       note: item.note,
+      selected_options: selectedOptions,
       line_total_cents: lineTotalCents,
     });
   }
@@ -172,7 +180,7 @@ export async function createRoomServiceOrder({ request, env, tenant }) {
           item.unit_price_cents,
           item.quantity,
           item.line_total_cents,
-          item.note ? JSON.stringify({ note: item.note }) : null,
+          buildSelectedOptionsSnapshot(item),
           createdAt,
         ],
       ),
@@ -206,6 +214,7 @@ export async function createRoomServiceOrder({ request, env, tenant }) {
       name: item.name,
       quantity: item.quantity,
       note: item.note,
+      selected_options: item.selected_options,
       unit_price_cents: item.unit_price_cents,
       line_total_cents: item.line_total_cents,
     })),
@@ -216,6 +225,41 @@ export async function createRoomServiceOrder({ request, env, tenant }) {
     created_at: createdAt,
     idempotent: false,
   };
+}
+
+function validateSelectedOptionsShape(value, label) {
+  if (value == null) return {};
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw badRequest(`${label} deve ser um objeto.`);
+  }
+  const entries = Object.entries(value);
+  if (entries.length > 8) throw badRequest(`${label} excede o limite permitido.`);
+  return Object.fromEntries(entries.map(([key, optionValue]) => [
+    requireString(key, `${label}.chave`, { max: 40 }),
+    requireString(optionValue, `${label}.${key}`, { max: 120 }),
+  ]));
+}
+
+function validateCatalogSelections(definitions, selectedOptions) {
+  const allowedKeys = new Set(definitions.map((definition) => definition.key));
+  if (Object.keys(selectedOptions).some((key) => !allowedKeys.has(key))) {
+    throw unprocessable("Opcao invalida para este item.");
+  }
+  const normalized = {};
+  for (const definition of definitions) {
+    const selected = selectedOptions[definition.key] || "";
+    if (definition.required && !selected) throw unprocessable(`${definition.label} e obrigatoria.`);
+    if (selected && !definition.values.includes(selected)) throw unprocessable("Opcao invalida para este item.");
+    if (selected) normalized[definition.key] = selected;
+  }
+  return normalized;
+}
+
+function buildSelectedOptionsSnapshot(item) {
+  const snapshot = {};
+  if (item.note) snapshot.note = item.note;
+  if (Object.keys(item.selected_options).length) snapshot.selections = item.selected_options;
+  return Object.keys(snapshot).length ? JSON.stringify(snapshot) : null;
 }
 
 async function findOrderByIdempotencyKey(env, hotelId, idempotencyKey) {

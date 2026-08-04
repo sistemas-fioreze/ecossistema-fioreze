@@ -52,6 +52,55 @@ test("rejeita observacao de item acima do limite", async () => {
   assert.equal(env.__data.orders.length, 0);
 });
 
+test("valida e preserva a opcao selecionada no snapshot do pedido", async () => {
+  const { json, env } = createWorkerTestContext();
+  const pizza = env.__data.catalogItems.find((item) => item.id === "muller-sandwich");
+  pizza.name = "Pizza Artesanal Salgada";
+  pizza.metadata_json = JSON.stringify({ options: ["Calabresa", "Marguerita"] });
+
+  const valid = await json(
+    "/api/v1/public/hotels/muller-fioreze/room-service/orders",
+    jsonPost({
+      ...VALID_ORDER,
+      items: [{ catalog_item_id: pizza.id, quantity: 1, selected_options: { selection: "Marguerita" } }],
+    }),
+  );
+
+  assert.equal(valid.response.status, 201);
+  assert.deepEqual(valid.body.data.items[0].selected_options, { selection: "Marguerita" });
+  assert.deepEqual(JSON.parse(env.__data.orderItems[0].selected_options_snapshot), {
+    selections: { selection: "Marguerita" },
+  });
+});
+
+test("rejeita opcao ausente ou fora do catalogo sem criar pedido", async () => {
+  const missingContext = createWorkerTestContext();
+  const missingPizza = missingContext.env.__data.catalogItems.find((item) => item.id === "muller-sandwich");
+  missingPizza.name = "Pizza Artesanal Salgada";
+  missingPizza.metadata_json = JSON.stringify({ options: ["Calabresa", "Marguerita"] });
+  const missing = await missingContext.json(
+    "/api/v1/public/hotels/muller-fioreze/room-service/orders",
+    jsonPost({ ...VALID_ORDER, items: [{ catalog_item_id: missingPizza.id, quantity: 1 }] }),
+  );
+
+  const invalidContext = createWorkerTestContext();
+  const invalidPizza = invalidContext.env.__data.catalogItems.find((item) => item.id === "muller-sandwich");
+  invalidPizza.name = "Pizza Artesanal Salgada";
+  invalidPizza.metadata_json = JSON.stringify({ options: ["Calabresa", "Marguerita"] });
+  const invalid = await invalidContext.json(
+    "/api/v1/public/hotels/muller-fioreze/room-service/orders",
+    jsonPost({
+      ...VALID_ORDER,
+      items: [{ catalog_item_id: invalidPizza.id, quantity: 1, selected_options: { selection: "Valor adulterado" } }],
+    }),
+  );
+
+  assert.equal(missing.response.status, 422);
+  assert.equal(invalid.response.status, 422);
+  assert.equal(missingContext.env.__data.orders.length, 0);
+  assert.equal(invalidContext.env.__data.orders.length, 0);
+});
+
 test("idempotency-key repetida retorna o pedido existente", async () => {
   const { json, env } = createWorkerTestContext();
   const headers = { "idempotency-key": "same-test-key" };

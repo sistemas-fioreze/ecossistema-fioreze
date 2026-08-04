@@ -45,6 +45,7 @@ export async function render(container, context) {
     selectedProductId: null,
     selectedProductQuantity: 1,
     selectedProductNote: "",
+    selectedProductOptions: {},
   };
 
   container.innerHTML = renderStaticShell({ embedded });
@@ -224,6 +225,7 @@ function bindStaticActions(container, state) {
     const detailQuantityButton = event.target.closest("[data-rs-detail-quantity-action]");
     if (detailQuantityButton) {
       state.selectedProductNote = readDetailNote(container);
+      state.selectedProductOptions = readDetailOptions(container);
       state.selectedProductQuantity = clampDetailQuantity(
         state.selectedProductQuantity + Number(detailQuantityButton.dataset.rsDetailQuantityAction),
       );
@@ -604,6 +606,7 @@ function openProductDetail(container, state, itemId) {
   state.selectedProductId = itemId;
   state.selectedProductQuantity = existing?.quantity || 1;
   state.selectedProductNote = existing?.note || "";
+  state.selectedProductOptions = { ...(existing?.selected_options || {}) };
   renderProductDetail(container, state);
 }
 
@@ -643,14 +646,15 @@ function renderProductDetail(container, state) {
       <strong class="rs-product-detail-price">${escapeHtml(formatMoney(item.price_cents, item.currency, state.bootstrap.locale))}</strong>
       ${descriptionParts.meta ? `<p class="rs-product-detail-meta">${escapeHtml(descriptionParts.meta)}</p>` : ""}
       <p class="rs-product-detail-description">${escapeHtml(descriptionParts.description || "Item do cardápio.")}</p>
+      ${renderProductOptions(item, state.selectedProductOptions)}
       ${orderNotesEnabled(state) ? `<label class="rs-product-detail-note">
         <span>Observação do item</span>
         <textarea data-rs-item-note maxlength="180" rows="3" placeholder="Ex.: sem cebola, ponto da carne ou outra preferência">${escapeHtml(state.selectedProductNote)}</textarea>
       </label>` : ""}
-      <div class="rs-product-detail-availability" data-available="${String(item.available !== false)}">
+      ${item.available === false ? `<div class="rs-product-detail-availability" data-available="false">
         <span aria-hidden="true"></span>
-        <strong>${item.available === false ? escapeHtml(item.availability_label || "Indisponível no momento") : "Disponível para pedir"}</strong>
-      </div>
+        <strong>${escapeHtml(item.availability_label || "Indisponível no momento")}</strong>
+      </div>` : ""}
       <div class="rs-product-detail-actions">
         <div class="rs-product-detail-quantity" aria-label="Quantidade do item">
           <button type="button" data-rs-detail-quantity-action="-1" aria-label="Diminuir quantidade" ${state.selectedProductQuantity <= 1 ? "disabled" : ""}>−</button>
@@ -671,11 +675,29 @@ function closeProductDetail(container, state) {
   state.selectedProductId = null;
   state.selectedProductQuantity = 1;
   state.selectedProductNote = "";
+  state.selectedProductOptions = {};
   renderProductDetail(container, state);
 }
 
 function readDetailNote(container) {
   return String(container.querySelector("[data-rs-item-note]")?.value || "").trim().slice(0, 180);
+}
+
+function readDetailOptions(container) {
+  return Object.fromEntries([...container.querySelectorAll("[data-rs-item-option]")]
+    .map((field) => [field.dataset.rsItemOption, String(field.value || "").trim()])
+    .filter(([, value]) => value));
+}
+
+function renderProductOptions(item, selectedOptions = {}) {
+  return (item.options || []).map((option) => `
+    <label class="rs-product-detail-option">
+      <span>${escapeHtml(option.label)}</span>
+      <select data-rs-item-option="${escapeHtml(option.key)}" ${option.required ? "required" : ""}>
+        <option value="">Selecione</option>
+        ${(option.values || []).map((value) => `<option value="${escapeHtml(value)}" ${selectedOptions[option.key] === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}
+      </select>
+    </label>`).join("");
 }
 
 function clampDetailQuantity(value) {
@@ -695,7 +717,11 @@ function splitProductDescription(value) {
 function addConfiguredItem(container, state) {
   try {
     state.selectedProductNote = orderNotesEnabled(state) ? readDetailNote(container) : "";
-    state.cart.set(state.selectedProductId, state.selectedProductQuantity, state.selectedProductNote);
+    state.selectedProductOptions = readDetailOptions(container);
+    const item = state.itemMap.get(state.selectedProductId);
+    const missingOption = (item.options || []).find((option) => option.required && !state.selectedProductOptions[option.key]);
+    if (missingOption) throw new Error(`${missingOption.label} é obrigatória.`);
+    state.cart.set(state.selectedProductId, state.selectedProductQuantity, state.selectedProductNote, state.selectedProductOptions);
     renderCart(container, state);
     showToast(container, "Item adicionado ao pedido");
     closeProductDetail(container, state);
@@ -748,6 +774,12 @@ function renderCartItem(item, state) {
     note.textContent = item.note;
     info.append(note);
   }
+  Object.values(item.selected_options || {}).forEach((value) => {
+    const option = document.createElement("small");
+    option.className = "rs-cart-item-option";
+    option.textContent = value;
+    info.append(option);
+  });
 
   const controls = document.createElement("div");
   controls.className = "rs-qty-controls";
@@ -852,6 +884,7 @@ async function submitOrder(container, state, form) {
           catalog_item_id: item.id,
           quantity: item.quantity,
           note: orderNotesEnabled(state) ? item.note : "",
+          selected_options: item.selected_options || {},
           unit_price_cents: item.price_cents,
           total_cents: item.line_total_cents,
         })),
@@ -902,7 +935,7 @@ function renderOrderReview(container, state, form, snapshot, data) {
     </div>
     <div class="rs-review-items">
       ${snapshot.items.map((item) => `
-        <div><span><b>${item.quantity}×</b> ${escapeHtml(item.name)}</span><strong>${escapeHtml(formatMoney(item.line_total_cents, item.currency, state.bootstrap.locale))}</strong></div>
+        <div><span><b>${item.quantity}×</b> ${escapeHtml(item.name)}${Object.values(item.selected_options || {}).map((value) => `<small>${escapeHtml(value)}</small>`).join("")}</span><strong>${escapeHtml(formatMoney(item.line_total_cents, item.currency, state.bootstrap.locale))}</strong></div>
       `).join("")}
     </div>
     <div class="rs-review-total"><span>Total</span><strong>${escapeHtml(formatMoney(snapshot.total_cents, state.bootstrap.currency, state.bootstrap.locale))}</strong></div>
@@ -1174,6 +1207,7 @@ export const internalsForTests = {
   sanitizeAssetPath,
   splitProductDescription,
   clampDetailQuantity,
+  renderProductOptions,
   submitOrder,
   syncSubmitButton,
   updateServiceStatus,
