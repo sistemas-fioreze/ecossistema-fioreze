@@ -628,9 +628,12 @@
 
   .emporio-detail-card.catalog-detail-surface {
     width: 100%;
-    max-height: calc(100dvh - max(10px, env(safe-area-inset-top)));
+    height: auto;
+    min-height: 100dvh;
+    max-height: none;
     grid-template-columns: 1fr;
-    grid-template-rows: auto auto;
+    grid-template-rows: max-content max-content;
+    overflow-y: auto;
     border-radius: 8px 8px 0 0;
   }
 
@@ -644,6 +647,8 @@
   }
 
   .emporio-detail-media .catalog-detail-media-button img {
+    width: auto;
+    max-width: 100%;
     height: auto;
     max-height: 72dvh;
     object-fit: contain;
