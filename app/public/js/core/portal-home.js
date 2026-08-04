@@ -486,7 +486,116 @@ function renderServicesView(state) {
 }
 
 function renderServiceLandscape(module, bootstrap) {
-  const imageUr…1708 tokens truncated…
+  const imageUrl = sanitizePublicAssetUrl(module.background_image_url);
+  const href = module.href === null ? null : getModulePath(bootstrap, module.module_key);
+  const tag = href ? "a" : "article";
+  const isPool = module.module_key === "pool";
+  return `
+    <${tag} class="home-landscape-card${imageUrl ? "" : " no-image"}${isPool ? " is-static" : ""}"${href ? ` href="${escapeHtml(href)}"` : ""}>
+      <span class="home-landscape-icon">${icon(moduleIcon(module.module_key))}</span>
+      <span class="home-landscape-copy"><h3>${escapeHtml(module.navigation_label || module.name)}</h3><p>${escapeHtml(module.description || getModuleDescription(module, bootstrap))}</p>${module.meta ? `<small>${escapeHtml(module.meta)}</small>` : ""}</span>
+      ${imageUrl ? `<img class="home-landscape-media" src="${escapeHtml(imageUrl)}" alt="" loading="lazy">` : ""}
+    </${tag}>`;
+}
+
+function getServiceExperiences(bootstrap) {
+  const modules = getServiceModules(bootstrap);
+  const configured = bootstrap.settings?.["portal.services.extra_items"];
+  const extras = Array.isArray(configured) ? configured : [];
+  return [...modules, ...extras.filter((item) => item?.enabled !== false && item?.title).slice(0, 8).map((item, index) => ({
+    module_key: String(item.icon_key || "sparkle"),
+    navigation_label: String(item.title).slice(0, 100),
+    description: String(item.description || "").slice(0, 280),
+    background_image_url: item.image_url || null,
+    href: null,
+    sort_order: Number(item.sort_order || 500 + index),
+  }))].sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
+}
+
+function renderEventsView(state) {
+  const controls = renderEventControls(state);
+  const body = state.eventMode === "calendar" ? renderCalendarView(state) : renderEventList(state);
+  return `${renderAppTop(state, "Programação", "Experiências, avisos e novidades durante a sua estadia.", "calendar", controls)}${body}`;
+}
+
+function renderEventControls(state) {
+  return `
+    <div class="event-title-controls">
+      <div class="event-mode-row">
+        <button type="button" class="event-mode-toggle${state.eventMode === "list" ? " active" : ""}" data-event-mode="list">${icon("list")}<span>Lista</span></button>
+        <button type="button" class="event-mode-toggle${state.eventMode === "calendar" ? " active" : ""}" data-event-mode="calendar">${icon("calendar")}<span>Calendário</span></button>
+      </div>
+      <div class="event-filter-row">
+        ${eventFilterOptions(state.content.events).map((filter) => `<button type="button" class="event-filter-pill${state.eventFilter === filter.key ? " active" : ""}" data-event-filter="${escapeHtml(filter.key)}">${escapeHtml(filter.label)}</button>`).join("")}
+      </div>
+    </div>`;
+}
+
+function renderEventList(state) {
+  const events = filteredEvents(state);
+  const totalPages = Math.max(1, Math.ceil(events.length / EVENT_PAGE_SIZE));
+  state.eventPage = Math.min(state.eventPage, totalPages);
+  const pageItems = events.slice((state.eventPage - 1) * EVENT_PAGE_SIZE, state.eventPage * EVENT_PAGE_SIZE);
+  return `
+    <main class="embed-shell event-blog-grid" data-events-anchor>
+      ${pageItems.length ? `<div class="event-card-grid">${pageItems.map((event) => renderEventCard(event, state.bootstrap)).join("")}</div>` : renderEmptyState("Nenhum evento encontrado para este filtro.")}
+      ${renderPagination(state.eventPage, totalPages)}
+    </main>`;
+}
+
+function renderEventCard(event, bootstrap) {
+  const imageUrl = sanitizePublicAssetUrl(event.image_url);
+  const category = event.category || "Evento";
+  return `
+    <button type="button" class="event-blog-card" data-event-open="${escapeHtml(event.id)}">
+      <span class="event-card-media">${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(event.image_alt || "")}" loading="lazy">` : icon("calendar")}</span>
+      <span class="event-card-copy">
+        <small class="event-card-pill">EVENTO · ${escapeHtml(formatEventDay(event, bootstrap))}</small>
+        <strong>${escapeHtml(event.title)}</strong>
+        ${event.summary ? `<span class="event-card-summary">${escapeHtml(event.summary)}</span>` : ""}
+        <span class="event-card-foot"><b>${escapeHtml(category)}${formatEventTime(event, bootstrap) ? ` · ${escapeHtml(formatEventTime(event, bootstrap))}` : ""}</b><em>Abrir</em></span>
+      </span>
+    </button>`;
+}
+
+function renderPagination(page, totalPages) {
+  if (totalPages <= 1) return "";
+  return `<nav class="event-pagination" aria-label="Páginas de eventos">
+    <button type="button" data-event-page="${page - 1}"${page <= 1 ? " disabled" : ""}>Anterior</button>
+    ${Array.from({ length: totalPages }, (_, index) => index + 1).map((item) => `<button type="button" class="${item === page ? "active" : ""}" data-event-page="${item}">${item}</button>`).join("")}
+    <button type="button" data-event-page="${page + 1}"${page >= totalPages ? " disabled" : ""}>Próximo</button>
+  </nav>`;
+}
+
+function renderCalendarView(state) {
+  return `
+    <main class="embed-shell calendar-shell">
+      <div class="calendar-tabs">
+        <button type="button" class="${state.calendarTab === "stay" ? "active" : ""}" data-calendar-tab="stay">${icon("calendar")}<span>Por período</span></button>
+        <button type="button" class="${state.calendarTab === "month" ? "active" : ""}" data-calendar-tab="month">${icon("calendar")}<span>Mês a mês</span></button>
+      </div>
+      ${state.calendarTab === "stay" ? renderStayCalendar(state) : renderMonthCalendar(state)}
+    </main>`;
+}
+
+function renderStayCalendar(state) {
+  const active = state.stayStart && state.stayEnd;
+  const events = active ? filteredEvents(state).filter((event) => {
+    const key = eventDateKey(event, state.bootstrap);
+    return key && key >= state.stayStart && key <= state.stayEnd;
+  }) : [];
+  return `
+    <section class="stay-filter-card">
+      <p>${icon("calendar")}<strong>Veja os eventos conforme sua estadia</strong></p>
+      <div class="stay-filter-grid">
+        <label><span>Check-in</span><input type="date" data-stay-start value="${escapeHtml(state.stayStart)}"></label>
+        <label><span>Check-out</span><input type="date" data-stay-end value="${escapeHtml(state.stayEnd)}"></label>
+      </div>
+      <div class="stay-filter-actions"><button type="button" class="primary" data-stay-apply>Filtrar período</button>${active ? `<button type="button" data-stay-clear>Limpar datas</button>` : ""}</div>
+    </section>
+    <section class="calendar-results">
+      ${active ? (events.length ? `<div class="event-card-grid">${events.map((event) => renderEventCard(event, state.bootstrap)).join("")}</div>` : renderEmptyState("Nenhum evento encontrado neste período.")) : renderEmptyState("Informe as datas de check-in e check-out para visualizar os eventos da sua estadia.")}
+    </section>`;
 }
 
 function renderMonthCalendar(state) {
