@@ -62,6 +62,8 @@ test("editor de Decorações Especiais usa modal amplo, CRUD protegido e upload 
   assert.match(editor, /data-special-media-upload/);
   assert.match(editor, /module_key", MODULE_KEY/);
   assert.match(editor, /included_items/);
+  assert.match(editor, /data-special-action="\$\{escapeAttr\(deleteAction\)\}"/);
+  assert.match(editor, /archiveCurrentItem/);
   assert.match(css, /width:\s*min\(1500px/);
   assert.match(css, /height:\s*min\(940px/);
   assert.match(routes, /\/api\/v1\/admin\/special-decorations\/catalog/);
@@ -153,6 +155,17 @@ test("CRUD administrativo mantém catálogo, mídia e auditoria isolados por uni
     "/api/v1/admin/special-decorations/catalog?hotel_id=muller-fioreze",
     withCookie(cookie),
   );
+  const archived = await context.json(
+    `/api/v1/admin/special-decorations/catalog/items/${encodeURIComponent(item.body.data.item.id)}`,
+    adminJson(cookie, "PATCH", {
+      hotel_id: "muller-fioreze",
+      status: "archived",
+    }),
+  );
+  const catalogAfterArchive = await context.json(
+    "/api/v1/admin/special-decorations/catalog?hotel_id=muller-fioreze",
+    withCookie(cookie),
+  );
 
   assert.equal(category.response.status, 201);
   assert.equal(item.response.status, 201);
@@ -163,6 +176,9 @@ test("CRUD administrativo mantém catálogo, mídia e auditoria isolados por uni
   assert.deepEqual(item.body.data.item.included_items, ["Item fictício A", "Item fictício B"]);
   assert.equal(catalog.body.data.categories.length, 1);
   assert.equal(catalog.body.data.items.length, 1);
+  assert.equal(archived.response.status, 200);
+  assert.equal(archived.body.data.item.status, "archived");
+  assert.equal(catalogAfterArchive.body.data.items.length, 0);
   assert.equal(context.env.__data.orders.length, ordersBefore);
   assert.equal(context.env.__data.printEvents.length, printEventsBefore);
   assert.ok(context.env.__data.adminAuditLog.some((entry) => entry.action === "special_decorations.item.created"));
