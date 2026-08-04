@@ -447,7 +447,7 @@ function renderQuickCard(module, bootstrap) {
 }
 
 function renderFeaturedSection(state) {
-  const event = getFeaturedEvent(state.content.events);
+  const event = getNextFeaturedEvent(state.content.events);
   const brandingCover = state.bootstrap.branding?.cover_media_type === "video" ? null : state.bootstrap.branding?.cover_image_url;
   const coverUrl = sanitizePublicAssetUrl(event?.image_url || brandingCover);
   const title = event?.title || `Viva o melhor do ${state.bootstrap.short_name || state.bootstrap.name}`;
@@ -459,7 +459,7 @@ function renderFeaturedSection(state) {
       <button type="button" class="featured-home-card${coverUrl ? " has-image" : ""}"${event ? ` data-event-open="${escapeHtml(event.id)}"` : ` data-portal-tab="eventos"`}>
         ${coverUrl ? `<img class="featured-home-image" src="${escapeHtml(coverUrl)}" alt="" loading="lazy">` : ""}
         <div class="featured-home-inner">
-          <span class="guest-pill">${event ? "Evento em destaque" : "Experiência em destaque"}</span>
+          <span class="guest-pill">${event ? "Próximo evento" : "Experiência em destaque"}</span>
           <h2>${escapeHtml(title)}</h2>
           <p>${escapeHtml(summary)}</p>
           ${(date || time) ? `<div class="feature-meta">${date ? `<span>${icon("calendar")}${escapeHtml(date)}</span>` : ""}${time ? `<span>${icon("clock")}${escapeHtml(time)}</span>` : ""}</div>` : ""}
@@ -740,10 +740,23 @@ function getModuleDescription(module, bootstrap) {
   return bootstrap.settings?.[`portal.module.${module.module_key}.description`] || MODULE_DESCRIPTIONS[module.module_key] || `Conheça ${module.navigation_label || module.name}.`;
 }
 
-function getFeaturedEvent(events = []) {
-  if (!events.length) return null;
-  const now = Date.now();
-  return events.find((event) => eventSchedule(event).some((occurrence) => Date.parse(occurrence.ends_at || occurrence.starts_at) >= now)) || events.at(-1);
+export function getNextFeaturedEvent(events = [], now = Date.now()) {
+  let next = null;
+  for (const event of events) {
+    for (const occurrence of eventSchedule(event)) {
+      const startsAt = Date.parse(occurrence.starts_at);
+      if (!Number.isFinite(startsAt) || startsAt < now) continue;
+      if (!next || startsAt < next.startsAt) next = { event, occurrence, startsAt };
+    }
+  }
+  if (!next) return null;
+  return {
+    ...next.event,
+    starts_at: next.occurrence.starts_at,
+    ends_at: next.occurrence.ends_at,
+    timezone: next.occurrence.timezone || next.event.timezone,
+    occurrences: [next.occurrence],
+  };
 }
 
 function filteredEvents(state) {

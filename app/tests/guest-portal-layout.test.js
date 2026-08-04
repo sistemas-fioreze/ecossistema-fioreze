@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
 import { renderGuestNavigation } from "../public/js/core/guest-navigation.js";
-import { getModulePath, resolvePortalSwipe } from "../public/js/core/portal-home.js";
+import { getModulePath, getNextFeaturedEvent, resolvePortalSwipe } from "../public/js/core/portal-home.js";
 import { formatRoomServiceHours } from "../public/js/core/service-hours.js";
 
 const portalScript = fs.readFileSync(new URL("../public/js/core/portal-home.js", import.meta.url), "utf8");
@@ -59,6 +59,32 @@ test("programação recorrente agrupa datas no portal e permanece editável", ()
   assert.match(adminScript, /Adicionar outra data/);
   assert.match(adminScript, /body\.occurrences/);
   assert.match(eventOccurrencesMigration, /event_occurrences/);
+});
+
+test("home destaca a ocorrência futura mais próxima sem duplicar o evento", () => {
+  const events = [
+    {
+      id: "event-sabado",
+      title: "Brinde de Sábado",
+      occurrences: [
+        { starts_at: "2026-08-01T19:00:00.000Z", ends_at: "2026-08-01T21:00:00.000Z" },
+        { starts_at: "2026-08-08T19:00:00.000Z", ends_at: "2026-08-08T21:00:00.000Z" },
+      ],
+    },
+    {
+      id: "event-apfel",
+      title: "Chá da Tarde | Apfelstrudel",
+      occurrences: [
+        { starts_at: "2026-08-05T19:00:00.000Z", ends_at: "2026-08-05T21:00:00.000Z" },
+      ],
+    },
+  ];
+
+  const next = getNextFeaturedEvent(events, Date.parse("2026-08-04T12:00:00.000Z"));
+  assert.equal(next.id, "event-apfel");
+  assert.equal(next.occurrences.length, 1);
+  assert.equal(next.starts_at, "2026-08-05T19:00:00.000Z");
+  assert.match(portalScript, /Próximo evento/);
 });
 
 test("identidade da unidade controla favicon e escala uniforme da logo", () => {
