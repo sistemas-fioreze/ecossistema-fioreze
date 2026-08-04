@@ -626,7 +626,7 @@
     padding: 0;
   }
 
-  .emporio-detail-card {
+  .emporio-detail-card.catalog-detail-surface {
     width: 100%;
     max-height: calc(100dvh - max(10px, env(safe-area-inset-top)));
     grid-template-columns: 1fr;
@@ -634,7 +634,7 @@
     border-radius: 8px 8px 0 0;
   }
 
-  .emporio-detail-media {
+  .emporio-detail-media.catalog-detail-media {
     min-height: 0;
     aspect-ratio: auto;
   }
@@ -643,7 +643,7 @@
     height: auto;
   }
 
-  .emporio-detail-media img {
+  .emporio-detail-media .catalog-detail-media-button img {
     height: auto;
     max-height: 72dvh;
     object-fit: contain;
