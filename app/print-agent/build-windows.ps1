@@ -71,7 +71,7 @@ if (-not $Commit) { $Commit = "build-local" }
 $SuiteHash = (Get-FileHash (Join-Path $Package "Fioreze-Suite.exe") -Algorithm SHA256).Hash.ToLowerInvariant()
 $ErpHash = (Get-FileHash (Join-Path $Package "Fioreze-ERP\Fioreze ERP.exe") -Algorithm SHA256).Hash.ToLowerInvariant()
 "$SuiteHash  Fioreze-Suite.exe`n$ErpHash  Fioreze-ERP\Fioreze ERP.exe" | Set-Content -Path (Join-Path $Package "SHA256SUMS.txt") -Encoding ASCII
-Compress-Archive -Path $Package -DestinationPath $Archive -CompressionLevel Optimal
+Compress-Archive -Path $Package -DestinationPath $Archive -CompressionLevel Optimal -Force
 
 Write-Host "Pacote criado em $Package"
 Write-Host "Arquivo ZIP criado em $Archive"
