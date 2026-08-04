@@ -1,50 +1,61 @@
-# Agente de impressao Fioreze
+# Fioreze Suite para Windows
 
-Aplicativo Windows que recebe, pela API autenticada da plataforma, somente os pedidos da unidade vinculada e os envia para a impressora configurada. Ele substitui a leitura de Google Sheets e nao inicia servidor HTTP local.
+Aplicativo unico para preparar o computador da unidade, criar o atalho identificado do ERP e, opcionalmente, instalar o agente de impressao automatica. O executavel inclui Python e suas dependencias; a recepcao nao precisa instalar componentes manualmente.
 
-## Primeiro acesso
+## Instalacao
 
-1. No ERP da unidade, abra `Configuracoes > Impressao` e gere um codigo de conexao.
-2. Abra `Fioreze-Impressao.exe`.
-3. Escolha a unidade, informe o codigo, nomeie o computador e selecione a impressora.
-4. O token retornado uma unica vez pela API e protegido com DPAPI no perfil do Windows.
+1. Abra `Fioreze-Suite.exe`.
+2. Escolha a unidade carregada da plataforma.
+3. Mantenha selecionado `Criar atalhos do ERP desta unidade`.
+4. Para usar impressao, marque `Instalar agente de impressao automatica`, gere um codigo em `ERP > Configuracoes > Impressao` e informe-o no instalador.
+5. Escolha a impressora Windows e conclua.
 
-Depois da conexao, o aplicativo permanece na bandeja do Windows usando a logo reduzida da unidade selecionada. O menu da bandeja permite reabrir ou encerrar o agente. A tela principal tambem permite atualizar a lista de impressoras e trocar a impressora escolhida sem reinstalar o programa.
+O codigo expira em 15 minutos e funciona uma unica vez. O instalador nunca pede a senha administrativa: o vinculo usa o codigo descartavel e recebe um token exclusivo do computador. Esse token e protegido com DPAPI no perfil do Windows.
 
-O codigo expira em 15 minutos e so pode ser usado uma vez. O computador pode ser pausado ou revogado no ERP.
+O atalho do ERP usa a rota da unidade, `/<slug>/admin/erp/`, e o icone reduzido configurado na Central. O agente instalado inicia com o Windows e permanece na bandeja com o mesmo icone.
 
-## Fluxo
+## Operacao
 
-- O Worker grava um `print_event` na mesma operacao do pedido quando a impressao global e a da unidade estiverem habilitadas.
-- O agente faz polling por HTTPS e assume um trabalho por tempo limitado.
-- O agente renderiza o template selecionado e envia bytes RAW para a impressora Windows.
-- A confirmacao atualiza o evento e registra o status `printed` uma unica vez.
-- Um diario local registra o ID logo apos o spooler aceitar a comanda; se a confirmacao HTTPS falhar, o agente sincroniza o mesmo trabalho sem imprimir novamente.
-- Pedidos agendados ficam na fila ate o horario definido.
+Na janela e no menu da bandeja, o operador pode:
 
-O template inicial `legacy-thermal-42` preserva a estrutura funcional do comprovante antigo: 42 colunas, via do estabelecimento e via do hospede. Nenhum dado, credencial ou caminho de impressora do sistema legado foi copiado.
+- testar a conexao HTTPS com a plataforma;
+- atualizar a lista de impressoras;
+- escolher uma impressora;
+- escolher um dos templates liberados para a unidade;
+- enviar uma pagina de teste, sempre depois de confirmacao explicita;
+- abrir o ERP da unidade.
 
-## Desenvolvimento seguro
+O ERP mostra o computador como online quando recebeu contato nos ultimos dois minutos. Tambem mostra versao, impressora, template, ultimo contato e permite pausar ou revogar o dispositivo.
 
-```bash
+## Templates
+
+- `legacy-thermal-42`: comprovante termico generico, com duas vias.
+- `legacy-centro-elgin-48`: layout do Fioreze Centro para impressora Elgin de 48 colunas, com via cozinha/recepcao, via do hospede, valores unitarios e totais.
+
+O renderer usa os itens estruturados recebidos pela API. Nenhum ID de planilha, endpoint antigo, credencial ou nome fixo de impressora faz parte do pacote.
+
+## Seguranca
+
+- A API entrega apenas trabalhos do `hotel_id` vinculado ao token.
+- Impressora e template sao validados e persistidos para o mesmo hotel.
+- O diario local evita reimpressao se a confirmacao HTTPS falhar.
+- O teste de impressao nao cria pedido nem `print_event`.
+- O pacote de distribuicao nao inclui `config.json`, token ou estado operacional.
+
+## Testes
+
+```powershell
 cd app/print-agent
-PYTHONPATH=. python3 -m unittest discover -s tests -v
+$env:PYTHONPATH = "."
+python -m unittest discover -s tests -v
 ```
 
-Os testes apenas renderizam bytes em memoria. Eles nunca chamam uma impressora.
+Os testes renderizam bytes em memoria e usam pastas temporarias. Eles nunca chamam impressora real.
 
-## Gerar o EXE
-
-Em Windows com Python 3.12 instalado para o processo de build:
+## Build
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\build-windows.ps1
 ```
 
-O build cria `release/Fioreze-Impressao-Windows/` com o executavel, instrucoes, versao e checksum, alem de `release/Fioreze-Impressao-Windows.zip`. O executavel inclui o interpretador e as dependencias; o computador da recepcao nao precisa instalar Python. O pipeline GitHub Actions produz o mesmo ZIP em ambiente Windows.
-
-O pacote de distribuicao nunca inclui `config.json`, token, nome de impressora ou outro estado do computador. Esses dados sao criados apenas depois da ativacao, em `%LOCALAPPDATA%\Fioreze\PrintAgent`.
-
-## Ativacao operacional
-
-O software pode ser publicado com `IMPRESSION_ENABLED=false`. Habilitar uma impressora real exige, em etapa separada, validar o modelo, papel, codificacao, corte, rede local e uma comanda ficticia autorizada.
+O build gera `release/Fioreze-Suite-Windows/` e `release/Fioreze-Suite-Windows.zip`, com executavel, instrucoes, versao e checksum SHA-256.

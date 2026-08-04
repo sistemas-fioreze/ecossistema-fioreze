@@ -113,6 +113,77 @@ export async function heartbeatPrintAgent({ request, env }) {
   return { device_id: device.id, status: device.status, printing_enabled: await isPrintingEnabled(env, device.hotel_id) };
 }
 
+export async function getPrintAgentSettings({ request, env }) {
+  const device = await requirePrintAgent({ request, env });
+  const templates = await all(
+    env,
+    `SELECT id, template_key, name, description, config_json, is_default
+       FROM printer_templates
+      WHERE hotel_id = ? AND module_key = ? AND status = 'active'
+      ORDER BY is_default DESC, name, id`,
+    [device.hotel_id, MODULE_KEY],
+  );
+  return {
+    device: {
+      id: device.id,
+      hotel_id: device.hotel_id,
+      hotel_slug: device.hotel_slug,
+      hotel_name: device.hotel_name,
+      name: device.name,
+      printer_name: device.printer_name || null,
+      template_id: device.template_id || null,
+      status: device.status,
+      printing_enabled: await isPrintingEnabled(env, device.hotel_id),
+    },
+    templates: templates.map((template) => ({
+      id: template.id,
+      key: template.template_key,
+      name: template.name,
+      description: template.description || null,
+      is_default: Boolean(template.is_default),
+      config: safeJson(template.config_json, {}),
+    })),
+  };
+}
+
+export async function updatePrintAgentSettings({ request, env }) {
+  const device = await requirePrintAgent({ request, env });
+  if (device.status !== "active") throw conflict("Agente de impressao pausado.");
+  const payload = await readJson(request);
+  const printerName = Object.hasOwn(payload, "printer_name")
+    ? requireString(payload.printer_name, "printer_name", { max: 180 })
+    : device.printer_name;
+  const templateId = Object.hasOwn(payload, "template_id")
+    ? requireString(payload.template_id, "template_id", { max: 100 })
+    : device.template_id;
+  const template = await first(
+    env,
+    `SELECT id FROM printer_templates
+      WHERE id = ? AND hotel_id = ? AND module_key = ? AND status = 'active' LIMIT 1`,
+    [templateId, device.hotel_id, MODULE_KEY],
+  );
+  if (!template) throw notFoundError("Template de impressao nao encontrado para esta unidade.");
+  const now = requestNow({ request, env });
+  const result = await run(
+    env,
+    `UPDATE printer_devices
+        SET printer_name = ?, template_id = ?, app_version = COALESCE(?, app_version),
+            last_seen_at = ?, updated_at = ?
+      WHERE id = ? AND hotel_id = ? AND module_key = ? AND status = 'active'`,
+    [printerName, templateId, optionalString(payload.app_version, "app_version", { max: 40 }), now, now, device.id, device.hotel_id, MODULE_KEY],
+  );
+  if (Number(result?.meta?.changes || 0) !== 1) throw conflict("Configuracao alterada por outro processo.");
+  return {
+    device: {
+      id: device.id,
+      hotel_id: device.hotel_id,
+      printer_name: printerName,
+      template_id: templateId,
+      status: "active",
+    },
+  };
+}
+
 export async function claimPrintJob({ request, env }) {
   const device = await requirePrintAgent({ request, env });
   if (device.status !== "active") throw conflict("Agente de impressao pausado.");
@@ -312,4 +383,12 @@ function normalizeEnrollmentCode(value) {
   const code = requireString(value, "activation_code", { max: 32 }).toUpperCase().replace(/[^A-Z0-9]/g, "");
   if (code.length !== 10) throw badRequest("Codigo de conexao invalido.");
   return `${code.slice(0, 5)}-${code.slice(5)}`;
+}
+
+function safeJson(value, fallback) {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
 }

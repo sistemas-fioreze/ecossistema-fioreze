@@ -4,6 +4,7 @@ import test from "node:test";
 import { createEnrollmentCode, createPrintAgentToken, sha256Hex } from "../src/services/print-agent-auth.js";
 
 const migrationUrl = new URL("../migrations/0038_print_agent_foundation.sql", import.meta.url);
+const centroTemplateUrl = new URL("../migrations/0042_fioreze_centro_print_template.sql", import.meta.url);
 const routesUrl = new URL("../src/modules/print-agent/routes.js", import.meta.url);
 const serviceUrl = new URL("../src/modules/print-agent/service.js", import.meta.url);
 const agentUrl = new URL("../print-agent/fioreze_print_agent/worker.py", import.meta.url);
@@ -24,9 +25,19 @@ test("migration cria fila segura, dispositivos e templates por unidade", async (
 
 test("API do agente possui vinculo, heartbeat, claim e confirmacao", async () => {
   const routes = await readFile(routesUrl, "utf8");
-  for (const path of ["enrollment/hotels", "/enroll", "/heartbeat", "/jobs/claim", "/complete", "/fail"]) {
+  for (const path of ["enrollment/hotels", "/enroll", "/heartbeat", "/settings", "/jobs/claim", "/complete", "/fail"]) {
     assert.ok(routes.includes(path), `rota ausente: ${path}`);
   }
+});
+
+test("Fioreze Centro recebe template Elgin proprio sem alterar o template generico", async () => {
+  const sql = await readFile(centroTemplateUrl, "utf8");
+  assert.match(sql, /fiorezecentro/i);
+  assert.match(sql, /legacy-centro-elgin-48/i);
+  assert.match(sql, /paper_columns\"\s*:\s*48/i);
+  assert.match(sql, /VIA COZINHA\/RECEP/i);
+  assert.match(sql, /ON CONFLICT\(hotel_id, module_key, template_key\)/i);
+  assert.doesNotMatch(sql, /script\.google|spreadsheets|private_key|printer_name/i);
 });
 
 test("claim e confirmacao permanecem isolados por hotel e usam operacoes condicionais", async () => {
@@ -59,7 +70,7 @@ test("unidade fornece logo reduzida e agente preserva selecao de impressora e ba
   ]);
   assert.match(service, /COALESCE\(hb\.icon_url, hb\.logo_url\) AS icon_url/i);
   assert.match(app, /list_printers\(\)/);
-  assert.match(app, /Salvar impressora/);
+  assert.match(app, /Salvar configuracao/);
   assert.match(app, /load_unit_tray_icon/);
   assert.match(tray, /pystray\.Icon/);
   assert.match(tray, /MenuItem\("Abrir"/);
@@ -68,10 +79,26 @@ test("unidade fornece logo reduzida e agente preserva selecao de impressora e ba
 
 test("build Windows gera pacote separado sem configuracao ou credencial", async () => {
   const source = await readFile(buildUrl, "utf8");
-  assert.match(source, /Fioreze-Impressao-Windows/);
-  assert.match(source, /Fioreze-Impressao-Windows\.zip/i);
+  assert.match(source, /Fioreze-Suite-Windows/);
+  assert.match(source, /Fioreze-Suite-Windows\.zip/i);
   assert.match(source, /SHA256SUMS\.txt/i);
   assert.doesNotMatch(source, /Copy-Item[^\n]*(config\.json|token|credential)/i);
+});
+
+test("agente permite escolher template e ERP exibe estado real de conexao", async () => {
+  const [service, app, erp] = await Promise.all([
+    readFile(serviceUrl, "utf8"),
+    readFile(appUrl, "utf8"),
+    readFile(erpAppUrl, "utf8"),
+  ]);
+  assert.match(service, /updatePrintAgentSettings/);
+  assert.match(service, /template_id = \?/);
+  assert.match(service, /hotel_id = \? AND module_key = \?/);
+  assert.match(app, /Modelo do comprovante/);
+  assert.match(app, /Imprimir pagina de teste/);
+  assert.match(erp, /connection_status/);
+  assert.match(erp, /Online/);
+  assert.match(erp, /Offline/);
 });
 
 test("ERP formata validade do codigo e atividade dos dispositivos com helper existente", async () => {

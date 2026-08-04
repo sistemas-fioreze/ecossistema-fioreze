@@ -715,7 +715,7 @@ export function registerAdminRoutes(router) {
 
   router.get("/api/v1/admin/room-service/printing", async ({ request, env, url }) => {
     const session = await getCurrentRoomServiceErpSession({ request, env });
-    return ok(await getRoomServicePrinting({ env, session, url }));
+    return ok(await getRoomServicePrinting({ request, env, session, url }));
   });
 
   router.patch("/api/v1/admin/room-service/printing", async ({ request, env }) => {

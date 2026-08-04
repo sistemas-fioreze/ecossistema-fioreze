@@ -28,6 +28,13 @@ class ApiTests(unittest.TestCase):
         request = urlopen.call_args.args[0]
         self.assertIsNone(request.headers.get("Authorization"))
 
+    @patch("urllib.request.urlopen", return_value=FakeResponse())
+    def test_authenticated_settings_uses_bearer_without_exposing_it_in_url(self, urlopen):
+        PrintAgentApi("https://portal.example.invalid", "token-ficticio").settings()
+        request = urlopen.call_args.args[0]
+        self.assertEqual(request.headers.get("Authorization"), "Bearer token-ficticio")
+        self.assertNotIn("token-ficticio", request.full_url)
+
 
 if __name__ == "__main__":
     unittest.main()

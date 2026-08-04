@@ -2,17 +2,20 @@ import pystray
 
 
 class TrayController:
-    def __init__(self, root, image, hotel_name, on_exit):
+    def __init__(self, root, image, hotel_name, on_exit, on_test_connection=None, on_test_print=None):
         self.root = root
         self.on_exit = on_exit
+        menu_items = [pystray.MenuItem("Abrir", self.show_window, default=True)]
+        if on_test_connection:
+            menu_items.append(pystray.MenuItem("Testar conexao", lambda *_args: root.after(0, on_test_connection)))
+        if on_test_print:
+            menu_items.append(pystray.MenuItem("Imprimir pagina de teste", lambda *_args: root.after(0, on_test_print)))
+        menu_items.append(pystray.MenuItem("Sair", self.exit_application))
         self.icon = pystray.Icon(
             "fioreze-print-agent",
             image,
             f"Fioreze - Impressao - {hotel_name}",
-            menu=pystray.Menu(
-                pystray.MenuItem("Abrir", self.show_window, default=True),
-                pystray.MenuItem("Sair", self.exit_application),
-            ),
+            menu=pystray.Menu(*menu_items),
         )
 
     def start(self):

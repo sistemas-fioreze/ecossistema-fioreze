@@ -17,7 +17,7 @@ const PRINTING_SETTING_KEY = "room-service.printing_enabled";
 const ENROLLMENT_TTL_MS = 15 * 60 * 1000;
 const DEVICE_STATUSES = new Set(["active", "paused", "revoked"]);
 
-export async function getRoomServicePrinting({ env, session, url }) {
+export async function getRoomServicePrinting({ request, env, session, url }) {
   requirePermission(session, ERP_SETTINGS_PERMISSION);
   const hotelId = requestedHotel(session, url.searchParams.get("hotel_id"));
   const [setting, templates, devices, summary] = await Promise.all([
@@ -31,10 +31,13 @@ export async function getRoomServicePrinting({ env, session, url }) {
     ),
     all(
       env,
-      `SELECT id, name, platform, app_version, printer_name, template_id, status,
-              created_at, updated_at, last_seen_at, revoked_at
-         FROM printer_devices WHERE hotel_id = ? AND module_key = ?
-        ORDER BY status, name`,
+      `SELECT pd.id, pd.name, pd.platform, pd.app_version, pd.printer_name,
+              pd.template_id, pt.name AS template_name, pd.status,
+              pd.created_at, pd.updated_at, pd.last_seen_at, pd.revoked_at
+         FROM printer_devices pd
+         LEFT JOIN printer_templates pt ON pt.id = pd.template_id AND pt.hotel_id = pd.hotel_id
+        WHERE pd.hotel_id = ? AND pd.module_key = ?
+        ORDER BY pd.status, pd.name`,
       [hotelId, MODULE_KEY],
     ),
     all(
@@ -46,6 +49,7 @@ export async function getRoomServicePrinting({ env, session, url }) {
   ]);
   const globalEnabled = String(env.IMPRESSION_ENABLED || "false").toLowerCase() === "true";
   const unitEnabled = parseBoolean(setting?.setting_value);
+  const now = Date.parse(requestNow({ request, env }));
   return {
     hotel_id: hotelId,
     module_key: MODULE_KEY,
@@ -53,9 +57,16 @@ export async function getRoomServicePrinting({ env, session, url }) {
     unit_enabled: unitEnabled,
     effective_enabled: globalEnabled && unitEnabled,
     templates: templates.map((template) => ({ ...template, config: safeJson(template.config_json, {}) })),
-    devices,
+    devices: devices.map((device) => ({ ...device, connection_status: deviceConnectionStatus(device, now) })),
     summary: Object.fromEntries(summary.map((entry) => [entry.status, Number(entry.total || 0)])),
   };
+}
+
+function deviceConnectionStatus(device, now) {
+  if (device.status === "revoked") return "revoked";
+  if (device.status === "paused") return "paused";
+  const seenAt = Date.parse(device.last_seen_at || "");
+  return Number.isFinite(seenAt) && now - seenAt <= 120_000 ? "online" : "offline";
 }
 
 export async function updateRoomServicePrinting({ request, env, session }) {
