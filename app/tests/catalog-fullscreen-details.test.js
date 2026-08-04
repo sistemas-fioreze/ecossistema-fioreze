@@ -93,10 +93,10 @@ test("Room Service, Emporio e Pacotes Romanticos compartilham detalhe em tela ch
   }
   assert.match(sharedCss, /\.catalog-detail-surface\s*\{[^}]*height:\s*100dvh/s);
   assert.match(sharedCss, /\.catalog-detail-media-button img\s*\{[^}]*object-fit:\s*contain/s);
-  assert.match(emporioCss, /\.emporio-detail-media img\s*\{[^}]*object-fit:\s*contain/s);
-  assert.match(emporioCss, /\.emporio-detail-card\s*\{[^}]*grid-template-rows:\s*auto auto/s);
+  assert.match(emporioCss, /\.emporio-detail-media \.catalog-detail-media-button img\s*\{[^}]*object-fit:\s*contain/s);
+  assert.match(emporioCss, /\.emporio-detail-card\.catalog-detail-surface\s*\{[^}]*grid-template-rows:\s*auto auto/s);
   assert.match(emporioCss, /\.emporio-detail-media \.catalog-detail-media-button\s*\{[^}]*height:\s*auto/s);
-  assert.match(emporioCss, /\.emporio-detail-media img\s*\{[^}]*height:\s*auto;[^}]*max-height:\s*72dvh/s);
+  assert.match(emporioCss, /\.emporio-detail-media \.catalog-detail-media-button img\s*\{[^}]*height:\s*auto;[^}]*max-height:\s*72dvh/s);
   assert.match(emporioCss, /\.emporio-detail-description\s*\{[^}]*gap:\s*14px[^}]*line-height:\s*1\.75/s);
   assert.match(sharedCss, /\.catalog-media-viewer-stage img/);
   assert.match(sharedJs, /data-catalog-media-action="zoom-in"/);
