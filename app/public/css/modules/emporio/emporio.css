@@ -630,12 +630,23 @@
     width: 100%;
     max-height: calc(100dvh - max(10px, env(safe-area-inset-top)));
     grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
     border-radius: 8px 8px 0 0;
   }
 
   .emporio-detail-media {
     min-height: 0;
-    aspect-ratio: 1.2;
+    aspect-ratio: auto;
+  }
+
+  .emporio-detail-media .catalog-detail-media-button {
+    height: auto;
+  }
+
+  .emporio-detail-media img {
+    height: auto;
+    max-height: 72dvh;
+    object-fit: contain;
   }
 
   .emporio-detail-content {
