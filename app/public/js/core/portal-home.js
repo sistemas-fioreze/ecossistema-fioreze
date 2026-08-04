@@ -581,8 +581,7 @@ function renderCalendarView(state) {
 function renderStayCalendar(state) {
   const active = state.stayStart && state.stayEnd;
   const events = active ? filteredEvents(state).filter((event) => {
-    const key = eventDateKey(event, state.bootstrap);
-    return key && key >= state.stayStart && key <= state.stayEnd;
+    return eventDateKeys(event, state.bootstrap).some((key) => key >= state.stayStart && key <= state.stayEnd);
   }) : [];
   return `
     <section class="stay-filter-card">
@@ -601,14 +600,14 @@ function renderStayCalendar(state) {
 function renderMonthCalendar(state) {
   const first = new Date(state.calendarYear, state.calendarMonth - 1, 1);
   const totalDays = new Date(state.calendarYear, state.calendarMonth, 0).getDate();
-  const eventDates = new Set(filteredEvents(state).map((event) => eventDateKey(event, state.bootstrap)).filter(Boolean));
+  const eventDates = new Set(filteredEvents(state).flatMap((event) => eventDateKeys(event, state.bootstrap)));
   const days = [];
   for (let index = 0; index < first.getDay(); index += 1) days.push('<span class="calendar-blank"></span>');
   for (let day = 1; day <= totalDays; day += 1) {
     const key = `${state.calendarYear}-${String(state.calendarMonth).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     days.push(`<button type="button" class="calendar-day${state.selectedDate === key ? " selected" : ""}${eventDates.has(key) ? " has-events" : ""}" data-calendar-day="${key}">${day}</button>`);
   }
-  const selectedEvents = state.selectedDate ? filteredEvents(state).filter((event) => eventDateKey(event, state.bootstrap) === state.selectedDate) : [];
+  const selectedEvents = state.selectedDate ? filteredEvents(state).filter((event) => eventDateKeys(event, state.bootstrap).includes(state.selectedDate)) : [];
   return `
     <section class="month-calendar-card">
       <header><button type="button" data-calendar-month="-1" aria-label="Mês anterior">${icon("chevron-back")}</button><h2>${escapeHtml(monthName(state.calendarMonth))} ${state.calendarYear}</h2><button type="button" data-calendar-month="1" aria-label="Próximo mês">${icon("chevron")}</button></header>
@@ -744,7 +743,7 @@ function getModuleDescription(module, bootstrap) {
 function getFeaturedEvent(events = []) {
   if (!events.length) return null;
   const now = Date.now();
-  return events.find((event) => Date.parse(event.ends_at || event.starts_at) >= now) || events.at(-1);
+  return events.find((event) => eventSchedule(event).some((occurrence) => Date.parse(occurrence.ends_at || occurrence.starts_at) >= now)) || events.at(-1);
 }
 
 function filteredEvents(state) {
@@ -780,28 +779,48 @@ function getGreeting(timezone) {
 }
 
 function formatEventDay(event, bootstrap) {
-  const start = new Date(event.starts_at);
-  if (Number.isNaN(start.getTime())) return "Data a confirmar";
-  return new Intl.DateTimeFormat(bootstrap.locale || "pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: event.timezone || bootstrap.timezone }).format(start);
+  const dates = eventSchedule(event)
+    .map((occurrence) => new Date(occurrence.starts_at))
+    .filter((date) => !Number.isNaN(date.getTime()));
+  if (!dates.length) return "Data a confirmar";
+  const timezone = event.timezone || bootstrap.timezone;
+  const formatter = new Intl.DateTimeFormat(bootstrap.locale || "pt-BR", { day: "2-digit", month: "2-digit", timeZone: timezone });
+  if (dates.length === 1) {
+    return new Intl.DateTimeFormat(bootstrap.locale || "pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: timezone }).format(dates[0]);
+  }
+  return `Dias ${dates.map((date) => formatter.format(date)).join(", ")}`;
 }
 
 function formatEventTime(event, bootstrap) {
-  const start = new Date(event.starts_at);
+  const occurrence = eventSchedule(event)[0] || event;
+  const start = new Date(occurrence.starts_at);
   if (Number.isNaN(start.getTime())) return "";
-  const timezone = event.timezone || bootstrap.timezone;
+  const timezone = occurrence.timezone || event.timezone || bootstrap.timezone;
   const from = new Intl.DateTimeFormat(bootstrap.locale || "pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: timezone }).format(start);
-  const end = new Date(event.ends_at || "");
+  const end = new Date(occurrence.ends_at || "");
   if (Number.isNaN(end.getTime())) return `Às ${from}`;
   const to = new Intl.DateTimeFormat(bootstrap.locale || "pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: timezone }).format(end);
   return `Das ${from} às ${to}`;
 }
 
 function eventDateKey(event, bootstrap) {
-  const date = new Date(event.starts_at);
+  return eventDateKeys(event, bootstrap)[0] || null;
+}
+
+function eventDateKeys(event, bootstrap) {
+  return eventSchedule(event).map((occurrence) => {
+  const date = new Date(occurrence.starts_at);
   if (Number.isNaN(date.getTime())) return null;
-  const parts = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: event.timezone || bootstrap.timezone }).formatToParts(date);
+  const parts = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: occurrence.timezone || event.timezone || bootstrap.timezone }).formatToParts(date);
   const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return `${values.year}-${values.month}-${values.day}`;
+  }).filter(Boolean);
+}
+
+function eventSchedule(event) {
+  return Array.isArray(event?.occurrences) && event.occurrences.length
+    ? event.occurrences
+    : [{ starts_at: event?.starts_at, ends_at: event?.ends_at, timezone: event?.timezone }];
 }
 
 function changeCalendarMonth(state, direction) {

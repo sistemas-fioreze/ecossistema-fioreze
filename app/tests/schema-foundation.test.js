@@ -15,6 +15,7 @@ const guestPortalEventDetailsMigration = fs.readFileSync("migrations/0022_guest_
 const guestPortalEventActionsMigration = fs.readFileSync("migrations/0023_guest_portal_event_actions.sql", "utf8");
 const portalEventPermanenceMigration = fs.readFileSync("migrations/0027_portal_event_permanence.sql", "utf8");
 const roomServiceSchedulingMigration = fs.readFileSync("migrations/0037_room_service_scheduling.sql", "utf8");
+const eventOccurrencesMigration = fs.readFileSync("migrations/0040_event_occurrences_fioreze_centro_august.sql", "utf8");
 const seed = fs.readFileSync("seeds/dev.sql", "utf8");
 const wranglerConfig = JSON.parse(fs.readFileSync("wrangler.jsonc", "utf8"));
 const normalizedMigration = normalize(migration);
@@ -29,6 +30,7 @@ const normalizedGuestPortalEventDetailsMigration = normalize(guestPortalEventDet
 const normalizedGuestPortalEventActionsMigration = normalize(guestPortalEventActionsMigration);
 const normalizedPortalEventPermanenceMigration = normalize(portalEventPermanenceMigration);
 const normalizedRoomServiceSchedulingMigration = normalize(roomServiceSchedulingMigration);
+const normalizedEventOccurrencesMigration = normalize(eventOccurrencesMigration);
 
 test("migration 0007 cria service_hours e media_assets", () => {
   assert.match(normalizedMigration, /create table if not exists service_hours/);
@@ -57,6 +59,18 @@ test("media_assets guarda metadados sem binarios", () => {
   assert.match(normalizedMigration, /idx_media_assets_hotel_module_status/);
   assert.match(normalizedMigration, /idx_media_assets_provider_status/);
   assert.equal(/\bblob\b|\bbinary\b/i.test(migration), false);
+});
+
+test("migration 0040 normaliza ocorrências e cadastra a programação somente no Centro", () => {
+  assert.match(normalizedEventOccurrencesMigration, /create table if not exists event_occurrences/);
+  assert.match(normalizedEventOccurrencesMigration, /unique \(event_id, starts_at\)/);
+  assert.match(normalizedEventOccurrencesMigration, /idx_event_occurrences_hotel_time/);
+  assert.match(eventOccurrencesMigration, /Chá da Tarde \| Apfelstrudel/);
+  assert.match(eventOccurrencesMigration, /Chá da Tarde \| Waffles/);
+  assert.match(eventOccurrencesMigration, /Sabores da Serra/);
+  assert.match(eventOccurrencesMigration, /Brinde de Sábado/);
+  assert.equal(countMatches(eventOccurrencesMigration, /'occ-fiorezecentro-/g), 13);
+  assert.doesNotMatch(eventOccurrencesMigration, /muller-fioreze|aurora-demo|office/);
 });
 
 test("seed usa service_hours como fonte canonica de horarios", () => {

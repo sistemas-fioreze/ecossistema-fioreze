@@ -2608,7 +2608,7 @@ function renderEventsList() {
 }
 
 function renderEventManagerCard(event) {
-  const date = eventDateParts(event.starts_at, event.timezone);
+  const date = eventDateParts(event.occurrences?.[0]?.starts_at || event.starts_at, event.timezone);
   const period = formatEventManagerPeriod(event);
   const image = event.image_url
     ? `<img src="${escapeAttr(event.image_url)}" alt="${escapeAttr(event.image_alt || "")}" loading="lazy">`
@@ -2662,14 +2662,12 @@ async function openEventEditor(item = null) {
     ${dialogField("Etiquetas", "tags", (item?.tags || []).join(", "), "text")}
     ${renderEventMediaPicker(item?.media_asset_id)}
     <fieldset class="admin-event-schedule">
-      <legend>Data e horário</legend>
-      <div class="admin-event-schedule-grid">
-        ${dialogField("Data de início", "start_date", eventDateInput(item?.starts_at, timezone), "date", true)}
-        ${dialogField("Horário de início", "start_time", eventTimeInput(item?.starts_at, timezone), "time", true)}
-        ${dialogField("Data de término", "end_date", eventDateInput(item?.ends_at, timezone), "date")}
-        ${dialogField("Horário de término", "end_time", eventTimeInput(item?.ends_at, timezone), "time")}
+      <legend>Datas e horários</legend>
+      <div class="admin-event-occurrences" data-event-occurrences>
+        ${eventOccurrenceValues(item, timezone).map((occurrence) => renderEventOccurrenceRow(occurrence)).join("")}
       </div>
-      <small>O término é opcional. Quando informado, preencha data e horário.</small>
+      <button type="button" class="admin-event-occurrence-add" data-add-event-occurrence>${featureSvg("plus")} Adicionar outra data</button>
+      <small>Cadastre todas as datas da mesma experiência. O portal exibirá um único evento com a programação agrupada.</small>
     </fieldset>
     <label class="admin-choice admin-choice-standalone admin-event-permanence">
       <input name="is_permanent" type="checkbox" ${item?.is_permanent ? "checked" : ""}>
@@ -2684,7 +2682,48 @@ async function openEventEditor(item = null) {
       ${dialogSelect("Status", "status", item?.status || "draft", [["draft", "Rascunho"], ["published", "Publicado"], ["cancelled", "Cancelado"], ["archived", "Arquivado"]])}
       <label><span>Fuso horário</span><input name="timezone" value="${escapeAttr(timezone)}" readonly></label>
     </div>`);
+  bindEventOccurrenceEditor();
   bindDialogForm((event) => saveManagedEvent(event, item));
+}
+
+function eventOccurrenceValues(item, timezone) {
+  const occurrences = Array.isArray(item?.occurrences) && item.occurrences.length
+    ? item.occurrences
+    : [{ starts_at: item?.starts_at || "", ends_at: item?.ends_at || "", timezone }];
+  return occurrences.map((occurrence) => ({
+    date: eventDateInput(occurrence.starts_at, timezone),
+    start_time: eventTimeInput(occurrence.starts_at, timezone),
+    end_time: eventTimeInput(occurrence.ends_at, timezone),
+  }));
+}
+
+function renderEventOccurrenceRow(occurrence = {}) {
+  return `<div class="admin-event-occurrence-row" data-event-occurrence>
+    ${dialogField("Data", "occurrence_date", occurrence.date || "", "date", true)}
+    ${dialogField("Início", "occurrence_start_time", occurrence.start_time || "", "time", true)}
+    ${dialogField("Término", "occurrence_end_time", occurrence.end_time || "", "time")}
+    <button type="button" data-remove-event-occurrence aria-label="Remover data">${featureSvg("trash")}</button>
+  </div>`;
+}
+
+function bindEventOccurrenceEditor() {
+  const list = els.dialogBody.querySelector("[data-event-occurrences]");
+  const add = els.dialogBody.querySelector("[data-add-event-occurrence]");
+  if (!list || !add) return;
+  add.addEventListener("click", () => {
+    list.insertAdjacentHTML("beforeend", renderEventOccurrenceRow());
+    list.querySelector("[data-event-occurrence]:last-child input")?.focus();
+  });
+  list.addEventListener("click", (event) => {
+    const remove = event.target.closest("[data-remove-event-occurrence]");
+    if (!remove) return;
+    const rows = list.querySelectorAll("[data-event-occurrence]");
+    if (rows.length === 1) {
+      rows[0].querySelectorAll("input").forEach((input) => { input.value = ""; });
+      return;
+    }
+    remove.closest("[data-event-occurrence]")?.remove();
+  });
 }
 
 async function saveManagedEvent(event, item) {
@@ -2693,20 +2732,25 @@ async function saveManagedEvent(event, item) {
   const data = new FormData(form);
   const message = form.querySelector(".admin-dialog-message");
   const body = Object.fromEntries(data.entries());
-  if (Boolean(body.end_date) !== Boolean(body.end_time)) {
-    message.textContent = "Informe a data e o horário de término, ou deixe os dois campos vazios.";
-    return;
-  }
   try {
     body.hotel_id = els.eventsHotel.value;
-    body.starts_at = zonedDateTimeToIso(body.start_date, body.start_time, body.timezone);
-    body.ends_at = body.end_date ? zonedDateTimeToIso(body.end_date, body.end_time, body.timezone) : "";
+    body.occurrences = [...form.querySelectorAll("[data-event-occurrence]")].map((row) => {
+      const date = row.querySelector('[name="occurrence_date"]')?.value || "";
+      const startTime = row.querySelector('[name="occurrence_start_time"]')?.value || "";
+      const endTime = row.querySelector('[name="occurrence_end_time"]')?.value || "";
+      if (!date || !startTime) throw new Error("Informe a data e o horário de início de cada ocorrência.");
+      return {
+        starts_at: zonedDateTimeToIso(date, startTime, body.timezone),
+        ends_at: endTime ? zonedDateTimeToIso(date, endTime, body.timezone) : "",
+      };
+    });
+    body.starts_at = body.occurrences[0]?.starts_at || "";
+    body.ends_at = body.occurrences.at(-1)?.ends_at || body.occurrences.at(-1)?.starts_at || "";
     body.tags = String(body.tags || "").split(",").map((tag) => tag.trim()).filter(Boolean);
     body.is_permanent = data.has("is_permanent");
-    delete body.start_date;
-    delete body.start_time;
-    delete body.end_date;
-    delete body.end_time;
+    delete body.occurrence_date;
+    delete body.occurrence_start_time;
+    delete body.occurrence_end_time;
     message.textContent = "Salvando evento...";
     await adminApi(item ? `/api/v1/admin/portal/events/${encodeURIComponent(item.id)}` : "/api/v1/admin/portal/events", {
       method: item ? "PATCH" : "POST",
@@ -3242,6 +3286,8 @@ function featureSvg(type) {
     navigation: '<circle cx="12" cy="12" r="9"/><path d="m15 9-2 6-6 2 2-6z"/>',
     history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>',
     upload: '<path d="M12 16V4M7 9l5-5 5 5"/><path d="M5 14v6h14v-6"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    trash: '<path d="M5 7h14M9 7V4h6v3M8 10v8M12 10v8M16 10v8M7 7l1 14h8l1-14"/>',
     code: '<path d="m8 9-3 3 3 3M16 9l3 3-3 3M14 5l-4 14"/>',
   };
   return `<svg class="admin-svg-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[type] || paths.page}</svg>`;
@@ -3361,7 +3407,16 @@ function eventDateParts(value, timezone = "America/Sao_Paulo") {
 
 function formatEventManagerPeriod(event) {
   const timezone = event.timezone || "America/Sao_Paulo";
-  const start = new Date(event.starts_at || "");
+  const occurrences = Array.isArray(event.occurrences) && event.occurrences.length ? event.occurrences : null;
+  if (occurrences?.length > 1) {
+    const dates = occurrences.map((occurrence) => new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", timeZone: timezone }).format(new Date(occurrence.starts_at)));
+    const first = new Date(occurrences[0].starts_at);
+    const last = new Date(occurrences[0].ends_at || "");
+    const from = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: timezone }).format(first);
+    const to = Number.isNaN(last.getTime()) ? "" : new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: timezone }).format(last);
+    return `Dias ${dates.join(", ")} · ${to ? `das ${from} às ${to}` : `às ${from}`}`;
+  }
+  const start = new Date(occurrences?.[0]?.starts_at || event.starts_at || "");
   if (Number.isNaN(start.getTime())) return "Data a confirmar";
   const date = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "long", year: "numeric", timeZone: timezone }).format(start);
   const startTime = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: timezone }).format(start);
