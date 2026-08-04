@@ -81,6 +81,7 @@ test("Room Service, Emporio e Pacotes Romanticos compartilham detalhe em tela ch
   const sharedJs = fs.readFileSync(`${APP_ROOT}/public/js/modules/shared/catalog-media-viewer.js`, "utf8");
   const sharedCss = fs.readFileSync(`${APP_ROOT}/public/css/modules/shared/catalog-detail.css`, "utf8");
   const romanticCss = fs.readFileSync(`${APP_ROOT}/public/css/modules/romantic-packages/romantic-packages.css`, "utf8");
+  const emporioCss = fs.readFileSync(`${APP_ROOT}/public/css/modules/emporio/emporio.css`, "utf8");
   const loader = fs.readFileSync(`${APP_ROOT}/public/js/core/module-loader.js`, "utf8");
 
   for (const source of [roomService, emporio, romantic]) {
@@ -92,6 +93,8 @@ test("Room Service, Emporio e Pacotes Romanticos compartilham detalhe em tela ch
   }
   assert.match(sharedCss, /\.catalog-detail-surface\s*\{[^}]*height:\s*100dvh/s);
   assert.match(sharedCss, /\.catalog-detail-media-button img\s*\{[^}]*object-fit:\s*contain/s);
+  assert.match(emporioCss, /\.emporio-detail-media img\s*\{[^}]*object-fit:\s*contain/s);
+  assert.match(emporioCss, /\.emporio-detail-description\s*\{[^}]*gap:\s*14px[^}]*line-height:\s*1\.75/s);
   assert.match(sharedCss, /\.catalog-media-viewer-stage img/);
   assert.match(sharedJs, /data-catalog-media-action="zoom-in"/);
   assert.match(sharedJs, /data-catalog-media-action="zoom-out"/);

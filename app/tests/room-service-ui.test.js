@@ -12,6 +12,7 @@ const {
   clampDetailQuantity,
   hotelLocalTimeToIso,
   renderStaticShell,
+  renderProductOptions,
   splitProductDescription,
   submitOrder,
   syncSubmitButton,
@@ -123,6 +124,20 @@ test("card do Room Service separa quantidade da descricao e abre detalhe compart
   assert.equal(clampDetailQuantity(-1), 1);
   assert.equal(clampDetailQuantity(4), 4);
   assert.equal(clampDetailQuantity(99), 20);
+});
+
+test("detalhe renderiza sabores antes da observacao e sem selo de disponibilidade", () => {
+  const html = renderProductOptions({
+    options: [{ key: "selection", label: "Escolha o sabor", required: true, values: ["Calabresa", "Marguerita"] }],
+  }, { selection: "Marguerita" });
+  const script = fs.readFileSync(new URL("../public/js/modules/room-service/index.js", import.meta.url), "utf8");
+  const css = fs.readFileSync(new URL("../public/css/modules/room-service/room-service.css", import.meta.url), "utf8");
+
+  assert.match(html, /Escolha o sabor/);
+  assert.match(html, /value="Marguerita" selected/);
+  assert.match(script, /renderProductOptions\(item, state\.selectedProductOptions\)[\s\S]*?orderNotesEnabled\(state\)/);
+  assert.doesNotMatch(script, /Disponível para pedir/);
+  assert.match(css, /\.rs-product-detail-actions\s*\{[\s\S]*?margin-bottom:\s*max\(18px, env\(safe-area-inset-bottom\)\)/);
 });
 
 test("aviso fechado usa mensagem curta e mantém respiro do formulário", () => {
@@ -251,6 +266,16 @@ test("carrinho configura quantidade e observacao do item sem perder dados na hid
 
   snapshot = cart.hydrate(catalog);
   assert.equal(snapshot.items[0].note, "Sem açúcar");
+});
+
+test("carrinho preserva a opcao selecionada por item", () => {
+  const storage = memoryStorage();
+  const catalog = flattenCatalog(CATEGORIES);
+  const cart = createCartStore({ hotelId: "muller-fioreze", storage, catalogItems: catalog });
+
+  cart.set("cafe", 2, "", { selection: "Sem açúcar" });
+  assert.deepEqual(cart.snapshot().items[0].selected_options, { selection: "Sem açúcar" });
+  assert.deepEqual(cart.hydrate(catalog).items[0].selected_options, { selection: "Sem açúcar" });
 });
 
 test("carrinho persiste por hotel e nao mistura tenants", () => {

@@ -7,7 +7,7 @@ export async function listRoomServiceProducts(env, hotelId) {
 export async function listCatalogProducts(env, hotelId, moduleKey) {
   return all(
     env,
-    `SELECT ci.id, ci.public_id, ci.name, ci.description, ci.tag, ci.item_type,
+    `SELECT ci.id, ci.public_id, ci.name, ci.description, ci.tag, ci.item_type, ci.metadata_json,
             ci.price_cents, ci.currency, ci.image_url, ci.media_asset_id, ci.status, ci.sort_order,
             ca.is_available, ca.availability_label,
             c.id AS category_id, c.name AS category_name
@@ -54,7 +54,31 @@ export function groupProductsByCategory(rows) {
       image_alt: row.name,
       available: row.is_available !== 0,
       availability_label: row.availability_label || null,
+      options: parseCatalogOptions(row.metadata_json, row.name),
     });
   }
   return [...categories.values()];
+}
+
+export function parseCatalogOptions(metadataJson, itemName = "") {
+  let metadata;
+  try {
+    metadata = typeof metadataJson === "string" ? JSON.parse(metadataJson) : metadataJson;
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(metadata?.options) || !metadata.options.length) return [];
+  const values = metadata.options
+    .filter((value) => typeof value === "string")
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .slice(0, 40);
+  return values.length
+    ? [{
+        key: "selection",
+        label: /pizza/i.test(itemName) ? "Escolha o sabor" : "Escolha uma opção",
+        required: true,
+        values,
+      }]
+    : [];
 }

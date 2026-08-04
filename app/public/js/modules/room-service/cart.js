@@ -16,7 +16,7 @@ export function createCartStore({ hotelId, moduleKey = "room-service", storage =
     catalog = new Map(nextCatalogItems.map((item) => [item.id, item]));
     rows = rows
       .filter((row) => catalog.has(row.id))
-      .map((row) => ({ id: row.id, quantity: clampQuantity(row.quantity), note: normalizeNote(row.note) }));
+      .map((row) => ({ id: row.id, quantity: clampQuantity(row.quantity), note: normalizeNote(row.note), selected_options: normalizeSelectedOptions(row.selected_options) }));
     persist();
     return snapshot();
   }
@@ -28,12 +28,12 @@ export function createCartStore({ hotelId, moduleKey = "room-service", storage =
     }
     const existing = rows.find((row) => row.id === itemId);
     if (existing) existing.quantity = clampQuantity(existing.quantity + 1);
-    else rows.push({ id: itemId, quantity: 1, note: "" });
+    else rows.push({ id: itemId, quantity: 1, note: "", selected_options: {} });
     persist();
     return snapshot();
   }
 
-  function set(itemId, quantity, note = "") {
+  function set(itemId, quantity, note = "", selectedOptions = {}) {
     const item = catalog.get(itemId);
     if (!item || item.available === false) {
       throw new Error(item?.availability_label || "Item indisponivel.");
@@ -42,6 +42,7 @@ export function createCartStore({ hotelId, moduleKey = "room-service", storage =
       id: itemId,
       quantity: clampQuantity(quantity),
       note: normalizeNote(note),
+      selected_options: normalizeSelectedOptions(selectedOptions),
     };
     const existingIndex = rows.findIndex((row) => row.id === itemId);
     if (existingIndex >= 0) rows[existingIndex] = nextRow;
@@ -81,6 +82,7 @@ export function createCartStore({ hotelId, moduleKey = "room-service", storage =
           ...item,
           quantity: row.quantity,
           note: normalizeNote(row.note),
+          selected_options: normalizeSelectedOptions(row.selected_options),
           line_total_cents: lineTotalCents,
         };
       })
@@ -105,6 +107,15 @@ function normalizeNote(value) {
   return String(value || "").trim().slice(0, 180);
 }
 
+function normalizeSelectedOptions(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value)
+    .filter(([key, optionValue]) => typeof key === "string" && typeof optionValue === "string")
+    .slice(0, 8)
+    .map(([key, optionValue]) => [key.trim().slice(0, 40), optionValue.trim().slice(0, 120)])
+    .filter(([key, optionValue]) => key && optionValue));
+}
+
 function readRows(storage, key) {
   try {
     const raw = storage?.getItem(key);
@@ -112,7 +123,7 @@ function readRows(storage, key) {
     if (!Array.isArray(parsed)) return [];
     return parsed
       .filter((row) => typeof row?.id === "string")
-      .map((row) => ({ id: row.id, quantity: clampQuantity(row.quantity), note: normalizeNote(row.note) }));
+      .map((row) => ({ id: row.id, quantity: clampQuantity(row.quantity), note: normalizeNote(row.note), selected_options: normalizeSelectedOptions(row.selected_options) }));
   } catch {
     return [];
   }
