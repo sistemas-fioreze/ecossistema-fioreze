@@ -26,6 +26,10 @@ const poolExperienceMigration = fs.readFileSync(
   new URL("../migrations/0036_fioreze_centro_pool_experience.sql", import.meta.url),
   "utf8",
 );
+const hotelInformationUpdateMigration = fs.readFileSync(
+  new URL("../migrations/0039_hotel_guest_information_updates.sql", import.meta.url),
+  "utf8",
+);
 const poolImageUrl = new URL("../public/assets/hotels/fioreze-centro/piscina.jpg", import.meta.url);
 
 test("portal usa o layout de referencia com identidade e conteudo dinamicos", () => {
@@ -248,263 +252,300 @@ test("inicio mobile usa contraste branco e header com respiro seguro", () => {
 });
 
 test("inicio mobile oculta informes e usa servicos com vidro escuro", () => {
-  assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.home-info-section\s*\{\s*display:\s*none/);
-  assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.quick-card,[\s\S]*?\.quick-card:hover\s*\{[\s\S]*?background:\s*rgba\(18, 13, 10, 0\.68\);[\s\S]*?backdrop-filter:\s*blur\(16px\) saturate\(1\.12\)/);
-  assert.match(portalCss, /\.quick-card > svg,[\s\S]*?\.quick-card > strong,[\s\S]*?\.quick-card > span\s*\{[\s\S]*?color:\s*#fff/);
-  assert.match(portalCss, /@media \(max-width: 959px\)[\s\S]*?\.quick-card > span\s*\{[\s\S]*?overflow:\s*visible;[\s\S]*?-webkit-line-clamp:\s*unset/);
-});
+  assert.match(portalCss, /@media \(max-width: 95ã›h‘éì¶»§q«^w×××J×œ]ZXÚËXØ\™šİ™\—Ê—Ö×××JØ˜XÚÙÜ›İ[™—Êœ™Ø˜W
+NLËL
+NÖ×××JØ˜XÚÙ›ÜYš[\—Ê˜›\—
+Mœ
+HØ]\˜]W
+WŒL—
+KÊNÂˆ\ÜÙ\›X]Ú
+Ü[ÜÜË×œ]ZXÚËXØ\™ˆİ™Ë×××J×œ]ZXÚËXØ\™ˆİ›Û™Ë×××J×œ]ZXÚËXØ\™ˆÜ[—Ê—Ö×××JØÛÛÜ—ÊˆÙ™™‹ÊNÂˆ\ÜÙ\›X]Ú
+Ü[ÜÜËĞYYXH
+X^]ÚYˆMN\
+V×××J×œ]ZXÚËXØ\™ˆÜ[—Ê—Ö×××JÛİ™\™›İÎ—Êš\ÚX›NÖ×××JË]ÙXšÚ][[™KXÛ[\—Ê[œÙ]ÊNÂŸJNÂ‚\İ
+œİÚ\HÜš^›Û[[Øš[H]˜[˜ØHH›ÛH[™H\ÈİZX\È‹
 
-test("swipe horizontal mobile avanca e volta entre as guias", () => {
-  assert.equal(resolvePortalSwipe({ activeTab: "inicio", startX: 310, startY: 420, endX: 110, endY: 426, durationMs: 280 }), "servicos");
-  assert.equal(resolvePortalSwipe({ activeTab: "eventos", startX: 80, startY: 420, endX: 270, endY: 414, durationMs: 300 }), "servicos");
-});
+HOˆÂˆ\ÜÙ\™\]X[
+™\ÛÛ™TÜ[İÚ\JÈXİ]™UXˆš[šXÚ[È‹İ\ˆÌLİ\NˆŒ[™ˆLL[™Nˆ‹\˜][Û“\ÎˆJKœÙ\šXÛÜÈŠNÂˆ\ÜÙ\™\]X[
+™\ÛÛ™TÜ[İÚ\JÈXİ]™UXˆ™]™[ÜÈ‹İ\ˆİ\NˆŒ[™ˆÌ[™NˆM\˜][Û“\ÎˆÌJKœÙ\šXÛÜÈŠNÂŸJNÂ‚\İ
+œİÚ\H[Øš[H™\ÜZ]H[Z]\ÈH™\Ù\˜HH›ÛYÙ[H™\XØ[‹
 
-test("swipe mobile respeita limites e preserva a rolagem vertical", () => {
-  assert.equal(resolvePortalSwipe({ activeTab: "inicio", startX: 290, startY: 420, endX: 90, endY: 425, durationMs: 250 }), "servicos");
-  assert.equal(resolvePortalSwipe({ activeTab: "inicio", startX: 80, startY: 420, endX: 290, endY: 425, durationMs: 250 }), null);
-  assert.equal(resolvePortalSwipe({ activeTab: "blog", startX: 290, startY: 420, endX: 80, endY: 425, durationMs: 250 }), null);
-  assert.equal(resolvePortalSwipe({ activeTab: "servicos", startX: 300, startY: 200, endX: 270, endY: 400, durationMs: 250 }), null);
-  assert.equal(resolvePortalSwipe({ activeTab: "servicos", startX: 300, startY: 200, endX: 230, endY: 205, durationMs: 900 }), null);
-});
+HOˆÂˆ\ÜÙ\™\]X[
+™\ÛÛ™TÜ[İÚ\JÈXİ]™UXˆš[šXÚ[È‹İ\ˆLİ\NˆŒ[™ˆL[™NˆK\˜][Û“\ÎˆLJKœÙ\šXÛÜÈŠNÂˆ\ÜÙ\™\]X[
+™\ÛÛ™TÜ[İÚ\JÈXİ]™UXˆš[šXÚ[È‹İ\ˆİ\NˆŒ[™ˆL[™NˆK\˜][Û“\ÎˆLJK[
+NÂˆ\ÜÙ\™\]X[
+™\ÛÛ™TÜ[İÚ\JÈXİ]™UXˆ˜›ÙÈ‹İ\ˆLİ\NˆŒ[™ˆ[™NˆK\˜][Û“\ÎˆLJK[
+NÂˆ\ÜÙ\™\]X[
+™\ÛÛ™TÜ[İÚ\JÈXİ]™UXˆœÙ\šXÛÜÈ‹İ\ˆÌİ\NˆŒ[™ˆÌ[™Nˆ\˜][Û“\ÎˆLJK[
+NÂˆ\ÜÙ\™\]X[
+™\ÛÛ™TÜ[İÚ\JÈXİ]™UXˆœÙ\šXÛÜÈ‹İ\ˆÌİ\NˆŒ[™ˆŒÌ[™NˆŒK\˜][Û“\ÎˆLJK[
+NÂŸJNÂ‚\İ
+™Ù\İÈ[Øš[HYÛ›Ü˜HÛÛ›Û\È[\˜]]›ÜÈH\ØHÛÛY[HÈÛÛ]YÈ‹
 
-test("gesto mobile ignora controles interativos e usa somente o conteudo", () => {
-  assert.match(portalScript, /MOBILE_SWIPE_BLOCKED_SELECTOR/);
-  assert.match(portalScript, /event\.target\.closest\?\.\(MOBILE_SWIPE_BLOCKED_SELECTOR\)/);
-  assert.match(portalScript, /addEventListener\("touchstart"/);
-  assert.match(portalScript, /addEventListener\("touchend"/);
-  assert.match(portalScript, /addEventListener\("touchcancel"/);
-  assert.match(portalCss, /\.guest-shell,[\s\S]*?touch-action:\s*pan-y/);
-});
+HOˆÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\ÓSĞ’SWÔÕÒTWĞ“ĞÒÑQÔÑSPÕÔ‹ÊNÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\Ù]™[\™Ù]˜ÛÜÙ\İ×—
+SĞ’SWÔÕÒTWĞ“ĞÒÑQÔÑSPÕÔ—
+KÊNÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\ØY]™[\İ[™\—
+İXÚİ\‹ÊNÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\ØY]™[\İ[™\—
+İXÚ[™‹ÊNÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\ØY]™[\İ[™\—
+İXÚØ[˜Ù[‹ÊNÂˆ\ÜÙ\›X]Ú
+Ü[ÜÜË×™İY\İ\Ú[×××JİİXÚXXİ[Û—Êœ[‹^KÊNÂŸJNÂ‚\İ
+›˜]™YØXØ[È[Øš[H[[šHXÛÛ™HH^È›È˜]Ù\ˆ‹
 
-test("navegacao mobile alinha icone e texto no drawer", () => {
-  assert.match(navigationCss, /\.guest-nav-item\s*\{[\s\S]*?display:\s*inline-flex;[\s\S]*?align-items:\s*center;[\s\S]*?gap:\s*13px/);
-  assert.match(navigationCss, /\.guest-nav-item\.is-active\s*\{[\s\S]*?color:\s*#fff/);
-  assert.match(navigationCss, /\.guest-menu-toggle\s*,[\s\S]*?background:\s*transparent/);
-});
+HOˆÂˆ\ÜÙ\›X]Ú
+˜]šYØ][ÛÜÜË×™İY\İ[˜]‹Z][WÊ—Ö×××JÙ\Ü^N—Êš[›[™KY›^Ö×××JØ[YÛ‹Z][\Î—Ê˜Ù[\Ö×××JÙØ\—ÊŒLÜÊNÂˆ\ÜÙ\›X]Ú
+˜]šYØ][ÛÜÜË×™İY\İ[˜]‹Z][Wš\ËXXİ]™WÊ—Ö×××JØÛÛÜ—ÊˆÙ™™‹ÊNÂˆ\ÜÙ\›X]Ú
+˜]šYØ][ÛÜÜË×™İY\İ[Y[K]ÙÙÛWÊ‹×××JØ˜XÚÙÜ›İ[™—Ê˜[œÜ\™[ÊNÂŸJNÂ‚\İ
+›Y[H]\˜[XÙZ]H[™Èœ˜[˜ÛÈİH™]ÈÜˆÛÛ™šYİ\˜XØ[ÈX›XØH‹
 
-test("menu lateral aceita fundo branco ou preto por configuracao publica", () => {
-  const light = renderGuestNavigation({
-    slug: "hotel-claro",
-    name: "Hotel Claro",
-    branding: {},
-    settings: { "portal.navigation_drawer_theme": "light" },
-    navigation: [],
-    modules: [],
-  });
-  const dark = renderGuestNavigation({
-    slug: "hotel-escuro",
-    name: "Hotel Escuro",
-    branding: {},
-    settings: { "portal.navigation_drawer_theme": "dark" },
-    navigation: [],
-    modules: [],
-  });
+HOˆÂˆÛÛœİYÚH™[™\‘İY\İ˜]šYØ][ÛŠÂˆÛYÎˆšİ[XÛ\›È‹ˆ˜[YNˆ’İ[Û\›È‹ˆœ˜[™[™ÎˆßKˆÙ][™ÜÎˆÈœÜ[›˜]šYØ][Û—Ù˜]Ù\—İ[YHˆ›YÚˆKˆ˜]šYØ][Ûˆ×Kˆ[Ù[\Îˆ×KˆJNÂˆÛÛœİ\šÈH™[™\‘İY\İ˜]šYØ][ÛŠÂˆÛYÎˆšİ[Y\Øİ\›È‹ˆ˜[YNˆ’İ[\Øİ\›È‹ˆœ˜[™[™ÎˆßKˆÙ][™ÜÎˆÈœÜ[›˜]šYØ][Û—Ù˜]Ù\—İ[YHˆ™\šÈˆKˆ˜]šYØ][Ûˆ×Kˆ[Ù[\Îˆ×KˆJNÂ‚ˆ\ÜÙ\›X]Ú
+YÚÙİY\İ[˜]šYØ][Û‹Y˜]Ù\ˆ\Ë[YÚÊNÂˆ\ÜÙ\›X]Ú
+\šËÙİY\İ[˜]šYØ][Û‹Y˜]Ù\ˆ\ËY\šËÊNÂˆ\ÜÙ\›X]Ú
+˜]šYØ][ÛÜÜË×™İY\İ[˜]šYØ][Û‹Y˜]Ù\—š\ËY\šËÊNÂˆ\ÜÙ\›X]Ú
+˜]šYØ][ÛÜÜËØ˜XÚÙÜ›İ[™—Êœ™Ø˜W
+MËÊŒMËÊŒMËÊŒM—
+KÊNÂŸJNÂ‚\İ
+›Y[H]\˜[[˜ÛZHÙ\È\ÈÙXÛÙ\ÈH[Ù[ÜÈX›XÛÜÈXš[]YÜÈ‹
 
-  assert.match(light, /guest-navigation-drawer is-light/);
-  assert.match(dark, /guest-navigation-drawer is-dark/);
-  assert.match(navigationCss, /\.guest-navigation-drawer\.is-dark/);
-  assert.match(navigationCss, /background:\s*rgba\(17,\s*17,\s*17,\s*0\.96\)/);
-});
+HOˆÂˆÛÛœİ[H™[™\‘İY\İ˜]šYØ][ÛŠÂˆÛYÎˆšİ[YšXİXÚ[È‹ˆ˜[YNˆ’İ[šXİ0ëXÚ[È‹ˆÚÜÛ˜[YNˆ‘šXİ0ëXÚ[È‹ˆœ˜[™[™ÎˆßKˆ˜]šYØ][Ûˆ×Kˆ[Ù[\ÎˆÂˆÈ[Ù[WÚÙ^Nˆ™İY\İ\Ü[‹˜[YNˆ”Ü[‹[˜X›YˆYHKˆÈ[Ù[WÚÙ^Nˆœ›ÛÛK\Ù\šXÙH‹˜[YNˆ”›ÛÛHÙ\šXÙH‹[˜X›YˆYHKˆÈ[Ù[WÚÙ^Nˆ™[\Üš[È‹˜[YNˆ‘[\0ìÜš[È‹[˜X›YˆYHKˆÈ[Ù[WÚÙ^NˆœÜH‹˜[YNˆ”ÜH‹[˜X›YˆYHKˆÈ[Ù[WÚÙ^Nˆœ›ÛX[XË\XÚØYÙ\È‹˜[YNˆ”XÛİ\È‹[˜X›YˆYHKˆÈ[Ù[WÚÙ^Nˆ˜YZ[ˆ‹˜[YNˆYZ[ˆ‹[˜X›YˆYHKˆÈ[Ù[WÚÙ^Nˆ›Øİ[È‹˜[YNˆ“Øİ[È‹[˜X›Yˆ˜[ÙHKˆKˆJNÂˆ›Üˆ
+ÛÛœİX™[ÙˆÈ’[°ëXÚ[È‹”Ù\špéÛÜÈ‹”›ÙÜ˜[XpéğèÛÈ‹’İ[‹›ÙÈ‹”›ÛÛHÙ\šXÙH‹‘[\0ìÜš[È‹”ÜH‹”XÛİ\È—JHÂˆ\ÜÙ\›X]Ú
+[™]È™YÑ^
+X™[
+JNÂˆBˆ\ÜÙ\™Ù\Ó›İX]Ú
+[ÏYZ[ÊNÂˆ\ÜÙ\™Ù\Ó›İX]Ú
+[Ï“Øİ[ÏÊNÂŸJNÂ‚\İ
+š[™›Ü›XXÛÙ\ÈÈİ[İ\Ü[HİZXHš\İX[Y]]™[H›ÙÜ˜[XXØ[È‹
 
-test("menu lateral inclui todas as secoes e modulos publicos habilitados", () => {
-  const html = renderGuestNavigation({
-    slug: "hotel-ficticio",
-    name: "Hotel FictÃ­cio",
-    short_name: "FictÃ­cio",
-    branding: {},
-    navigation: [],
-    modules: [
-      { module_key: "guest-portal", name: "Portal", enabled: true },
-      { module_key: "room-service", name: "Room Service", enabled: true },
-      { module_key: "emporio", name: "EmpÃ³rio", enabled: true },
-      { module_key: "spa", name: "Spa", enabled: true },
-      { module_key: "romantic-packages", name: "Pacotes", enabled: true },
-      { module_key: "admin", name: "Admin", enabled: true },
-      { module_key: "oculto", name: "Oculto", enabled: false },
-    ],
-  });
-  for (const label of ["InÃ­cio", "ServiÃ§os", "ProgramaÃ§Ã£o", "Hotel", "Blog", "Room Service", "EmpÃ³rio", "Spa", "Pacotes"]) {
-    assert.match(html, new RegExp(label));
-  }
-  assert.doesNotMatch(html, />Admin</);
-  assert.doesNotMatch(html, />Oculto</);
-});
+HOˆÂˆ\ÜÙ\›X]Ú
+˜]šYØ][Û”ØÜš\×È™]™[ÜÈ‹”›ÙÜ˜[XpéğèÛÈ‹˜Ø[[™\ˆ—KÊNÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\ÜÜ[šİ[Ú[™›Ü›X][Û—›^[İ]ŠˆOOH˜Ø\™È‹ÊNÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\Ú\ËYİY\İYİZYKÊNÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\Ü™[™\\Ü
+İ]K”›ÙÜ˜[XpéğèÛÈ‹ÊNÂˆ\ÜÙ\›X]Ú
+Ü[ÜÜË×š\ËYİY\İYİZYHšİ[Z[™›ËYÜšYÊNÂˆ\ÜÙ\›X]Ú
+Ü[ÜÜË×š[™›ËZÙ^KX˜XKZÚ]Ú[‹ÊNÂˆ\ÜÙ\›X]Ú
+Ü[ÜÜË×š[™›ËZÙ^KY\ÜXÛË]ÚKÊNÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\ØÚ[X\œ˜[ËÊNÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\Ù›Ü›X]›ÛÛTÙ\šXÙRİ\œËÊNÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\Ø\œ˜[™ÙQİZYR[™›Ü›X][Û‹ÊNÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\Ú[™›Ü›X][Û—İÚYšR[™^V×××Jš[™›Ü›X][Û—Ø˜XR[™^KÊNÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\Ø˜XN‹Š“LLšHÒKÊNÂˆ\ÜÙ\›X]Ú
+YZ[”ØÜš\Ô›ÙÜ˜[XpéğèÛËÊNÂŸJNÂ‚\İ
+œÙ\šXÛÜÈ\Ø[H\İHY]ÜšX[[XYÙ[œÈÛÛ™šYİ\˜Y\ÈH^\šY[˜ÚX\È^˜\È‹
 
-test("informacoes do hotel suportam guia visual editavel e programacao", () => {
-  assert.match(navigationScript, /\["eventos", "ProgramaÃ§Ã£o", "calendar"\]/);
-  assert.match(portalScript, /portal\.hotel_information\.layout.*!== "cards"/);
-  assert.match(portalScript, /is-guest-guide/);
-  assert.match(portalScript, /renderAppTop\(state, "ProgramaÃ§Ã£o"/);
-  assert.match(portalCss, /\.is-guest-guide \.hotel-info-grid/);
-  assert.match(portalCss, /\.info-key-baby-kitchen/);
-  assert.match(portalCss, /\.info-key-espaco-tche/);
-  assert.match(portalScript, /chimarrao/);
-  assert.match(portalScript, /formatRoomServiceHours/);
-  assert.match(portalScript, /arrangeGuideInformation/);
-  assert.match(portalScript, /information\[wifiIndex\][\s\S]*information\[babyIndex\]/);
-  assert.match(portalScript, /baby:.*M10 2h4l1 3H9/);
-  assert.match(adminScript, /ProgramaÃ§Ã£o/);
-});
+HOˆÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\ÔÙ\špéÛÜÈH^\špê›˜ÚX\ËÊNÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\ÜÜ[œÙ\šXÙ\×™^˜WÚ][\ËÊNÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\ÚÛYK[[™ØØ\KZXÛÛ‹ÊNÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\ÚÛYK[[™ØØ\K[YYXKÊNÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\Û[Ù[RXÛÛ—
+[Ù[W›[Ù[WÚÙ^W
+KÊNÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\ØÛÛœİ\ÔÛÛH[Ù[W›[Ù[WÚÙ^HOOHœÛÛ‹ÊNÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\ÚÛYK[[™ØØ\KXØ\™	Ú[XYÙU\›Èˆˆˆˆ›ËZ[XYÙH—W	Ú\ÔÛÛÈˆ\Ë\İ]XÈˆˆˆ—KÊNÂˆ\ÜÙ\›X]Ú
+Ü[ÜÜËÙÜšY][\]KXÛÛ[[œÎ—ÊœZ[›X^
+Yœ—
+HLœÊNÂˆ\ÜÙ\›X]Ú
+Ü[ÜÜË×šÛYK[[™ØØ\K[\İÊ—Ö×××JØ›Ü™\—ÊŒÊNÂˆ\ÜÙ\›X]Ú
+Ü[ÜÜË×šÛYK[[™ØØ\KXØ\™Ê—Ö×××JØ›Ü™\‹X›İÛN—ÊŒ\ÛÛY˜\—
+KYİY\İ[[™W
+NÖ×××JØ›Ü™\‹\˜Y]\Î—ÊŒÊNÂˆ\ÜÙ\™Ù\Ó›İX]Ú
+Ü[ØÜš\ÚÛYK[[™ØØ\KXXİ[Û‹ÊNÂˆ\ÜÙ\›X]Ú
+Ü[ÜÜË×šÛYK[[™ØØ\K[YYXWÊ—Ö×××JÛØš™XİYš]—Ê˜Ûİ™\‹ÊNÂˆ\ÜÙ\›X]Ú
+Ü[ÜÜËĞYYXH
+Z[‹]ÚYˆMŒ
+V×××J×˜\]ÜXØ\™Ê—Ö×××JÛX\™Ú[—ÊÌœ]]ÈÊNÂˆ\ÜÙ\›X]Ú
+Ü[ÜÜË×™İY\İ\Ü[\›Ûİš\×
+™\ÚİÜ][š]XÛİ™\—
+HœÙ\šXÙ\ËY^\šY[˜ÙK\Ú[šÛYK[[™ØØ\KXÛÜH×Ê—Ö×××JØÛÛÜ—ÊˆÙ™™‹ÊNÂˆ\ÜÙ\›X]Ú
+Ü[ÜÜË×™İY\İ\Ü[\›Ûİš\×
+™\ÚİÜ][š]XÛİ™\—
+HœÙ\šXÙ\ËY^\šY[˜ÙK\Ú[šÛYK[[™ØØ\KXÛÜHÊ—Ö×××JÜ™Ø˜W
+MKMKMK
+KÊNÂˆÛÛœİÙ\šXÙQ^\šY[˜Ù\ÔÛİ\˜ÙHHÜ[ØÜš\›X]Ú
+ˆÙ[˜İ[ÛˆÙ]Ù\šXÙQ^\šY[˜Ù\×
+›Ûİİ˜\
+HÖ×××J×—KËˆ
+OË–ÌHˆÂˆ\ÜÙ\™Ù\Ó›İX]Ú
+Ù\šXÙQ^\šY[˜Ù\ÔÛİ\˜ÙKÙ›Ü›X]›ÛÛTÙ\šXÙRİ\œËÊNÂŸJNÂ‚\İ
+“pï\ˆHÙ[›È™XÙX™[H[™›Ü›XpéğíY\È0î˜›XØ\È\ÜXğëYšXØ\ÈÜˆ[šYYH‹
 
-test("servicos usam lista editorial, imagens configuradas e experiencias extras", () => {
-  assert.match(portalScript, /ServiÃ§os e ExperiÃªncias/);
-  assert.match(portalScript, /portal\.services\.extra_items/);
-  assert.match(portalScript, /home-landscape-icon/);
-  assert.match(portalScript, /home-landscape-media/);
-  assert.match(portalScript, /moduleIcon\(module\.module_key\)/);
-  assert.match(portalScript, /const isPool = module\.module_key === "pool"/);
-  assert.match(portalScript, /home-landscape-card\$\{imageUrl \? "" : " no-image"\}\$\{isPool \? " is-static" : ""\}/);
-  assert.match(portalCss, /grid-template-columns:\s*42px minmax\(0, 1fr\) 126px/);
-  assert.match(portalCss, /\.home-landscape-list\s*\{[\s\S]*?border:\s*0/);
-  assert.match(portalCss, /\.home-landscape-card\s*\{[\s\S]*?border:\s*1px solid var\(--guest-line\);[\s\S]*?border-radius:\s*18px/);
-  assert.match(portalCss, /\.home-landscape-card\.is-static\s*\{[\s\S]*?border-color:\s*transparent/);
-  assert.match(portalCss, /\.home-landscape-media\s*\{[\s\S]*?object-fit:\s*cover/);
-  assert.match(portalCss, /\.home-landscape-card\.no-image \.home-landscape-action\s*\{[\s\S]*?right:\s*0;[\s\S]*?transform:\s*translateY\(-50%\)/);
-  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.app-top-card\s*\{[\s\S]*?margin:\s*72px auto 0/);
-  assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\) \.services-experience-shell \.home-landscape-copy h3\s*\{[\s\S]*?color:\s*#fff/);
-  assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\) \.services-experience-shell \.home-landscape-copy p\s*\{[\s\S]*?rgba\(255, 255, 255, 0\.84\)/);
-  const serviceExperiencesSource = portalScript.match(
-    /function getServiceExperiences\(bootstrap\) \{[\s\S]*?\n\}/,
-  )?.[0] || "";
-  assert.doesNotMatch(serviceExperiencesSource, /formatRoomServiceHours/);
-});
+HOˆÂˆ\ÜÙ\›X]Ú
+İ[[™›Ü›X][Û•\]SZYÜ˜][Û‹ÉÛ][\‹Yš[Ü™^™IË×××JÉĞØY°êHHX[š0èÉË×××JÉÔÙ\šYÈX\šX[Y[H\ÈÚ0èÈL‰ËÊNÂˆ\ÜÙ\›X]Ú
+İ[[™›Ü›X][Û•\]SZYÜ˜][Û‹ÉĞXØY[ZXIË	ĞÛÛœİ[HH™XÙ\0éğèÛ×‰ËÊNÂˆ\ÜÙ\›X]Ú
+İ[[™›Ü›X][Û•\]SZYÜ˜][Û‹Ópï\ˆ	ˆš[Ü™^™HHİ[›İ]\]YKÊNÂˆ\ÜÙ\›X]Ú
+İ[[™›Ü›X][Û•\]SZYÜ˜][Û‹Ô™YHX™\KÙ[HÙ[šKÊNÂˆ\ÜÙ\›X]Ú
+İ[[™›Ü›X][Û•\]SZYÜ˜][Û‹Ú[™›×ÚÙ^HSˆ
+	ØÚXÚÛİ]Y[[ÉË	Ø˜XKZÚ]Ú[‰Ë	ÚÚYÉË	İXÚ	Ë	Ù\ÜXÛË]ÚI×
+KÊNÂˆ\ÜÙ\›X]Ú
+İ[[™›Ü›X][Û•\]SZYÜ˜][Û‹ÔÙ\šYÈX\šX[Y[H\ÈšÌ0èÈL‹ÊNÂˆ\ÜÙ\›X]Ú
+İ[[™›Ü›X][Û•\]SZYÜ˜][Û‹Ô™YNˆİ[š[Ü™^™HÙ[›ÉÖ×××JğìÙYÛÈHXÙ\ÜÛÎˆİ[Ù[›ÉËÊNÂŸJNÂ‚\İ
+™^\šY[˜ÚXHH\ØÚ[˜HÈÙ[›ÈÜÜİZHÛÛ™šYİ\˜XØ[ÈX›XØHH[XYÙ[HØØ[‹
 
-test("experiencia da piscina do Centro possui configuracao publica e imagem local", () => {
-  assert.match(poolExperienceMigration, /'fiorezecentro'/);
-  assert.match(poolExperienceMigration, /'portal\.services\.extra_items'/);
-  assert.match(poolExperienceMigration, /Piscina \(Origem e Quero-Quero\)/);
-  assert.match(poolExperienceMigration, /\/assets\/hotels\/fioreze-centro\/piscina\.jpg/);
-  assert.ok(fs.existsSync(poolImageUrl));
-  assert.ok(fs.statSync(poolImageUrl).size > 0);
-});
+HOˆÂˆ\ÜÙ\›X]Ú
+ÛÛ^\šY[˜ÙSZYÜ˜][Û‹ÉÙš[Ü™^™XÙ[›ÉËÊNÂˆ\ÜÙ\›X]Ú
+ÛÛ^\šY[˜ÙSZYÜ˜][Û‹ÉÜÜ[œÙ\šXÙ\×™^˜WÚ][\ÉËÊNÂˆ\ÜÙ\›X]Ú
+ÛÛ^\šY[˜ÙSZYÜ˜][Û‹Ô\ØÚ[˜H
+ÜšYÙ[HH]Y\›ËT]Y\›×
+KÊNÂˆ\ÜÙ\›X]Ú
+ÛÛ^\šY[˜ÙSZYÜ˜][Û‹×Ø\ÜÙ]×Úİ[×Ùš[Ü™^™KXÙ[›×Ü\ØÚ[˜WšœËÊNÂˆ\ÜÙ\›ÚÊœË™^\İÔŞ[˜ÊÛÛ[XYÙU\›
+JNÂˆ\ÜÙ\›ÚÊœËœİ]Ş[˜ÊÛÛ[XYÙU\›
+KœÚ^™Hˆ
+NÂŸJNÂ‚\İ
+™İZXHÈİ[\ØHÈÜ˜\š[ÈØ[›ÛšXÛÈÈT”›ÈØ\™H›ÛÛHÙ\šXÙH‹
 
-test("guia do hotel usa o horario canonico do ERP no card de Room Service", () => {
-  const everyDay = Array.from({ length: 7 }, (_, day) => ({
-    day_of_week: day,
-    opens_at: "16:00",
-    closes_at: "22:00",
-    is_closed: false,
-  }));
+HOˆÂˆÛÛœİ]™\Q^HH\œ˜^K™œ›ÛJÈ[™İˆÈK
+Ë^JHOˆ
+Âˆ^WÛÙ—İÙYZÎˆ^KˆÜ[œ×Ø]ˆŒMŒ‹ˆÛÜÙ\×Ø]ˆŒŒŒ‹ˆ\×ØÛÜÙYˆ˜[ÙKˆJJNÂ‚ˆ\ÜÙ\™\]X[
+›Ü›X]›ÛÛTÙ\šXÙRİ\œÊ]™\Q^JK“È›ÛÛHÙ\šXÙHÜ\˜HX\šX[Y[H\ÈMŒ0èÈŒŒˆŠNÂˆ\ÜÙ\›X]Ú
+›Ü›X]›ÛÛTÙ\šXÙRİ\œÊ×JKĞÛÛœİ[HH™XÙ\0éğèÛËÊNÂŸJNÂ‚\İ
+›[šÜÈÜÈ[Ù[ÜÈÙYİY[HÈÛYÈ]X[Y\Û[ÈÛÛH˜]™YØXØ[È[YØH‹
 
-  assert.equal(formatRoomServiceHours(everyDay), "O Room Service opera diariamente das 16:00 Ã s 22:00.");
-  assert.match(formatRoomServiceHours([]), /Consulte a recepÃ§Ã£o/);
-});
+HOˆÂˆÛÛœİ[H™[™\‘İY\İ˜]šYØ][ÛŠÂˆÛYÎˆ›][\ˆ‹ˆ˜[YNˆ“][\ˆ	ˆš[Ü™^™H‹ˆœ˜[™[™ÎˆßKˆ˜]šYØ][ÛˆÂˆÂˆ[Ù[WÚÙ^Nˆœ›ÛÛK\Ù\šXÙH‹ˆ]ˆ‹Û][\‹Yš[Ü™^™KÜ›ÛÛK\Ù\šXÙH‹ˆKˆKˆ[Ù[\ÎˆÂˆÂˆ[Ù[WÚÙ^Nˆœ›ÛÛK\Ù\šXÙH‹ˆ˜[YNˆ”›ÛÛHÙ\šXÙH‹ˆ[˜X›YˆYKˆKˆKˆJNÂ‚ˆ\ÜÙ\›X]Ú
+[Ú™YH—Û][\—Ü›ÛÛK\Ù\šXÙH‹ÊNÂˆ\ÜÙ\™Ù\Ó›İX]Ú
+[Û][\‹Yš[Ü™^™WÜ›ÛÛK\Ù\šXÙKÊNÂŸJNÂ‚\İ
+˜Ø\™ÈHYÚ[˜H[šXÚX[ÙYİY[HÈÛYÈ]X[H[šYYH‹
 
-test("links dos modulos seguem o slug atual mesmo com navegacao antiga", () => {
-  const html = renderGuestNavigation({
-    slug: "muller",
-    name: "Muller & Fioreze",
-    branding: {},
-    navigation: [
-      {
-        module_key: "room-service",
-        path: "/muller-fioreze/room-service",
-      },
-    ],
-    modules: [
-      {
-        module_key: "room-service",
-        name: "Room Service",
-        enabled: true,
-      },
-    ],
-  });
+HOˆÂˆÛÛœİ›Ûİİ˜\HÂˆÛYÎˆ›][\ˆ‹ˆ˜]šYØ][ÛˆÂˆÂˆ[Ù[WÚÙ^Nˆœ›ÛÛK\Ù\šXÙH‹ˆ]ˆ‹Û][\‹Yš[Ü™^™KÜ›ÛÛK\Ù\šXÙH‹ˆKˆKˆNÂ‚ˆ\ÜÙ\™\]X[
+Ù][Ù[T]
+›Ûİİ˜\œ›ÛÛK\Ù\šXÙHŠK‹Û][\‹Ü›ÛÛK\Ù\šXÙHŠNÂŸJNÂ‚\İ
+œÜ[™[™\š^˜H˜\š[ÜÈX\\ÈÙYİ\›ÜÈ˜HÙXØ[ÈÛÛ[ÈÚYØ\ˆ‹
 
-  assert.match(html, /href="\/muller\/room-service"/);
-  assert.doesNotMatch(html, /muller-fioreze\/room-service/);
-});
+HOˆÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\ØÛÛXİ›X\×Ù[X™Yİ\›ËÊNÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\Ù[˜İ[ÛˆØ[š]^™QÛÛÙÛSX\Ñ[X™Y\›ÊNÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\Ù]K[X\Ë\ÙXİ[Û‹ÊNÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\ÜØ[™›ŞH˜[İË\ØÜš\È[İË\Ø[YK[ÜšYÚ[ˆ[İË\Ü\È‹ÊNÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\Ù]K\Ü[[X\[Ü[‹ÊNÂˆ\ÜÙ\›X]Ú
+Ü[ÜÜË×šİ[[X\ËYÜšYÊNÂˆ\ÜÙ\›X]Ú
+Ü[ÜÜË×šİ[[X\XØ\™Yœ˜[YWÊ—Ö×××JØ\ÜXİ\˜][Î—ÊŒMˆÈLÊNÂŸJNÂ‚\İ
+˜Ù[˜[YZ[š\İ˜H[XH\İHHX\\ÈÙ[H\›X^™[˜\ˆYœ˜[YH]œ™H‹
 
-test("cards da pagina inicial seguem o slug atual da unidade", () => {
-  const bootstrap = {
-    slug: "muller",
-    navigation: [
-      {
-        module_key: "room-service",
-        path: "/muller-fioreze/room-service",
-      },
-    ],
-  };
+HOˆÂˆ\ÜÙ\›X]Ú
+YZ[”ØÜš\Ù[˜İ[ÛˆX\Ñ[X™YšY[ÊNÂˆ\ÜÙ\›X]Ú
+YZ[”ØÜš\Ù]KXY[X\Y[X™YÊNÂˆ\ÜÙ\›X]Ú
+YZ[”ØÜš\Ù]K\™[[İ™K[X\Y[X™YÊNÂˆ\ÜÙ\›X]Ú
+YZ[”ØÜš\Ø›ÙWÈ˜ÛÛXİ›X\×Ù[X™Yİ\›È—HHX\Ñ[X™Y\›ËÊNÂˆ\ÜÙ\›X]Ú
+YZ[”ØÜš\ĞğìÙYÛÜÈSHÚ]™\ÈHTH°èÛÈğèÛÈ\›X^™[˜YÜËÊNÂŸJNÂ‚\İ
+™\ÚİÜ[[šHÙÛÈHİZX\ÈÛÛ\\[Y\ÈÙ[H[™È‹
 
-  assert.equal(getModulePath(bootstrap, "room-service"), "/muller/room-service");
-});
+HOˆÂˆ\ÜÙ\›X]Ú
+˜]šYØ][ÛÜÜËĞYYXH
+Z[‹]ÚYˆMŒ
+V×××J×™İY\İ\Ú\™YZXY\—œÚ]KZXY\‹×××JØ˜XÚÙÜ›İ[™—Ê˜[œÜ\™[Ö×××JØ˜XÚÙ›ÜYš[\—Ê››Û™KÊNÂˆ\ÜÙ\›X]Ú
+˜]šYØ][ÛÜÜË×™İY\İ\Ú\™YZXY\—œÚ]KZXY\—š\Ë\ØÜ›ÛY×××JØ˜XÚÙÜ›İ[™—Êœ™Ø˜W
+MKÊŒMKÊŒMKÊŒ
+NÖ×××JØ˜XÚÙ›ÜYš[\—Ê˜›\—
+Œœ
+KÊNÂˆ\ÜÙ\›X]Ú
+˜]šYØ][ÛÜÜË×™İY\İ\Ú\™YZXY\ˆ˜œ˜[™[ÙÛËZ[Y×Ê—Ö×××JÛØš™XİYš]—Ê˜ÛÛZ[‹ÊNÂˆ\ÜÙ\›X]Ú
+˜]šYØ][ÛÜÜË×™İY\İY\ÚİÜ[˜]ˆ™İY\İ[˜]‹Z][WÊ—Ö×××JØ›Ü™\‹\˜Y]\Î—ÊNN\ÊNÂˆ\ÜÙ\›X]Ú
+Ü[ÜÜË×™İY\İ\Ü[\›Ûİš\×
+™\ÚİÜ][š]XÛİ™\—
+H™\ÚİÜ][š]XÛİ™\˜Y\—Ê—Ö×××JÜ™Ø˜W
+MLKK
+KÊNÂˆ\ÜÙ\›X]Ú
+Ü[ÜÜË×™İY\İ\Ü[\›Ûİš\×
+™\ÚİÜ][š]XÛİ™\—
+HšÛYKZ\›ËXÛÜH™İY\İ]]KÊNÂˆ\ÜÙ\›X]Ú
+Ü[ÜÜË×™İY\İ\Ü[\›Ûİš\×
+™\ÚİÜ][š]XÛİ™\—
+HšÛYK\Ù\šXÙ\Ë\ÙXİ[Ûˆˆ™İY\İ\ÙXİ[Û‹]]KÊNÂˆ\ÜÙ\›X]Ú
+Ü[ÜÜË×™İY\İ\Ü[\›Ûİš\×
+™\ÚİÜ][š]XÛİ™\—
+HšÛYKZ[™›Ë\ÙXİ[Ûˆ™İY\İ\ÙXİ[Û‹ZXY[™È]Û‹ÊNÂˆ\ÜÙ\›X]Ú
+Ü[ÜÜË×™İY\İ\Ü[\›Ûİš\×
+™\ÚİÜ][š]XÛİ™\—
+H˜\]ÜXØ\™ˆÊ—Ö×××JØÛÛÜ—ÊˆÙ™™‹ÊNÂŸJNÂ‚\İ
+š\›È\ÚİÜÙ\\˜HHØ]YXØ[ÈÈ›ÛYHH[šYYH‹
 
-test("portal renderiza varios mapas seguros na secao Como chegar", () => {
-  assert.match(portalScript, /contact\.maps_embed_urls/);
-  assert.match(portalScript, /function sanitizeGoogleMapsEmbedUrl/);
-  assert.match(portalScript, /data-maps-section/);
-  assert.match(portalScript, /sandbox="allow-scripts allow-same-origin allow-popups"/);
-  assert.match(portalScript, /data-portal-map-open/);
-  assert.match(portalCss, /\.hotel-maps-grid/);
-  assert.match(portalCss, /\.hotel-map-card iframe\s*\{[\s\S]*?aspect-ratio:\s*16 \/ 10/);
-});
+HOˆÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\ØÛ\ÜÏH™İY\İ]]K]Ù[ÛÛYH™[K]š[™È[ÏÜÜ[‹ÊNÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\ØÛ\ÜÏH™İY\İ]]K][š]‹ÊNÂˆ\ÜÙ\›X]Ú
+Ü[ÜÜËĞYYXH
+Z[‹]ÚYˆMŒ
+V×××J×™İY\İ]]K]Ù[ÛÛYWÊ—Ö×××JÙ›Û\Ú^™N—Ê˜Û[\
+—ŒM\™[K×ŒM]Ë×Œœ™[W
+KÊNÂˆ\ÜÙ\›X]Ú
+Ü[ÜÜËĞYYXH
+Z[‹]ÚYˆMŒ
+V×××J×™İY\İ]]K][š]Ê—Ö×××JÙ›Û\Ú^™N—Ê˜Û[\
+×\™[KËW™[W
+KÊNÂŸJNÂ‚\İ
+š[šXÚ[È\ÚİÜ\™HÈ[™ÈÈÜÈH\ØH[XYÙ[œÈÛÛ™šYİ\˜Y\È›ÜÈÙ\šXÛÜÈ‹
 
-test("central administra uma lista de mapas sem armazenar iframe livre", () => {
-  assert.match(adminScript, /function mapsEmbedField/);
-  assert.match(adminScript, /data-add-map-embed/);
-  assert.match(adminScript, /data-remove-map-embed/);
-  assert.match(adminScript, /body\["contact\.maps_embed_urls"\] = mapsEmbedUrls/);
-  assert.match(adminScript, /CÃ³digos HTML e chaves de API nÃ£o sÃ£o armazenados/);
-});
+HOˆÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\ÜØ[š]^™TX›XĞ\ÜÙ]\›
+[Ù[W˜˜XÚÙÜ›İ[™Ú[XYÙWİ\›
+KÊNÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\ØÛ\ÜÏHœ]ZXÚËXØ\™	Ú[XYÙU\›Èˆ\ËY\ÚİÜZ[XYÙHˆˆˆ—H‹ÊNÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\ØÛ\ÜÏHœ]ZXÚËXØ\™[YYXH‹ÊNÂˆ\ÜÙ\›X]Ú
+Ü[ÜÜË×œ]ZXÚËXØ\™[YYXWÊ—Ö×××JÙ\Ü^N—Ê››Û™KÊNÂˆ\ÜÙ\›X]Ú
+Ü[ÜÜËĞYYXH
+Z[‹]ÚYˆMŒ
+V×××J×œ]ZXÚËXØ\™š\ËY\ÚİÜZ[XYÙHœ]ZXÚËXØ\™[YYXWÊ—Ö×××JÙ\Ü^N—Ê˜›ØÚËÊNÂˆ\ÜÙ\›X]Ú
+Ü[ÜÜËĞYYXH
+Z[‹]ÚYˆMŒ
+V×××J×™İY\İ\Ú[š\×
+šÛYKZ\›ËXÛÜW
+N˜™Y›Ü™WÊ—Ö×××JÜ™Ø˜W
+MLKK
+KÊNÂˆ\ÜÙ\›X]Ú
+Ü[ÜÜËĞYYXH
+Z[‹]ÚYˆMŒ
+V×××J×šÛYKZ[™›Ë\ÙXİ[Û—Ê—×Ê™\Ü^N—Ê››Û™KÊNÂŸJNÂ‚\İ
+˜Ù[˜[\›Z]H\ØÛÛ\ˆ[XYÙ[KšY[ÈİH›ÛHHšX›[İXØH\˜HHY[YYH‹
 
-test("desktop alinha logo e guias compartilhadas sem fundo", () => {
-  assert.match(navigationCss, /@media \(min-width: 960px\)[\s\S]*?\.guest-shared-header\.site-header,[\s\S]*?background:\s*transparent;[\s\S]*?backdrop-filter:\s*none/);
-  assert.match(navigationCss, /\.guest-shared-header\.site-header\.is-scrolled,[\s\S]*?background:\s*rgba\(255,\s*255,\s*255,\s*0\.88\);[\s\S]*?backdrop-filter:\s*blur\(22px\)/);
-  assert.match(navigationCss, /\.guest-shared-header \.brand-logo-img\s*\{[\s\S]*?object-fit:\s*contain/);
-  assert.match(navigationCss, /\.guest-desktop-nav \.guest-nav-item\s*\{[\s\S]*?border-radius:\s*999px/);
-  assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\) \.desktop-unit-cover::after\s*\{[\s\S]*?rgba\(14, 11, 9, 0\.68\)/);
-  assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\) \.home-hero-copy \.guest-title/);
-  assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\) \.home-services-section > \.guest-section-title/);
-  assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\) \.home-info-section \.guest-section-heading button/);
-  assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\) \.app-top-card > p\s*\{[\s\S]*?color:\s*#fff/);
-});
+HOˆÂˆ\ÜÙ\›X]Ú
+YZ[”ØÜš\Ø[İÕšY[ÈHšY[˜[YHOOH˜Ûİ™\—Ú[XYÙWİ\›‹ÊNÂˆ\ÜÙ\›X]Ú
+YZ[”ØÜš\Ù›ÛÛ›HHšY[˜[YHOOH™›ÛØ\ÜÙ]ÚY‹ÊNÂˆ\ÜÙ\›X]Ú
+YZ[”ØÜš\Ü™[™\’Y[]SYYXSÜ[Û‹ÊNÂˆ\ÜÙ\›X]Ú
+YZ[”ØÜš\Û˜[YOH›YYXWØ\ÜÙ]ÚY‹ÊNÂˆ\ÜÙ\›X]Ú
+YZ[”ØÜš\ØÛÛœİ\ÕšY[ÈHZ[YU\Wœİ\ÕÚ]
+šY[×È—
+KÊNÂˆ\ÜÙ\›X]Ú
+YZ[”ØÜš\ØÛÛœİ\Ñ›ÛHZ[YU\Wœİ\ÕÚ]
+™›ÛÈ—
+KÊNÂˆ\ÜÙ\›X]Ú
+YZ[”ØÜš\ĞØ\HÈÜ[
+[XYÙ[HİH°ëY[×
+KÊNÂˆ\ÜÙ\™Ù\Ó›İX]Ú
+YZ[”ØÜš\ØÛÛœİÙ[XİYH\ÜÙ]×ÌKÊNÂŸJNÂ‚\İ
+™]™[ÜÈXœ™[H[HX[ÙÛÈ›È\ÚİÜH™\Ù\˜[HÈ][H[İ™[‹
 
-test("hero desktop separa a saudacao do nome da unidade", () => {
-  assert.match(portalScript, /class="guest-title-welcome">Bem-vindo ao<\/span>/);
-  assert.match(portalScript, /class="guest-title-unit">/);
-  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.guest-title-welcome\s*\{[\s\S]*?font-size:\s*clamp\(2\.15rem, 3\.15vw, 3\.2rem\)/);
-  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.guest-title-unit\s*\{[\s\S]*?font-size:\s*clamp\(3\.65rem, 6vw, 5\.8rem\)/);
-});
+HOˆÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\Ú\Ñ\ÚİÜÜ[
+
+KÊNÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\ØÛ\ÜÏH™\ÚİÜY]™[XÛÛ^ˆ\šXKZY[HYHˆ[™\ÊNÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\ØÛ\ÜÏH™\ÚİÜY]™[YX[ÙËX˜XÚÙ›Üˆ]KY]™[YX[ÙÈ›ÛOH™X[ÙÈˆ\šXK[[Ù[HYH‹ÊNÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\Ù]™[šÙ^HOOH‘\ØØ\H‹ÊNÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\Ù]™[\™Ù]›X]Ú\×
+—Ù]KY]™[YX[Ù×H—
+KÊNÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\ØÛ\ÜÏHœÜ[Y]Z[]šY]È‹ÊNÂˆ\ÜÙ\›X]Ú
+Ü[ÜÜËĞYYXH
+Z[‹]ÚYˆMŒ
+V×××J×™\ÚİÜY]™[YX[ÙËX˜XÚÙ›ÜÊ—Ö×××JÜÜÚ][Û—Ê™š^YÖ×××JØ˜XÚÙ›ÜYš[\—Ê˜›\—
+\
+KÊNÂˆ\ÜÙ\›X]Ú
+Ü[ÜÜË×™\ÚİÜY]™[YX[ÙËX˜XÚÙ›ÜœÜ[Y]Z[]šY]×Ê—Ö×××JÛX^ZZYÚ—Ê˜Ø[×
+LšHL
+KÊNÂŸJNÂ‚\İ
+œÜ[˜[È[˜ÛÜœÜ˜H\[™[˜ÚX\È™[H[™Ú[ÈÈÚ\İ[XHYØYÈ‹
 
-test("inicio desktop herda o fundo do topo e usa imagens configuradas nos servicos", () => {
-  assert.match(portalScript, /sanitizePublicAssetUrl\(module\.background_image_url\)/);
-  assert.match(portalScript, /class="quick-card\$\{imageUrl \? " has-desktop-image" : ""\}"/);
-  assert.match(portalScript, /class="quick-card-media"/);
-  assert.match(portalCss, /\.quick-card-media\s*\{[\s\S]*?display:\s*none/);
-  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.quick-card\.has-desktop-image \.quick-card-media\s*\{[\s\S]*?display:\s*block/);
-  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.guest-shell:has\(\.home-hero-copy\)::before\s*\{[\s\S]*?rgba\(14, 11, 9, 0\.48\)/);
-  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.home-info-section\s*\{\s*display:\s*none/);
-});
+HOˆÂˆ\ÜÙ\™Ù\Ó›İX]Ú
+Ü[ØÜš\ÜØÜš\™ÛÛÙÛW˜ÛÛKÚJNÂˆ\ÜÙ\™Ù\Ó›İX]Ú
+Ü[ØÜš\ÙØÜ×™ÛÛÙÛW˜ÛÛKÚJNÂˆ\ÜÙ\™Ù\Ó›İX]Ú
+Ü[ØÜš\İZ[Ú[™ÜÜËÚJNÂˆ\ÜÙ\™Ù\Ó›İX]Ú
+Ü[ØÜš\Ópï\Ÿš[Ü™^™HÙ[›ßÜİ[YËÚJNÂŸJNÂ‚\İ
+œÜ[[Z]H[XYÙ[œÈ[˜[ZXØ\È[ÜÈ\ÜÙ]ÈX›XÛÜÈH]Y›Ü›XH‹
 
-test("central permite escolher imagem, video ou fonte da biblioteca para a identidade", () => {
-  assert.match(adminScript, /allowVideo = fieldName === "cover_image_url"/);
-  assert.match(adminScript, /fontOnly = fieldName === "font_asset_id"/);
-  assert.match(adminScript, /renderIdentityMediaOption/);
-  assert.match(adminScript, /name="media_asset_id"/);
-  assert.match(adminScript, /const isVideo = mimeType\.startsWith\("video\/"\)/);
-  assert.match(adminScript, /const isFont = mimeType\.startsWith\("font\/"\)/);
-  assert.match(adminScript, /Capa do portal \(imagem ou vÃ­deo\)/);
-  assert.doesNotMatch(adminScript, /const selected = assets\[0\]/);
-});
-
-test("eventos abrem em dialogo no desktop e preservam o detalhe movel", () => {
-  assert.match(portalScript, /isDesktopPortal\(\)/);
-  assert.match(portalScript, /class="desktop-event-context" aria-hidden="true" inert/);
-  assert.match(portalScript, /class="desktop-event-dialog-backdrop" data-event-dialog role="dialog" aria-modal="true"/);
-  assert.match(portalScript, /event\.key === "Escape"/);
-  assert.match(portalScript, /event\.target\.matches\("\[data-event-dialog\]"\)/);
-  assert.match(portalScript, /class="portal-detail-view"/);
-  assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.desktop-event-dialog-backdrop\s*\{[\s\S]*?position:\s*fixed;[\s\S]*?backdrop-filter:\s*blur\(5px\)/);
-  assert.match(portalCss, /\.desktop-event-dialog-backdrop \.portal-detail-view\s*\{[\s\S]*?max-height:\s*calc\(100dvh - 128px\)/);
-});
-
-test("portal nao incorpora dependencias nem endpoints do sistema legado", () => {
-  assert.doesNotMatch(portalScript, /script\.google\.com/i);
-  assert.doesNotMatch(portalScript, /docs\.google\.com/i);
-  assert.doesNotMatch(portalScript, /tailwindcss/i);
-  assert.doesNotMatch(portalScript, /MÃ¼ller|Fioreze Centro|postimg/i);
-});
-
-test("portal limita imagens dinamicas aos assets publicos da plataforma", () => {
-  assert.match(portalScript, /sanitizePublicAssetUrl/);
-  assert.doesNotMatch(portalScript, /background-image:\s*url\(/i);
-});
+HOˆÂˆ\ÜÙ\›X]Ú
+Ü[ØÜš\ÜØ[š]^™TX›XĞ\ÜÙ]\›ÊNÂˆ\ÜÙ\™Ù\Ó›İX]Ú
+Ü[ØÜš\Ø˜XÚÙÜ›İ[™Z[XYÙN—Ê\›
+ÚJNÂŸJNÂ
