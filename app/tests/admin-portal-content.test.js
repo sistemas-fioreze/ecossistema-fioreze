@@ -126,6 +126,33 @@ test("evento permanente continua publicado depois da data inicial", async () => 
   assert.equal(result.event.is_permanent, true);
 });
 
+test("evento recorrente grava todas as datas sem duplicar o conteúdo", async () => {
+  const env = createEnv();
+  const result = await createPortalEvent({
+    request: request({
+      hotel_id: "muller-fioreze",
+      title: "Chá da Tarde",
+      timezone: "America/Sao_Paulo",
+      status: "published",
+      occurrences: [
+        { starts_at: "2026-08-05T19:00:00.000Z", ends_at: "2026-08-05T21:00:00.000Z" },
+        { starts_at: "2026-08-19T19:00:00.000Z", ends_at: "2026-08-19T21:00:00.000Z" },
+      ],
+    }),
+    env,
+    session: session(),
+  });
+
+  assert.equal(env.__data.events.length, 1);
+  assert.equal(result.event.starts_at, "2026-08-05T19:00:00.000Z");
+  assert.equal(result.event.ends_at, "2026-08-19T21:00:00.000Z");
+  assert.equal(result.event.occurrences.length, 2);
+  assert.deepEqual(result.event.occurrences.map((occurrence) => occurrence.starts_at), [
+    "2026-08-05T19:00:00.000Z",
+    "2026-08-19T19:00:00.000Z",
+  ]);
+});
+
 test("pagina e secao sao criadas atomicamente com auditoria", async () => {
   const env = createEnv();
   const created = await createPortalPage({
@@ -245,6 +272,7 @@ function createEnv() {
     pages: [{ id: "page-muller", hotel_id: "muller-fioreze", module_key: "guest-portal", slug: "boas-vindas", title: "Boas-vindas", summary: "Conteudo institucional", status: "published", sort_order: 10, created_at: NOW, updated_at: NOW, archived_at: null }],
     sections: [],
     events: [],
+    eventOccurrences: [],
     mediaAssets: [{ id: "media-event-muller", hotel_id: "muller-fioreze", public_url: "/media/media-event-muller", alt_text: "Programacao cultural", mime_type: "image/jpeg", status: "active" }],
     information: [{ id: "info-muller", hotel_id: "muller-fioreze", info_key: "wifi", title: "Wi-Fi", body: "Consulte a recepcao.", is_public: 1, sort_order: 10, created_at: NOW, updated_at: NOW }],
     audit: [],
@@ -297,9 +325,13 @@ class ContentStatement {
           .filter((row) => row.hotel_id === hotelId)
           .map((row) => withEventMedia({
             ...row,
-            status: row.status === "published" && !row.is_permanent && row.starts_at && row.starts_at <= now ? "archived" : row.status,
+            status: row.status === "published" && !row.is_permanent && (row.ends_at || row.starts_at) && (row.ends_at || row.starts_at) <= now ? "archived" : row.status,
           }, data.mediaAssets)),
       };
+    }
+    if (this.sql.includes("FROM event_occurrences")) {
+      const eventIds = new Set(this.params);
+      return { results: data.eventOccurrences.filter((row) => eventIds.has(row.event_id)).sort((left, right) => left.starts_at.localeCompare(right.starts_at)) };
     }
     if (this.sql.includes("FROM hotel_information") && this.sql.includes("WHERE hotel_id = ?")) return { results: data.information.filter((row) => row.hotel_id === this.params[0]) };
     if (this.sql.includes("FROM portal_sections") && this.sql.includes("WHERE page_id = ?")) return { results: data.sections.filter((row) => row.page_id === this.params[0] && row.hotel_id === this.params[1]) };
@@ -337,6 +369,10 @@ class ContentStatement {
       data.sections.push({ id: p[0], page_id: p[1], hotel_id: p[2], section_key: p[3], title: p[4], body: p[5], settings_json: p[6], sort_order: p[7], created_at: p[8], updated_at: p[9] });
     } else if (this.sql.startsWith("INSERT INTO events")) {
       data.events.push({ id: p[0], hotel_id: p[1], title: p[2], summary: p[3], content: p[4], location: p[5], category: p[6], tags_json: p[7], action_text: p[8], action_url: p[9], starts_at: p[10], ends_at: p[11], timezone: p[12], status: p[13], is_permanent: p[14], media_asset_id: p[15], created_at: p[16], updated_at: p[17] });
+    } else if (this.sql.startsWith("INSERT INTO event_occurrences")) {
+      data.eventOccurrences.push({ id: p[0], event_id: p[1], hotel_id: p[2], starts_at: p[3], ends_at: p[4], timezone: p[5], created_at: p[6], updated_at: p[7] });
+    } else if (this.sql.startsWith("DELETE FROM event_occurrences")) {
+      data.eventOccurrences = data.eventOccurrences.filter((row) => row.event_id !== p[0] || row.hotel_id !== p[1]);
     } else if (this.sql.startsWith("INSERT INTO hotel_information")) {
       data.information.push({ id: p[0], hotel_id: p[1], info_key: p[2], title: p[3], body: p[4], is_public: p[5], sort_order: p[6], created_at: p[7], updated_at: p[8] });
     } else if (this.sql.startsWith("INSERT INTO admin_audit_log")) {

@@ -112,19 +112,46 @@ async function listPublishedEvents(env, hotelId, now) {
         AND ma.status = 'active'
       WHERE e.hotel_id = ?
         AND e.status = 'published'
-        AND (e.is_permanent = 1 OR e.starts_at > ?)
+        AND (e.is_permanent = 1 OR COALESCE(e.ends_at, e.starts_at) > ?)
       ORDER BY e.starts_at, e.title
       LIMIT 24`,
     [hotelId, now],
   );
-  return events.map(formatPublicEvent);
+  const occurrences = await listEventOccurrences(env, events);
+  return events.map((event) => formatPublicEvent(event, occurrences.get(event.id) || []));
 }
 
-function formatPublicEvent(event) {
+async function listEventOccurrences(env, events) {
+  if (!events.length) return new Map();
+  const placeholders = events.map(() => "?").join(", ");
+  const rows = await all(
+    env,
+    `SELECT id, event_id, starts_at, ends_at, timezone
+       FROM event_occurrences
+      WHERE event_id IN (${placeholders})
+      ORDER BY starts_at`,
+    events.map((event) => event.id),
+  );
+  const grouped = new Map();
+  for (const row of rows) {
+    const list = grouped.get(row.event_id) || [];
+    list.push({
+      id: row.id,
+      starts_at: row.starts_at,
+      ends_at: row.ends_at,
+      timezone: row.timezone,
+    });
+    grouped.set(row.event_id, list);
+  }
+  return grouped;
+}
+
+function formatPublicEvent(event, occurrences) {
   return {
     ...event,
     is_permanent: Boolean(event.is_permanent),
     tags: parseTags(event.tags_json),
+    occurrences,
     tags_json: undefined,
   };
 }

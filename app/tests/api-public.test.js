@@ -103,10 +103,33 @@ test("portal publico entrega somente conteudo publicado da unidade solicitada", 
   assert.equal(body.data.events[0].location, "Sala Exemplo");
   assert.equal(body.data.events[0].action_text, "Ver programacao");
   assert.equal(body.data.events[0].action_url, "https://example.test/programacao");
+  assert.deepEqual(body.data.events[0].occurrences.map((occurrence) => occurrence.id), ["occurrence-muller-welcome"]);
   assert.equal("tags_json" in body.data.events[0], false);
   assert.deepEqual(body.data.information.map((item) => item.id), ["info-muller-wifi", "info-muller-breakfast"]);
   assert.equal(JSON.stringify(body.data).includes("aurora"), false);
   assert.equal(JSON.stringify(body.data).includes("info-muller-private"), false);
+});
+
+test("evento recorrente retorna um único card com todas as ocorrências", async () => {
+  const context = createWorkerTestContext();
+  const event = context.env.__data.events.find((entry) => entry.id === "event-muller-welcome");
+  event.ends_at = "2026-08-24T22:00:00.000Z";
+  context.env.__data.eventOccurrences.push({
+    id: "occurrence-muller-welcome-second",
+    event_id: event.id,
+    hotel_id: event.hotel_id,
+    starts_at: "2026-08-24T20:00:00.000Z",
+    ends_at: "2026-08-24T22:00:00.000Z",
+    timezone: event.timezone,
+  });
+
+  const { body } = await context.json("/api/v1/public/hotels/muller-fioreze/portal/events");
+  const matches = body.data.events.filter((entry) => entry.id === event.id);
+  assert.equal(matches.length, 1);
+  assert.deepEqual(matches[0].occurrences.map((occurrence) => occurrence.id), [
+    "occurrence-muller-welcome",
+    "occurrence-muller-welcome-second",
+  ]);
 });
 
 test("paginas e eventos do portal preservam isolamento por hotel", async () => {

@@ -2662,10 +2662,62 @@
   gap: 12px;
 }
 
+.admin-event-occurrences {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-event-occurrence-row {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr 1fr 42px;
+  gap: 10px;
+  align-items: end;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-surface) 88%, var(--color-bg));
+}
+
+.admin-event-occurrence-row > button,
+.admin-event-occurrence-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.admin-event-occurrence-row > button {
+  width: 42px;
+  padding: 0;
+}
+
+.admin-event-occurrence-add {
+  margin-top: 10px;
+  padding: 0 14px;
+  font-weight: 750;
+}
+
+.admin-event-occurrence-row svg,
+.admin-event-occurrence-add svg {
+  width: 17px;
+  height: 17px;
+}
+
 @media (max-width: 900px) {
   .admin-events-filters,
-  .admin-event-schedule-grid {
+  .admin-event-schedule-grid,
+  .admin-event-occurrence-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-event-occurrence-row > button {
+    width: 100%;
   }
 }
 

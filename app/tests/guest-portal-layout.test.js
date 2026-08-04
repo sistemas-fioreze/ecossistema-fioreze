@@ -30,6 +30,10 @@ const hotelInformationUpdateMigration = fs.readFileSync(
   new URL("../migrations/0039_hotel_guest_information_updates.sql", import.meta.url),
   "utf8",
 );
+const eventOccurrencesMigration = fs.readFileSync(
+  new URL("../migrations/0040_event_occurrences_fioreze_centro_august.sql", import.meta.url),
+  "utf8",
+);
 const poolImageUrl = new URL("../public/assets/hotels/fioreze-centro/piscina.jpg", import.meta.url);
 
 test("portal usa o layout de referencia com identidade e conteudo dinamicos", () => {
@@ -45,6 +49,16 @@ test("portal usa o layout de referencia com identidade e conteudo dinamicos", ()
   assert.match(portalCss, /@media \(min-width: 960px\)/);
   assert.match(publicIndex, /guest-portal\/guest-portal\.css/);
   assert.match(publicIndex, /guest-portal\/guest-navigation\.css/);
+});
+
+test("programação recorrente agrupa datas no portal e permanece editável", () => {
+  assert.match(portalScript, /function eventSchedule\(event\)/);
+  assert.match(portalScript, /eventDateKeys\(event, state\.bootstrap\)/);
+  assert.match(portalScript, /Dias \$\{dates\.map/);
+  assert.match(adminScript, /data-event-occurrences/);
+  assert.match(adminScript, /Adicionar outra data/);
+  assert.match(adminScript, /body\.occurrences/);
+  assert.match(eventOccurrencesMigration, /event_occurrences/);
 });
 
 test("identidade da unidade controla favicon e escala uniforme da logo", () => {

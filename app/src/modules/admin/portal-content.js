@@ -39,7 +39,7 @@ export async function listPortalContent({ request, env, session, url }) {
       `SELECT e.id, e.hotel_id, e.title, e.summary, e.content, e.location, e.category,
               e.tags_json, e.action_text, e.action_url, e.starts_at, e.ends_at, e.timezone,
               CASE
-                WHEN e.status = 'published' AND e.is_permanent = 0 AND e.starts_at <= ?
+                WHEN e.status = 'published' AND e.is_permanent = 0 AND COALESCE(e.ends_at, e.starts_at) <= ?
                 THEN 'archived'
                 ELSE e.status
               END AS status,
@@ -63,11 +63,12 @@ export async function listPortalContent({ request, env, session, url }) {
       [hotelId],
     ),
   ]);
+  const occurrences = await listEventOccurrences(env, events);
 
   return {
     hotel_id: hotelId,
     pages: pages.map((row) => ({ ...row, section_count: Number(row.section_count || 0) })),
-    events: events.map(formatEvent),
+    events: events.map((event) => formatEvent(event, occurrences.get(event.id) || [])),
     information: information.map((row) => ({ ...row, is_public: Boolean(row.is_public) })),
   };
 }
@@ -215,7 +216,7 @@ export async function createPortalEvent({ request, env, session }) {
   const data = eventPayload(payload);
   data.mediaAssetId = await validateEventMedia(env, hotelId, payload.media_asset_id);
   const now = requestNow({ request, env });
-  data.status = resolvePortalEventStatus(data.status, data.startsAt, data.isPermanent, now);
+  data.status = resolvePortalEventStatus(data.status, data.endsAt || data.startsAt, data.isPermanent, now);
   const eventId = createPublicId("event");
   await batch(env, [
     statement(
@@ -227,12 +228,13 @@ export async function createPortalEvent({ request, env, session }) {
        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [eventId, hotelId, data.title, data.summary, data.content, data.location, data.category, data.tagsJson, data.actionText, data.actionUrl, data.startsAt, data.endsAt, data.timezone, data.status, data.isPermanent, data.mediaAssetId, now, now],
     ),
+    ...eventOccurrenceStatements(env, eventId, hotelId, data.occurrences, now),
     auditStatement(env, session, {
       hotelId,
       action: "portal-event.create",
       entityType: "event",
       entityId: eventId,
-      metadata: { status: data.status, permanent: Boolean(data.isPermanent), has_image: Boolean(data.mediaAssetId), has_action: Boolean(data.actionUrl), tag_count: data.tags.length },
+      metadata: { status: data.status, permanent: Boolean(data.isPermanent), has_image: Boolean(data.mediaAssetId), has_action: Boolean(data.actionUrl), tag_count: data.tags.length, occurrence_count: data.occurrences.length },
       now,
     }),
   ]);
@@ -249,7 +251,7 @@ export async function updatePortalEvent({ request, env, session, eventId }) {
   const data = eventPayload(payload);
   data.mediaAssetId = await validateEventMedia(env, current.hotel_id, payload.media_asset_id);
   const now = requestNow({ request, env });
-  data.status = resolvePortalEventStatus(data.status, data.startsAt, data.isPermanent, now);
+  data.status = resolvePortalEventStatus(data.status, data.endsAt || data.startsAt, data.isPermanent, now);
   await batch(env, [
     statement(
       env,
@@ -260,12 +262,14 @@ export async function updatePortalEvent({ request, env, session, eventId }) {
         WHERE id = ? AND hotel_id = ?`,
       [data.title, data.summary, data.content, data.location, data.category, data.tagsJson, data.actionText, data.actionUrl, data.startsAt, data.endsAt, data.timezone, data.status, data.isPermanent, data.mediaAssetId, now, eventId, current.hotel_id],
     ),
+    statement(env, "DELETE FROM event_occurrences WHERE event_id = ? AND hotel_id = ?", [eventId, current.hotel_id]),
+    ...eventOccurrenceStatements(env, eventId, current.hotel_id, data.occurrences, now),
     auditStatement(env, session, {
       hotelId: current.hotel_id,
       action: "portal-event.update",
       entityType: "event",
       entityId: eventId,
-      metadata: { status: data.status, permanent: Boolean(data.isPermanent), has_image: Boolean(data.mediaAssetId), has_action: Boolean(data.actionUrl), tag_count: data.tags.length },
+      metadata: { status: data.status, permanent: Boolean(data.isPermanent), has_image: Boolean(data.mediaAssetId), has_action: Boolean(data.actionUrl), tag_count: data.tags.length, occurrence_count: data.occurrences.length },
       now,
     }),
   ]);
@@ -401,8 +405,12 @@ function sectionPayload(payload) {
 }
 
 function eventPayload(payload) {
-  const startsAt = isoDate(payload.starts_at, "inicio", true);
-  const endsAt = isoDate(payload.ends_at, "termino", false);
+  const timezone = requireString(payload.timezone || "America/Sao_Paulo", "fuso horario", { max: 80 });
+  const occurrences = eventOccurrences(payload.occurrences, timezone);
+  const startsAt = occurrences[0]?.starts_at || isoDate(payload.starts_at, "inicio", true);
+  const endsAt = occurrences.length
+    ? occurrences.at(-1).ends_at || occurrences.at(-1).starts_at
+    : isoDate(payload.ends_at, "termino", false);
   if (endsAt && endsAt < startsAt) throw badRequest("O termino deve ser posterior ao inicio.");
   const status = optionalString(payload.status, "status", { max: 20 }) || "draft";
   if (!EVENT_STATUSES.has(status)) throw badRequest("Status do evento invalido.");
@@ -424,10 +432,47 @@ function eventPayload(payload) {
     actionUrl,
     startsAt,
     endsAt,
-    timezone: requireString(payload.timezone || "America/Sao_Paulo", "fuso horario", { max: 80 }),
+    timezone,
+    occurrences,
     status,
     isPermanent: normalizeEventBoolean(payload.is_permanent),
   };
+}
+
+function eventOccurrences(value, timezone) {
+  if (value === undefined || value === null || value === "") return [];
+  if (!Array.isArray(value) || !value.length || value.length > 90) {
+    throw badRequest("Informe entre 1 e 90 datas para o evento.");
+  }
+  const unique = new Map();
+  for (const item of value) {
+    if (!item || typeof item !== "object") throw badRequest("Data da programação inválida.");
+    const startsAt = isoDate(item.starts_at, "início da ocorrência", true);
+    const endsAt = isoDate(item.ends_at, "término da ocorrência", false);
+    if (endsAt && endsAt <= startsAt) throw badRequest("O término de cada ocorrência deve ser posterior ao início.");
+    if (unique.has(startsAt)) throw badRequest("A programação possui datas duplicadas.");
+    unique.set(startsAt, { starts_at: startsAt, ends_at: endsAt, timezone });
+  }
+  return [...unique.values()].sort((left, right) => left.starts_at.localeCompare(right.starts_at));
+}
+
+function eventOccurrenceStatements(env, eventId, hotelId, occurrences, now) {
+  return occurrences.map((occurrence) => statement(
+    env,
+    `INSERT INTO event_occurrences (
+       id, event_id, hotel_id, starts_at, ends_at, timezone, created_at, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      createPublicId("event_occurrence"),
+      eventId,
+      hotelId,
+      occurrence.starts_at,
+      occurrence.ends_at,
+      occurrence.timezone,
+      now,
+      now,
+    ],
+  ));
 }
 
 function normalizeEventBoolean(value) {
@@ -510,7 +555,7 @@ async function loadSection(env, sectionId) {
 }
 
 async function loadEvent(env, eventId) {
-  return first(
+  const row = await first(
     env,
     `SELECT e.id, e.hotel_id, e.title, e.summary, e.content, e.location, e.category,
             e.tags_json, e.action_text, e.action_url, e.starts_at, e.ends_at, e.timezone,
@@ -524,7 +569,35 @@ async function loadEvent(env, eventId) {
       WHERE e.id = ?
       LIMIT 1`,
     [eventId],
-  ).then((row) => row ? formatEvent(row) : null);
+  );
+  if (!row) return null;
+  const occurrences = await listEventOccurrences(env, [row]);
+  return formatEvent(row, occurrences.get(row.id) || []);
+}
+
+async function listEventOccurrences(env, events) {
+  if (!events.length) return new Map();
+  const placeholders = events.map(() => "?").join(", ");
+  const rows = await all(
+    env,
+    `SELECT id, event_id, starts_at, ends_at, timezone
+       FROM event_occurrences
+      WHERE event_id IN (${placeholders})
+      ORDER BY starts_at`,
+    events.map((event) => event.id),
+  );
+  const grouped = new Map();
+  for (const row of rows) {
+    const list = grouped.get(row.event_id) || [];
+    list.push({
+      id: row.id,
+      starts_at: row.starts_at,
+      ends_at: row.ends_at,
+      timezone: row.timezone,
+    });
+    grouped.set(row.event_id, list);
+  }
+  return grouped;
 }
 
 async function validateEventMedia(env, hotelId, value) {
@@ -560,12 +633,13 @@ function formatInformation(row) {
   return { ...row, is_public: Boolean(row.is_public) };
 }
 
-function formatEvent(row) {
+function formatEvent(row, occurrences = []) {
   const tags = parseJson(row.tags_json, []);
   return {
     ...row,
     is_permanent: Boolean(row.is_permanent),
     tags: Array.isArray(tags) ? tags : [],
+    occurrences,
     tags_json: undefined,
   };
 }

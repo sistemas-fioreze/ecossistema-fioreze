@@ -597,6 +597,24 @@ function createFixtureData() {
         is_permanent: 0,
       },
     ],
+    eventOccurrences: [
+      {
+        id: "occurrence-muller-welcome",
+        event_id: "event-muller-welcome",
+        hotel_id: "muller-fioreze",
+        starts_at: "2026-08-10T20:00:00.000Z",
+        ends_at: "2026-08-10T22:00:00.000Z",
+        timezone: "America/Sao_Paulo",
+      },
+      {
+        id: "occurrence-aurora-welcome",
+        event_id: "event-aurora-welcome",
+        hotel_id: "aurora-demo",
+        starts_at: "2026-08-11T20:00:00.000Z",
+        ends_at: "2026-08-11T22:00:00.000Z",
+        timezone: "America/Sao_Paulo",
+      },
+    ],
     hotelInformation: [
       {
         id: "info-muller-wifi",
@@ -1431,9 +1449,16 @@ class MockD1Database {
         .filter((entry) =>
           entry.hotel_id === hotelId &&
           entry.status === "published" &&
-          (!normalized.includes("e.is_permanent = 1 or e.starts_at > ?") || entry.is_permanent === 1 || entry.starts_at > now),
+          (!normalized.includes("e.is_permanent = 1 or coalesce(e.ends_at, e.starts_at) > ?") || entry.is_permanent === 1 || (entry.ends_at || entry.starts_at) > now),
         )
         .sort((left, right) => left.starts_at.localeCompare(right.starts_at) || left.title.localeCompare(right.title));
+    }
+
+    if (normalized.includes("from event_occurrences")) {
+      const eventIds = new Set(params);
+      return this.data.eventOccurrences
+        .filter((entry) => eventIds.has(entry.event_id))
+        .sort((left, right) => left.starts_at.localeCompare(right.starts_at));
     }
 
     if (normalized.includes("from hotel_information") && normalized.includes("is_public = 1")) {
