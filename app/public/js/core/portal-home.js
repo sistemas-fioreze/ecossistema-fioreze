@@ -495,7 +495,6 @@ function renderServiceLandscape(module, bootstrap) {
       <span class="home-landscape-icon">${icon(moduleIcon(module.module_key))}</span>
       <span class="home-landscape-copy"><h3>${escapeHtml(module.navigation_label || module.name)}</h3><p>${escapeHtml(module.description || getModuleDescription(module, bootstrap))}</p>${module.meta ? `<small>${escapeHtml(module.meta)}</small>` : ""}</span>
       ${imageUrl ? `<img class="home-landscape-media" src="${escapeHtml(imageUrl)}" alt="" loading="lazy">` : ""}
-      ${href ? `<span class="home-landscape-action">${icon("chevron")}</span>` : ""}
     </${tag}>`;
 }
 

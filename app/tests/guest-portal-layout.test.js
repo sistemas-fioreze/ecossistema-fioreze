@@ -26,6 +26,10 @@ const poolExperienceMigration = fs.readFileSync(
   new URL("../migrations/0036_fioreze_centro_pool_experience.sql", import.meta.url),
   "utf8",
 );
+const hotelInformationUpdateMigration = fs.readFileSync(
+  new URL("../migrations/0039_hotel_guest_information_updates.sql", import.meta.url),
+  "utf8",
+);
 const poolImageUrl = new URL("../public/assets/hotels/fioreze-centro/piscina.jpg", import.meta.url);
 
 test("portal usa o layout de referencia com identidade e conteudo dinamicos", () => {
@@ -356,10 +360,9 @@ test("servicos usam lista editorial, imagens configuradas e experiencias extras"
   assert.match(portalScript, /home-landscape-card\$\{imageUrl \? "" : " no-image"\}\$\{isPool \? " is-static" : ""\}/);
   assert.match(portalCss, /grid-template-columns:\s*42px minmax\(0, 1fr\) 126px/);
   assert.match(portalCss, /\.home-landscape-list\s*\{[\s\S]*?border:\s*0/);
-  assert.match(portalCss, /\.home-landscape-card\s*\{[\s\S]*?border:\s*1px solid var\(--guest-line\);[\s\S]*?border-radius:\s*18px/);
-  assert.match(portalCss, /\.home-landscape-card\.is-static\s*\{[\s\S]*?border-color:\s*transparent/);
+  assert.match(portalCss, /\.home-landscape-card\s*\{[\s\S]*?border-bottom:\s*1px solid var\(--guest-line\);[\s\S]*?border-radius:\s*0/);
+  assert.doesNotMatch(portalScript, /home-landscape-action/);
   assert.match(portalCss, /\.home-landscape-media\s*\{[\s\S]*?object-fit:\s*cover/);
-  assert.match(portalCss, /\.home-landscape-card\.no-image \.home-landscape-action\s*\{[\s\S]*?right:\s*0;[\s\S]*?transform:\s*translateY\(-50%\)/);
   assert.match(portalCss, /@media \(min-width: 960px\)[\s\S]*?\.app-top-card\s*\{[\s\S]*?margin:\s*72px auto 0/);
   assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\) \.services-experience-shell \.home-landscape-copy h3\s*\{[\s\S]*?color:\s*#fff/);
   assert.match(portalCss, /\.guest-portal-root:has\(\.desktop-unit-cover\) \.services-experience-shell \.home-landscape-copy p\s*\{[\s\S]*?rgba\(255, 255, 255, 0\.84\)/);
@@ -367,6 +370,16 @@ test("servicos usam lista editorial, imagens configuradas e experiencias extras"
     /function getServiceExperiences\(bootstrap\) \{[\s\S]*?\n\}/,
   )?.[0] || "";
   assert.doesNotMatch(serviceExperiencesSource, /formatRoomServiceHours/);
+});
+
+test("Müller e Centro recebem informações públicas específicas por unidade", () => {
+  assert.match(hotelInformationUpdateMigration, /'muller-fioreze',[\s\S]*?'Café da manhã',[\s\S]*?'Servido diariamente das 7h às 10h\.'/);
+  assert.match(hotelInformationUpdateMigration, /'Academia', 'Consulte a recepção\.'/);
+  assert.match(hotelInformationUpdateMigration, /Müller & Fioreze - Hotel Boutique/);
+  assert.match(hotelInformationUpdateMigration, /Rede aberta, sem senha/);
+  assert.match(hotelInformationUpdateMigration, /info_key IN \('checkout-demo', 'baby-kitchen', 'kids', 'tech', 'espaco-tche'\)/);
+  assert.match(hotelInformationUpdateMigration, /Servido diariamente das 6h30 às 10h\./);
+  assert.match(hotelInformationUpdateMigration, /Rede: Hotel Fioreze Centro'[\s\S]*Código de acesso: hotelcentro'/);
 });
 
 test("experiencia da piscina do Centro possui configuracao publica e imagem local", () => {

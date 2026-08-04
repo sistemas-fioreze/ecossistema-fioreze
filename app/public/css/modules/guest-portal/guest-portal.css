@@ -1613,7 +1613,7 @@
 
 .home-landscape-list {
   display: grid;
-  gap: 14px;
+  gap: 0;
   border: 0;
 }
 
@@ -1624,24 +1624,23 @@
   grid-template-columns: 42px minmax(0, 1fr) 126px;
   align-items: center;
   gap: 16px;
-  padding: 14px 16px;
-  border: 1px solid var(--guest-line);
-  border-radius: 18px;
+  padding: 18px 0;
+  border: 0;
+  border-bottom: 1px solid var(--guest-line);
+  border-radius: 0;
   color: var(--guest-ink);
-  background: rgba(255, 255, 255, 0.72);
+  background: transparent;
   box-shadow: none;
   text-decoration: none;
-  transition: border-color 180ms ease, transform 180ms ease, background-color 180ms ease;
+  transition: color 180ms ease, transform 180ms ease;
 }
 
 a.home-landscape-card:hover {
-  border-color: color-mix(in srgb, var(--guest-primary) 42%, var(--guest-line));
   transform: translateY(-2px);
 }
 
-.home-landscape-card.is-static {
-  border-color: transparent;
-  background: transparent;
+.home-landscape-card:last-child {
+  border-bottom: 0;
 }
 
 .home-landscape-icon {
@@ -1695,32 +1694,8 @@ a.home-landscape-card:hover {
   line-height: 1.35;
 }
 
-.home-landscape-action {
-  position: absolute;
-  right: 136px;
-  bottom: 17px;
-  width: 26px;
-  height: 26px;
-  display: grid;
-  place-items: center;
-  color: var(--guest-primary);
-}
-
-.home-landscape-action svg {
-  width: 18px;
-  height: 18px;
-}
-
 .home-landscape-card.no-image {
   grid-template-columns: 42px minmax(0, 1fr);
-  padding-right: 36px;
-}
-
-.home-landscape-card.no-image .home-landscape-action {
-  top: 50%;
-  right: 0;
-  bottom: auto;
-  transform: translateY(-50%);
 }
 
 @media (max-width: 479px) {
@@ -1745,9 +1720,6 @@ a.home-landscape-card:hover {
     border-radius: 10px;
   }
 
-  .home-landscape-action {
-    right: 101px;
-  }
 }
 
 .event-title-controls {
@@ -2687,9 +2659,6 @@ a.home-landscape-card:hover {
     font-size: 0.8rem;
   }
 
-  .home-landscape-action {
-    right: 180px;
-  }
 
   .quick-card > span {
     font-size: 0.8rem;
@@ -3174,17 +3143,17 @@ a.home-landscape-card:hover {
 
   .guest-portal-root:has(.desktop-unit-cover) .services-experience-shell .home-landscape-list,
   .guest-portal-root:has(.desktop-unit-cover) .services-experience-shell .home-landscape-card {
-    border-color: rgba(255, 255, 255, 0.38);
+    border-color: rgba(255, 255, 255, 0.28);
   }
 
   .guest-portal-root:has(.desktop-unit-cover) .services-experience-shell .home-landscape-card:not(.is-static) {
-    background: rgba(20, 17, 15, 0.18);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
   .guest-portal-root:has(.desktop-unit-cover) .services-experience-shell .home-landscape-card.is-static {
-    border-color: transparent;
+    border-color: rgba(255, 255, 255, 0.28);
     background: transparent;
   }
 
