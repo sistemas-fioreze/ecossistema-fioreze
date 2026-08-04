@@ -131,6 +131,8 @@ test("frontend do Spa replica o layout legado sem loader ou Apps Script", () => 
   assert.match(shell, /class="app-top-title"/);
   assert.match(editor, /data-guest-editor-tab="spa"|activeTab === "spa"/);
   assert.match(editor, /\/api\/v1\/admin\/spa\/catalog/);
+  assert.match(editor, /data-spa-action="delete-service"/);
+  assert.match(editor, /archiveSpaService/);
 });
 
 test("migration do Spa cria conteudo compartilhado e registra 13 servicos sem endpoint legado", () => {

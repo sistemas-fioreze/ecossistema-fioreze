@@ -98,6 +98,13 @@ test("editor administrativo cadastra categoria, produto e imagem sem criar pedid
       availability_label: "Temporariamente indisponivel",
     }),
   );
+  const archived = await context.json(
+    `/api/v1/admin/emporio/catalog/items/${encodeURIComponent(product.body.data.item.id)}`,
+    adminJson(cookie, "PATCH", {
+      hotel_id: "muller-fioreze",
+      status: "archived",
+    }),
+  );
   const catalog = await context.json(
     "/api/v1/admin/emporio/catalog?hotel_id=muller-fioreze",
     withCookie(cookie),
@@ -110,7 +117,9 @@ test("editor administrativo cadastra categoria, produto e imagem sem criar pedid
   assert.equal(product.response.status, 201);
   assert.equal(product.body.data.item.image_url, "/media/media-muller-logo");
   assert.equal(updated.body.data.item.is_available, false);
-  assert.equal(saved.available, false);
+  assert.equal(archived.response.status, 200);
+  assert.equal(archived.body.data.item.status, "archived");
+  assert.equal(saved, undefined);
   assert.equal(context.env.__data.orders.length, orderCount);
   assert.equal(context.env.__data.printEvents.length, printCount);
   assert.ok(context.env.__data.adminAuditLog.some((entry) => entry.action === "emporio.catalog_item.created"));
@@ -190,6 +199,8 @@ test("frontend do Emporio oferece catalogo e WhatsApp sem carrinho ou checkout",
   assert.match(editor, /\/api\/v1\/admin\/emporio\/catalog/);
   assert.match(editor, /data-emporio-action="add-slide"/);
   assert.match(editor, /data-emporio-action="save-carousel"/);
+  assert.match(editor, /data-emporio-action="delete-product"/);
+  assert.match(editor, /archiveEmporioProduct/);
   assert.match(editor, /data-emporio-carousel-description/);
   assert.match(editor, /data-emporio-whatsapp/);
   assert.match(editor, /"contact\.whatsapp": whatsapp/);
@@ -198,6 +209,21 @@ test("frontend do Emporio oferece catalogo e WhatsApp sem carrinho ou checkout",
   assert.match(editor, /"portal\.module\.emporio\.description": description/);
   assert.match(editor, /de 8 páginas configuradas/);
   assert.doesNotMatch(navigation, /guest-drawer-brand[^]*bootstrap\.short_name/);
+});
+
+test("migration do Emporio Centro importa catalogo real e arquiva somente o item de teste", () => {
+  const migration = fs.readFileSync(
+    `${APP_ROOT}/migrations/0041_fioreze_centro_emporio_catalog.sql`,
+    "utf8",
+  );
+
+  assert.match(migration, /item_09818cf8-8dde-4f0c-ad02-574615e86bf9/);
+  assert.match(migration, /item-fiorezecentro-emporio-vela-garbo/);
+  assert.match(migration, /item-fiorezecentro-emporio-xampu-condicionador/);
+  assert.match(migration, /13800/);
+  assert.match(migration, /4800/);
+  assert.equal((migration.match(/storage_provider, object_key/g) || []).length >= 1, true);
+  assert.doesNotMatch(migration, /script\.google\.com|i\.postimg\.cc|whatsapp|telefone/i);
 });
 
 function adminJson(cookie, method, body) {

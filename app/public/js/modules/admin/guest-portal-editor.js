@@ -392,6 +392,7 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
         <label class="guest-editor-field"><span>Status</span><select name="status">${statusOptions(service.status || "active")}</select></label>
         ${spaMediaSelect("Imagem do serviço", "media_asset_id", service.media_asset_id, service.image_url)}
         <div class="emporio-editor-form-actions">
+          ${service.id ? '<button class="danger" type="button" data-spa-action="delete-service">Excluir serviço</button>' : ""}
           <button type="button" data-spa-action="cancel">Cancelar</button>
           <button class="admin-primary-button" type="submit">Salvar serviço</button>
         </div>
@@ -678,6 +679,7 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
             <label class="guest-editor-upload"><input type="file" data-emporio-media-upload accept="image/jpeg,image/png,image/webp,image/avif"><span>Enviar imagem do produto</span></label>` : ""}
         </fieldset>
         <div class="emporio-editor-form-actions">
+          ${item.id ? '<button class="danger" type="button" data-emporio-action="delete-product">Excluir produto</button>' : ""}
           <button type="button" data-emporio-action="cancel">Cancelar</button>
           <button class="admin-primary-button" type="submit">Salvar produto</button>
         </div>
@@ -951,6 +953,10 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
       saveEmporioCarousel();
       return;
     }
+    if (action === "delete-product") {
+      archiveEmporioProduct();
+      return;
+    }
     if (action === "cancel") {
       state.catalogEditor = null;
       renderCatalogDialog("emporio");
@@ -979,6 +985,10 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
 
   function handleSpaAction(button) {
     const action = button.dataset.spaAction;
+    if (action === "delete-service") {
+      archiveSpaService();
+      return;
+    }
     if (action === "cancel") {
       state.spaEditor = null;
     } else if (action === "new-service") {
@@ -999,6 +1009,38 @@ export function createGuestPortalEditor({ root, hotelSelect, onHeading }) {
       };
     }
     renderCatalogDialog("spa");
+  }
+
+  async function archiveEmporioProduct() {
+    const item = state.catalogEditor?.value;
+    if (!item?.id || !window.confirm(`Excluir o produto "${item.name}"? Ele será preservado no histórico.`)) return;
+    try {
+      await adminApi(`/api/v1/admin/emporio/catalog/items/${encodeURIComponent(item.id)}`, {
+        method: "PATCH",
+        body: { hotel_id: state.hotel.hotel_id, status: "archived" },
+      });
+      state.catalogEditor = null;
+      await loadEmporioCatalog();
+      setStatus("Produto excluído do catálogo.", "success");
+    } catch (error) {
+      setStatus(error.message || "Não foi possível excluir o produto.", "error");
+    }
+  }
+
+  async function archiveSpaService() {
+    const service = state.spaEditor?.value;
+    if (!service?.id || !window.confirm(`Excluir o serviço "${service.name}"? Ele será preservado no histórico.`)) return;
+    try {
+      await adminApi(`/api/v1/admin/spa/services/${encodeURIComponent(service.id)}`, {
+        method: "PATCH",
+        body: { status: "archived" },
+      });
+      state.spaEditor = null;
+      await loadSpaCatalog();
+      setStatus("Serviço excluído do catálogo.", "success");
+    } catch (error) {
+      setStatus(error.message || "Não foi possível excluir o serviço.", "error");
+    }
   }
 
   async function submitSpaForm(form) {

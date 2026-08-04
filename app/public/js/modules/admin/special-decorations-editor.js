@@ -215,7 +215,7 @@ export function createSpecialDecorationsEditor({
           <label><span>Status</span><select name="status">${statusOptions(item.status || "active")}</select></label>
         </div>
         ${renderMediaPicker(item.media_asset_id)}
-        ${renderFormActions("Salvar item")}
+        ${renderFormActions("Salvar item", item.id ? "delete-item" : "")}
       </form>`;
   }
 
@@ -227,11 +227,12 @@ export function createSpecialDecorationsEditor({
       </header>`;
   }
 
-  function renderFormActions(label) {
+  function renderFormActions(label, deleteAction = "") {
     return `
       <footer>
         <p data-special-form-status role="status" aria-live="polite"></p>
         <div>
+          ${deleteAction ? `<button class="danger" type="button" data-special-action="${escapeAttr(deleteAction)}">Excluir item</button>` : ""}
           <button type="button" data-special-action="back">Cancelar</button>
           <button class="admin-primary-button" type="submit">${escapeHtml(label)}</button>
         </div>
@@ -270,6 +271,7 @@ export function createSpecialDecorationsEditor({
     const action = button.dataset.specialAction;
     if (action === "close") close();
     else if (action === "retry") load();
+    else if (action === "delete-item") archiveCurrentItem();
     else if (action === "back") {
       state.editor = null;
       render();
@@ -300,6 +302,22 @@ export function createSpecialDecorationsEditor({
         value: structuredClone(state.catalog.items.find((entry) => entry.id === button.dataset.id) || {}),
       };
       render();
+    }
+  }
+
+  async function archiveCurrentItem() {
+    const item = state.editor?.value;
+    if (!item?.id || !window.confirm(`Excluir o item "${item.name}"? Ele será preservado no histórico.`)) return;
+    try {
+      await adminApi(`/api/v1/admin/special-decorations/catalog/items/${encodeURIComponent(item.id)}`, {
+        method: "PATCH",
+        body: { hotel_id: getHotel().hotel_id, status: "archived" },
+      });
+      state.editor = null;
+      await load();
+      onStatus?.("Item excluído do catálogo.", "success");
+    } catch (error) {
+      onStatus?.(error.message || "Não foi possível excluir o item.", "error");
     }
   }
 
