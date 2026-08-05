@@ -667,7 +667,7 @@ function renderHotelView(state) {
   return `${renderAppTop(state, "Hotel", "Horários, serviços, localização e informações úteis para a sua estadia.", "hotel")}
     <main class="embed-shell portal-content-shell hotel-info-shell${guideLayout ? " is-guest-guide" : ""}">
       ${maps}
-      ${information.length ? `<div class="hotel-info-grid">${information.map((item) => renderHotelInfoCard(item, guideLayout)).join("")}</div>` : renderEmptyState("As informações da unidade estarão disponíveis aqui.")}
+      ${information.length ? `<div class="hotel-info-grid">${information.map((item) => renderHotelInfoCard(item, guideLayout, state.bootstrap)).join("")}</div>` : renderEmptyState("As informações da unidade estarão disponíveis aqui.")}
     </main>`;
 }
 
@@ -696,9 +696,19 @@ function renderMapsSection(state) {
     </section>`;
 }
 
-function renderHotelInfoCard(item, guideLayout = false) {
+function renderHotelInfoCard(item, guideLayout = false, bootstrap = {}) {
   const keyClass = String(item.info_key || "information").toLowerCase().replace(/[^a-z0-9-]+/g, "-");
-  return `<article class="hotel-info-card info-key-${escapeHtml(keyClass)}">${icon(infoIcon(item.info_key))}<div>${guideLayout ? "" : "<small>INFORMAÇÃO DO HOTEL</small>"}<h2>${escapeHtml(item.title)}</h2><p>${escapeHtml(item.body)}</p></div></article>`;
+  const action = keyClass === "office" ? officeReservationAction(bootstrap) : null;
+  return `<article class="hotel-info-card info-key-${escapeHtml(keyClass)}">${icon(infoIcon(item.info_key))}<div>${guideLayout ? "" : "<small>INFORMAÇÃO DO HOTEL</small>"}<h2>${escapeHtml(item.title)}</h2><p>${escapeHtml(item.body)}</p>${action ? `<a class="hotel-info-action" href="${escapeHtml(action)}" target="_blank" rel="noopener noreferrer nofollow">Reservar</a>` : ""}</div></article>`;
+}
+
+export function officeReservationAction(bootstrap = {}) {
+  const configured = bootstrap.settings?.["contact.whatsapp"] || bootstrap.settings?.["contact.phone"] || "";
+  const number = String(configured).replace(/\D/g, "");
+  if (number.length < 10 || number.length > 15) return null;
+  const hotelName = bootstrap.short_name || bootstrap.name || "hotel";
+  const message = `Olá! Gostaria de reservar o Espaço Office do ${hotelName}.`;
+  return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
 }
 
 function renderBlogView(state) {
@@ -915,6 +925,7 @@ function infoIcon(key = "") {
   if (normalized.includes("baby")) return "baby";
   if (normalized.includes("fitness")) return "fitness";
   if (normalized.includes("kids")) return "kids";
+  if (normalized.includes("office") || normalized.includes("escritorio")) return "office";
   if (normalized.includes("lounge")) return "lounge";
   if (normalized.includes("tech")) return "tech";
   if (normalized.includes("voltage")) return "voltage";
@@ -952,6 +963,7 @@ function icon(name) {
     baby: '<path d="M10 2h4l1 3H9l1-3Z"/><path d="M9 5h6v3l2 3v8a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-8l2-3V5Z"/><path d="M9 9h6M9 13h5M9 17h4"/>',
     fitness: '<path d="M4 10v4M7 8v8M17 8v8M20 10v4M7 12h10"/>',
     kids: '<circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M3 20v-2a5 5 0 0 1 10 0v2M11 20v-2a5 5 0 0 1 10 0v2"/>',
+    office: '<path d="M4 8h16v11H4V8Z"/><path d="M9 8V5h6v3M3 19h18M8 12h8M12 12v7"/>',
     lounge: '<path d="M5 12V8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4M4 12h16v7H4v-7ZM7 19v2M17 19v2"/>',
     tech: '<rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 7h6M10 17h4"/>',
     chimarrao: '<path d="M7 9h10l-1 7a4 4 0 0 1-4 3 4 4 0 0 1-4-3L7 9Z"/><path d="m15 10 3-7M18 3h2M9 13h6"/>',

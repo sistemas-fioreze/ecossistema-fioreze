@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
 import { renderGuestNavigation } from "../public/js/core/guest-navigation.js";
-import { getModulePath, getNextFeaturedEvent, resolvePortalSwipe } from "../public/js/core/portal-home.js";
+import { getModulePath, getNextFeaturedEvent, officeReservationAction, resolvePortalSwipe } from "../public/js/core/portal-home.js";
 import { formatRoomServiceHours } from "../public/js/core/service-hours.js";
 
 const portalScript = fs.readFileSync(new URL("../public/js/core/portal-home.js", import.meta.url), "utf8");
@@ -28,6 +28,10 @@ const poolExperienceMigration = fs.readFileSync(
 );
 const hotelInformationUpdateMigration = fs.readFileSync(
   new URL("../migrations/0039_hotel_guest_information_updates.sql", import.meta.url),
+  "utf8",
+);
+const hotelOfficeMigration = fs.readFileSync(
+  new URL("../migrations/0043_fioreze_centro_office_space.sql", import.meta.url),
   "utf8",
 );
 const eventOccurrencesMigration = fs.readFileSync(
@@ -382,12 +386,26 @@ test("informacoes do hotel suportam guia visual editavel e programacao", () => {
   assert.match(portalCss, /\.is-guest-guide \.hotel-info-grid/);
   assert.match(portalCss, /\.info-key-baby-kitchen/);
   assert.match(portalCss, /\.info-key-espaco-tche/);
+  assert.match(portalCss, /\.info-key-office/);
   assert.match(portalScript, /chimarrao/);
+  assert.match(portalScript, /officeReservationAction/);
   assert.match(portalScript, /formatRoomServiceHours/);
   assert.match(portalScript, /arrangeGuideInformation/);
   assert.match(portalScript, /information\[wifiIndex\][\s\S]*information\[babyIndex\]/);
   assert.match(portalScript, /baby:.*M10 2h4l1 3H9/);
   assert.match(adminScript, /Programação/);
+});
+
+test("Espaço Office usa o WhatsApp configurado da unidade e mensagem de reserva", () => {
+  const action = officeReservationAction({
+    name: "Hotel Fictício",
+    short_name: "Fictício",
+    settings: { "contact.whatsapp": "(54) 99999-0000" },
+  });
+  assert.match(action, /^https:\/\/wa\.me\/54999990000\?text=/);
+  assert.match(decodeURIComponent(action), /reservar o Espaço Office do Fictício/);
+  assert.equal(officeReservationAction({ settings: {} }), null);
+  assert.match(hotelOfficeMigration, /'fiorezecentro'[\s\S]*'office'[\s\S]*'Espaço Office'[\s\S]*'Aberto das 9h às 22h\.'/);
 });
 
 test("servicos usam lista editorial, imagens configuradas e experiencias extras", () => {
