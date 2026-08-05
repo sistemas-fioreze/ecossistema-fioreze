@@ -94,9 +94,10 @@ test("Room Service, Emporio e Pacotes Romanticos compartilham detalhe em tela ch
   assert.match(sharedCss, /\.catalog-detail-surface\s*\{[^}]*height:\s*100dvh/s);
   assert.match(sharedCss, /\.catalog-detail-media-button img\s*\{[^}]*object-fit:\s*contain/s);
   assert.match(emporioCss, /\.emporio-detail-media \.catalog-detail-media-button img\s*\{[^}]*object-fit:\s*contain/s);
-  assert.match(emporioCss, /\.emporio-detail-card\.catalog-detail-surface\s*\{[^}]*height:\s*auto;[^}]*min-height:\s*100dvh;[^}]*grid-template-rows:\s*max-content max-content;[^}]*overflow-y:\s*auto/s);
-  assert.match(emporioCss, /\.emporio-detail-media \.catalog-detail-media-button\s*\{[^}]*height:\s*auto/s);
-  assert.match(emporioCss, /\.emporio-detail-media \.catalog-detail-media-button img\s*\{[^}]*width:\s*auto;[^}]*max-width:\s*100%;[^}]*height:\s*auto;[^}]*max-height:\s*72dvh/s);
+  assert.match(emporioCss, /\.emporio-detail-card\.catalog-detail-surface\s*\{[^}]*height:\s*100dvh;[^}]*grid-template-rows:\s*minmax\(240px, 44dvh\) minmax\(0, 1fr\);[^}]*overflow:\s*hidden/s);
+  assert.match(emporioCss, /\.emporio-detail-media \.catalog-detail-media-button\s*\{[^}]*height:\s*100%/s);
+  assert.match(emporioCss, /\.emporio-detail-media \.catalog-detail-media-button img\s*\{[^}]*width:\s*100%;[^}]*height:\s*100%;[^}]*object-fit:\s*contain;[^}]*object-position:\s*center/s);
+  assert.match(emporioCss, /\.emporio-detail-content\s*\{[^}]*min-height:\s*0;[^}]*overflow-y:\s*auto;[^}]*overscroll-behavior:\s*contain/s);
   assert.match(emporioCss, /\.emporio-detail-description\s*\{[^}]*gap:\s*14px[^}]*line-height:\s*1\.75/s);
   assert.match(sharedCss, /\.catalog-media-viewer-stage img/);
   assert.match(sharedJs, /data-catalog-media-action="zoom-in"/);

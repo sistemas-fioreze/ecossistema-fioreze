@@ -2491,6 +2491,26 @@ a.home-landscape-card:hover {
   text-align: center;
 }
 
+.is-guest-guide .info-key-office {
+  grid-column: 1 / -1;
+  grid-template-columns: 42px minmax(0, 1fr);
+}
+
+.hotel-info-action {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 12px;
+  border: 1px solid color-mix(in srgb, var(--guest-primary) 45%, transparent);
+  border-radius: 8px;
+  padding: 0 14px;
+  color: var(--guest-primary);
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-decoration: none;
+}
+
 .is-guest-guide .info-key-voltage,
 .is-guest-guide .info-key-quiet-hours {
   grid-column: span 4;
@@ -2521,6 +2541,14 @@ a.home-landscape-card:hover {
     min-height: 148px;
     padding: 20px 14px;
     text-align: center;
+  }
+
+  .is-guest-guide .info-key-office {
+    grid-column: 1 / -1;
+    grid-template-columns: 38px minmax(0, 1fr);
+    justify-items: start;
+    min-height: 116px;
+    text-align: left;
   }
 
   .is-guest-guide .info-key-checkout {
