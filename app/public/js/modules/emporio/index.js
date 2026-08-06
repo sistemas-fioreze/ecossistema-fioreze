@@ -293,7 +293,7 @@ function renderProductCard(item) {
         <span class="emporio-product-copy">
           <span class="emporio-product-category">${escapeHtml(item.category_name || "Empório")}</span>
           <strong>${escapeHtml(item.name)}</strong>
-          <span class="emporio-product-price">${formatMoney(item.price_cents, item.currency)}</span>
+          <span class="emporio-product-price">${formatProductPrice(item)}</span>
           <span class="emporio-product-status">${item.available ? "Consultar disponibilidade" : escapeHtml(item.availability_label || "Indisponível no momento")}</span>
         </span>
       </button>
@@ -334,7 +334,7 @@ function renderProductDetail(container, state) {
       <p>${escapeHtml(item.category_name || "Empório")}</p>
       <h2 id="emporio-product-title">${escapeHtml(item.name)}</h2>
       ${item.tag ? `<span class="emporio-detail-tag">${escapeHtml(item.tag)}</span>` : ""}
-      <strong class="emporio-detail-price">${formatMoney(item.price_cents, item.currency)}</strong>
+      <strong class="emporio-detail-price">${formatProductPrice(item)}</strong>
       ${renderDetailDescription(item.description || "Produto selecionado pelo Empório da unidade.")}
       <div class="emporio-detail-availability" data-available="${String(Boolean(item.available))}">
         <span aria-hidden="true"></span>
@@ -356,6 +356,11 @@ function renderDetailDescription(value) {
   const paragraphs = text.split(/\n+/).map((part) => part.trim()).filter(Boolean);
   return `<div class="emporio-detail-description">${(paragraphs.length ? paragraphs : [text])
     .map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("")}</div>`;
+}
+
+function formatProductPrice(item) {
+  if (Number(item?.price_cents) === 0 && !item?.available) return "Preço sob consulta";
+  return formatMoney(item?.price_cents, item?.currency);
 }
 
 function closeProductDetail(container, state) {
