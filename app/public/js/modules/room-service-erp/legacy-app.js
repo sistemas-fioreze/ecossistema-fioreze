@@ -153,6 +153,8 @@ function prepareStaticInterface() {
   byId("loginPass").autocomplete = "current-password";
   byId("btnLogin").type = "button";
 
+  installPdvInterface();
+
   const roomInput = byId("roomNumber", false);
   if (roomInput && roomInput.tagName !== "SELECT") {
     const roomSelect = document.createElement("select");
@@ -254,7 +256,6 @@ function bindStaticActions() {
   topSearch?.addEventListener("keydown", handleTopSearchKeydown);
   byId("topSearchResults", false)?.addEventListener("click", handleTopSearchClick);
   byId("pdvMenuSearch")?.addEventListener("input", renderMenu);
-  bindPdvPanelControls();
   byId("guestSearchInput")?.addEventListener("input", renderGuests);
   byId("menuAdminSearch")?.addEventListener("input", renderCatalog);
   byId("dashDate", false)?.addEventListener("change", renderDashboard);
@@ -302,20 +303,53 @@ function bindStaticActions() {
   });
 }
 
-function bindPdvPanelControls() {
+function installPdvInterface() {
   const container = byId("vendasContainer", false);
-  const collapseButton = container?.querySelector(".pdv-collapse-btn");
-  const openButton = container?.querySelector(".pdv-floating-tab");
-  if (!container || !collapseButton || !openButton) return;
-
-  collapseButton.addEventListener("click", () => {
-    container.classList.add("pdv-collapsed");
-    openButton.focus();
-  });
-  openButton.addEventListener("click", () => {
-    container.classList.remove("pdv-collapsed");
-    collapseButton.focus();
-  });
+  if (!container) return;
+  container.className = "hidden flex-row flex-1 overflow-hidden view-section erp-pdv-workspace";
+  container.innerHTML = `
+    <main class="erp-pdv-catalog scrollable">
+      <header class="pdv-menu-head">
+        <div class="erp-pdv-heading">
+          <span class="erp-pdv-kicker">Atendimento presencial</span>
+          <h2>Pedido direto</h2>
+          <p>Escolha os itens e conclua a comanda ao lado.</p>
+        </div>
+        <label class="pdv-menu-search" aria-label="Buscar no cardápio">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-width="2" d="M21 21l-4.35-4.35m1.35-5.15a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"/></svg>
+          <input id="pdvMenuSearch" type="search" placeholder="Buscar no cardápio" autocomplete="off">
+        </label>
+      </header>
+      <div class="erp-pdv-catalog-meta"><span id="pdvMenuSummary">Cardápio</span><small>Selecione um item para adicionar</small></div>
+      <div id="menuContent" class="erp-pdv-content"></div>
+    </main>
+    <aside class="pdv-panel" aria-label="Nova comanda">
+      <header class="erp-pdv-order-head">
+        <span class="erp-pdv-order-icon">${cartIcon()}</span>
+        <div><small>Atendimento</small><h2>Nova comanda</h2></div>
+        <span id="cartItemCount" class="erp-pdv-order-count">0 itens</span>
+      </header>
+      <section class="erp-pdv-customer">
+        <div class="erp-pdv-section-title"><span>1</span><div><strong>Entrega</strong><small>Informe quem receberá o pedido</small></div></div>
+        <div class="erp-pdv-field-grid">
+          <label class="erp-pdv-field erp-pdv-room"><span>Acomodação</span><input id="roomNumber" placeholder="Apto" aria-label="Acomodação"></label>
+          <label class="erp-pdv-field"><span>Hóspede</span><input id="guestName" placeholder="Nome do hóspede" autocomplete="off"></label>
+        </div>
+        <label class="erp-pdv-field"><span>Local de entrega</span><select id="consumptionLocation"><option value="Acomodação">Entregar na acomodação</option><option value="Recepção">Consumo na recepção</option></select></label>
+        <label class="erp-pdv-field"><span>Observações do pedido</span><textarea id="orderObs" placeholder="Preferências ou informações importantes"></textarea></label>
+      </section>
+      <section class="erp-pdv-cart-section">
+        <div class="erp-pdv-section-title"><span>2</span><div><strong>Itens da comanda</strong><small>Revise quantidades e valores</small></div></div>
+        <div id="cartItems" class="erp-pdv-cart-list scrollable"></div>
+      </section>
+      <footer class="erp-pdv-checkout">
+        <div class="erp-pdv-total-row"><span>Total do pedido</span><strong id="cartTotal">R$ 0,00</strong></div>
+        <div class="erp-pdv-checkout-actions">
+          <button type="button" class="erp-pdv-clear">${trashIcon()} <span>Limpar</span></button>
+          <button type="button" class="erp-pdv-submit">${checkIcon()} <span>Enviar pedido direto</span></button>
+        </div>
+      </footer>
+    </aside>`;
 }
 
 function installDashboardInterface() {
@@ -1183,7 +1217,9 @@ function renderMenu() {
     ...category,
     items: (category.items || []).map((item) => ({ ...item, category_name: category.name })).filter((item) => !query || normalize(`${item.name} ${item.description || ""} ${item.tag || ""} ${category.name}`).includes(query)),
   })).filter((category) => category.items.length);
-  byId("menuContent").innerHTML = categories.length ? categories.map(menuCategory).join("") : '<div class="legacy-list-empty">Nenhum item encontrado.</div>';
+  const itemCount = categories.reduce((total, category) => total + category.items.length, 0);
+  setText("pdvMenuSummary", query ? `${itemCount} resultado${itemCount === 1 ? "" : "s"}` : `${itemCount} ${itemCount === 1 ? "item" : "itens"} no cardápio`);
+  byId("menuContent").innerHTML = categories.length ? categories.map(menuCategory).join("") : '<div class="erp-pdv-empty-search"><strong>Nenhum item encontrado</strong><span>Tente buscar por outro nome ou categoria.</span></div>';
   byId("menuContent").querySelectorAll("[data-product-id]").forEach((button) => button.addEventListener("click", () => addToCart(button.dataset.productId)));
 }
 
@@ -1196,7 +1232,7 @@ function menuCard(item) {
   const image = safeImage(item.image_url || item.media_url);
   const tag = disabled ? "Indisponivel" : displayBusinessText(item.tag || item.category_name, "Cardapio");
   const name = displayBusinessText(item.name, "Item do cardapio");
-  return `<article class="erp-pdv-card fade-in" aria-disabled="${disabled}"><span class="erp-pdv-thumb">${image ? `<img src="${escapeAttr(image)}" alt="${escapeAttr(name)}">` : imagePlaceholderIcon()}</span><div class="erp-pdv-card-copy"><span class="erp-item-tag">${escapeHtml(tag)}</span><h3>${escapeHtml(name)}</h3><p>${escapeHtml(displayBusinessText(item.description, "Sem descrição"))}</p></div><strong class="erp-pdv-price">${money(item.price_cents, item.currency)}</strong><button type="button" data-product-id="${escapeAttr(item.id)}" ${disabled ? "disabled" : ""} class="erp-pdv-add">${plusIcon()} <span>${disabled ? "Indisponível" : "Adicionar"}</span></button></article>`;
+  return `<article class="erp-pdv-card fade-in" aria-disabled="${disabled}"><span class="erp-pdv-thumb">${image ? `<img src="${escapeAttr(image)}" alt="${escapeAttr(name)}">` : imagePlaceholderIcon()}</span><div class="erp-pdv-card-copy"><span class="erp-item-tag">${escapeHtml(tag)}</span><h3>${escapeHtml(name)}</h3><p>${escapeHtml(displayBusinessText(item.description, "Sem descrição"))}</p></div><div class="erp-pdv-card-action"><strong class="erp-pdv-price">${money(item.price_cents, item.currency)}</strong><button type="button" data-product-id="${escapeAttr(item.id)}" ${disabled ? "disabled" : ""} class="erp-pdv-add" aria-label="${disabled ? "Item indisponível" : `Adicionar ${escapeAttr(name)}`}">${plusIcon()} <span>${disabled ? "Indisponível" : "Adicionar"}</span></button></div></article>`;
 }
 
 function addToCart(productId) {
@@ -1211,20 +1247,26 @@ function addToCart(productId) {
 function renderCart() {
   const target = byId("cartItems");
   const rows = [...state.cart.values()];
-  target.innerHTML = rows.length ? rows.map(cartLine).join("") : `<div class="h-full flex flex-col items-center justify-center opacity-30 italic text-xs uppercase font-bold text-gray-400">${cartIcon()}<p>Carrinho Vazio</p></div>`;
+  const quantity = rows.reduce((total, line) => total + line.quantity, 0);
+  target.innerHTML = rows.length ? rows.map(cartLine).join("") : `<div class="erp-pdv-cart-empty"><span>${cartIcon()}</span><strong>Comanda vazia</strong><small>Os itens escolhidos aparecerão aqui.</small></div>`;
   target.querySelectorAll("[data-cart-change]").forEach((button) => button.addEventListener("click", () => changeCart(button.dataset.cartChange, Number(button.dataset.delta))));
   setText("cartTotal", money(rows.reduce((total, line) => total + Number(line.item.price_cents || 0) * line.quantity, 0)));
+  setText("cartItemCount", `${quantity} ${quantity === 1 ? "item" : "itens"}`);
   bindPdvActions();
 }
 
 function cartLine(line) {
-  return `<div class="erp-cart-line fade-in"><div><strong>${escapeHtml(displayBusinessText(line.item.name, "Item do cardápio"))}</strong><small>${money(line.item.price_cents, line.item.currency)} cada</small></div><div class="erp-cart-stepper"><button type="button" data-cart-change="${escapeAttr(line.item.id)}" data-delta="-1" aria-label="Remover uma unidade">−</button><span>${line.quantity}</span><button type="button" data-cart-change="${escapeAttr(line.item.id)}" data-delta="1" aria-label="Adicionar uma unidade">+</button></div><b>${money(line.item.price_cents * line.quantity, line.item.currency)}</b></div>`;
+  const image = safeImage(line.item.image_url || line.item.media_url);
+  const name = displayBusinessText(line.item.name, "Item do cardápio");
+  return `<article class="erp-cart-line fade-in"><span class="erp-cart-thumb">${image ? `<img src="${escapeAttr(image)}" alt="">` : imagePlaceholderIcon()}</span><div class="erp-cart-copy"><strong>${escapeHtml(name)}</strong><small>${money(line.item.price_cents, line.item.currency)} por unidade</small><div class="erp-cart-stepper"><button type="button" data-cart-change="${escapeAttr(line.item.id)}" data-delta="-1" aria-label="Remover uma unidade">−</button><span>${line.quantity}</span><button type="button" data-cart-change="${escapeAttr(line.item.id)}" data-delta="1" aria-label="Adicionar uma unidade">+</button></div></div><b>${money(line.item.price_cents * line.quantity, line.item.currency)}</b></article>`;
 }
 
 function bindPdvActions() {
   const container = byId("vendasContainer");
   const send = [...container.querySelectorAll("button")].find((button) => button.textContent.includes("ENVIAR PEDIDO DIRETO"));
   const clear = [...container.querySelectorAll("button")].find((button) => button.textContent.trim().startsWith("Limpar"));
+  if (send) send.disabled = state.cart.size === 0;
+  if (clear) clear.disabled = state.cart.size === 0;
   if (send && !send.dataset.bound) {
     send.dataset.bound = "true";
     send.addEventListener("click", submitPdvOrder);
@@ -2432,4 +2474,12 @@ function plusIcon() {
 
 function cartIcon() {
   return '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13H17"/></svg>';
+}
+
+function trashIcon() {
+  return '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>';
+}
+
+function checkIcon() {
+  return '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M5 12l4 4L19 6"/></svg>';
 }

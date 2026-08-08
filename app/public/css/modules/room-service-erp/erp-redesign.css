@@ -477,3 +477,696 @@ body[data-erp="room-service"] .erp-feedback-actions {
     justify-content: center;
   }
 }
+
+/* PDV v2: fixed order desk and a dedicated catalog workspace. */
+body[data-erp="room-service"] #vendasContainer.erp-pdv-workspace {
+  --pdv-panel-width: 410px;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: #fff !important;
+}
+
+body[data-erp="room-service"] #vendasContainer.erp-pdv-workspace.hidden {
+  display: none !important;
+}
+
+body[data-erp="room-service"] #vendasContainer .pdv-floating-tab,
+body[data-erp="room-service"] #vendasContainer .pdv-collapse-btn {
+  display: none !important;
+}
+
+body[data-erp="room-service"] #vendasContainer.pdv-collapsed .pdv-panel,
+body[data-erp="room-service"] #vendasContainer .pdv-panel {
+  display: flex !important;
+  position: relative !important;
+  right: auto !important;
+  width: var(--pdv-panel-width) !important;
+  min-width: var(--pdv-panel-width) !important;
+  height: 100% !important;
+  transform: none !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-catalog {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  padding: 32px 34px 64px !important;
+  overflow-y: auto;
+  background: #fff !important;
+}
+
+body[data-erp="room-service"] .pdv-menu-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  width: 100%;
+  max-width: 980px;
+  margin: 0 auto 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #eceff2;
+}
+
+body[data-erp="room-service"] .erp-pdv-heading {
+  min-width: 0;
+}
+
+body[data-erp="room-service"] .erp-pdv-kicker {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+body[data-erp="room-service"] .erp-pdv-heading h2 {
+  margin: 0;
+  color: #171a1e !important;
+  font-size: 27px !important;
+  font-weight: 800;
+  line-height: 1.1;
+  text-transform: none !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-heading p {
+  margin: 7px 0 0;
+  color: #717882;
+  font-size: 12px;
+}
+
+body[data-erp="room-service"] .pdv-menu-search {
+  display: flex;
+  align-items: center;
+  width: min(330px, 42%);
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid #e1e5e9;
+  border-radius: 8px;
+  background: #f8f9fa;
+  color: #9299a2;
+  transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+
+body[data-erp="room-service"] .pdv-menu-search:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 55%, #dfe3e7);
+  background: #fff;
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+body[data-erp="room-service"] .pdv-menu-search svg {
+  width: 17px;
+  height: 17px;
+}
+
+body[data-erp="room-service"] .pdv-menu-search input {
+  width: 100%;
+  height: 100%;
+  padding: 0 0 0 10px !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #24282d !important;
+  font-size: 12px;
+}
+
+body[data-erp="room-service"] .erp-pdv-catalog-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 980px;
+  margin: 0 auto 16px;
+  color: #8a919a;
+  font-size: 10px;
+}
+
+body[data-erp="room-service"] .erp-pdv-catalog-meta > span {
+  color: #555d66;
+  font-weight: 800;
+}
+
+body[data-erp="room-service"] #menuContent.erp-pdv-content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 980px !important;
+  margin: 0 auto;
+  gap: 30px;
+}
+
+body[data-erp="room-service"] .erp-pdv-category {
+  gap: 12px;
+}
+
+body[data-erp="room-service"] .erp-pdv-category > h2 {
+  min-height: 30px;
+  padding: 0 2px;
+  color: #30353b;
+  font-size: 12px !important;
+  text-transform: none;
+}
+
+body[data-erp="room-service"] .erp-pdv-category > h2 small {
+  margin-left: auto;
+  color: #9aa0a8;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: none;
+}
+
+body[data-erp="room-service"] .erp-pdv-list {
+  gap: 8px;
+  border: 0;
+}
+
+body[data-erp="room-service"] .erp-pdv-card {
+  grid-template-columns: 82px minmax(0, 1fr) auto !important;
+  min-height: 108px;
+  padding: 12px !important;
+  gap: 16px;
+  overflow: hidden;
+  border: 1px solid #e8ebee !important;
+  border-radius: 8px !important;
+  background: #fff !important;
+  transition: border-color .18s ease, background .18s ease, transform .18s ease !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 28%, #e8ebee) !important;
+  background: color-mix(in srgb, var(--accent) 2.5%, #fff) !important;
+  transform: translateY(-1px) !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-card[aria-disabled="true"] {
+  opacity: .55;
+}
+
+body[data-erp="room-service"] .erp-pdv-thumb {
+  width: 82px !important;
+  min-width: 82px !important;
+  height: 82px !important;
+  min-height: 82px !important;
+  border-radius: 8px;
+  color: #a8aeb5;
+}
+
+body[data-erp="room-service"] .erp-pdv-card-copy > span {
+  margin-bottom: 6px;
+  padding: 2px 0;
+  background: transparent;
+  color: var(--accent);
+  font-size: 8px;
+}
+
+body[data-erp="room-service"] .erp-pdv-card-copy h3 {
+  color: #22262b;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+body[data-erp="room-service"] .erp-pdv-card-copy p {
+  max-width: 620px;
+  margin-top: 6px;
+  color: #737b85;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+body[data-erp="room-service"] .erp-pdv-card-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  min-width: 112px;
+  gap: 10px;
+}
+
+body[data-erp="room-service"] .erp-pdv-price {
+  min-width: 0;
+  color: #252a30;
+  font-size: 14px;
+}
+
+body[data-erp="room-service"] .erp-pdv-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 102px;
+  height: 35px;
+  gap: 6px;
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, #e0e3e7) !important;
+  border-radius: 8px !important;
+  background: #fff !important;
+  color: var(--accent) !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-add:hover {
+  border-color: var(--accent) !important;
+  background: var(--accent) !important;
+  color: #fff !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-empty-search {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+  border: 1px dashed #dfe3e7;
+  border-radius: 8px;
+  color: #747b84;
+}
+
+body[data-erp="room-service"] .erp-pdv-empty-search strong {
+  color: #343940;
+  font-size: 13px;
+}
+
+body[data-erp="room-service"] .erp-pdv-empty-search span {
+  margin-top: 5px;
+  font-size: 10px;
+}
+
+body[data-erp="room-service"] #vendasContainer .pdv-panel {
+  flex-direction: column;
+  overflow: hidden;
+  border: 0 !important;
+  border-left: 1px solid #e5e8eb !important;
+  background: #f7f8fa !important;
+  box-shadow: -12px 0 30px rgba(26, 32, 38, .045) !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-order-head {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 78px;
+  padding: 16px 20px !important;
+  border-bottom: 1px solid #e4e7ea !important;
+  background: #fff !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-order-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+body[data-erp="room-service"] .erp-pdv-order-icon svg {
+  width: 19px;
+  height: 19px;
+}
+
+body[data-erp="room-service"] .erp-pdv-order-head small {
+  display: block;
+  margin-bottom: 2px;
+  color: #979da5;
+  font-size: 8px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+body[data-erp="room-service"] .erp-pdv-order-head h2 {
+  margin: 0;
+  color: #1f2328 !important;
+  font-size: 16px !important;
+  font-weight: 800;
+  line-height: 1.2;
+  text-transform: none !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-order-count {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #f1f3f5;
+  color: #69717a;
+  font-size: 9px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+body[data-erp="room-service"] .erp-pdv-customer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 20px 16px;
+  border-bottom: 1px solid #e4e7ea;
+  background: #fff;
+}
+
+body[data-erp="room-service"] .erp-pdv-section-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 2px;
+}
+
+body[data-erp="room-service"] .erp-pdv-section-title > span {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+body[data-erp="room-service"] .erp-pdv-section-title strong,
+body[data-erp="room-service"] .erp-pdv-section-title small {
+  display: block;
+}
+
+body[data-erp="room-service"] .erp-pdv-section-title strong {
+  color: #30353a;
+  font-size: 11px;
+}
+
+body[data-erp="room-service"] .erp-pdv-section-title small {
+  margin-top: 1px;
+  color: #9399a1;
+  font-size: 8px;
+}
+
+body[data-erp="room-service"] .erp-pdv-field-grid {
+  display: grid;
+  grid-template-columns: 116px minmax(0, 1fr);
+  gap: 8px;
+}
+
+body[data-erp="room-service"] .erp-pdv-field {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 5px;
+}
+
+body[data-erp="room-service"] .erp-pdv-field > span {
+  color: #686f78;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+body[data-erp="room-service"] .pdv-panel .erp-pdv-field :is(input, select, textarea) {
+  width: 100%;
+  min-width: 0;
+  height: 39px;
+  padding: 0 11px !important;
+  border: 1px solid #dfe3e7 !important;
+  border-radius: 8px !important;
+  background: #f8f9fa !important;
+  color: #2d3238 !important;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: none;
+}
+
+body[data-erp="room-service"] .pdv-panel .erp-pdv-field textarea {
+  height: 54px;
+  padding-top: 10px !important;
+  line-height: 1.35;
+  resize: none;
+}
+
+body[data-erp="room-service"] .pdv-panel .erp-pdv-field :is(input, select, textarea):focus {
+  border-color: color-mix(in srgb, var(--accent) 62%, #dfe3e7) !important;
+  background: #fff !important;
+  box-shadow: 0 0 0 3px var(--accent-soft) !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-cart-section {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: 16px 20px 0;
+  background: #f7f8fa;
+}
+
+body[data-erp="room-service"] #cartItems.erp-pdv-cart-list {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+  margin-top: 10px;
+  padding: 0 4px 14px 0 !important;
+  overflow-y: auto;
+  background: transparent !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-cart-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 150px;
+  color: #a5abb2;
+  text-align: center;
+}
+
+body[data-erp="room-service"] .erp-pdv-cart-empty > span {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 10px;
+  border-radius: 999px;
+  background: #eceff2;
+}
+
+body[data-erp="room-service"] .erp-pdv-cart-empty svg {
+  width: 19px;
+  height: 19px;
+}
+
+body[data-erp="room-service"] .erp-pdv-cart-empty strong {
+  color: #656d76;
+  font-size: 11px;
+}
+
+body[data-erp="room-service"] .erp-pdv-cart-empty small {
+  margin-top: 4px;
+  font-size: 9px;
+}
+
+body[data-erp="room-service"] .erp-cart-line {
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding: 10px;
+  border: 1px solid #e4e7ea;
+  border-radius: 8px;
+  background: #fff;
+}
+
+body[data-erp="room-service"] .erp-cart-thumb {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  border-radius: 7px;
+  background: #f0f2f4;
+  color: #a0a7af;
+}
+
+body[data-erp="room-service"] .erp-cart-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+body[data-erp="room-service"] .erp-cart-thumb svg {
+  width: 18px;
+  height: 18px;
+}
+
+body[data-erp="room-service"] .erp-cart-copy {
+  min-width: 0;
+}
+
+body[data-erp="room-service"] .erp-cart-line strong {
+  overflow: hidden;
+  color: #30353a;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body[data-erp="room-service"] .erp-cart-line small {
+  margin-top: 3px;
+  font-size: 8px;
+}
+
+body[data-erp="room-service"] .erp-cart-stepper {
+  width: max-content;
+  margin-top: 8px;
+  padding: 2px;
+  gap: 8px;
+  border: 1px solid #dfe3e7;
+  border-radius: 7px;
+  background: #fff;
+}
+
+body[data-erp="room-service"] .erp-cart-stepper button {
+  width: 23px;
+  height: 23px;
+  border-radius: 5px !important;
+}
+
+body[data-erp="room-service"] .erp-cart-stepper span {
+  min-width: 10px;
+  color: #30353a;
+  font-size: 9px;
+  font-weight: 900;
+  text-align: center;
+}
+
+body[data-erp="room-service"] .erp-cart-line > b {
+  align-self: start;
+  min-width: 64px;
+  padding-top: 2px;
+  color: var(--accent);
+  font-size: 10px;
+}
+
+body[data-erp="room-service"] .erp-pdv-checkout {
+  padding: 16px 20px 18px !important;
+  border-top: 1px solid #e1e5e8 !important;
+  background: #fff !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-total-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+body[data-erp="room-service"] .erp-pdv-total-row span {
+  color: #737b84;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+body[data-erp="room-service"] .erp-pdv-total-row strong {
+  color: var(--accent);
+  font-size: 24px;
+  font-weight: 850;
+}
+
+body[data-erp="room-service"] .erp-pdv-checkout-actions {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 8px;
+}
+
+body[data-erp="room-service"] .erp-pdv-clear,
+body[data-erp="room-service"] .erp-pdv-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 43px;
+  gap: 7px;
+  border-radius: 8px !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-clear {
+  border: 1px solid #e1e5e8 !important;
+  background: #fff !important;
+  color: #69717a !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-submit {
+  background: var(--accent) !important;
+  color: #fff !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-submit:hover:not(:disabled) {
+  background: var(--accent-strong) !important;
+}
+
+body[data-erp="room-service"] :is(.erp-pdv-clear, .erp-pdv-submit):disabled {
+  cursor: not-allowed !important;
+  opacity: .42;
+  transform: none !important;
+}
+
+@media (max-width: 1180px) {
+  body[data-erp="room-service"] #vendasContainer.erp-pdv-workspace {
+    --pdv-panel-width: 360px;
+  }
+
+  body[data-erp="room-service"] .erp-pdv-catalog {
+    padding-inline: 22px !important;
+  }
+
+  body[data-erp="room-service"] .pdv-menu-head {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  body[data-erp="room-service"] .pdv-menu-search {
+    width: 100%;
+  }
+
+  body[data-erp="room-service"] .erp-pdv-card {
+    grid-template-columns: 70px minmax(0, 1fr) !important;
+  }
+
+  body[data-erp="room-service"] .erp-pdv-thumb {
+    width: 70px !important;
+    min-width: 70px !important;
+    height: 70px !important;
+    min-height: 70px !important;
+  }
+
+  body[data-erp="room-service"] .erp-pdv-card-action {
+    grid-column: 2;
+    align-items: center;
+    flex-direction: row;
+    justify-content: space-between;
+    width: 100%;
+  }
+}
+
+@media (max-width: 820px) {
+  body[data-erp="room-service"] #vendasContainer.erp-pdv-workspace {
+    display: block;
+    overflow-y: auto;
+  }
+
+  body[data-erp="room-service"] #vendasContainer.erp-pdv-workspace.hidden {
+    display: none !important;
+  }
+
+  body[data-erp="room-service"] .erp-pdv-catalog {
+    height: auto;
+    min-height: 560px;
+    overflow: visible;
+  }
+
+  body[data-erp="room-service"] #vendasContainer .pdv-panel {
+    width: 100% !important;
+    min-width: 100% !important;
+    height: 680px !important;
+    border-top: 1px solid #e5e8eb !important;
+    border-left: 0 !important;
+  }
+}
