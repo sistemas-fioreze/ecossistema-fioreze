@@ -73,6 +73,7 @@ export async function listAdminUsers({ env, session, url }) {
        LEFT JOIN admin_sessions s ON s.user_id = u.id
         AND s.revoked_at IS NULL
         AND s.expires_at > ?
+      WHERE u.password_strategy <> 'system'
       GROUP BY u.id
       ORDER BY u.display_name
       LIMIT 200`,

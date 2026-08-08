@@ -95,6 +95,7 @@ import {
   updateRoomServicePrinting,
 } from "./erp-printing.js";
 import { listRoomServiceErpMedia, uploadRoomServiceErpMedia } from "./erp-media.js";
+import { createRoomServiceErpFeedback, serveErpFeedbackScreenshot } from "./erp-feedback.js";
 import {
   changeOwnRoomServiceErpPassword,
   deleteOwnRoomServiceErpAvatar,
@@ -691,6 +692,16 @@ export function registerAdminRoutes(router) {
   router.post("/api/v1/admin/room-service/media", async ({ request, env }) => {
     const session = await getCurrentRoomServiceErpSession({ request, env });
     return ok(await uploadRoomServiceErpMedia({ request, env, session }), { status: 201 });
+  });
+
+  router.post("/api/v1/admin/room-service/feedback", async ({ request, env }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(await createRoomServiceErpFeedback({ request, env, session }), { status: 201 });
+  });
+
+  router.get("/api/v1/admin/messages/:id/screenshot", async ({ request, env, params }) => {
+    const session = await requireAuthentication({ request, env });
+    return serveErpFeedbackScreenshot({ env, session, messageId: params.id });
   });
 
   router.get("/api/v1/admin/room-service/operations", async ({ request, env, url }) => {
