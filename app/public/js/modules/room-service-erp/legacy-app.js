@@ -39,6 +39,7 @@ import {
   uploadOwnAvatar,
 } from "./api.js";
 import { desktop } from "./desktop-adapter.js";
+import { applyBrandTokens } from "./theme.js";
 
 const ROUTES = {
   dashboard: { button: "btnTabDashboard", container: "dashboardContainer" },
@@ -154,6 +155,8 @@ function prepareStaticInterface() {
   byId("btnLogin").type = "button";
 
   installPdvInterface();
+  installOrdersInterface();
+  installGuestsInterface();
 
   const roomInput = byId("roomNumber", false);
   if (roomInput && roomInput.tagName !== "SELECT") {
@@ -178,6 +181,7 @@ function prepareStaticInterface() {
   installUserModal();
   installOperationalModals();
   installFeedbackInterface();
+  installVisualSystem();
 
   byId("sidebarPinButton", false)?.remove();
   document.querySelector("[data-app-version-button]")?.remove();
@@ -264,6 +268,8 @@ function bindStaticActions() {
   byId("histTo", false)?.addEventListener("change", renderBilling);
   byId("billingRefreshButton", false)?.addEventListener("click", renderBilling);
   byId("billingExportButton", false)?.addEventListener("click", exportBillingCsv);
+  byId("ordersRefreshButton", false)?.addEventListener("click", refreshAll);
+  byId("guestsRefreshButton", false)?.addEventListener("click", refreshAll);
   byId("erpFeedbackButton", false)?.addEventListener("click", openFeedbackDialog);
   byId("erpFeedbackForm", false)?.addEventListener("submit", sendErpFeedback);
   byId("erpFeedbackCapture", false)?.addEventListener("click", captureFeedbackScreenshot);
@@ -350,6 +356,68 @@ function installPdvInterface() {
         </div>
       </footer>
     </aside>`;
+}
+
+function installOrdersInterface() {
+  const target = byId("histContainer", false);
+  if (!target) return;
+  target.innerHTML = `<div class="erp-v4-page erp-orders-page">
+    <header class="erp-v4-page-header">
+      <div><p class="erp-v4-eyebrow">Operacao</p><h2>Pedidos</h2><p>Consulte e acompanhe os pedidos da unidade.</p></div>
+      <div class="erp-v4-page-actions">
+        <label class="erp-v4-date-field"><span>Data</span><input type="date" id="histDate"></label>
+        <button id="ordersRefreshButton" type="button" class="erp-v4-icon-text-button">${dashboardIcon("refresh")}<span>Atualizar</span></button>
+      </div>
+    </header>
+    <section class="erp-v4-list-section">
+      <div class="erp-v4-section-header"><div><h3>Pedidos do dia</h3><p id="simpleHistMeta">0 pedidos</p></div><span class="erp-v4-section-hint">Mais recentes primeiro</span></div>
+      <div id="simpleHistTableBody" class="erp-v4-order-list"></div>
+    </section>
+  </div>`;
+  byId("histDate").value = localDateKey(new Date());
+}
+
+function installGuestsInterface() {
+  const target = byId("hospedesContainer", false);
+  if (!target) return;
+  target.innerHTML = `<div class="erp-v4-page erp-guests-page">
+    <header class="erp-v4-page-header">
+      <div><p class="erp-v4-eyebrow">Relacionamento</p><h2>Hospedes</h2><p>Acomodacoes atendidas e atividade recente.</p></div>
+      <div class="erp-v4-page-actions">
+        <label class="erp-v4-search-field">${dashboardIcon("search")}<input id="guestSearchInput" type="search" placeholder="Buscar hospede ou acomodacao" autocomplete="off"></label>
+        <button id="guestsRefreshButton" type="button" class="erp-v4-icon-text-button">${dashboardIcon("refresh")}<span>Atualizar</span></button>
+      </div>
+    </header>
+    <section class="erp-v4-list-section">
+      <div class="erp-v4-section-header"><div><h3>Diretorio da unidade</h3><p id="guestDirectoryMeta">0 acomodacoes</p></div><span class="erp-v4-section-hint">Dados operacionais do Room Service</span></div>
+      <div id="guestTableBody" class="erp-v4-guest-grid"></div>
+    </section>
+  </div>`;
+}
+
+function installVisualSystem() {
+  document.body.classList.add("erp-design-system-v4");
+  const nav = byId("navBar", false);
+  if (nav && !nav.querySelector(".erp-nav-group-label")) {
+    const groups = [
+      ["btnTabDashboard", "Operacao"],
+      ["btnTabHospedes", "Gestao"],
+      ["btnTabAdmin", "Sistema"],
+    ];
+    for (const [buttonId, label] of groups) {
+      const button = byId(buttonId, false);
+      if (!button) continue;
+      const heading = document.createElement("span");
+      heading.className = "erp-nav-group-label";
+      heading.textContent = label;
+      button.before(heading);
+    }
+  }
+  document.querySelectorAll(".side-nav-btn").forEach((button) => {
+    const label = button.querySelector(".side-text")?.textContent?.trim() || button.title || "Navegacao";
+    button.dataset.tooltip = label;
+    button.setAttribute("aria-label", label);
+  });
 }
 
 function installDashboardInterface() {
@@ -922,11 +990,7 @@ function applyBranding(branding = {}, hotel = {}) {
   setImage(document.querySelector(".side-brand-logo-seal"), reducedLogo, name);
 
   const root = document.documentElement;
-  if (isHexColor(branding.primary_color)) {
-    root.style.setProperty("--accent", branding.primary_color);
-    root.style.setProperty("--accent-strong", branding.primary_color);
-  }
-  if (isHexColor(branding.secondary_color)) root.style.setProperty("--brand-secondary", branding.secondary_color);
+  applyBrandTokens(root, branding.primary_color, branding.secondary_color);
   if (isHexColor(branding.background_color)) root.style.setProperty("--canvas", branding.background_color);
   if (isHexColor(branding.text_color)) root.style.setProperty("--ink", branding.text_color);
   if (branding.font_family) root.style.setProperty("--hotel-font", String(branding.font_family).slice(0, 160));
@@ -992,12 +1056,14 @@ function switchTab(route) {
     route = Object.keys(ROUTES).find((key) => !byId(ROUTES[key].button).classList.contains("hidden")) || "dashboard";
   }
   state.route = route;
+  document.body.dataset.erpRoute = route;
   for (const [key, config] of Object.entries(ROUTES)) {
     const active = key === route;
     const button = byId(config.button);
     const container = byId(config.container);
     button.classList.toggle("tab-active", active);
     button.classList.toggle("tab-inactive", !active);
+    button.setAttribute("aria-current", active ? "page" : "false");
     container.classList.toggle("hidden", !active);
     container.style.display = active ? "flex" : "none";
   }
@@ -1319,6 +1385,7 @@ async function submitPdvOrder() {
 function renderGuests() {
   const query = normalize(byId("guestSearchInput")?.value || byId("topSearchInput")?.value || "");
   const rooms = (state.guests?.rooms || []).filter((room) => !query || normalize(room.code).includes(query));
+  setText("guestDirectoryMeta", `${rooms.length} ${rooms.length === 1 ? "acomodacao" : "acomodacoes"}`);
   byId("guestTableBody").innerHTML = rooms.length
     ? `<section class="guest-letter-section"><div class="guest-letter-title">Acomodacoes</div><div class="guest-letter-grid">${rooms.map(roomCard).join("")}</div></section>`
     : '<div class="loose-list-empty">Nenhuma acomodacao encontrada.</div>';
@@ -2444,6 +2511,8 @@ function dashboardIcon(type) {
     activity: '<path d="M3 12h4l2-7 4 14 2-7h6"/>',
     notes: '<path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/>',
     calendar: '<path d="M5 5h14v15H5zM8 3v4M16 3v4M5 10h14"/>',
+    refresh: '<path d="M20 7v5h-5M4 17v-5h5M6.1 8a7 7 0 0111.2-2L20 12M4 12l2.7 6a7 7 0 0011.2-2"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
   };
   return `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">${paths[type] || paths.orders}</svg>`;
 }
