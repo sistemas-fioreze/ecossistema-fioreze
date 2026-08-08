@@ -97,11 +97,16 @@ test("ERP publica PDV em lista, busca tematizada, feedback e captura descartavel
   assert.match(css, /\.erp-pdv-list/);
   assert.match(css, /\.erp-pdv-card/);
   assert.match(css, /\.erp-cart-line/);
+  assert.match(css, /#vendasContainer\.pdv-collapsed \.pdv-panel/);
+  assert.match(css, /\.pdv-collapse-btn[\s\S]*display: none !important/);
   assert.match(css, /\.top-search-item\.active/);
   assert.match(css, /var\(--accent\)/);
   assert.match(css, /\.quick-tile\.print/);
   assert.match(css, /transition: width \.34s/);
   assert.match(app, /Algum problema\?/);
+  assert.match(app, /Nova comanda/);
+  assert.match(app, /Itens da comanda/);
+  assert.doesNotMatch(app, /classList\.add\("pdv-collapsed"\)/);
   assert.match(app, /getDisplayMedia/);
   assert.match(app, /stream\.getTracks\(\)\.forEach\(\(track\) => track\.stop\(\)\)/);
   assert.match(messages, /Captura enviada pelo ERP/);

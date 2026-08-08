@@ -269,8 +269,8 @@ test("acabamento visual preserva dashboard legado e ativa recursos operacionais"
   assert.match(script, /catalogItemTag/);
   assert.match(script, /exportBillingCsv/);
   assert.match(script, /installStoreQuickPanel/);
-  assert.match(script, /function bindPdvPanelControls\(\)/);
-  assert.match(script, /classList\.add\("pdv-collapsed"\)/);
+  assert.match(script, /function installPdvInterface\(\)/);
+  assert.doesNotMatch(script, /classList\.add\("pdv-collapsed"\)/);
   assert.match(script, /renderCatalogImagePicker/);
   assert.match(script, /renderOperationSettings/);
   assert.match(script, /renderRoomSettings/);
