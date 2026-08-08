@@ -207,7 +207,9 @@ async function buildErpUserSession(env, row, hotel) {
     },
     hotels: [hotel],
     hotel_ids: [hotel.hotel_id],
-    permissions: permissions.map((entry) => entry.permission_key),
+    permissions: permissions
+      .map((entry) => entry.permission_key)
+      .filter((permissionKey) => ALL_ERP_PERMISSIONS.includes(permissionKey)),
     expires_at: row.expires_at,
     auth_source: "erp",
     erp_master: false,

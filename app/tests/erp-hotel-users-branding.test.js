@@ -77,6 +77,33 @@ test("sessao operacional nao acessa outro hotel nem ganha modulos nao concedidos
   assert.equal(anotherHotel.response.status, 401);
 });
 
+test("sessao operacional do ERP nao autentica na Central Administrativa", async () => {
+  const { env, json } = createWorkerTestContext();
+  const cookie = await createErpSessionCookie(env);
+
+  const centralSession = await json("/api/v1/admin/session", withCookie(cookie));
+  const centralHotels = await json("/api/v1/admin/hotels", withCookie(cookie));
+
+  assert.equal(centralSession.response.status, 401);
+  assert.equal(centralHotels.response.status, 401);
+});
+
+test("sessao ERP descarta permissoes externas mesmo quando persistidas por engano", async () => {
+  const { env, json } = createWorkerTestContext();
+  env.__data.erpUserPermissions.push({
+    user_id: "erp-user-muller-1",
+    hotel_id: "muller-fioreze",
+    permission_key: "admin.users.manage",
+    created_at: "2026-07-13T00:00:00.000Z",
+  });
+  const cookie = await createErpSessionCookie(env);
+  const session = await json("/api/v1/admin/room-service/session", withCookie(cookie));
+
+  assert.equal(session.response.status, 200);
+  assert.equal(session.body.data.auth_source, "erp");
+  assert.equal(session.body.data.permissions.includes("admin.users.manage"), false);
+});
+
 test("administrador mestre cria usuario sequencial sem misturar admin_users", async () => {
   const { env, json } = createWorkerTestContext();
   const cookie = await createSessionCookie(env);
@@ -103,6 +130,24 @@ test("administrador mestre cria usuario sequencial sem misturar admin_users", as
   assert.notEqual(stored.password_hash, "SenhaOperadorDemo2026");
   assert.match(stored.password_hash, /^pbkdf2\$sha256\$100000\$/);
   assert.equal(JSON.stringify(created.body).includes("password_hash"), false);
+});
+
+test("usuario ERP aceita senha minima de quatro caracteres e mantem codigo sequencial", async () => {
+  const { env, json } = createWorkerTestContext();
+  const cookie = await createSessionCookie(env);
+  const created = await json(
+    "/api/v1/admin/room-service/users",
+    withCookie(cookie, jsonRequest("POST", {
+      hotel_id: "muller-fioreze",
+      display_name: "Operador Tres",
+      password: "4827",
+      permission_keys: ["room-service.dashboard.read"],
+    }, true)),
+  );
+
+  assert.equal(created.response.status, 201);
+  assert.equal(created.body.data.user.user_code, 2);
+  assert.notEqual(env.__data.erpUsers.find((user) => user.id === created.body.data.user.id).password_hash, "4827");
 });
 
 test("gestao de usuario atualiza modulos e redefine senha revogando sessoes", async () => {
@@ -235,6 +280,35 @@ test("frontend aplica logos, fonte, titulo e cor primaria do contexto", () => {
   assert.match(css, /\.side-brand-logo\[hidden\]/);
   assert.match(css, /@media \(max-width: 900px\)[\s\S]*\.app-sidebar[\s\S]*position: fixed !important/);
   assert.match(css, /\.app-main[\s\S]*width: 100% !important/);
+});
+
+test("frontend ERP oferece atalhos, configuracoes rapidas funcionais e dashboard sem moldura", () => {
+  const html = fs.readFileSync("public/erp/room-service/index.html", "utf8");
+  const app = fs.readFileSync("public/js/modules/room-service-erp/legacy-app.js", "utf8");
+  const css = fs.readFileSync("public/css/modules/room-service-erp/workspace-refresh.css", "utf8");
+
+  assert.match(html, /workspace-refresh\.css/);
+  assert.match(app, /ERP_KEYBOARD_SHORTCUTS/);
+  assert.match(app, /d:\s*"dashboard"/);
+  assert.match(app, /v:\s*"vendas"/);
+  assert.match(app, /p:\s*"hist"/);
+  assert.match(app, /f:\s*"faturamento"/);
+  assert.match(app, /c:\s*"cardapio"/);
+  assert.match(app, /s:\s*"admin"/);
+  assert.match(app, /key === "l"/);
+  assert.match(app, /closeTopmostErpLayer/);
+  assert.match(app, /quick-tile\.print/);
+  assert.match(app, /openSettingsView\("printing"\)/);
+  assert.match(app, /quick-tile\.store/);
+  assert.match(app, /openSettingsView\("operation"\)/);
+  assert.match(app, /quick-tile\.password/);
+  assert.match(app, /openSettingsView\("account"\)/);
+  assert.match(app, /globalThis\.CSS\?\.supports\?\.\("zoom", "1"\)/);
+  assert.match(css, /--accent-soft:/);
+  assert.match(css, /\.erp-dashboard-bars/);
+  assert.match(css, /\.erp-dashboard-donut/);
+  assert.match(css, /\.content-frame::after[\s\S]*content: none !important/);
+  assert.match(css, /#dashboardContainer[\s\S]*background: #fff !important/);
 });
 
 function jsonRequest(method, body, protectedMutation = false) {
