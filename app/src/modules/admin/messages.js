@@ -37,6 +37,8 @@ export async function listAdminMessages({ env, session, url }) {
     const rows = await all(
       env,
       `SELECT m.id, m.subject, m.body, m.created_at, m.read_at,
+              m.source_kind, m.source_hotel_id, m.source_erp_user_id,
+              m.attachment_object_key, m.attachment_mime_type, m.attachment_size_bytes,
               CASE WHEN m.sender_user_id = ? THEN 'sent' ELSE 'inbox' END AS direction,
               CASE WHEN m.sender_user_id = ? THEN recipient.user_number ELSE sender.user_number END AS counterpart_number,
               CASE WHEN m.sender_user_id = ? THEN recipient.display_name ELSE sender.display_name END AS counterpart_name,
@@ -61,6 +63,8 @@ export async function listAdminMessages({ env, session, url }) {
   const rows = await all(
     env,
     `SELECT m.id, m.subject, m.body, m.created_at, m.read_at,
+            m.source_kind, m.source_hotel_id, m.source_erp_user_id,
+            m.attachment_object_key, m.attachment_mime_type, m.attachment_size_bytes,
             ${counterpartNumber} AS counterpart_number,
             ${counterpartName} AS counterpart_name,
             ${counterpartEmail} AS counterpart_email
@@ -265,6 +269,18 @@ function formatMessage(row, box, archived = false) {
     read_at: row.read_at || null,
     box,
     archived,
+    kind: row.source_kind || "admin_message",
+    source_hotel_id: row.source_hotel_id || null,
+    source_erp_user_id: row.source_erp_user_id || null,
+    can_reply: !row.source_kind,
+    attachment: row.attachment_object_key
+      ? {
+          type: "screenshot",
+          mime_type: row.attachment_mime_type || "image/png",
+          size_bytes: Number(row.attachment_size_bytes || 0) || null,
+          url: `/api/v1/admin/messages/${encodeURIComponent(row.id)}/screenshot`,
+        }
+      : null,
     counterpart: {
       number: Number(row.counterpart_number || 0) || null,
       display_name: row.counterpart_name,

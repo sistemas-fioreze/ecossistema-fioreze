@@ -162,7 +162,7 @@ async function openMessage(messageId) {
     <header>
       <div class="admin-message-detail-actions">
         <button type="button" data-message-detail-action="back">Voltar</button>
-        ${incoming ? '<button type="button" data-message-detail-action="reply">Responder</button>' : ""}
+        ${incoming && message.can_reply !== false ? '<button type="button" data-message-detail-action="reply">Responder</button>' : ""}
         ${incoming && message.read_at ? '<button type="button" data-message-detail-action="unread">Marcar como não lida</button>' : ""}
         <button type="button" data-message-detail-action="${state.box === "archived" ? "restore" : "archive"}">${state.box === "archived" ? "Restaurar" : "Arquivar"}</button>
       </div>
@@ -173,7 +173,8 @@ async function openMessage(messageId) {
         <time datetime="${escapeAttr(message.created_at)}">${escapeHtml(formatDateTime(message.created_at))}</time>
       </div>
     </header>
-    <div class="admin-message-body">${escapeHtml(message.body).replaceAll("\n", "<br>")}</div>`;
+    <div class="admin-message-body">${escapeHtml(message.body).replaceAll("\n", "<br>")}</div>
+    ${message.attachment ? `<figure class="admin-message-attachment"><img src="${escapeAttr(message.attachment.url)}" alt="Captura anexada ao relato"><figcaption>Captura enviada pelo ERP</figcaption></figure>` : ""}`;
   els.manager?.classList.add("is-reading-message");
 }
 

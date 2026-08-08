@@ -341,6 +341,22 @@ function createFixtureData() {
         created_at: "2026-07-04T00:00:00.000Z",
         updated_at: "2026-07-04T00:00:00.000Z",
       },
+      {
+        id: "system-erp-support",
+        user_number: null,
+        display_name: "Suporte ERP",
+        email: "erp-support@system.invalid",
+        password_hash: "login-disabled",
+        password_strategy: "system",
+        status: "disabled",
+        force_password_change: 0,
+        password_changed_at: null,
+        avatar_object_key: null,
+        avatar_mime_type: null,
+        avatar_updated_at: null,
+        created_at: "2026-08-08T00:00:00.000Z",
+        updated_at: "2026-08-08T00:00:00.000Z",
+      },
     ],
     adminRoles: [
       { id: "role-demo-manager", role_number: 1, role_key: "demo-manager", name: "Gerente demo", description: "Role ficticia." },
@@ -1076,6 +1092,33 @@ class MockD1Database {
       return { next_number: Math.max(0, ...this.data.adminRoles.map((role) => Number(role.role_number || 0))) + 1 };
     }
 
+    if (normalized.includes("from admin_users") && normalized.includes("user_number = 1") && normalized.includes("status = 'active'")) {
+      return this.data.adminUsers.find((user) => Number(user.user_number) === 1 && user.status === "active") || null;
+    }
+
+    if (
+      normalized.includes("from admin_messages") &&
+      normalized.includes("recipient_user_id = ?") &&
+      normalized.includes("source_kind = 'erp_feedback'") &&
+      normalized.includes("attachment_object_key is not null")
+    ) {
+      const [messageId, recipientUserId] = params;
+      const message = this.data.adminMessages.find(
+        (entry) =>
+          entry.id === messageId &&
+          entry.recipient_user_id === recipientUserId &&
+          entry.source_kind === "erp_feedback" &&
+          entry.attachment_object_key,
+      );
+      return message
+        ? {
+            attachment_object_key: message.attachment_object_key,
+            attachment_mime_type: message.attachment_mime_type,
+            attachment_size_bytes: message.attachment_size_bytes,
+          }
+        : null;
+    }
+
     if (normalized.includes("from admin_messages") && normalized.includes("where id = ?") && normalized.includes("limit 1")) {
       const [messageId] = params;
       return this.data.adminMessages.find((message) => message.id === messageId) || null;
@@ -1501,6 +1544,12 @@ class MockD1Database {
               body: message.body,
               created_at: message.created_at,
               read_at: message.read_at || null,
+              source_kind: message.source_kind || null,
+              source_hotel_id: message.source_hotel_id || null,
+              source_erp_user_id: message.source_erp_user_id || null,
+              attachment_object_key: message.attachment_object_key || null,
+              attachment_mime_type: message.attachment_mime_type || null,
+              attachment_size_bytes: message.attachment_size_bytes || null,
               direction: sent ? "sent" : "inbox",
               counterpart_number: counterpart?.user_number || null,
               counterpart_name: counterpart?.display_name || "",
@@ -1521,6 +1570,12 @@ class MockD1Database {
             body: message.body,
             created_at: message.created_at,
             read_at: message.read_at || null,
+            source_kind: message.source_kind || null,
+            source_hotel_id: message.source_hotel_id || null,
+            source_erp_user_id: message.source_erp_user_id || null,
+            attachment_object_key: message.attachment_object_key || null,
+            attachment_mime_type: message.attachment_mime_type || null,
+            attachment_size_bytes: message.attachment_size_bytes || null,
             counterpart_number: counterpart?.user_number || null,
             counterpart_name: counterpart?.display_name || "",
             counterpart_email: counterpart?.email || "",
@@ -1825,6 +1880,7 @@ class MockD1Database {
     if (normalized.includes("from admin_users u") && normalized.includes("group_concat") && normalized.includes("left join admin_user_roles")) {
       const [now] = params;
       return this.data.adminUsers
+        .filter((user) => !normalized.includes("password_strategy <> 'system'") || user.password_strategy !== "system")
         .map((user) => {
           const roleIds = this.data.adminUserRoles.filter((entry) => entry.user_id === user.id).map((entry) => entry.role_id);
           const roles = this.data.adminRoles.filter((entry) => roleIds.includes(entry.id));
@@ -3018,6 +3074,7 @@ class MockD1Database {
 
     if (normalized.startsWith("insert into admin_messages")) {
       const [id, sender_user_id, recipient_user_id, subject, body, created_at] = params;
+      const feedback = normalized.includes("'erp_feedback'");
       this.data.adminMessages.push({
         id,
         sender_user_id,
@@ -3028,6 +3085,13 @@ class MockD1Database {
         read_at: null,
         archived_by_sender_at: null,
         archived_by_recipient_at: null,
+        source_kind: feedback ? "erp_feedback" : null,
+        source_hotel_id: feedback ? params[6] : null,
+        source_erp_user_id: feedback ? params[7] : null,
+        attachment_object_key: feedback ? params[8] : null,
+        attachment_mime_type: feedback ? params[9] : null,
+        attachment_size_bytes: feedback ? params[10] : null,
+        attachment_checksum_sha256: feedback ? params[11] : null,
       });
       return d1Result(1);
     }
@@ -4079,6 +4143,22 @@ class MockD1Database {
         return d1Result(1);
       }
       if (normalized.includes("'admin_message'")) {
+        if (normalized.includes("actor_erp_user_id")) {
+          const [id, hotel_id, module_key, actor_user_id, actor_erp_user_id, entity_id, metadata_json, created_at] = params;
+          this.data.adminAuditLog.push({
+            id,
+            hotel_id,
+            module_key,
+            actor_user_id,
+            actor_erp_user_id,
+            action: "room-service.erp_feedback.sent",
+            entity_type: "admin_message",
+            entity_id,
+            metadata_json,
+            created_at,
+          });
+          return d1Result(1);
+        }
         const [id, actor_user_id, action, entity_id, metadata_json, created_at] = params;
         this.data.adminAuditLog.push({
           id,

@@ -154,6 +154,10 @@ export function uploadErpMedia(formData) {
   return adminApi("/api/v1/admin/room-service/media", { method: "POST", body: formData });
 }
 
+export function submitErpFeedback(formData) {
+  return adminApi("/api/v1/admin/room-service/feedback", { method: "POST", body: formData });
+}
+
 export function uploadOwnAvatar(formData) {
   return adminApi("/api/v1/admin/room-service/me/avatar", { method: "POST", body: formData });
 }

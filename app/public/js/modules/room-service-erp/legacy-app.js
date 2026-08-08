@@ -26,6 +26,7 @@ import {
   logout,
   resetErpUserPassword,
   setOperationMode,
+  submitErpFeedback,
   updateCatalogItem,
   updateErpUser,
   updateOrderStatus,
@@ -93,6 +94,8 @@ const state = {
   notificationSoundEnabled: localStorage.getItem("fioreze-erp-notification-sound") !== "false",
   notificationVolume: clampNumber(localStorage.getItem("fioreze-erp-notification-volume"), 0, 100, 70),
   interfaceScale: clampNumber(localStorage.getItem("fioreze-erp-interface-scale"), 85, 115, 100),
+  feedbackScreenshot: null,
+  feedbackPreviewUrl: "",
 };
 
 const ERP_KEYBOARD_SHORTCUTS = Object.freeze({
@@ -172,6 +175,7 @@ function prepareStaticInterface() {
   installSettingsInterface();
   installUserModal();
   installOperationalModals();
+  installFeedbackInterface();
 
   byId("sidebarPinButton", false)?.remove();
   document.querySelector("[data-app-version-button]")?.remove();
@@ -259,6 +263,10 @@ function bindStaticActions() {
   byId("histTo", false)?.addEventListener("change", renderBilling);
   byId("billingRefreshButton", false)?.addEventListener("click", renderBilling);
   byId("billingExportButton", false)?.addEventListener("click", exportBillingCsv);
+  byId("erpFeedbackButton", false)?.addEventListener("click", openFeedbackDialog);
+  byId("erpFeedbackForm", false)?.addEventListener("submit", sendErpFeedback);
+  byId("erpFeedbackCapture", false)?.addEventListener("click", captureFeedbackScreenshot);
+  document.querySelectorAll("[data-close-feedback]").forEach((button) => button.addEventListener("click", closeFeedbackDialog));
 
   const scaleRange = byId("interfaceScaleRange", false);
   scaleRange?.addEventListener("input", () => applyInterfaceScale(scaleRange.value, false));
@@ -448,6 +456,121 @@ function installOperationalModals() {
     renderCatalogImagePicker();
   });
   byId("catalogUploadButton").addEventListener("click", uploadCatalogImage);
+}
+
+function installFeedbackInterface() {
+  const storeButton = byId("hdrStoreButton", false);
+  if (storeButton && !byId("erpFeedbackButton", false)) {
+    const button = document.createElement("button");
+    button.id = "erpFeedbackButton";
+    button.type = "button";
+    button.className = "erp-feedback-trigger";
+    button.title = "Relatar um problema";
+    button.innerHTML = `${feedbackIcon()}<span>Algum problema?</span>`;
+    storeButton.before(button);
+  }
+
+  if (byId("erpFeedbackModal", false)) return;
+  const modal = document.createElement("div");
+  modal.id = "erpFeedbackModal";
+  modal.className = "erp-modal hidden";
+  modal.innerHTML = `<div class="erp-modal-card erp-feedback-card" role="dialog" aria-modal="true" aria-labelledby="erpFeedbackTitle">
+    <header class="erp-modal-head"><div><p class="admin-kicker">Suporte</p><h2 id="erpFeedbackTitle">Conte o que aconteceu</h2><p>O relato será enviado ao Administrador Dev.</p></div><button type="button" class="erp-modal-close" data-close-feedback aria-label="Fechar">×</button></header>
+    <form id="erpFeedbackForm" class="erp-feedback-form">
+      <label>Descrição do problema<textarea id="erpFeedbackDescription" name="description" rows="5" minlength="10" maxlength="3000" required placeholder="Descreva o que você estava fazendo e o resultado esperado."></textarea></label>
+      <div id="erpFeedbackPreview" class="erp-feedback-preview is-empty"><span>${feedbackImageIcon()}</span><p>Nenhuma captura anexada.</p><img alt="Captura de tela do ERP"></div>
+      <div class="erp-feedback-actions"><button id="erpFeedbackCapture" type="button" class="admin-secondary-btn">${feedbackImageIcon()} Capturar novamente</button><span id="erpFeedbackStatus" role="status"></span><button type="button" class="admin-secondary-btn" data-close-feedback>Cancelar</button><button type="submit" class="admin-primary-btn">Enviar relato</button></div>
+    </form>
+  </div>`;
+  document.body.append(modal);
+  modal.addEventListener("click", (event) => {
+    if (event.target === modal) closeFeedbackDialog();
+  });
+}
+
+async function openFeedbackDialog() {
+  const modal = byId("erpFeedbackModal");
+  await captureFeedbackScreenshot();
+  modal.classList.remove("hidden");
+  byId("erpFeedbackDescription").focus();
+}
+
+async function captureFeedbackScreenshot() {
+  const status = byId("erpFeedbackStatus");
+  status.textContent = "Selecione esta janela para capturar.";
+  try {
+    const blob = await captureVisibleScreen();
+    setFeedbackScreenshot(blob);
+    status.textContent = "Captura pronta.";
+  } catch (error) {
+    status.textContent = error?.name === "NotAllowedError"
+      ? "Captura cancelada. Você ainda pode enviar o relato."
+      : "Não foi possível capturar. Você ainda pode enviar o relato.";
+  }
+}
+
+async function captureVisibleScreen() {
+  if (!navigator.mediaDevices?.getDisplayMedia) throw new Error("screen_capture_unavailable");
+  const stream = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: "window" }, audio: false });
+  try {
+    const video = document.createElement("video");
+    video.muted = true;
+    video.playsInline = true;
+    video.srcObject = stream;
+    await new Promise((resolve, reject) => {
+      video.onloadedmetadata = resolve;
+      video.onerror = reject;
+    });
+    await video.play();
+    const maxWidth = 1600;
+    const scale = Math.min(1, maxWidth / Math.max(1, video.videoWidth));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+    canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+    canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+    return await new Promise((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("capture_failed")), "image/png", 0.92));
+  } finally {
+    stream.getTracks().forEach((track) => track.stop());
+  }
+}
+
+function setFeedbackScreenshot(blob) {
+  if (state.feedbackPreviewUrl) URL.revokeObjectURL(state.feedbackPreviewUrl);
+  state.feedbackScreenshot = blob;
+  state.feedbackPreviewUrl = blob ? URL.createObjectURL(blob) : "";
+  const preview = byId("erpFeedbackPreview");
+  const image = preview.querySelector("img");
+  preview.classList.toggle("is-empty", !blob);
+  image.src = state.feedbackPreviewUrl;
+}
+
+async function sendErpFeedback(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const submit = form.querySelector('[type="submit"]');
+  const status = byId("erpFeedbackStatus");
+  submit.disabled = true;
+  status.textContent = "Enviando relato...";
+  try {
+    const data = new FormData();
+    data.set("description", byId("erpFeedbackDescription").value.trim());
+    data.set("source_route", `${window.location.pathname}#${state.route}`);
+    if (state.feedbackScreenshot) data.set("screenshot", state.feedbackScreenshot, "captura-erp.png");
+    await submitErpFeedback(data);
+    closeFeedbackDialog();
+    notify("Relato enviado ao Administrador Dev.");
+  } catch (error) {
+    status.textContent = error.message || "Não foi possível enviar o relato.";
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+function closeFeedbackDialog() {
+  byId("erpFeedbackModal", false)?.classList.add("hidden");
+  byId("erpFeedbackForm", false)?.reset();
+  byId("erpFeedbackStatus", false).textContent = "";
+  setFeedbackScreenshot(null);
 }
 
 function renderSettingsHome() {
@@ -1065,7 +1188,7 @@ function renderMenu() {
 }
 
 function menuCategory(category) {
-  return `<section><h2 class="text-xl font-bold mb-4 flex items-center gap-2 dark:text-white uppercase tracking-tighter">${categoryIcon()} ${escapeHtml(displayBusinessText(category.name, "Cardapio"))}</h2><div class="horizontal-scroll">${category.items.map(menuCard).join("")}</div></section>`;
+  return `<section class="erp-pdv-category"><h2>${categoryIcon()} <span>${escapeHtml(displayBusinessText(category.name, "Cardápio"))}</span><small>${category.items.length} ${category.items.length === 1 ? "item" : "itens"}</small></h2><div class="erp-pdv-list">${category.items.map(menuCard).join("")}</div></section>`;
 }
 
 function menuCard(item) {
@@ -1073,7 +1196,7 @@ function menuCard(item) {
   const image = safeImage(item.image_url || item.media_url);
   const tag = disabled ? "Indisponivel" : displayBusinessText(item.tag || item.category_name, "Cardapio");
   const name = displayBusinessText(item.name, "Item do cardapio");
-  return `<article class="legacy-menu-card erp-pdv-card bg-white dark:bg-gray-800 p-5 rounded-3xl relative card fade-in flex flex-col justify-between" aria-disabled="${disabled}"><div class="erp-pdv-card-top"><span class="erp-product-image erp-pdv-thumb">${image ? `<img src="${escapeAttr(image)}" alt="${escapeAttr(name)}">` : imagePlaceholderIcon()}</span><div class="erp-pdv-card-copy"><span class="erp-item-tag">${escapeHtml(tag)}</span><h3 class="font-bold text-lg mt-2 dark:text-white">${escapeHtml(name)}</h3><p class="text-xs text-gray-500 mt-2 leading-relaxed italic line-clamp-2">${escapeHtml(displayBusinessText(item.description))}</p></div></div><div class="flex justify-between items-center mt-5 pt-4 border-t"><span class="text-xl font-black text-[#513b2d]">${money(item.price_cents, item.currency)}</span><button type="button" data-product-id="${escapeAttr(item.id)}" ${disabled ? "disabled" : ""} class="bg-[#444746] text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase flex items-center gap-1">${plusIcon()} ${disabled ? "Indisponivel" : "Adicionar"}</button></div></article>`;
+  return `<article class="erp-pdv-card fade-in" aria-disabled="${disabled}"><span class="erp-pdv-thumb">${image ? `<img src="${escapeAttr(image)}" alt="${escapeAttr(name)}">` : imagePlaceholderIcon()}</span><div class="erp-pdv-card-copy"><span class="erp-item-tag">${escapeHtml(tag)}</span><h3>${escapeHtml(name)}</h3><p>${escapeHtml(displayBusinessText(item.description, "Sem descrição"))}</p></div><strong class="erp-pdv-price">${money(item.price_cents, item.currency)}</strong><button type="button" data-product-id="${escapeAttr(item.id)}" ${disabled ? "disabled" : ""} class="erp-pdv-add">${plusIcon()} <span>${disabled ? "Indisponível" : "Adicionar"}</span></button></article>`;
 }
 
 function addToCart(productId) {
@@ -1095,7 +1218,7 @@ function renderCart() {
 }
 
 function cartLine(line) {
-  return `<div class="bg-gray-50 p-3 rounded-xl flex justify-between items-center border fade-in shadow-sm"><div class="min-w-0 pr-2"><p class="text-[12px] font-bold truncate uppercase tracking-tighter">${escapeHtml(displayBusinessText(line.item.name, "Item do cardapio"))}</p><p class="text-[10px] text-[#513b2d] font-black">${money(line.item.price_cents * line.quantity, line.item.currency)}</p></div><div class="flex gap-2 items-center bg-white border rounded-lg shrink-0 px-1 py-1"><button type="button" data-cart-change="${escapeAttr(line.item.id)}" data-delta="-1" class="text-red-500 font-bold px-2">-</button><span class="text-xs font-bold">${line.quantity}</span><button type="button" data-cart-change="${escapeAttr(line.item.id)}" data-delta="1" class="text-green-500 font-bold px-2">+</button></div></div>`;
+  return `<div class="erp-cart-line fade-in"><div><strong>${escapeHtml(displayBusinessText(line.item.name, "Item do cardápio"))}</strong><small>${money(line.item.price_cents, line.item.currency)} cada</small></div><div class="erp-cart-stepper"><button type="button" data-cart-change="${escapeAttr(line.item.id)}" data-delta="-1" aria-label="Remover uma unidade">−</button><span>${line.quantity}</span><button type="button" data-cart-change="${escapeAttr(line.item.id)}" data-delta="1" aria-label="Adicionar uma unidade">+</button></div><b>${money(line.item.price_cents * line.quantity, line.item.currency)}</b></div>`;
 }
 
 function bindPdvActions() {
@@ -1950,6 +2073,14 @@ function renderTopSearchResults() {
     ? suggestions.map((entry, index) => `<button type="button" class="top-search-item ${index === 0 ? "active" : ""}" data-search-kind="${escapeAttr(entry.kind)}" data-search-value="${escapeAttr(entry.value)}"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M5 12h14M13 5l7 7-7 7"/></svg><span><span class="top-search-title">${escapeHtml(entry.label)}</span><span class="top-search-meta">${escapeHtml(entry.meta)}</span></span></button>`).join("")
     : '<p class="erp-search-empty">Nenhum resultado encontrado.</p>';
   target.classList.remove("hidden");
+}
+
+function feedbackIcon() {
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-width="2" d="M12 9v4m0 4h.01M10.3 4.2 2.8 17.1A2 2 0 0 0 4.5 20h15a2 2 0 0 0 1.7-2.9L13.7 4.2a2 2 0 0 0-3.4 0Z"/></svg>';
+}
+
+function feedbackImageIcon() {
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" stroke-width="2"/><path d="m3 16 5-5 4 4 2-2 7 7" stroke-width="2"/><circle cx="15.5" cy="8.5" r="1.5"/></svg>';
 }
 
 function buildSearchSuggestions() {
