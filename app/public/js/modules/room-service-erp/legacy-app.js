@@ -95,6 +95,15 @@ const state = {
   interfaceScale: clampNumber(localStorage.getItem("fioreze-erp-interface-scale"), 85, 115, 100),
 };
 
+const ERP_KEYBOARD_SHORTCUTS = Object.freeze({
+  d: "dashboard",
+  v: "vendas",
+  p: "hist",
+  f: "faturamento",
+  c: "cardapio",
+  s: "admin",
+});
+
 let notificationAudioContext = null;
 
 const toastRegion = document.createElement("div");
@@ -171,11 +180,7 @@ function prepareStaticInterface() {
   document.querySelector(".sidebar-footer:empty")?.remove();
   const themeLabel = byId("quickThemeTile", false)?.querySelector("span");
   if (themeLabel) themeLabel.textContent = "Tema escuro";
-  const printTile = document.querySelector(".quick-tile.print");
-  if (printTile) {
-    printTile.disabled = true;
-    printTile.title = "Impressao indisponivel";
-  }
+  applySavedTheme();
   document.querySelectorAll(".side-nav-btn").forEach((button) => {
     button.title = button.querySelector(".side-text")?.textContent?.trim() || "";
   });
@@ -183,22 +188,7 @@ function prepareStaticInterface() {
   applyInterfaceScale(state.interfaceScale, false);
   updateNotificationSoundUI();
 
-  for (const id of ["btnEditarPedido", "btnSalvarPedido", "btnSalvarReimprimir", "btnReimprimir"]) {
-    const button = byId(id, false);
-    if (button) {
-      button.hidden = true;
-      button.disabled = true;
-      button.classList.add("legacy-print-disabled");
-    }
-  }
-
-  document.querySelectorAll("button").forEach((button) => {
-    if (/imprimir|reimprimir|exportar planilha/i.test(button.textContent)) {
-      button.disabled = true;
-      button.classList.add("legacy-print-disabled");
-      button.title = "Impressao indisponivel.";
-    }
-  });
+  configureShortcutHints();
 }
 
 function bindStaticActions() {
@@ -236,7 +226,10 @@ function bindStaticActions() {
   document.querySelector(".quick-tile.logout")?.addEventListener("click", handleLogout);
   byId("quickThemeTile")?.addEventListener("click", toggleTheme);
   byId("hdrStoreButton")?.addEventListener("click", toggleStoreQuickPanel);
-  byId("accountConfigButton")?.addEventListener("click", () => openSettingsView("account"));
+  byId("accountConfigButton")?.addEventListener("click", () => openSettingsView("home"));
+  document.querySelector(".quick-tile.print")?.addEventListener("click", () => openSettingsView("printing"));
+  document.querySelector(".quick-tile.store")?.addEventListener("click", () => openSettingsView("operation"));
+  document.querySelector(".quick-tile.password")?.addEventListener("click", () => openSettingsView("account"));
 
   const notificationButton = document.querySelector(".notif-button");
   notificationButton?.addEventListener("click", () => byId("notifDropdown").classList.toggle("hidden"));
@@ -291,20 +284,7 @@ function bindStaticActions() {
     if (event.target === orderModal) orderModal.classList.add("hidden");
   });
 
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      byId("orderModal").classList.add("hidden");
-      byId("accountPopover").classList.add("hidden");
-      byId("notifDropdown").classList.add("hidden");
-      byId("storeQuickPanel", false)?.classList.add("hidden");
-      closeTopSearch();
-    }
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
-      event.preventDefault();
-      byId("topSearchInput")?.focus();
-    }
-    if (event.key === "F7") event.preventDefault();
-  });
+  document.addEventListener("keydown", handleGlobalKeyboardShortcut);
 
   document.addEventListener("click", (event) => {
     if (!event.target.closest("#topSearchWrap")) closeTopSearch();
@@ -331,8 +311,110 @@ function bindPdvPanelControls() {
 }
 
 function installDashboardInterface() {
+  const target = byId("dashboardContainer");
+  target.innerHTML = `<div class="erp-dashboard-workspace">
+    <header class="erp-dashboard-header">
+      <div><p class="admin-kicker">Visão geral</p><h2>Dashboard</h2><p id="dashSummaryLabel">Operação de hoje</p></div>
+      <label class="erp-dashboard-date" aria-label="Data dos indicadores">${dashboardIcon("calendar")}<input type="date" id="dashDate"></label>
+    </header>
+    <section class="erp-dashboard-kpis" aria-label="Indicadores principais">
+      ${dashboardKpi("orders", "Pedidos", "kpiVendas", "Recebidos no dia")}
+      ${dashboardKpi("revenue", "Receita", "kpiReceita", "Pedidos entregues", "kpiReceitaCard")}
+      ${dashboardKpi("ticket", "Ticket médio", "kpiTicket", "Média por pedido")}
+      ${dashboardKpi("activity", "Em atendimento", "kpiActive", "Enviados ou impressos")}
+      ${dashboardKpi("notes", "Com observacao", "kpiObs", "Exigem atencao")}
+    </section>
+    <section class="erp-dashboard-analytics">
+      <article class="erp-dashboard-chart erp-dashboard-hourly">
+        <div class="erp-dashboard-section-head"><div><span>Movimento</span><h3>Pedidos por horário</h3></div><strong id="dashPeakHour">-</strong></div>
+        <div id="dashboardHourlyChart" class="erp-dashboard-bars" aria-label="Gráfico de pedidos por horário"></div>
+      </article>
+      <article class="erp-dashboard-chart erp-dashboard-status">
+        <div class="erp-dashboard-section-head"><div><span>Fluxo</span><h3>Situação dos pedidos</h3></div></div>
+        <div class="erp-dashboard-status-layout"><div id="dashboardDonut" class="erp-dashboard-donut"><span><b id="dashboardDonutTotal">0</b><small>pedidos</small></span></div><div id="dashStatusLegend" class="erp-dashboard-legend"></div></div>
+      </article>
+    </section>
+    <section class="erp-dashboard-lists">
+      <article><div class="erp-dashboard-section-head"><div><span>Cardápio</span><h3>Itens mais pedidos</h3></div><small id="dashTopItemMeta">Sem vendas</small></div><div id="dashTopItemsList" class="erp-dashboard-ranking"></div></article>
+      <article><div class="erp-dashboard-section-head"><div><span>Atendimento</span><h3>Últimos pedidos</h3></div><small id="dashLastOrdersMeta">0 pedidos</small></div><div id="dashLastOrders" class="erp-dashboard-orders"></div></article>
+    </section>
+  </div>`;
   const date = byId("dashDate", false);
-  if (date && !date.value) date.value = localDateKey(new Date());
+  if (date) date.value = localDateKey(new Date());
+}
+
+function configureShortcutHints() {
+  const labels = { dashboard: "D", vendas: "V", hist: "P", faturamento: "F", cardapio: "C", admin: "S" };
+  for (const [route, key] of Object.entries(labels)) {
+    const button = byId(ROUTES[route]?.button, false);
+    if (!button) continue;
+    button.setAttribute("aria-keyshortcuts", key);
+    const label = button.querySelector(".side-text")?.textContent?.trim() || button.title || route;
+    button.title = `${label} (${key})`;
+  }
+  document.querySelector(".quick-tile.logout")?.setAttribute("aria-keyshortcuts", "L");
+}
+
+function handleGlobalKeyboardShortcut(event) {
+  if (event.key === "Escape") {
+    if (closeTopmostErpLayer()) event.preventDefault();
+    return;
+  }
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+    event.preventDefault();
+    byId("topSearchInput")?.focus();
+    return;
+  }
+  if (event.key === "F7") {
+    event.preventDefault();
+    return;
+  }
+  if (!state.session || event.ctrlKey || event.metaKey || event.altKey || isEditingTarget(event.target)) return;
+  const key = event.key.toLowerCase();
+  if (key === "l") {
+    event.preventDefault();
+    void handleLogout();
+    return;
+  }
+  const route = ERP_KEYBOARD_SHORTCUTS[key];
+  if (!route) return;
+  const button = byId(ROUTES[route]?.button, false);
+  if (!button || button.classList.contains("hidden")) return;
+  event.preventDefault();
+  switchTab(route);
+}
+
+function closeTopmostErpLayer() {
+  const visibleModal = [...document.querySelectorAll(".erp-modal:not(.hidden), .erp-user-modal:not(.hidden), #orderModal:not(.hidden)")].at(-1);
+  if (visibleModal) {
+    visibleModal.classList.add("hidden");
+    return true;
+  }
+  const openLayer = ["accountPopover", "notifDropdown", "storeQuickPanel", "topSearchResults"]
+    .map((id) => byId(id, false))
+    .find((element) => element && !element.classList.contains("hidden"));
+  if (openLayer) {
+    openLayer.classList.add("hidden");
+    return true;
+  }
+  if (state.route === "admin" && state.settingsView !== "home") {
+    state.settingsView = "home";
+    renderAdmin();
+    return true;
+  }
+  if (document.body.classList.contains("sidebar-open")) {
+    document.body.classList.remove("sidebar-open");
+    return true;
+  }
+  return false;
+}
+
+function isEditingTarget(target) {
+  return target instanceof Element && Boolean(target.closest("input, textarea, select, [contenteditable='true']"));
+}
+
+function dashboardKpi(icon, label, valueId, description, id = "") {
+  return `<article ${id ? `id="${id}"` : ""} class="erp-dashboard-kpi"><span class="erp-dashboard-kpi-icon">${dashboardIcon(icon)}</span><span class="erp-dashboard-kpi-copy"><small>${label}</small><strong id="${valueId}">0</strong><em>${description}</em></span></article>`;
 }
 
 function installBillingInterface() {
@@ -824,7 +906,7 @@ function renderDashboardV3() {
   const topItems = state.dashboard?.top_items || [];
   byId("dashboardTopItems").innerHTML = topItems.length
     ? topItems.map((item) => `<div class="erp-list-button"><span><strong>${escapeHtml(item.name)}</strong><small>${Number(item.quantity)} unidades</small></span><b>${money(item.revenue_cents)}</b></div>`).join("")
-    : '<div class="legacy-dashboard-empty">Os itens mais vendidos aparecerao aqui.</div>';
+    : '<div class="legacy-dashboard-empty">Os itens mais vendidos aparecerão aqui.</div>';
 
   const recent = state.dashboard?.recent_orders || orders.slice(0, 8);
   byId("dashLastOrders").innerHTML = recent.length
@@ -840,36 +922,61 @@ function renderDashboard() {
   const orders = state.orders.filter((order) => dateKeyInHotelTimezone(order.created_at) === selectedDate);
   const completed = orders.filter((order) => order.status === "delivered");
   const revenue = completed.reduce((total, order) => total + Number(order.total_cents || 0), 0);
-  const origins = countBy(orders, (order) => originLabel(order.origin));
   const topItems = state.dashboard?.top_items || [];
-  const topItem = topItems[0];
   const peak = peakHour(orders);
+  const statuses = countBy(orders, (order) => order.status || "sent");
+  const activeOrders = orders.filter((order) => ["sent", "printed"].includes(order.status)).length;
 
   setText("dashSummaryLabel", formatDashboardDate(selectedDate));
   setText("kpiVendas", orders.length);
   setText("kpiReceita", money(revenue));
   setText("kpiTicket", money(completed.length ? Math.round(revenue / completed.length) : 0));
-  setText("kpiOnline", orders.filter((order) => originLabel(order.origin) === "Hospedes / site").length);
-  setText("kpiRecepcao", orders.filter((order) => originLabel(order.origin) === "Recepcao").length);
+  setText("kpiActive", activeOrders);
   setText("kpiObs", orders.filter((order) => String(order.notes || "").trim()).length);
   byId("kpiReceitaCard", false)?.classList.toggle("hidden", !state.session?.permissions?.includes("room-service.billing.read"));
 
-  renderBars(byId("dashTopItemsList"), topItems.slice(0, 6).map((item) => [displayBusinessText(item.name, "Item do cardapio"), Number(item.quantity || 0)]));
-  renderBars(byId("dashChannelBars"), Object.entries(origins));
-  setText("dashChannelMeta", `${orders.length} ${orders.length === 1 ? "pedido" : "pedidos"}`);
+  const hours = Object.entries(countBy(orders, (order) => {
+    const raw = new Date(order.created_at);
+    if (Number.isNaN(raw.getTime())) return "00:00";
+    const hour = new Intl.DateTimeFormat("pt-BR", {
+      timeZone: state.context?.hotel?.timezone || "America/Sao_Paulo",
+      hour: "2-digit",
+      hour12: false,
+    }).format(raw);
+    return `${hour.replace(/\D/g, "").padStart(2, "0")}:00`;
+  })).sort((a, b) => a[0].localeCompare(b[0]));
+  const maxHour = Math.max(1, ...hours.map((entry) => Number(entry[1] || 0)));
+  byId("dashboardHourlyChart").innerHTML = hours.length
+    ? hours.map(([hour, value]) => `<div class="erp-dashboard-bar" title="${Number(value)} ${Number(value) === 1 ? "pedido" : "pedidos"} às ${escapeAttr(hour)}"><span><i style="height:${Math.max(8, Math.round((Number(value) / maxHour) * 100))}%"></i></span><small>${escapeHtml(hour.slice(0, 2))}h</small></div>`).join("")
+    : '<div class="erp-dashboard-empty">O movimento do dia aparecerá aqui.</div>';
+
+  const statusEntries = ["sent", "printed", "delivered", "cancelled"].map((status) => ({ status, value: Number(statuses[status] || 0) }));
+  const total = Math.max(1, orders.length);
+  let cursor = 0;
+  const palette = ["var(--accent)", "var(--accent-soft-strong)", "#32a36c", "#c8cdd4"];
+  const stops = statusEntries.map((entry, index) => {
+    const start = cursor;
+    cursor += (entry.value / total) * 100;
+    return `${palette[index]} ${start}% ${cursor}%`;
+  });
+  byId("dashboardDonut").style.background = orders.length ? `conic-gradient(${stops.join(",")})` : "#edf0f2";
+  setText("dashboardDonutTotal", orders.length);
+  byId("dashStatusLegend").innerHTML = statusEntries.map((entry, index) => `<div><i style="--legend-color:${palette[index]}"></i><span>${escapeHtml(statusLabel(entry.status))}</span><b>${entry.value}</b></div>`).join("");
+
+  const maxItem = Math.max(1, ...topItems.map((item) => Number(item.quantity || 0)));
+  byId("dashTopItemsList").innerHTML = topItems.length
+    ? topItems.slice(0, 6).map((item, index) => `<div class="erp-dashboard-rank"><b>${String(index + 1).padStart(2, "0")}</b><span><strong>${escapeHtml(displayBusinessText(item.name, "Item do cardapio"))}</strong><i><em style="width:${Math.max(7, Math.round((Number(item.quantity || 0) / maxItem) * 100))}%"></em></i></span><small>${Number(item.quantity || 0)}</small></div>`).join("")
+    : '<div class="erp-dashboard-empty">Os itens mais pedidos aparecerão aqui.</div>';
+  setText("dashTopItemMeta", topItems[0] ? `${Number(topItems[0].quantity || 0)} unidades` : "Sem vendas");
 
   const recent = orders.slice(0, 8);
-  setText("dashLastOrdersMeta", `${recent.length} ${recent.length === 1 ? "item" : "itens"}`);
+  setText("dashLastOrdersMeta", `${recent.length} ${recent.length === 1 ? "pedido" : "pedidos"}`);
   byId("dashLastOrders").innerHTML = recent.length
-    ? recent.map((order) => `<button type="button" class="dash-list-row" data-order-id="${escapeAttr(order.id)}"><span><strong>${escapeHtml(order.public_id || "Pedido")}</strong><small>${escapeHtml(order.room_code || "Sem acomodacao")} · ${escapeHtml(statusLabel(order.status))}</small></span><b>${money(order.total_cents, order.currency)}</b></button>`).join("")
-    : '<div class="legacy-dashboard-empty">Nenhum pedido neste dia.</div>';
+    ? recent.map((order) => `<button type="button" class="erp-dashboard-order" data-order-id="${escapeAttr(order.id)}"><time>${escapeHtml(formatDate(order.created_at, { hour: "2-digit", minute: "2-digit" }))}</time><span><strong>${escapeHtml(order.public_id || "Pedido")}</strong><small>${escapeHtml(order.room_code || "Sem acomodacao")}</small></span><em data-status="${escapeAttr(order.status)}">${escapeHtml(statusLabel(order.status))}</em><b>${money(order.total_cents, order.currency)}</b></button>`).join("")
+    : '<div class="erp-dashboard-empty">Nenhum pedido neste dia.</div>';
   bindOrderButtons(byId("dashLastOrders"));
 
-  setText("dashTopItem", topItem ? displayBusinessText(topItem.name, "Item do cardapio") : "-");
-  setText("dashTopItemMeta", topItem ? `${Number(topItem.quantity || 0)} unidades` : "Sem vendas no periodo");
   setText("dashPeakHour", peak?.[0] || "-");
-  setText("dashPeakMeta", peak ? `${Number(peak[1])} ${Number(peak[1]) === 1 ? "pedido" : "pedidos"}` : "Sem pedidos no dia");
-  byId("chartFuncCard", false)?.classList.add("hidden");
 }
 
 function renderOrders() {
@@ -1690,10 +1797,22 @@ function renderStoreQuickPanel() {
 function applyInterfaceScale(value, persist = false) {
   const scale = clampNumber(value, 85, 115, 100);
   const factor = scale / 100;
+  const shell = byId("appShell", false);
   document.documentElement.style.setProperty("--interface-scale", String(factor));
   document.documentElement.style.setProperty("--interface-inverse", String(1 / factor));
   document.documentElement.style.setProperty("--interface-width", `${100 / factor}vw`);
   document.documentElement.style.setProperty("--interface-height", `${100 / factor}vh`);
+  if (shell && globalThis.CSS?.supports?.("zoom", "1")) {
+    shell.style.zoom = String(factor);
+    shell.style.transform = "none";
+    shell.style.width = `${100 / factor}%`;
+    shell.style.height = `${100 / factor}vh`;
+  } else if (shell) {
+    shell.style.removeProperty("zoom");
+    shell.style.transform = `scale(${factor})`;
+    shell.style.width = `${100 / factor}vw`;
+    shell.style.height = `${100 / factor}vh`;
+  }
   state.interfaceScale = scale;
   const headerRange = byId("interfaceScaleRange", false);
   const headerLabel = byId("interfaceScaleLabel", false);
@@ -1932,7 +2051,21 @@ function showApplication() {
 function toggleTheme() {
   document.documentElement.classList.toggle("dark");
   const dark = document.documentElement.classList.contains("dark");
-  byId("quickThemeTile").querySelector("span").firstChild.textContent = dark ? "Tema claro " : "Tema escuro ";
+  localStorage.setItem("fioreze-erp-theme", dark ? "dark" : "light");
+  updateThemeTile();
+}
+
+function applySavedTheme() {
+  document.documentElement.classList.toggle("dark", localStorage.getItem("fioreze-erp-theme") === "dark");
+  updateThemeTile();
+}
+
+function updateThemeTile() {
+  const tile = byId("quickThemeTile", false);
+  const label = tile?.querySelector("span");
+  const dark = document.documentElement.classList.contains("dark");
+  if (label) label.textContent = dark ? "Tema claro" : "Tema escuro";
+  tile?.classList.toggle("active", dark);
 }
 
 function bindOrderButtons(container) {
@@ -2136,6 +2269,8 @@ function dashboardIcon(type) {
     revenue: '<path d="M12 2v20M17 6H9.5a3.5 3.5 0 000 7H15a3.5 3.5 0 010 7H6"/>',
     ticket: '<path d="M3 7a2 2 0 002-2h14v4a2 2 0 000 4v4H5a2 2 0 00-2-2V7zM12 7v10"/>',
     activity: '<path d="M3 12h4l2-7 4 14 2-7h6"/>',
+    notes: '<path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/>',
+    calendar: '<path d="M5 5h14v15H5zM8 3v4M16 3v4M5 10h14"/>',
   };
   return `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">${paths[type] || paths.orders}</svg>`;
 }

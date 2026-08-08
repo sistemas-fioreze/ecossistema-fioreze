@@ -233,7 +233,7 @@ test("documentacao do Emporio Centro cadastra nove produtos e preserva preco pen
   );
   const moduleSource = fs.readFileSync(`${APP_ROOT}/public/js/modules/emporio/index.js`, "utf8");
 
-  assert.equal((migration.match(/'item-fiorezecentro-emporio-[^']+',\n\s*'product-/g) || []).length, 9);
+  assert.equal((migration.match(/'item-fiorezecentro-emporio-[^']+',\r?\n\s*'product-/g) || []).length, 9);
   assert.equal((migration.match(/'media-fiorezecentro-emporio-[^']+', 'hotels\/fiorezecentro\/portal\/emporio\/catalogo-2026\//g) || []).length, 9);
   assert.match(migration, /Perfume de Ambiente Garbo 60 ml/);
   assert.match(migration, /Azeite de Oliva Extravirgem Terroir Serrano 250 ml/);
