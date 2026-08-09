@@ -13,6 +13,7 @@ import {
   getDashboard,
   getGuests,
   getLoginContext,
+  identifyLoginUser,
   getOperations,
   getPrinting,
   getOrder,
@@ -109,6 +110,8 @@ const ERP_KEYBOARD_SHORTCUTS = Object.freeze({
 });
 
 let notificationAudioContext = null;
+let loginUserLookupTimer = null;
+let loginUserLookupSequence = 0;
 
 const toastRegion = document.createElement("div");
 toastRegion.className = "legacy-toast-region";
@@ -173,6 +176,7 @@ function prepareStaticInterface() {
   error.className = "legacy-login-error";
   error.setAttribute("role", "alert");
   byId("btnLogin").before(error);
+  byId("loginNameBadge").setAttribute("aria-live", "polite");
 
   installDashboardInterface();
   installBillingInterface();
@@ -209,6 +213,7 @@ function bindStaticActions() {
   byId("loginCode").addEventListener("keydown", (event) => {
     if (event.key === "Enter") byId("loginPass").focus();
   });
+  byId("loginCode").addEventListener("input", scheduleLoginUserLookup);
   byId("erpUserModalClose")?.addEventListener("click", closeUserModal);
   byId("erpUserModalCancel")?.addEventListener("click", closeUserModal);
   byId("erpUserForm")?.addEventListener("submit", saveErpUser);
@@ -862,6 +867,36 @@ async function handleLogin() {
   } finally {
     setLoginBusy(false);
   }
+}
+
+function scheduleLoginUserLookup() {
+  const code = byId("loginCode").value.trim();
+  const hotelId = state.loginHotel?.hotel_id || "";
+  const sequence = ++loginUserLookupSequence;
+  window.clearTimeout(loginUserLookupTimer);
+  hideLoginUserName();
+  if (!hotelId || !/^\d{1,9}$/.test(code)) return;
+
+  loginUserLookupTimer = window.setTimeout(async () => {
+    try {
+      const payload = await identifyLoginUser({ hotelId, userCode: code });
+      if (sequence !== loginUserLookupSequence || byId("loginCode").value.trim() !== code) return;
+      const displayName = String(payload.data?.display_name || "").trim();
+      if (!payload.data?.found || !displayName) return;
+      const badge = byId("loginNameBadge");
+      badge.textContent = displayName;
+      badge.classList.remove("hidden");
+    } catch {
+      if (sequence === loginUserLookupSequence) hideLoginUserName();
+    }
+  }, 180);
+}
+
+function hideLoginUserName() {
+  const badge = byId("loginNameBadge", false);
+  if (!badge) return;
+  badge.textContent = "";
+  badge.classList.add("hidden");
 }
 
 async function handleLogout() {
@@ -2278,6 +2313,7 @@ function setPageBusy(busy, message = "Sincronizando...") {
 
 function showLogin() {
   stopOrderPolling();
+  document.body.classList.remove("erp-authenticated");
   document.body.classList.add("erp-login");
   byId("loginOverlay").classList.remove("hidden");
   byId("accountPopover").classList.add("hidden");
@@ -2285,6 +2321,7 @@ function showLogin() {
 
 function showApplication() {
   document.body.classList.remove("erp-login");
+  document.body.classList.add("erp-authenticated");
   byId("loginOverlay").classList.add("hidden");
   byId("appShell").style.display = "flex";
 }

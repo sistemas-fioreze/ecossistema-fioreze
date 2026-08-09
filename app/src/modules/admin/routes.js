@@ -164,6 +164,7 @@ import { notFoundError } from "../../core/errors.js";
 import { getAdminLoginPublicConfig } from "../../services/admin-login-security.js";
 import {
   getCurrentRoomServiceErpSession,
+  identifyRoomServiceErpUser,
   listRoomServiceErpLoginHotels,
   loginRoomServiceErp,
   logoutRoomServiceErp,
@@ -227,6 +228,14 @@ export function registerAdminRoutes(router) {
 
   router.get("/api/v1/admin/room-service/login-context", async ({ env }) => {
     return ok(await listRoomServiceErpLoginHotels(env));
+  });
+
+  router.get("/api/v1/admin/room-service/login-user", async ({ env, url }) => {
+    return ok(await identifyRoomServiceErpUser({
+      env,
+      hotelId: url.searchParams.get("hotel_id"),
+      userCode: url.searchParams.get("user_code"),
+    }));
   });
 
   router.post("/api/v1/admin/room-service/login", async ({ request, env }) => {

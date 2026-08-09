@@ -75,6 +75,8 @@ test("ERP aplica branding, contexto de rota e componentes da nova geracao", () =
   assert.match(app, /function installGuestsInterface\(\)/);
   assert.match(app, /function installVisualSystem\(\)/);
   assert.match(app, /classList\.add\("erp-design-system-v5"\)/);
+  assert.match(app, /classList\.add\("erp-authenticated"\)/);
+  assert.match(app, /classList\.remove\("erp-authenticated"\)/);
   assert.match(app, /class="erp-page erp-orders-page"/);
   assert.match(app, /document\.body\.dataset\.erpRoute = route/);
   assert.match(app, /setAttribute\("aria-current", active \? "page" : "false"\)/);

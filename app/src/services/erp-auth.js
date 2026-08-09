@@ -53,6 +53,35 @@ export async function listRoomServiceErpLoginHotels(env) {
   return { hotels: rows.map(formatLoginHotel) };
 }
 
+export async function identifyRoomServiceErpUser({ env, hotelId, userCode }) {
+  const normalizedHotelId = requireString(hotelId, "hotel_id", { max: 80 });
+  let normalizedUserCode;
+  try {
+    normalizedUserCode = normalizeUserCode(userCode);
+  } catch {
+    return { found: false, display_name: null };
+  }
+
+  const hotel = await loadHotel(env, normalizedHotelId);
+  if (!hotel) return { found: false, display_name: null };
+
+  const user = await first(
+    env,
+    `SELECT display_name, status
+       FROM erp_users
+      WHERE hotel_id = ?
+        AND user_code = ?
+      LIMIT 1`,
+    [normalizedHotelId, normalizedUserCode],
+  );
+  if (!user || user.status !== "active") return { found: false, display_name: null };
+
+  return {
+    found: true,
+    display_name: String(user.display_name || "").trim().slice(0, 120),
+  };
+}
+
 export async function loginRoomServiceErp({ request, env }) {
   const payload = await readJson(request);
   const hotelId = requireString(payload.hotel_id, "hotel_id", { max: 80 });
