@@ -37,6 +37,8 @@ test("nova fundacao define tokens, breakpoints e movimento acessivel", () => {
   assert.match(css, /@media \(max-width: 1180px\)/);
   assert.match(css, /@media \(max-width: 900px\)/);
   assert.match(css, /@media \(max-width: 680px\)/);
+  assert.match(css, /width: calc\(100vw - 32px\) !important/);
+  assert.match(css, /#loginOverlay \{\s*padding: 16px !important/s);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(css, /\.erp-page/);
   assert.match(css, /\.erp-order-list/);
