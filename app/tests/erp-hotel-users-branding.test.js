@@ -20,6 +20,22 @@ test("contexto de login do ERP publica branding por unidade sem credenciais", as
   assert.equal(JSON.stringify(body).includes("password"), false);
 });
 
+test("codigo operacional identifica somente o nome do usuario ativo da unidade", async () => {
+  const { env, json } = createWorkerTestContext();
+  const identified = await json("/api/v1/admin/room-service/login-user?hotel_id=muller-fioreze&user_code=1");
+  const unknown = await json("/api/v1/admin/room-service/login-user?hotel_id=muller-fioreze&user_code=999");
+  env.__data.erpUsers.find((user) => user.hotel_id === "muller-fioreze" && user.user_code === 1).status = "inactive";
+  const inactive = await json("/api/v1/admin/room-service/login-user?hotel_id=muller-fioreze&user_code=1");
+
+  assert.equal(identified.response.status, 200);
+  assert.deepEqual(identified.body.data, { found: true, display_name: "Atendente Muller Demo" });
+  assert.equal(identified.response.headers.get("cache-control"), "no-store");
+  assert.deepEqual(unknown.body.data, { found: false, display_name: null });
+  assert.deepEqual(inactive.body.data, { found: false, display_name: null });
+  assert.equal(JSON.stringify(identified.body).includes("password"), false);
+  assert.equal(JSON.stringify(identified.body).includes("permission"), false);
+});
+
 test("ERP nao expoe unidade ativa sem responsavel na Central Administrativa", async () => {
   const { env, json } = createWorkerTestContext();
   env.__data.adminHotelAccess = env.__data.adminHotelAccess.filter((entry) => entry.hotel_id !== "aurora-demo");
@@ -267,6 +283,10 @@ test("frontend aplica logos, fonte, titulo e cor primaria do contexto", () => {
   assert.match(app, /--accent/);
   assert.match(app, /document\.title/);
   assert.match(app, /Codigo do usuario ou e-mail mestre/);
+  assert.match(app, /identifyLoginUser/);
+  assert.match(app, /loginNameBadge/);
+  assert.match(app, /classList\.add\("erp-authenticated"\)/);
+  assert.match(app, /classList\.remove\("erp-authenticated"\)/);
   assert.match(app, /resolveErpHotelSlug/);
   assert.match(app, /resolvePinnedHotel/);
   assert.doesNotMatch(app, /loginHotelSelect|legacyHotelSelect|fioreze-rs-login-hotel|fioreze-rs-hotel/);

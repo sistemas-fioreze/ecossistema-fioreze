@@ -8,6 +8,11 @@ export function getLoginContext() {
   return adminApi("/api/v1/admin/room-service/login-context");
 }
 
+export function identifyLoginUser({ hotelId, userCode }) {
+  const params = new URLSearchParams({ hotel_id: hotelId, user_code: userCode });
+  return adminApi(`/api/v1/admin/room-service/login-user?${params.toString()}`);
+}
+
 export function login({ hotelId, credential, password }) {
   const centralAdmin = credential.includes("@");
   return adminApi(centralAdmin ? "/api/v1/admin/login" : "/api/v1/admin/room-service/login", {
