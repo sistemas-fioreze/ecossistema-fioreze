@@ -5,24 +5,26 @@ import { buildBrandTokens, normalizeHex } from "../public/js/modules/room-servic
 
 const read = (path) => fs.readFileSync(path, "utf8");
 
-test("ERP carrega o Design System depois das camadas legadas", () => {
+test("ERP carrega somente a nova fundacao visual como ultima camada", () => {
   const html = read("public/erp/room-service/index.html");
   const redesignPosition = html.indexOf("erp-redesign.css");
-  const designSystemPosition = html.indexOf("design-system-v4.css");
+  const visualSystemPosition = html.indexOf("design-system-v5.css");
 
   assert.ok(redesignPosition >= 0);
-  assert.ok(designSystemPosition > redesignPosition);
+  assert.ok(visualSystemPosition > redesignPosition);
+  assert.doesNotMatch(html, /design-system-v4\.css/);
   assert.match(html, /data-erp="room-service"/);
 });
 
-test("Design System define tokens, breakpoints e movimento acessivel", () => {
-  const css = read("public/css/modules/room-service-erp/design-system-v4.css");
+test("nova fundacao define tokens, breakpoints e movimento acessivel", () => {
+  const css = read("public/css/modules/room-service-erp/design-system-v5.css");
 
   for (const token of [
     "--brand-primary",
     "--brand-primary-hover",
     "--brand-primary-soft",
     "--brand-on-primary",
+    "--erp-canvas",
     "--erp-surface",
     "--erp-text",
     "--erp-motion-fast",
@@ -36,14 +38,20 @@ test("Design System define tokens, breakpoints e movimento acessivel", () => {
   assert.match(css, /@media \(max-width: 900px\)/);
   assert.match(css, /@media \(max-width: 680px\)/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
-  assert.match(css, /\.erp-v4-page/);
-  assert.match(css, /\.erp-v4-order-list/);
+  assert.match(css, /\.erp-page/);
+  assert.match(css, /\.erp-order-list/);
   assert.match(css, /#vendasContainer\.erp-pdv-workspace/);
+  assert.match(css, /\.erp-dashboard-donut/);
+  assert.match(css, /#faturamentoContainer \.history-table-wrap/);
+  assert.match(css, /\.erp-settings-grid/);
+  assert.match(css, /#orderModal/);
   assert.match(css, /\.sidebar-collapsed/);
   assert.match(css, /attr\(data-tooltip\)/);
+  assert.doesNotMatch(css, /#513b2d|#3f2d22/);
+  assert.doesNotMatch(css, /transition:\s*all/i);
 });
 
-test("Branding gera cores derivadas e contraste legivel", () => {
+test("branding gera cores derivadas e contraste legivel", () => {
   const light = buildBrandTokens("#f6d85f", "#244d3c");
   const dark = buildBrandTokens("#19362e");
 
@@ -57,13 +65,15 @@ test("Branding gera cores derivadas e contraste legivel", () => {
   assert.equal(normalizeHex("cor-invalida"), "");
 });
 
-test("ERP aplica branding, contexto de rota e interfaces operacionais unificadas", () => {
+test("ERP aplica branding, contexto de rota e componentes da nova geracao", () => {
   const app = read("public/js/modules/room-service-erp/legacy-app.js");
 
   assert.match(app, /applyBrandTokens\(root, branding\.primary_color, branding\.secondary_color\)/);
   assert.match(app, /function installOrdersInterface\(\)/);
   assert.match(app, /function installGuestsInterface\(\)/);
   assert.match(app, /function installVisualSystem\(\)/);
+  assert.match(app, /classList\.add\("erp-design-system-v5"\)/);
+  assert.match(app, /class="erp-page erp-orders-page"/);
   assert.match(app, /document\.body\.dataset\.erpRoute = route/);
   assert.match(app, /setAttribute\("aria-current", active \? "page" : "false"\)/);
   assert.match(app, /button\.dataset\.tooltip = label/);
@@ -71,4 +81,5 @@ test("ERP aplica branding, contexto de rota e interfaces operacionais unificadas
   assert.match(app, /guestsRefreshButton/);
   assert.match(app, /guestDirectoryMeta/);
   assert.doesNotMatch(app, /classList\.add\("pdv-collapsed"\)/);
+  assert.doesNotMatch(app, /class="erp-v4-page/);
 });
