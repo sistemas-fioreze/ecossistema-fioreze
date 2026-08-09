@@ -1,28 +1,26 @@
 # ERP Fioreze Design System
 
-Este documento descreve a camada visual compartilhada do ERP Room Service. A logica operacional, as permissoes, os contratos de API e o isolamento por `hotel_id` continuam sob responsabilidade dos modulos existentes.
+Esta documentacao descreve a nova fundacao visual do ERP Room Service. A camada operacional, as permissoes, os contratos de API e o isolamento por `hotel_id` permanecem nos modulos existentes.
 
 ## Principios
 
 - branco e neutros claros formam a base da interface;
-- o conteudo operacional permanece como protagonista;
-- a identidade da unidade funciona como acento, nunca como cor semantica;
-- espacamento e tipografia organizam a tela antes de bordas ou sombras;
+- a cor da unidade funciona como assinatura, sem dominar a tela;
+- tipografia, alinhamento e espacamento organizam antes de bordas e cards;
+- superfices existem somente quando separam uma tarefa real;
 - movimento curto comunica mudanca de estado sem atrasar a operacao;
-- todos os elementos interativos devem permanecer acessiveis por teclado.
+- controles essenciais permanecem acessiveis por teclado e toque.
 
 ## Arquivos
 
-- `public/css/modules/room-service-erp/design-system-v4.css`: tokens, shell, componentes, estados e responsividade;
-- `public/js/modules/room-service-erp/theme.js`: normalizacao de cores, contraste e tokens derivados;
+- `public/css/modules/room-service-erp/design-system-v5.css`: tokens, shell, componentes, telas, estados e responsividade;
+- `public/js/modules/room-service-erp/theme.js`: normalizacao, contraste e derivacao das cores da unidade;
 - `public/js/modules/room-service-erp/legacy-app.js`: composicao das telas e aplicacao do branding recebido pela API;
-- `public/erp/room-service/index.html`: shell unico do ERP.
+- `public/erp/room-service/index.html`: shell funcional unico do ERP.
 
-`design-system-v4.css` deve continuar sendo a ultima folha de estilo do ERP. Ela funciona como a camada de compatibilidade enquanto a marcacao historica ainda e utilizada pelas funcoes operacionais.
+`design-system-v5.css` deve permanecer como a ultima folha de estilo. Ela substitui visualmente as camadas historicas sem alterar IDs, eventos ou contratos usados pela operacao.
 
 ## Tokens
-
-Os tokens globais usam os prefixos `--erp-` e `--brand-`.
 
 ### Marca da unidade
 
@@ -40,45 +38,43 @@ As variacoes sao calculadas em `theme.js`. `--brand-on-primary` escolhe texto cl
 
 ### Estrutura
 
-- superficies: `--erp-bg`, `--erp-surface`, `--erp-surface-muted`;
-- texto: `--erp-text`, `--erp-text-secondary`, `--erp-text-muted`;
-- bordas: `--erp-border`, `--erp-border-strong`;
+- superficies: `--erp-canvas`, `--erp-surface`, `--erp-surface-raised`, `--erp-surface-soft`;
+- texto: `--erp-text`, `--erp-text-soft`, `--erp-text-muted`, `--erp-text-faint`;
+- bordas: `--erp-line`, `--erp-line-strong`;
 - estados: `--erp-success`, `--erp-warning`, `--erp-danger`, `--erp-info`;
-- espacamento: `--erp-space-1` ate `--erp-space-10`;
-- raio: `--erp-radius-sm`, `--erp-radius-md`, `--erp-radius-lg`, `--erp-radius-pill`;
+- espacamento: `--erp-space-1` ate `--erp-space-12`;
+- raio: `--erp-radius-xs` ate `--erp-radius-xl` e `--erp-radius-pill`;
 - movimento: `--erp-motion-fast`, `--erp-motion-normal`, `--erp-motion-slow`;
 - camadas: `--erp-z-sticky`, `--erp-z-dropdown`, `--erp-z-overlay`, `--erp-z-modal`, `--erp-z-toast`, `--erp-z-tooltip`.
 
 ## Branding e logos
 
-`applyBranding()` recebe da API o nome, a cor primaria, a cor secundaria, a fonte e as logos da unidade. `applyBrandTokens()` converte as cores em tokens derivados. As areas de marca usam `object-fit: contain`, dimensoes estaveis e fallback textual para preservar logos horizontais, verticais ou transparentes.
+`applyBranding()` recebe da API nome, cores, fonte e logos da unidade. `applyBrandTokens()` converte as cores em tokens derivados. As areas de marca usam `object-fit: contain`, dimensoes estaveis e fallback para manter logos horizontais, verticais ou transparentes dentro do layout.
 
-Nao use uma cor de hotel diretamente em um seletor novo. Use um token `--brand-*`. Erro, alerta, sucesso e informacao sempre usam os tokens semanticos `--erp-*`.
+Nao use cor de hotel diretamente em um novo seletor. Use um token `--brand-*`. Erro, alerta, sucesso e informacao usam sempre os tokens semanticos `--erp-*`.
 
 ## Padroes de pagina
 
-Uma tela nova deve reutilizar esta gramatica:
+Uma nova tela deve reutilizar:
 
-1. `.erp-v4-page` para o conteiner;
-2. `.erp-v4-page-header` para contexto, titulo, descricao e acoes;
-3. `.erp-v4-toolbar` para busca e filtros;
-4. `.erp-v4-section` para uma secao que realmente precise de superficie;
-5. estados de loading, vazio e erro existentes, sem bloquear a tela inteira.
+1. `.erp-page` para o conteiner;
+2. `.erp-page-header` para contexto, titulo, descricao e acoes;
+3. `.erp-page-actions` para controles principais;
+4. `.erp-list-section` ou `.erp-panel` somente quando houver separacao semantica;
+5. estados vazios e loading locais, sem bloquear toda a aplicacao.
 
-Tabelas e listas devem priorizar leitura, manter cabecalho claro, usar hover sutil e reduzir colunas secundarias em telas pequenas. Formularios usam labels acima dos campos, foco visivel e grids somente quando os campos possuem relacao.
+Tabelas e listas priorizam leitura e reduzem informacao secundaria em telas pequenas. Formularios usam labels acima dos campos e grids apenas quando os campos possuem relacao.
 
 ## Responsividade
 
-- acima de 1180 px: shell completo e paineis operacionais lado a lado;
-- ate 1180 px: densidade reduzida para notebooks;
-- ate 900 px: sidebar compacta e paineis em uma coluna;
-- ate 680 px: topbar e acoes empilhadas, modais em formato de bottom sheet;
-- ate 440 px: KPIs e controles em uma coluna.
-
-O PDV preserva o painel de comanda fixo em desktop e passa a um fluxo vertical em telas menores.
+- acima de 1180 px: shell completo, paineis operacionais lado a lado e PDV com comanda fixa;
+- ate 1180 px: densidade adequada a notebooks;
+- ate 900 px: menu em drawer e conteudo em uma coluna;
+- ate 680 px: acoes empilhadas e modais como bottom sheets;
+- ate 440 px: indicadores e controles em uma coluna.
 
 ## Movimento e acessibilidade
 
-Transicoes sao especificas por propriedade e usam duracoes entre 120 e 280 ms. Sidebar, dropdowns, botoes, modais, toasts e itens interativos compartilham as mesmas curvas. Em `prefers-reduced-motion: reduce`, animacoes e transicoes nao essenciais sao praticamente removidas.
+Transicoes usam duracoes entre 120 e 260 ms. Sidebar, menus, modais, toasts e controles compartilham curvas consistentes. Em `prefers-reduced-motion: reduce`, animacoes e transicoes nao essenciais sao reduzidas.
 
-Todos os controles precisam manter foco visivel, `aria-label` quando usam apenas icone, `aria-current` na navegacao e alvo de toque confortavel. Tooltips complementam os icones da sidebar recolhida, sem esconder informacao essencial.
+Todo controle deve manter foco visivel, `aria-label` quando usa somente icone, `aria-current` na navegacao e alvo de toque adequado. Tooltips complementam a sidebar recolhida sem esconder informacao necessaria.

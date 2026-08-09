@@ -361,17 +361,17 @@ function installPdvInterface() {
 function installOrdersInterface() {
   const target = byId("histContainer", false);
   if (!target) return;
-  target.innerHTML = `<div class="erp-v4-page erp-orders-page">
-    <header class="erp-v4-page-header">
-      <div><p class="erp-v4-eyebrow">Operacao</p><h2>Pedidos</h2><p>Consulte e acompanhe os pedidos da unidade.</p></div>
-      <div class="erp-v4-page-actions">
-        <label class="erp-v4-date-field"><span>Data</span><input type="date" id="histDate"></label>
-        <button id="ordersRefreshButton" type="button" class="erp-v4-icon-text-button">${dashboardIcon("refresh")}<span>Atualizar</span></button>
+  target.innerHTML = `<div class="erp-page erp-orders-page">
+    <header class="erp-page-header">
+      <div><p class="erp-page-eyebrow">Operacao</p><h2>Pedidos</h2><p>Consulte e acompanhe os pedidos da unidade.</p></div>
+      <div class="erp-page-actions">
+        <label class="erp-date-field"><span>Data</span><input type="date" id="histDate"></label>
+        <button id="ordersRefreshButton" type="button" class="erp-icon-text-button">${dashboardIcon("refresh")}<span>Atualizar</span></button>
       </div>
     </header>
-    <section class="erp-v4-list-section">
-      <div class="erp-v4-section-header"><div><h3>Pedidos do dia</h3><p id="simpleHistMeta">0 pedidos</p></div><span class="erp-v4-section-hint">Mais recentes primeiro</span></div>
-      <div id="simpleHistTableBody" class="erp-v4-order-list"></div>
+    <section class="erp-list-section">
+      <div class="erp-section-header"><div><h3>Pedidos do dia</h3><p id="simpleHistMeta">0 pedidos</p></div><span class="erp-section-hint">Mais recentes primeiro</span></div>
+      <div id="simpleHistTableBody" class="erp-order-list"></div>
     </section>
   </div>`;
   byId("histDate").value = localDateKey(new Date());
@@ -380,23 +380,24 @@ function installOrdersInterface() {
 function installGuestsInterface() {
   const target = byId("hospedesContainer", false);
   if (!target) return;
-  target.innerHTML = `<div class="erp-v4-page erp-guests-page">
-    <header class="erp-v4-page-header">
-      <div><p class="erp-v4-eyebrow">Relacionamento</p><h2>Hospedes</h2><p>Acomodacoes atendidas e atividade recente.</p></div>
-      <div class="erp-v4-page-actions">
-        <label class="erp-v4-search-field">${dashboardIcon("search")}<input id="guestSearchInput" type="search" placeholder="Buscar hospede ou acomodacao" autocomplete="off"></label>
-        <button id="guestsRefreshButton" type="button" class="erp-v4-icon-text-button">${dashboardIcon("refresh")}<span>Atualizar</span></button>
+  target.innerHTML = `<div class="erp-page erp-guests-page">
+    <header class="erp-page-header">
+      <div><p class="erp-page-eyebrow">Relacionamento</p><h2>Hospedes</h2><p>Acomodacoes atendidas e atividade recente.</p></div>
+      <div class="erp-page-actions">
+        <label class="erp-search-field">${dashboardIcon("search")}<input id="guestSearchInput" type="search" placeholder="Buscar hospede ou acomodacao" autocomplete="off"></label>
+        <button id="guestsRefreshButton" type="button" class="erp-icon-text-button">${dashboardIcon("refresh")}<span>Atualizar</span></button>
       </div>
     </header>
-    <section class="erp-v4-list-section">
-      <div class="erp-v4-section-header"><div><h3>Diretorio da unidade</h3><p id="guestDirectoryMeta">0 acomodacoes</p></div><span class="erp-v4-section-hint">Dados operacionais do Room Service</span></div>
-      <div id="guestTableBody" class="erp-v4-guest-grid"></div>
+    <section class="erp-list-section">
+      <div class="erp-section-header"><div><h3>Diretorio da unidade</h3><p id="guestDirectoryMeta">0 acomodacoes</p></div><span class="erp-section-hint">Dados operacionais do Room Service</span></div>
+      <div id="guestTableBody" class="erp-guest-grid"></div>
     </section>
   </div>`;
 }
 
 function installVisualSystem() {
-  document.body.classList.add("erp-design-system-v4");
+  document.body.classList.remove("erp-design-system-v4");
+  document.body.classList.add("erp-design-system-v5");
   const nav = byId("navBar", false);
   if (nav && !nav.querySelector(".erp-nav-group-label")) {
     const groups = [
@@ -754,7 +755,7 @@ function renderAccountSettings() {
 
 function renderAppearanceSettings() {
   const branding = state.context?.branding || {};
-  return `<button type="button" class="erp-back" data-settings-view="home">${settingsIcon("back")} Configuracoes</button><section class="erp-settings-detail"><div><p class="erp-panel-title">Aparencia da unidade</p><p class="erp-v3-subtitle">Identidade visual aplicada ao ERP.</p></div><div class="erp-settings-grid"><article class="erp-panel"><span class="erp-stat-label">Cor primaria</span><div style="width:52px;height:52px;border-radius:8px;background:${isHexColor(branding.primary_color) ? branding.primary_color : "#513b2d"};margin-top:12px"></div></article><article class="erp-panel"><span class="erp-stat-label">Fonte</span><strong class="erp-stat-value" style="font-size:18px;font-family:${escapeAttr(branding.font_family || "system-ui")}">${escapeHtml(branding.font_family || "Fonte padrao")}</strong></article><article class="erp-panel erp-appearance-scale"><span class="erp-stat-label">Escala da interface</span><strong>${state.interfaceScale}%</strong><input id="settingsScaleRange" type="range" min="85" max="115" step="5" value="${state.interfaceScale}"></article></div></section>`;
+  return `<button type="button" class="erp-back" data-settings-view="home">${settingsIcon("back")} Configuracoes</button><section class="erp-settings-detail"><div><p class="erp-panel-title">Aparencia da unidade</p><p class="erp-v3-subtitle">Identidade visual aplicada ao ERP.</p></div><div class="erp-settings-grid"><article class="erp-panel"><span class="erp-stat-label">Cor primaria</span><div style="width:52px;height:52px;border-radius:8px;background:var(--brand-primary);margin-top:12px"></div></article><article class="erp-panel"><span class="erp-stat-label">Fonte</span><strong class="erp-stat-value" style="font-size:18px;font-family:${escapeAttr(branding.font_family || "system-ui")}">${escapeHtml(branding.font_family || "Fonte padrao")}</strong></article><article class="erp-panel erp-appearance-scale"><span class="erp-stat-label">Escala da interface</span><strong>${state.interfaceScale}%</strong><input id="settingsScaleRange" type="range" min="85" max="115" step="5" value="${state.interfaceScale}"></article></div></section>`;
 }
 
 function renderNotificationSettings() {
@@ -2500,7 +2501,7 @@ function escapeAttr(value) {
 }
 
 function categoryIcon() {
-  return '<svg class="w-5 h-5 text-[#513b2d]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>';
+  return '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>';
 }
 
 function dashboardIcon(type) {
