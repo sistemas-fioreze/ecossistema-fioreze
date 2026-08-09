@@ -708,8 +708,8 @@ body[data-erp="room-service"].erp-authenticated #loginOverlay {
 
 body[data-erp="room-service"] .login-card {
   position: relative !important;
-  width: min(364px, 100%) !important;
-  max-width: 364px !important;
+  width: 364px !important;
+  max-width: calc(100vw - 48px) !important;
   min-height: 0 !important;
   display: flex !important;
   flex-direction: column;
@@ -3057,6 +3057,16 @@ body[data-erp="room-service"] .premium-pop {
 
 /* Mobile */
 @media (max-width: 680px) {
+  body[data-erp="room-service"] #loginOverlay {
+    padding: 16px !important;
+  }
+
+  body[data-erp="room-service"] .login-card {
+    width: calc(100vw - 32px) !important;
+    max-width: 364px !important;
+    padding: 28px 20px 24px !important;
+  }
+
   body[data-erp="room-service"] .app-topbar {
     min-height: 60px !important;
     gap: 8px;
