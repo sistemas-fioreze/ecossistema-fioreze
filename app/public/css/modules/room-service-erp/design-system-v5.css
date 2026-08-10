@@ -5581,6 +5581,16 @@ body[data-erp="room-service"] .erp-login-status-dot {
   background: currentColor;
 }
 
+body[data-erp="room-service"] .login-store-badge.is-open .erp-login-status-dot {
+  color: #168148 !important;
+  background: #168148 !important;
+}
+
+body[data-erp="room-service"] .login-store-badge.is-closed .erp-login-status-dot {
+  color: #b54747 !important;
+  background: #b54747 !important;
+}
+
 body[data-erp="room-service"] .login-fields {
   position: relative;
   gap: 12px !important;
