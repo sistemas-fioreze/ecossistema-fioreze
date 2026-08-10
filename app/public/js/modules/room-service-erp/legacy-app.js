@@ -587,7 +587,7 @@ function installBillingInterface() {
 }
 
 function installCatalogInterface() {
-  byId("cardapioContainer").innerHTML = `<div class="erp-v3-shell"><header class="erp-v3-header"><div><p class="admin-kicker">Room Service</p><h2 class="erp-v3-title">Editor de cardapio</h2><p id="menuAdminSummary" class="erp-v3-subtitle">0 itens</p></div><div class="erp-v3-actions"><button id="newCatalogCategoryButton" type="button" class="admin-secondary-btn">Nova categoria</button><button id="newCatalogItemButton" type="button" class="admin-primary-btn">Novo item</button></div></header><div class="erp-catalog-toolbar"><input id="menuAdminSearch" class="erp-search" type="search" placeholder="Buscar prato, descricao ou categoria" autocomplete="off"><div id="catalogCategoryTabs" class="erp-category-tabs"></div></div><div id="menuCategoryBoard" class="erp-catalog-grid"></div></div>`;
+  byId("cardapioContainer").innerHTML = `<div class="erp-v3-shell erp-catalog-page"><header class="erp-v3-header"><div><p class="admin-kicker">Room Service</p><h2 class="erp-v3-title">Editor de cardapio</h2><p id="menuAdminSummary" class="erp-v3-subtitle">0 itens</p></div><div class="erp-v3-actions"><button id="newCatalogCategoryButton" type="button" class="admin-secondary-btn">Nova categoria</button><button id="newCatalogItemButton" type="button" class="admin-primary-btn">Novo item</button></div></header><div class="erp-catalog-toolbar"><label class="erp-catalog-search"><span class="sr-only">Buscar no cardapio</span><input id="menuAdminSearch" class="erp-search" type="search" placeholder="Buscar prato, descricao ou categoria" autocomplete="off"></label><div class="erp-category-scroller"><button type="button" class="erp-category-scroll" data-category-scroll="-1" aria-label="Categorias anteriores">${settingsIcon("back")}</button><div id="catalogCategoryTabs" class="erp-category-tabs"></div><button type="button" class="erp-category-scroll next" data-category-scroll="1" aria-label="Proximas categorias">${settingsIcon("chevron")}</button></div></div><div id="menuCategoryBoard" class="erp-catalog-grid"></div></div>`;
 }
 
 function installSettingsInterface() {
@@ -627,8 +627,9 @@ function installFeedbackInterface() {
     <header class="erp-modal-head"><div><p class="admin-kicker">Suporte</p><h2 id="erpFeedbackTitle">Conte o que aconteceu</h2><p>O relato será enviado ao Administrador Dev.</p></div><button type="button" class="erp-modal-close" data-close-feedback aria-label="Fechar">×</button></header>
     <form id="erpFeedbackForm" class="erp-feedback-form">
       <label>Descrição do problema<textarea id="erpFeedbackDescription" name="description" rows="5" minlength="10" maxlength="3000" required placeholder="Descreva o que você estava fazendo e o resultado esperado."></textarea></label>
-      <div id="erpFeedbackPreview" class="erp-feedback-preview is-empty"><span>${feedbackImageIcon()}</span><p>Nenhuma captura anexada.</p><img alt="Captura de tela do ERP"></div>
-      <div class="erp-feedback-actions"><button id="erpFeedbackCapture" type="button" class="admin-secondary-btn">${feedbackImageIcon()} Capturar novamente</button><span id="erpFeedbackStatus" role="status"></span><button type="button" class="admin-secondary-btn" data-close-feedback>Cancelar</button><button type="submit" class="admin-primary-btn">Enviar relato</button></div>
+      <div id="erpFeedbackPreview" class="erp-feedback-preview is-empty"><div class="erp-feedback-empty-state"><span>${feedbackImageIcon()}</span><p>Nenhuma captura anexada.</p></div><img hidden alt="Captura de tela do ERP"><p class="erp-feedback-attached" hidden>Captura anexada</p></div>
+      <p id="erpFeedbackStatus" class="erp-feedback-status" role="status"></p>
+      <div class="erp-feedback-actions"><button id="erpFeedbackCapture" type="button" class="admin-secondary-btn">${feedbackImageIcon()} Capturar novamente</button><div class="erp-feedback-submit-actions"><button type="button" class="admin-secondary-btn" data-close-feedback>Cancelar</button><button type="submit" class="admin-primary-btn">Enviar relato</button></div></div>
     </form>
   </div>`;
   document.body.append(modal);
@@ -689,8 +690,14 @@ function setFeedbackScreenshot(blob) {
   state.feedbackPreviewUrl = blob ? URL.createObjectURL(blob) : "";
   const preview = byId("erpFeedbackPreview");
   const image = preview.querySelector("img");
+  const emptyState = preview.querySelector(".erp-feedback-empty-state");
+  const attached = preview.querySelector(".erp-feedback-attached");
   preview.classList.toggle("is-empty", !blob);
-  image.src = state.feedbackPreviewUrl;
+  emptyState.hidden = Boolean(blob);
+  attached.hidden = !blob;
+  image.hidden = !blob;
+  if (blob) image.src = state.feedbackPreviewUrl;
+  else image.removeAttribute("src");
 }
 
 async function sendErpFeedback(event) {
@@ -800,7 +807,7 @@ function renderAccountSettings() {
   const initials = String(displayName || "U").split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
   const avatar = safeImage(user.avatar);
   const operational = state.session?.auth_source === "erp";
-  return `<button type="button" class="erp-back" data-settings-view="home">${settingsIcon("back")} Configuracoes</button><section class="erp-settings-detail"><div class="erp-account-card"><div class="erp-profile-avatar">${avatar ? `<img src="${escapeAttr(avatar)}" alt="Foto de perfil" class="erp-profile-avatar">` : escapeHtml(initials)}</div><div><p class="erp-panel-title">${escapeHtml(displayName)}</p><p class="erp-v3-subtitle">${operational ? `Codigo ${Number(user.user_code || 0)} · ${escapeHtml(displayHotelName(state.context?.hotel))}` : "Administrador geral"}</p>${operational ? '<form id="accountAvatarForm" class="erp-upload-row"><input id="accountAvatarFile" type="file" accept="image/jpeg,image/png,image/webp,image/avif" required><button type="submit" class="admin-primary-btn">Trocar foto</button><button id="removeOwnAvatarButton" type="button" class="admin-secondary-btn">Remover</button></form>' : ""}</div></div>${operational ? '<form id="accountPasswordForm" class="erp-form erp-password-form"><div><p class="erp-panel-title">Alterar senha</p><p class="erp-v3-subtitle">Use no minimo 4 caracteres.</p></div><label>Senha atual<input name="current_password" type="password" required autocomplete="current-password"></label><div class="erp-form-grid"><label>Nova senha<input name="new_password" type="password" required minlength="4" autocomplete="new-password"></label><label>Confirmar nova senha<input name="confirm_password" type="password" required minlength="4" autocomplete="new-password"></label></div><button type="submit" class="admin-primary-btn">Atualizar senha</button></form>' : ""}</section>`;
+  return `<nav class="erp-settings-breadcrumb" aria-label="Navegacao das configuracoes"><button type="button" data-settings-view="home">Configuracoes</button><span aria-hidden="true">/</span><strong>Minha conta</strong></nav><section class="erp-settings-detail erp-account-settings"><article class="erp-account-card"><div class="erp-profile-avatar">${avatar ? `<img src="${escapeAttr(avatar)}" alt="Foto de perfil" class="erp-profile-avatar">` : escapeHtml(initials)}</div><div class="erp-account-summary"><p class="erp-panel-title">${escapeHtml(displayName)}</p><p class="erp-v3-subtitle">${operational ? `Codigo ${Number(user.user_code || 0)} · ${escapeHtml(displayHotelName(state.context?.hotel))}` : "Administrador geral"}</p>${operational ? '<form id="accountAvatarForm" class="erp-avatar-form"><input id="accountAvatarFile" class="erp-visually-hidden" type="file" accept="image/jpeg,image/png,image/webp,image/avif" required><label for="accountAvatarFile" class="admin-secondary-btn erp-file-picker">Escolher foto</label><span id="accountAvatarFileName" class="erp-file-name">Nenhum arquivo selecionado</span><button type="submit" class="admin-primary-btn">Salvar foto</button><button id="removeOwnAvatarButton" type="button" class="admin-secondary-btn">Remover</button></form>' : ""}</div></article>${operational ? '<form id="accountPasswordForm" class="erp-form erp-password-form"><div><p class="erp-panel-title">Alterar senha</p><p class="erp-v3-subtitle">Use no minimo 4 caracteres.</p></div><label>Senha atual<input name="current_password" type="password" required autocomplete="current-password"></label><div class="erp-form-grid"><label>Nova senha<input name="new_password" type="password" required minlength="4" autocomplete="new-password"></label><label>Confirmar nova senha<input name="confirm_password" type="password" required minlength="4" autocomplete="new-password"></label></div><div class="erp-form-actions"><button type="submit" class="admin-primary-btn">Atualizar senha</button></div></form>' : ""}</section>`;
 }
 
 function renderAppearanceSettings() {
@@ -830,6 +837,12 @@ function openSettingsView(view) {
 }
 
 async function handleCatalogClick(event) {
+  const scrollButton = event.target.closest("[data-category-scroll]");
+  if (scrollButton) {
+    const tabs = byId("catalogCategoryTabs");
+    tabs.scrollBy({ left: Number(scrollButton.dataset.categoryScroll) * Math.max(280, tabs.clientWidth * 0.72), behavior: "smooth" });
+    return;
+  }
   const category = event.target.closest("[data-catalog-category]");
   if (category) {
     state.catalogCategory = category.dataset.catalogCategory;
@@ -1597,6 +1610,10 @@ function renderAdmin() {
   settingsVolume?.addEventListener("change", () => {
     saveNotificationVolume(settingsVolume.value);
     renderAdmin();
+  });
+  const accountAvatarFile = byId("accountAvatarFile", false);
+  accountAvatarFile?.addEventListener("change", () => {
+    setText("accountAvatarFileName", accountAvatarFile.files?.[0]?.name || "Nenhum arquivo selecionado");
   });
 }
 

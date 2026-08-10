@@ -95,3 +95,36 @@ test("ERP aplica branding, contexto de rota e componentes da nova geracao", () =
   assert.doesNotMatch(app, /classList\.add\("pdv-collapsed"\)/);
   assert.doesNotMatch(app, /class="erp-v4-page/);
 });
+
+test("editor, modais e layout estreito preservam conteudo e acoes", () => {
+  const css = read("public/css/modules/room-service-erp/design-system-v5.css");
+  const app = read("public/js/modules/room-service-erp/legacy-app.js");
+
+  assert.match(css, /\.erp-catalog-grid \{[\s\S]*grid-template-columns: repeat\(auto-fill, minmax\(290px, 1fr\)\)/);
+  assert.match(css, /\.erp-product-card \{[\s\S]*height: auto;[\s\S]*overflow: visible;/);
+  assert.match(css, /\.erp-product-body > strong \{[\s\S]*white-space: normal;/);
+  assert.match(css, /\.erp-user-modal-card \{[\s\S]*max-height: calc\(100dvh - 32px\)[\s\S]*overflow: hidden/);
+  assert.match(css, /\.erp-user-modal-actions \{[\s\S]*position: sticky;[\s\S]*bottom: 0;/);
+  assert.match(css, /\.erp-user-permission-grid label \{[\s\S]*min-height: 52px;/);
+  assert.match(css, /@media \(max-width: 1100px\) \{[\s\S]*\.app-main \{[\s\S]*flex: 1 1 100% !important;/);
+  assert.match(css, /\.sidebar-footer \{[\s\S]*border-top: 0 !important;/);
+  assert.match(css, /#vendasContainer > main\.erp-pdv-catalog[\s\S]*flex: 1 1 0 !important;/);
+  assert.match(css, /#menuContent \.erp-pdv-card-copy h3 \{[\s\S]*-webkit-line-clamp: unset;/);
+  assert.match(css, /#menuContent \.erp-pdv-card-action \{[\s\S]*grid-column: 1 \/ -1;/);
+  assert.match(app, /data-category-scroll="-1"/);
+  assert.match(app, /tabs\.scrollBy\(/);
+});
+
+test("conta e suporte usam estados visuais controlados", () => {
+  const css = read("public/css/modules/room-service-erp/design-system-v5.css");
+  const app = read("public/js/modules/room-service-erp/legacy-app.js");
+
+  assert.match(app, /id="accountAvatarFile" class="erp-visually-hidden"/);
+  assert.match(app, /id="accountAvatarFileName"/);
+  assert.match(app, /class="erp-settings-breadcrumb"/);
+  assert.match(app, /class="erp-feedback-empty-state"/);
+  assert.match(app, /image\.removeAttribute\("src"\)/);
+  assert.match(css, /\.erp-account-settings \{[\s\S]*grid-template-columns: minmax\(300px, \.8fr\) minmax\(420px, 1\.2fr\)/);
+  assert.match(css, /\.erp-feedback-preview img\[hidden\]/);
+  assert.match(css, /\.top-search-item\.active[\s\S]*background: var\(--brand-primary-soft\)/);
+});
