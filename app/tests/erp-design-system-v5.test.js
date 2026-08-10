@@ -146,6 +146,21 @@ test("login, menu rapido e escala usam a estrutura final sem superficies concorr
   assert.match(app, /setProperty\("height", `\$\{100 \/ factor\}dvh`, "important"\)/);
 });
 
+test("login mantem composicao coesa durante identificacao e carregamento", () => {
+  const css = read("public/css/modules/room-service-erp/design-system-v5.css");
+  const app = read("public/js/modules/room-service-erp/legacy-app.js");
+
+  assert.match(app, /function installLoginComposition\(\)/);
+  assert.match(app, /className = "erp-login-brand"/);
+  assert.match(app, /className = "erp-login-form"/);
+  assert.match(app, /className = "erp-login-user-avatar"/);
+  assert.match(app, /classList\.toggle\("is-loading", busy\)/);
+  assert.match(css, /\.login-card \{[\s\S]*grid-template-columns: minmax\(260px, 1fr\) minmax\(320px, 360px\)/);
+  assert.match(css, /#loginNameBadge \{[\s\S]*position: absolute/);
+  assert.match(css, /\.login-card\.is-loading > :is\(\.erp-login-brand, \.erp-login-form\)/);
+  assert.match(css, /\.login-card input,[\s\S]*#btnLogin \{[\s\S]*width: 100% !important;/);
+});
+
 test("PDV ancora a comanda e separa cabecalho, lista rolavel e rodape fixo", () => {
   const css = read("public/css/modules/room-service-erp/design-system-v5.css");
   const app = read("public/js/modules/room-service-erp/legacy-app.js");
@@ -158,4 +173,20 @@ test("PDV ancora a comanda e separa cabecalho, lista rolavel e rodape fixo", () 
   assert.match(css, /#menuContent \.erp-pdv-card-copy p \{[\s\S]*-webkit-line-clamp: 2;/);
   assert.match(css, /#menuContent \.erp-pdv-card-action \{[\s\S]*border-top: 0 !important;/);
   assert.doesNotMatch(app, /Selecione um item para adicionar/);
+});
+
+test("PDV usa acomodacao pesquisavel e busca global sem identificadores internos", () => {
+  const css = read("public/css/modules/room-service-erp/design-system-v5.css");
+  const app = read("public/js/modules/room-service-erp/legacy-app.js");
+
+  assert.match(app, /id="roomCombobox" class="erp-room-combobox"/);
+  assert.match(app, /role="combobox" aria-autocomplete="list"/);
+  assert.doesNotMatch(app, /<select id="roomNumber"/);
+  assert.match(app, /function renderPdvRoomOptions\(\)/);
+  assert.match(app, /function roomFloorLabel\(code\)/);
+  assert.match(app, /Selecione uma acomodacao cadastrada/);
+  assert.match(css, /\.erp-room-options \{[\s\S]*max-height: 248px;[\s\S]*overflow-y: auto;/);
+  assert.match(app, /function searchSuggestionGroup\(kind\)/);
+  assert.doesNotMatch(app, /label: order\.public_id/);
+  assert.match(css, /\.top-search-group > p/);
 });
