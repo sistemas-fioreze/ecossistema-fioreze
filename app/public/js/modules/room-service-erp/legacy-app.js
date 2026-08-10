@@ -161,22 +161,13 @@ function prepareStaticInterface() {
   installOrdersInterface();
   installGuestsInterface();
 
-  const roomInput = byId("roomNumber", false);
-  if (roomInput && roomInput.tagName !== "SELECT") {
-    const roomSelect = document.createElement("select");
-    roomSelect.id = "roomNumber";
-    roomSelect.className = roomInput.className;
-    roomSelect.setAttribute("aria-label", "Acomodacao");
-    roomSelect.innerHTML = '<option value="">Apto</option>';
-    roomInput.replaceWith(roomSelect);
-  }
-
   const error = document.createElement("p");
   error.id = "legacyLoginError";
   error.className = "legacy-login-error";
   error.setAttribute("role", "alert");
   byId("btnLogin").before(error);
   byId("loginNameBadge").setAttribute("aria-live", "polite");
+  installLoginComposition();
 
   installDashboardInterface();
   installBillingInterface();
@@ -210,6 +201,7 @@ function bindStaticActions() {
   byId("loginPass").addEventListener("keydown", (event) => {
     if (event.key === "Enter") handleLogin();
   });
+  byId("loginPass").addEventListener("focus", hideLoginUserName);
   byId("loginCode").addEventListener("keydown", (event) => {
     if (event.key === "Enter") byId("loginPass").focus();
   });
@@ -267,6 +259,12 @@ function bindStaticActions() {
   });
   byId("topSearchResults", false)?.addEventListener("click", handleTopSearchClick);
   byId("pdvMenuSearch")?.addEventListener("input", renderMenu);
+  byId("roomNumber", false)?.addEventListener("input", renderPdvRoomOptions);
+  byId("roomNumber", false)?.addEventListener("focus", openPdvRoomOptions);
+  byId("roomNumber", false)?.addEventListener("click", openPdvRoomOptions);
+  byId("roomNumber", false)?.addEventListener("keydown", handlePdvRoomKeydown);
+  byId("roomOptions", false)?.addEventListener("click", handlePdvRoomSelection);
+  byId("roomComboboxToggle", false)?.addEventListener("click", togglePdvRoomOptions);
   byId("guestSearchInput")?.addEventListener("input", renderGuests);
   byId("menuAdminSearch")?.addEventListener("input", renderCatalog);
   byId("dashDate", false)?.addEventListener("change", renderDashboard);
@@ -319,10 +317,35 @@ function bindStaticActions() {
 
   document.addEventListener("click", (event) => {
     if (!event.target.closest("#topSearchWrap")) closeTopSearch();
+    if (!event.target.closest("#roomCombobox")) closePdvRoomOptions();
     if (!event.target.closest("#hdrStoreButton") && !event.target.closest("#storeQuickPanel")) {
       byId("storeQuickPanel", false)?.classList.add("hidden");
     }
   });
+}
+
+function installLoginComposition() {
+  const card = document.querySelector(".login-card");
+  const logo = card?.querySelector(".login-logo");
+  const badge = byId("loginStoreBadge", false);
+  const fields = card?.querySelector(".login-fields");
+  const error = byId("legacyLoginError", false);
+  const button = byId("btnLogin", false);
+  if (!card || !logo || !badge || !fields || !error || !button || card.querySelector(".erp-login-brand")) return;
+
+  const brand = document.createElement("section");
+  brand.className = "erp-login-brand";
+  brand.innerHTML = '<p>ERP Fioreze</p><h1>Operação clara.<br>Atendimento ágil.</h1><span>Pedidos, cardápio e equipe em um único lugar.</span>';
+  brand.prepend(logo);
+
+  const form = document.createElement("section");
+  form.className = "erp-login-form";
+  form.innerHTML = '<header><p>Acesso da unidade</p><h2>Entrar no ERP</h2><span>Use seu código de usuário e senha.</span></header>';
+  form.append(badge, fields, error, button);
+  card.prepend(brand, form);
+
+  setText("loginStoreStatus", "Room Service");
+  setText("loginStoreMode", "Acesso seguro");
 }
 
 function installPdvInterface() {
@@ -356,7 +379,7 @@ function installPdvInterface() {
       <section class="erp-pdv-customer">
         <div class="erp-pdv-section-title"><span>1</span><div><strong>Entrega</strong><small>Informe quem receberá o pedido</small></div></div>
         <div class="erp-pdv-field-grid">
-          <label class="erp-pdv-field erp-pdv-room"><span>Acomodação</span><input id="roomNumber" placeholder="Apto" aria-label="Acomodação"></label>
+          <label class="erp-pdv-field erp-pdv-room"><span>Acomodação</span><div id="roomCombobox" class="erp-room-combobox"><input id="roomNumber" placeholder="Buscar acomodação" aria-label="Acomodação" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="roomOptions" autocomplete="off"><button id="roomComboboxToggle" type="button" aria-label="Mostrar acomodações" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-width="2" d="m7 10 5 5 5-5"/></svg></button><div id="roomOptions" class="erp-room-options hidden" role="listbox" aria-label="Acomodações da unidade"></div></div></label>
           <label class="erp-pdv-field"><span>Hóspede</span><input id="guestName" placeholder="Nome do hóspede" autocomplete="off"></label>
         </div>
         <label class="erp-pdv-field"><span>Local de entrega</span><select id="consumptionLocation"><option value="Acomodação">Entregar na acomodação</option><option value="Recepção">Consumo na recepção</option></select></label>
@@ -806,7 +829,7 @@ function renderAccountSettings() {
   const initials = String(displayName || "U").split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
   const avatar = safeImage(user.avatar);
   const operational = state.session?.auth_source === "erp";
-  return `<nav class="erp-settings-breadcrumb" aria-label="Navegacao das configuracoes"><button type="button" data-settings-view="home">Configuracoes</button><span aria-hidden="true">/</span><strong>Minha conta</strong></nav><section class="erp-settings-detail erp-account-settings"><article class="erp-account-card"><div class="erp-profile-avatar">${avatar ? `<img src="${escapeAttr(avatar)}" alt="Foto de perfil" class="erp-profile-avatar">` : escapeHtml(initials)}</div><div class="erp-account-summary"><p class="erp-panel-title">${escapeHtml(displayName)}</p><p class="erp-v3-subtitle">${operational ? `Codigo ${Number(user.user_code || 0)} · ${escapeHtml(displayHotelName(state.context?.hotel))}` : "Administrador geral"}</p>${operational ? '<form id="accountAvatarForm" class="erp-avatar-form"><input id="accountAvatarFile" class="erp-visually-hidden" type="file" accept="image/jpeg,image/png,image/webp,image/avif" required><label for="accountAvatarFile" class="admin-secondary-btn erp-file-picker">Escolher foto</label><span id="accountAvatarFileName" class="erp-file-name">Nenhum arquivo selecionado</span><button type="submit" class="admin-primary-btn">Salvar foto</button><button id="removeOwnAvatarButton" type="button" class="admin-secondary-btn">Remover</button></form>' : ""}</div></article>${operational ? '<form id="accountPasswordForm" class="erp-form erp-password-form"><div><p class="erp-panel-title">Alterar senha</p><p class="erp-v3-subtitle">Use no minimo 4 caracteres.</p></div><label>Senha atual<input name="current_password" type="password" required autocomplete="current-password"></label><div class="erp-form-grid"><label>Nova senha<input name="new_password" type="password" required minlength="4" autocomplete="new-password"></label><label>Confirmar nova senha<input name="confirm_password" type="password" required minlength="4" autocomplete="new-password"></label></div><div class="erp-form-actions"><button type="submit" class="admin-primary-btn">Atualizar senha</button></div></form>' : ""}</section>`;
+  return `<nav class="erp-settings-breadcrumb" aria-label="Navegação das configurações"><button type="button" data-settings-view="home">Configurações</button>${settingsIcon("chevron")}<strong>Minha conta</strong></nav><section class="erp-settings-detail erp-account-settings"><article class="erp-account-card"><div class="erp-profile-avatar">${avatar ? `<img src="${escapeAttr(avatar)}" alt="Foto de perfil" class="erp-profile-avatar">` : escapeHtml(initials)}</div><div class="erp-account-summary"><p class="erp-panel-title">${escapeHtml(displayName)}</p><p class="erp-v3-subtitle">${operational ? `Código ${Number(user.user_code || 0)} · ${escapeHtml(displayHotelName(state.context?.hotel))}` : "Administrador geral"}</p>${operational ? '<form id="accountAvatarForm" class="erp-avatar-form"><input id="accountAvatarFile" class="erp-visually-hidden" type="file" accept="image/jpeg,image/png,image/webp,image/avif" required><div class="erp-avatar-actions"><label for="accountAvatarFile" class="admin-secondary-btn erp-file-picker">Escolher foto</label><button id="accountAvatarSave" type="submit" class="admin-primary-btn" disabled>Salvar foto</button></div><span id="accountAvatarFileName" class="erp-file-name" hidden></span><button id="removeOwnAvatarButton" type="button" class="erp-remove-avatar">Remover foto atual</button></form>' : ""}</div></article>${operational ? '<form id="accountPasswordForm" class="erp-form erp-password-form"><div><p class="erp-panel-title">Alterar senha</p><p class="erp-v3-subtitle">Use no mínimo 4 caracteres.</p></div><label>Senha atual<input name="current_password" type="password" required autocomplete="current-password"></label><label>Nova senha<input name="new_password" type="password" required minlength="4" autocomplete="new-password"></label><label>Confirmar nova senha<input name="confirm_password" type="password" required minlength="4" autocomplete="new-password"></label><div class="erp-form-actions"><button type="submit" class="admin-primary-btn">Atualizar senha</button></div></form>' : ""}</section>`;
 }
 
 function renderAppearanceSettings() {
@@ -942,7 +965,18 @@ function scheduleLoginUserLookup() {
       const displayName = String(payload.data?.display_name || "").trim();
       if (!payload.data?.found || !displayName) return;
       const badge = byId("loginNameBadge");
-      badge.textContent = displayName;
+      badge.replaceChildren();
+      const avatar = document.createElement("span");
+      avatar.className = "erp-login-user-avatar";
+      avatar.textContent = displayName.slice(0, 1).toUpperCase();
+      const copy = document.createElement("span");
+      copy.className = "erp-login-user-copy";
+      const name = document.createElement("strong");
+      name.textContent = displayName;
+      const meta = document.createElement("small");
+      meta.textContent = "Usuário localizado";
+      copy.append(name, meta);
+      badge.append(avatar, copy);
       badge.classList.remove("hidden");
     } catch {
       if (sequence === loginUserLookupSequence) hideLoginUserName();
@@ -953,7 +987,7 @@ function scheduleLoginUserLookup() {
 function hideLoginUserName() {
   const badge = byId("loginNameBadge", false);
   if (!badge) return;
-  badge.textContent = "";
+  badge.replaceChildren();
   badge.classList.add("hidden");
 }
 
@@ -1137,12 +1171,69 @@ function renderAll() {
 }
 
 function renderPdvRoomOptions() {
-  const select = byId("roomNumber", false);
-  if (!select || select.tagName !== "SELECT") return;
-  const current = select.value;
+  const input = byId("roomNumber", false);
+  const target = byId("roomOptions", false);
+  if (!input || !target) return;
+  const query = normalize(input.value);
   const rooms = (state.context?.rooms || state.rooms || []).filter((room) => room.status !== "inactive");
-  select.innerHTML = `<option value="">Apto</option>${rooms.map((room) => `<option value="${escapeAttr(room.code)}">${escapeHtml(room.label ? `${room.code} - ${displayBusinessText(room.label)}` : room.code)}</option>`).join("")}`;
-  if (rooms.some((room) => room.code === current)) select.value = current;
+  const visibleRooms = rooms.filter((room) => !query || normalize(`${room.code} ${room.label || ""} ${room.room_type || ""}`).includes(query));
+  const groups = visibleRooms.reduce((result, room) => {
+    const label = roomFloorLabel(room.code);
+    if (!result.has(label)) result.set(label, []);
+    result.get(label).push(room);
+    return result;
+  }, new Map());
+  target.innerHTML = visibleRooms.length
+    ? [...groups.entries()].map(([label, entries]) => `<section class="erp-room-option-group"><p>${escapeHtml(label)}</p>${entries.map((room) => `<button type="button" role="option" data-room-option="${escapeAttr(room.code)}"><strong>${escapeHtml(room.code)}</strong><span>${escapeHtml(displayBusinessText(room.label, "Acomodação"))}</span></button>`).join("")}</section>`).join("")
+    : '<p class="erp-room-option-empty">Nenhuma acomodação encontrada.</p>';
+}
+
+function roomFloorLabel(code) {
+  const value = String(code || "").trim();
+  if (/^\d{3,}$/.test(value)) return `${value.slice(0, -2)}º andar`;
+  return "Acomodações";
+}
+
+function openPdvRoomOptions() {
+  const input = byId("roomNumber", false);
+  const target = byId("roomOptions", false);
+  if (!input || !target) return;
+  renderPdvRoomOptions();
+  target.classList.remove("hidden");
+  input.setAttribute("aria-expanded", "true");
+}
+
+function closePdvRoomOptions() {
+  byId("roomOptions", false)?.classList.add("hidden");
+  byId("roomNumber", false)?.setAttribute("aria-expanded", "false");
+}
+
+function togglePdvRoomOptions() {
+  const target = byId("roomOptions", false);
+  if (!target) return;
+  if (target.classList.contains("hidden")) {
+    byId("roomNumber", false)?.focus();
+    openPdvRoomOptions();
+  } else {
+    closePdvRoomOptions();
+  }
+}
+
+function handlePdvRoomSelection(event) {
+  const option = event.target.closest("[data-room-option]");
+  if (!option) return;
+  byId("roomNumber").value = option.dataset.roomOption;
+  closePdvRoomOptions();
+  byId("guestName", false)?.focus();
+}
+
+function handlePdvRoomKeydown(event) {
+  if (event.key === "Escape") return closePdvRoomOptions();
+  if (event.key === "ArrowDown") {
+    event.preventDefault();
+    openPdvRoomOptions();
+    byId("roomOptions", false)?.querySelector("[data-room-option]")?.focus();
+  }
 }
 
 function switchTab(route) {
@@ -1384,7 +1475,11 @@ function renderMenu() {
 }
 
 function menuCategory(category) {
-  return `<section class="erp-pdv-category"><h2>${categoryIcon()} <span>${escapeHtml(displayBusinessText(category.name, "Cardápio"))}</span><small>${category.items.length} ${category.items.length === 1 ? "item" : "itens"}</small></h2><div class="erp-pdv-list">${category.items.map(menuCard).join("")}</div></section>`;
+  return `<section class="erp-pdv-category"><h2>${categoryIcon()} <span>${escapeHtml(stripDecorativeEmoji(displayBusinessText(category.name, "Cardápio")))}</span><small>${category.items.length} ${category.items.length === 1 ? "item" : "itens"}</small></h2><div class="erp-pdv-list">${category.items.map(menuCard).join("")}</div></section>`;
+}
+
+function stripDecorativeEmoji(value) {
+  return String(value || "").replace(/\p{Extended_Pictographic}|\uFE0F/gu, "").replace(/\s{2,}/g, " ").trim();
 }
 
 function menuCard(item) {
@@ -1464,6 +1559,8 @@ async function submitPdvOrder() {
   const guestName = byId("guestName").value.trim();
   const roomCode = byId("roomNumber").value.trim();
   if (!guestName || !roomCode) return notify("Informe hospede e acomodacao.");
+  const roomExists = (state.context?.rooms || state.rooms || []).some((room) => room.status !== "inactive" && String(room.code) === roomCode);
+  if (!roomExists) return notify("Selecione uma acomodacao cadastrada.");
   try {
     setPageBusy(true, "Criando pedido...");
     await createPdvOrder({
@@ -1612,7 +1709,14 @@ function renderAdmin() {
   });
   const accountAvatarFile = byId("accountAvatarFile", false);
   accountAvatarFile?.addEventListener("change", () => {
-    setText("accountAvatarFileName", accountAvatarFile.files?.[0]?.name || "Nenhum arquivo selecionado");
+    const file = accountAvatarFile.files?.[0];
+    const fileName = byId("accountAvatarFileName", false);
+    const saveButton = byId("accountAvatarSave", false);
+    if (fileName) {
+      fileName.textContent = file?.name || "";
+      fileName.hidden = !file;
+    }
+    if (saveButton) saveButton.disabled = !file;
   });
 }
 
@@ -2286,11 +2390,31 @@ function renderTopSearchResults() {
   const target = byId("topSearchResults", false);
   if (!input || !target || !state.session) return;
   const query = normalize(input.value);
-  const suggestions = buildSearchSuggestions().filter((entry) => !query || normalize(`${entry.label} ${entry.meta}`).includes(query)).slice(0, 8);
+  const suggestions = buildSearchSuggestions().filter((entry) => !query || normalize(`${entry.label} ${entry.meta}`).includes(query)).slice(0, 7);
+  const groups = suggestions.reduce((result, entry) => {
+    const group = searchSuggestionGroup(entry.kind);
+    if (!result.has(group)) result.set(group, []);
+    result.get(group).push(entry);
+    return result;
+  }, new Map());
+  let resultIndex = 0;
   target.innerHTML = suggestions.length
-    ? suggestions.map((entry, index) => `<button type="button" class="top-search-item ${index === 0 ? "active" : ""}" data-search-kind="${escapeAttr(entry.kind)}" data-search-value="${escapeAttr(entry.value)}"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M5 12h14M13 5l7 7-7 7"/></svg><span><span class="top-search-title">${escapeHtml(entry.label)}</span><span class="top-search-meta">${escapeHtml(entry.meta)}</span></span></button>`).join("")
+    ? [...groups.entries()].map(([group, entries]) => `<section class="top-search-group"><p>${escapeHtml(group)}</p>${entries.map((entry) => `<button type="button" class="top-search-item ${resultIndex++ === 0 ? "active" : ""}" data-search-kind="${escapeAttr(entry.kind)}" data-search-value="${escapeAttr(entry.value)}">${searchSuggestionIcon(entry.kind)}<span><span class="top-search-title">${escapeHtml(entry.label)}</span><span class="top-search-meta">${escapeHtml(entry.meta)}</span></span></button>`).join("")}</section>`).join("")
     : '<p class="erp-search-empty">Nenhum resultado encontrado.</p>';
   target.classList.remove("hidden");
+  document.body.classList.add("erp-search-open");
+}
+
+function searchSuggestionGroup(kind) {
+  if (kind === "order") return "Pedidos";
+  if (kind === "catalog") return "Cardápio";
+  return "Navegação";
+}
+
+function searchSuggestionIcon(kind) {
+  if (kind === "order") return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-width="2" d="M7 3h10v18l-5-3-5 3V3Z"/></svg>';
+  if (kind === "catalog") return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-width="2" d="M4 6h16M4 12h16M4 18h10"/></svg>';
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-width="2" d="m9 18 6-6-6-6"/></svg>';
 }
 
 function feedbackIcon() {
@@ -2312,7 +2436,7 @@ function buildSearchSuggestions() {
     admin: ["Configuracoes", "Ajustes do ERP"],
   };
   const routes = Object.entries(routeLabels).filter(([route]) => !byId(ROUTES[route].button).classList.contains("hidden")).map(([route, [label, meta]]) => ({ kind: "route", value: route, label, meta }));
-  const orders = state.orders.slice(0, 20).map((order) => ({ kind: "order", value: order.id, label: order.public_id || "Pedido", meta: `${order.room_code || "Sem acomodacao"} · ${statusLabel(order.status)}` }));
+  const orders = state.orders.slice(0, 20).map((order) => ({ kind: "order", value: order.id, label: order.room_code ? `Pedido da acomodação ${order.room_code}` : "Pedido sem acomodação", meta: `${statusLabel(order.status)} · ${formatDate(order.created_at, { hour: "2-digit", minute: "2-digit" })}` }));
   const items = allCatalogItems().slice(0, 30).map((item) => ({ kind: "catalog", value: item.id, label: displayBusinessText(item.name, "Item do cardapio"), meta: displayBusinessText(item.tag, "Item do cardapio") }));
   return [...routes, ...orders, ...items];
 }
@@ -2343,6 +2467,7 @@ function runSearchSuggestion(kind, value) {
 
 function closeTopSearch() {
   byId("topSearchResults", false)?.classList.add("hidden");
+  document.body.classList.remove("erp-search-open");
 }
 
 function updateNotificationBadge(count) {
@@ -2362,8 +2487,6 @@ function updateHeaderState() {
   button.classList.toggle("store-closed", !service.open);
   setText("hdrStoreStatus", service.label);
   setText("hdrStoreMode", service.mode === "automatic" ? "Automatico" : "Manual");
-  setText("loginStoreStatus", service.label);
-  setText("loginStoreMode", "Room Service");
   renderStoreQuickPanel();
 }
 
@@ -2375,6 +2498,7 @@ function currentServiceState() {
 
 function setLoginBusy(busy, message = "Validando usuario e senha") {
   byId("btnLogin").disabled = busy;
+  document.querySelector(".login-card")?.classList.toggle("is-loading", busy);
   byId("loginLoadingScreen").classList.toggle("hidden", !busy);
   setText("loginLoadingText", message);
 }
