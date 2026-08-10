@@ -13,7 +13,6 @@
 }
 
 #appShell {
-  transform: scale(var(--interface-scale, 1));
   transform-origin: top left;
 }
 

@@ -192,9 +192,9 @@ function prepareStaticInterface() {
   document.querySelector(".login-version-note")?.remove();
   byId("welcomeOverlay", false)?.remove();
   document.querySelector(".sidebar-footer:empty")?.remove();
-  const themeLabel = byId("quickThemeTile", false)?.querySelector("span");
-  if (themeLabel) themeLabel.textContent = "Tema escuro";
-  applySavedTheme();
+  byId("quickThemeTile", false)?.remove();
+  document.documentElement.classList.remove("dark");
+  localStorage.removeItem("fioreze-erp-theme");
   document.querySelectorAll(".side-nav-btn").forEach((button) => {
     button.title = button.querySelector(".side-text")?.textContent?.trim() || "";
   });
@@ -239,7 +239,6 @@ function bindStaticActions() {
   const sessionButton = document.querySelector(".top-session");
   sessionButton?.addEventListener("click", () => byId("accountPopover").classList.toggle("hidden"));
   document.querySelector(".quick-tile.logout")?.addEventListener("click", handleLogout);
-  byId("quickThemeTile")?.addEventListener("click", toggleTheme);
   byId("hdrStoreButton")?.addEventListener("click", toggleStoreQuickPanel);
   byId("accountConfigButton")?.addEventListener("click", () => openSettingsView("home"));
   document.querySelector(".quick-tile.print")?.addEventListener("click", () => openSettingsView("printing"));
@@ -343,7 +342,7 @@ function installPdvInterface() {
           <input id="pdvMenuSearch" type="search" placeholder="Buscar no cardápio" autocomplete="off">
         </label>
       </header>
-      <div class="erp-pdv-catalog-meta"><span id="pdvMenuSummary">Cardápio</span><small>Selecione um item para adicionar</small></div>
+      <div class="erp-pdv-catalog-meta"><span id="pdvMenuSummary">Cardápio</span></div>
       <div id="menuContent" class="erp-pdv-content"></div>
     </main>
     <button id="pdvMobileJump" type="button" class="erp-pdv-mobile-jump">${cartIcon()} <span id="pdvMobileJumpLabel">Ver comanda</span></button>
@@ -2146,14 +2145,14 @@ function applyInterfaceScale(value, persist = false) {
   document.documentElement.style.setProperty("--interface-height", `${100 / factor}vh`);
   if (shell && globalThis.CSS?.supports?.("zoom", "1")) {
     shell.style.zoom = String(factor);
-    shell.style.transform = "none";
-    shell.style.width = `${100 / factor}%`;
-    shell.style.height = `${100 / factor}vh`;
+    shell.style.setProperty("transform", "none", "important");
+    shell.style.setProperty("width", `${100 / factor}vw`, "important");
+    shell.style.setProperty("height", `${100 / factor}dvh`, "important");
   } else if (shell) {
     shell.style.removeProperty("zoom");
-    shell.style.transform = `scale(${factor})`;
-    shell.style.width = `${100 / factor}vw`;
-    shell.style.height = `${100 / factor}vh`;
+    shell.style.setProperty("transform", `scale(${factor})`, "important");
+    shell.style.setProperty("width", `${100 / factor}vw`, "important");
+    shell.style.setProperty("height", `${100 / factor}dvh`, "important");
   }
   state.interfaceScale = scale;
   const headerRange = byId("interfaceScaleRange", false);
@@ -2398,26 +2397,6 @@ function showApplication() {
   document.body.classList.add("erp-authenticated");
   byId("loginOverlay").classList.add("hidden");
   byId("appShell").style.display = "flex";
-}
-
-function toggleTheme() {
-  document.documentElement.classList.toggle("dark");
-  const dark = document.documentElement.classList.contains("dark");
-  localStorage.setItem("fioreze-erp-theme", dark ? "dark" : "light");
-  updateThemeTile();
-}
-
-function applySavedTheme() {
-  document.documentElement.classList.toggle("dark", localStorage.getItem("fioreze-erp-theme") === "dark");
-  updateThemeTile();
-}
-
-function updateThemeTile() {
-  const tile = byId("quickThemeTile", false);
-  const label = tile?.querySelector("span");
-  const dark = document.documentElement.classList.contains("dark");
-  if (label) label.textContent = dark ? "Tema claro" : "Tema escuro";
-  tile?.classList.toggle("active", dark);
 }
 
 function bindOrderButtons(container) {

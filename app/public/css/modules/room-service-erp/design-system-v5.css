@@ -4923,3 +4923,510 @@ body[data-erp="room-service"] .erp-feedback-actions {
     width: 100%;
   }
 }
+
+/* ERP workspace refinement: loose login, list quick settings and anchored PDV. */
+body[data-erp="room-service"] .login-card {
+  width: 360px !important;
+  padding: 24px 20px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+body[data-erp="room-service"] .login-card > img {
+  margin-bottom: 28px !important;
+}
+
+body[data-erp="room-service"] .login-store-badge {
+  border: 0 !important;
+  background: transparent !important;
+}
+
+body[data-erp="room-service"] .account-popover {
+  width: min(330px, calc(100vw - 24px)) !important;
+  padding: 8px !important;
+  border-radius: var(--erp-radius-lg) !important;
+  background: #fff !important;
+  opacity: 1 !important;
+}
+
+body[data-erp="room-service"] .quick-settings-grid {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+  overflow: visible !important;
+}
+
+body[data-erp="room-service"] :is(
+  .quick-tile,
+  .quick-tile.config,
+  .quick-tile.store,
+  .quick-tile.password,
+  .quick-tile.logout,
+  #accountConfigButton.hidden + .quick-tile.store
+) {
+  width: 100% !important;
+  min-height: 46px !important;
+  display: grid !important;
+  grid-template-columns: 22px minmax(0, 1fr) !important;
+  grid-template-rows: 1fr !important;
+  align-items: center !important;
+  justify-content: stretch !important;
+  gap: 11px !important;
+  padding: 0 12px !important;
+  border: 0 !important;
+  border-radius: var(--erp-radius-md) !important;
+  background: transparent !important;
+  color: var(--erp-text) !important;
+  font-size: var(--erp-text-sm) !important;
+  font-weight: 700 !important;
+  text-align: left !important;
+}
+
+body[data-erp="room-service"] .quick-tile:hover,
+body[data-erp="room-service"] .quick-tile:focus-visible {
+  background: var(--erp-surface-hover) !important;
+  color: var(--brand-primary-text) !important;
+  transform: none !important;
+}
+
+body[data-erp="room-service"] .quick-tile.danger {
+  background: transparent !important;
+  color: var(--erp-danger) !important;
+}
+
+body[data-erp="room-service"] .quick-tile :is(svg, span) {
+  align-self: center;
+}
+
+body[data-erp="room-service"] .quick-setting-panel {
+  margin: 4px 4px 0 !important;
+  padding: 12px 8px 8px !important;
+  border: 0 !important;
+  border-top: 1px solid var(--erp-line) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+body[data-erp="room-service"] .side-brand {
+  height: 50px !important;
+  min-height: 50px !important;
+  margin: 0 6px 14px !important;
+}
+
+body[data-erp="room-service"] .side-brand-logo {
+  max-width: 160px !important;
+  max-height: 44px !important;
+}
+
+body[data-erp="room-service"] .erp-nav-group-label {
+  margin-block: 16px 7px;
+  font-size: 10px !important;
+}
+
+body[data-erp="room-service"] .side-nav-btn.tab-active,
+body[data-erp="room-service"] .side-nav-btn[aria-current="page"] {
+  background: var(--brand-primary-soft) !important;
+  color: var(--brand-primary-text) !important;
+}
+
+body[data-erp="room-service"] .app-topbar :is(.erp-feedback-trigger, .notif-button, .help-button) {
+  border-color: transparent !important;
+  background: transparent !important;
+}
+
+body[data-erp="room-service"] .erp-feedback-trigger svg {
+  width: 16px !important;
+  height: 16px !important;
+  color: var(--erp-text-muted) !important;
+}
+
+body[data-erp="room-service"] .store-status-btn {
+  gap: 7px !important;
+  padding-inline: 11px !important;
+}
+
+body[data-erp="room-service"] .store-status-btn .store-mode-label {
+  padding-left: 7px;
+  border-left: 1px solid currentColor;
+  opacity: .68;
+}
+
+body[data-erp="room-service"] #vendasContainer.erp-pdv-workspace {
+  --pdv-panel-width: clamp(370px, 28vw, 410px);
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: row !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  background: var(--erp-surface) !important;
+  scrollbar-gutter: auto !important;
+}
+
+body[data-erp="room-service"] #vendasContainer.erp-pdv-workspace.hidden {
+  display: none !important;
+}
+
+body[data-erp="room-service"] #vendasContainer > main.erp-pdv-catalog,
+body[data-erp="room-service"] .erp-pdv-catalog {
+  width: auto !important;
+  min-width: 0 !important;
+  height: 100% !important;
+  display: block !important;
+  flex: 1 1 0 !important;
+  padding: 24px var(--erp-page-gutter) 56px !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  background: var(--erp-surface) !important;
+  scrollbar-gutter: stable !important;
+}
+
+body[data-erp="room-service"] .pdv-menu-head {
+  display: grid !important;
+  grid-template-columns: minmax(220px, .8fr) minmax(300px, 1.2fr) !important;
+  align-items: end !important;
+  gap: 22px !important;
+  margin: 0 0 20px !important;
+  padding: 0 0 18px !important;
+  border-bottom: 1px solid var(--erp-line) !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-heading h2 {
+  font-size: 22px !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-heading p {
+  margin-top: 5px;
+  font-size: var(--erp-text-sm) !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-kicker {
+  margin-bottom: 5px;
+  font-size: 11px !important;
+}
+
+body[data-erp="room-service"] .pdv-menu-search {
+  width: 100% !important;
+  min-width: 0;
+  justify-self: stretch;
+  background: var(--erp-surface-soft) !important;
+}
+
+body[data-erp="room-service"] .pdv-menu-search input,
+body[data-erp="room-service"] .pdv-menu-search input:focus {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-catalog-meta {
+  min-height: 24px;
+  margin: 0 0 12px !important;
+  padding: 0 2px;
+  justify-content: flex-start !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-catalog-meta > span {
+  color: var(--erp-text-soft) !important;
+  font-size: var(--erp-text-sm) !important;
+  font-weight: 700 !important;
+}
+
+body[data-erp="room-service"] #menuContent.erp-pdv-content {
+  max-width: none !important;
+  margin: 0 !important;
+  gap: 28px !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-category {
+  gap: 10px !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-category > h2 {
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start !important;
+  gap: 8px;
+  padding: 0 !important;
+  color: var(--erp-text) !important;
+  font-size: var(--erp-text-md) !important;
+  font-weight: 760 !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-category > h2 svg {
+  width: 17px;
+  height: 17px;
+  color: var(--brand-primary-text) !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-category > h2 small {
+  margin-left: 0 !important;
+  padding: 3px 7px;
+  border-radius: var(--erp-radius-pill);
+  background: var(--erp-surface-soft);
+  color: var(--erp-text-muted) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-list {
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important;
+  align-items: stretch;
+  gap: 10px !important;
+}
+
+body[data-erp="room-service"] #menuContent .erp-pdv-card {
+  min-height: 154px !important;
+  display: grid !important;
+  grid-template-columns: 88px minmax(0, 1fr) !important;
+  grid-template-rows: minmax(88px, auto) auto !important;
+  align-content: start !important;
+  gap: 10px 13px !important;
+  padding: 12px !important;
+  border: 1px solid var(--erp-line) !important;
+  border-radius: var(--erp-radius-lg) !important;
+  background: var(--erp-surface) !important;
+  box-shadow: none !important;
+}
+
+body[data-erp="room-service"] #menuContent .erp-pdv-thumb {
+  width: 88px !important;
+  min-width: 88px !important;
+  height: 88px !important;
+  min-height: 88px !important;
+  border-radius: var(--erp-radius-md) !important;
+}
+
+body[data-erp="room-service"] #menuContent .erp-pdv-card-copy {
+  gap: 0;
+}
+
+body[data-erp="room-service"] #menuContent .erp-pdv-card-copy > span {
+  max-width: 100%;
+  margin-bottom: 4px;
+  overflow: hidden;
+  color: var(--erp-text-muted) !important;
+  font-size: 10px !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body[data-erp="room-service"] #menuContent .erp-pdv-card-copy h3 {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: var(--erp-text-md) !important;
+  line-height: 1.32;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+body[data-erp="room-service"] #menuContent .erp-pdv-card-copy p {
+  display: -webkit-box;
+  margin-top: 5px;
+  overflow: hidden;
+  color: var(--erp-text-muted) !important;
+  font-size: var(--erp-text-xs) !important;
+  line-height: 1.42;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+body[data-erp="room-service"] #menuContent .erp-pdv-card-action {
+  min-width: 0;
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 0;
+  border-top: 0 !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-price {
+  color: var(--erp-text) !important;
+  font-size: 15px !important;
+  font-weight: 780 !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-add {
+  min-width: 112px;
+  min-height: 40px;
+  padding-inline: 14px !important;
+  border-radius: var(--erp-radius-md) !important;
+  font-size: var(--erp-text-sm) !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-add svg {
+  width: 15px;
+  height: 15px;
+}
+
+body[data-erp="room-service"] #vendasContainer .pdv-panel {
+  position: relative !important;
+  inset: auto !important;
+  width: var(--pdv-panel-width) !important;
+  min-width: var(--pdv-panel-width) !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex: 0 0 var(--pdv-panel-width) !important;
+  flex-direction: column !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  border: 0 !important;
+  border-left: 1px solid var(--erp-line) !important;
+  border-radius: 0 !important;
+  background: var(--erp-surface-soft) !important;
+  box-shadow: none !important;
+  transform: none !important;
+  scrollbar-gutter: auto !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-order-head {
+  flex: 0 0 auto;
+  min-height: 70px;
+  padding: 12px 18px !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-order-icon {
+  width: 38px;
+  height: 38px;
+}
+
+body[data-erp="room-service"] .erp-pdv-customer {
+  flex: 0 0 auto;
+  gap: 12px;
+  padding: 15px 18px 16px;
+}
+
+body[data-erp="room-service"] .erp-pdv-section-title > span {
+  width: 19px;
+  height: 19px;
+  background: var(--brand-primary-soft) !important;
+  color: var(--brand-primary-text) !important;
+  font-size: 10px !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-section-title strong {
+  font-size: var(--erp-text-sm) !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-section-title small {
+  font-size: 11px !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-field-grid {
+  grid-template-columns: minmax(118px, 40%) minmax(0, 60%);
+  gap: 9px;
+}
+
+body[data-erp="room-service"] .erp-pdv-field {
+  gap: 6px;
+}
+
+body[data-erp="room-service"] .erp-pdv-field > span {
+  font-size: 11px !important;
+}
+
+body[data-erp="room-service"] .pdv-panel .erp-pdv-field :is(input, select, textarea) {
+  height: 42px;
+  font-size: var(--erp-text-sm) !important;
+  font-weight: 620;
+}
+
+body[data-erp="room-service"] .pdv-panel .erp-pdv-field textarea {
+  height: 68px;
+}
+
+body[data-erp="room-service"] .erp-pdv-cart-section {
+  min-height: 0;
+  flex: 1 1 auto;
+  padding: 14px 18px 0;
+  overflow: hidden;
+}
+
+body[data-erp="room-service"] #cartItems.erp-pdv-cart-list {
+  min-height: 0;
+  flex: 1 1 auto;
+  margin-top: 10px;
+  padding: 0 3px 14px 0 !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  scrollbar-gutter: stable;
+}
+
+body[data-erp="room-service"] .erp-pdv-cart-empty {
+  height: auto;
+  min-height: 110px;
+  justify-content: flex-start;
+  padding-top: 26px;
+}
+
+body[data-erp="room-service"] .erp-pdv-checkout {
+  position: sticky;
+  inset: auto 0 0;
+  z-index: 2;
+  flex: 0 0 auto;
+  padding: 14px 18px max(16px, env(safe-area-inset-bottom)) !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-total-row {
+  margin-bottom: 11px;
+}
+
+body[data-erp="room-service"] .erp-pdv-total-row strong {
+  font-size: 21px;
+}
+
+body[data-erp="room-service"] .erp-pdv-checkout-actions {
+  grid-template-columns: 84px minmax(0, 1fr);
+}
+
+@media (max-width: 1250px) {
+  body[data-erp="room-service"] #vendasContainer.erp-pdv-workspace {
+    --pdv-panel-width: 350px;
+  }
+
+  body[data-erp="room-service"] .pdv-menu-head {
+    grid-template-columns: 1fr;
+    gap: 12px !important;
+  }
+
+  body[data-erp="room-service"] .erp-pdv-list {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
+  }
+}
+
+@media (max-width: 820px) {
+  body[data-erp="room-service"] #vendasContainer.erp-pdv-workspace {
+    display: block !important;
+    overflow-y: auto !important;
+  }
+
+  body[data-erp="room-service"] #vendasContainer.erp-pdv-workspace.hidden {
+    display: none !important;
+  }
+
+  body[data-erp="room-service"] .erp-pdv-catalog {
+    height: auto !important;
+    min-height: 560px;
+    overflow: visible !important;
+  }
+
+  body[data-erp="room-service"] #vendasContainer .pdv-panel {
+    width: 100% !important;
+    min-width: 100% !important;
+    height: min(720px, calc(100dvh - 66px)) !important;
+    border-top: 1px solid var(--erp-line) !important;
+    border-left: 0 !important;
+  }
+}
