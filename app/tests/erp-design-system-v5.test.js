@@ -107,6 +107,8 @@ test("editor, modais e layout estreito preservam conteudo e acoes", () => {
   assert.match(css, /\.erp-user-modal-actions \{[\s\S]*position: sticky;[\s\S]*bottom: 0;/);
   assert.match(css, /\.erp-user-permission-grid label \{[\s\S]*min-height: 52px;/);
   assert.match(css, /@media \(max-width: 1100px\) \{[\s\S]*\.app-main \{[\s\S]*flex: 1 1 100% !important;/);
+  assert.match(css, /\.app-sidebar \{[\s\S]*border-right: 1px solid var\(--erp-line\) !important;/);
+  assert.doesNotMatch(css, /\.app-sidebar \{[^}]*border-right: 0 !important;/);
   assert.match(css, /\.sidebar-footer \{[\s\S]*border-top: 0 !important;/);
   assert.match(css, /#vendasContainer > main\.erp-pdv-catalog[\s\S]*flex: 1 1 0 !important;/);
   assert.match(css, /#menuContent \.erp-pdv-card-copy h3 \{[\s\S]*-webkit-line-clamp: unset;/);
