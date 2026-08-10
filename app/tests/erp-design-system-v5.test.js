@@ -128,3 +128,34 @@ test("conta e suporte usam estados visuais controlados", () => {
   assert.match(css, /\.erp-feedback-preview img\[hidden\]/);
   assert.match(css, /\.top-search-item\.active[\s\S]*background: var\(--brand-primary-soft\)/);
 });
+
+test("login, menu rapido e escala usam a estrutura final sem superficies concorrentes", () => {
+  const css = read("public/css/modules/room-service-erp/design-system-v5.css");
+  const polish = read("public/css/modules/room-service-erp/production-polish.css");
+  const app = read("public/js/modules/room-service-erp/legacy-app.js");
+
+  assert.match(css, /ERP workspace refinement/);
+  assert.match(css, /\.login-card \{[\s\S]*border: 0 !important;[\s\S]*background: transparent !important;[\s\S]*box-shadow: none !important;/);
+  assert.match(css, /\.quick-settings-grid \{[\s\S]*flex-direction: column !important;/);
+  assert.match(css, /\.quick-tile\.logout[\s\S]*grid-template-columns: 22px minmax\(0, 1fr\) !important;/);
+  assert.match(app, /byId\("quickThemeTile", false\)\?\.remove\(\)/);
+  assert.doesNotMatch(app, /function toggleTheme\(/);
+  assert.doesNotMatch(app, /function applySavedTheme\(/);
+  assert.doesNotMatch(polish, /#appShell \{\s*transform: scale/);
+  assert.match(app, /setProperty\("width", `\$\{100 \/ factor\}vw`, "important"\)/);
+  assert.match(app, /setProperty\("height", `\$\{100 \/ factor\}dvh`, "important"\)/);
+});
+
+test("PDV ancora a comanda e separa cabecalho, lista rolavel e rodape fixo", () => {
+  const css = read("public/css/modules/room-service-erp/design-system-v5.css");
+  const app = read("public/js/modules/room-service-erp/legacy-app.js");
+
+  assert.match(css, /#vendasContainer\.erp-pdv-workspace \{[\s\S]*padding: 0 !important;[\s\S]*overflow: hidden !important;/);
+  assert.match(css, /#vendasContainer \.pdv-panel \{[\s\S]*height: 100% !important;[\s\S]*margin: 0 !important;[\s\S]*border-radius: 0 !important;/);
+  assert.match(css, /#cartItems\.erp-pdv-cart-list \{[\s\S]*overflow-y: auto !important;/);
+  assert.match(css, /\.erp-pdv-checkout \{[\s\S]*position: sticky;[\s\S]*inset: auto 0 0;/);
+  assert.match(css, /\.erp-pdv-list \{[\s\S]*minmax\(300px, 1fr\)/);
+  assert.match(css, /#menuContent \.erp-pdv-card-copy p \{[\s\S]*-webkit-line-clamp: 2;/);
+  assert.match(css, /#menuContent \.erp-pdv-card-action \{[\s\S]*border-top: 0 !important;/);
+  assert.doesNotMatch(app, /Selecione um item para adicionar/);
+});
