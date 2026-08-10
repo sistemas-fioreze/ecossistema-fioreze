@@ -3583,3 +3583,680 @@ body[data-erp="room-service"] .premium-pop {
     transition-duration: .01ms !important;
   }
 }
+
+/* Final structural pass: one page axis, one control surface and readable density. */
+:root {
+  --erp-text-xs: 12px;
+  --erp-text-sm: 13px;
+  --erp-text-md: 14px;
+  --erp-text-lg: 18px;
+  --erp-text-xl: 22px;
+  --erp-text-soft: #4f5a68;
+  --erp-text-muted: #687382;
+  --erp-text-faint: #87919e;
+  --erp-control-sm: 36px;
+  --erp-control-md: 42px;
+  --erp-control-lg: 46px;
+  --erp-control-radius: 10px;
+  --erp-page-gutter: clamp(16px, 2vw, 32px);
+}
+
+body[data-erp="room-service"] {
+  font-size: var(--erp-text-md);
+}
+
+body[data-erp="room-service"] .erp-nav-group-label,
+body[data-erp="room-service"] .admin-kicker,
+body[data-erp="room-service"] .erp-v4-kicker,
+body[data-erp="room-service"] .print-manager-kicker,
+body[data-erp="room-service"] .order-edit-label,
+body[data-erp="room-service"] .menu-modal-field label,
+body[data-erp="room-service"] .combo-field label,
+body[data-erp="room-service"] .erp-form label,
+body[data-erp="room-service"] .erp-form legend,
+body[data-erp="room-service"] .erp-panel-meta,
+body[data-erp="room-service"] .erp-stat-label,
+body[data-erp="room-service"] .guest-letter-title,
+body[data-erp="room-service"] #faturamentoContainer th {
+  font-size: 11px !important;
+  line-height: 1.35;
+}
+
+body[data-erp="room-service"] .side-nav-btn,
+body[data-erp="room-service"] .top-search-box input,
+body[data-erp="room-service"] .pdv-menu-search input,
+body[data-erp="room-service"] .tab-search input,
+body[data-erp="room-service"] input,
+body[data-erp="room-service"] select,
+body[data-erp="room-service"] textarea,
+body[data-erp="room-service"] button {
+  font-size: var(--erp-text-sm);
+}
+
+body[data-erp="room-service"] .erp-v3-title,
+body[data-erp="room-service"] .admin-title,
+body[data-erp="room-service"] .print-manager-title,
+body[data-erp="room-service"] .pdv-menu-head h2 {
+  font-size: var(--erp-text-xl) !important;
+}
+
+body[data-erp="room-service"] .erp-v3-subtitle,
+body[data-erp="room-service"] .dash-v2-subtitle,
+body[data-erp="room-service"] .admin-subtitle,
+body[data-erp="room-service"] .erp-settings-link small,
+body[data-erp="room-service"] .erp-order-preferences small,
+body[data-erp="room-service"] .erp-room-card small,
+body[data-erp="room-service"] .admin-user-card small {
+  color: var(--erp-text-muted) !important;
+  font-size: var(--erp-text-xs) !important;
+  line-height: 1.45;
+}
+
+/* Composite searches own all visual chrome. */
+body[data-erp="room-service"] .top-search-box,
+body[data-erp="room-service"] .pdv-menu-search,
+body[data-erp="room-service"] .tab-search {
+  min-height: var(--erp-control-md);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px !important;
+  border: 1px solid var(--erp-line-strong) !important;
+  border-radius: var(--erp-control-radius) !important;
+  background: var(--erp-surface) !important;
+  box-shadow: none !important;
+}
+
+body[data-erp="room-service"] .top-search-box > svg,
+body[data-erp="room-service"] .pdv-menu-search > svg,
+body[data-erp="room-service"] .tab-search > svg {
+  position: static !important;
+  inset: auto !important;
+  width: 17px;
+  height: 17px;
+  color: var(--erp-text-muted);
+  transform: none !important;
+}
+
+body[data-erp="room-service"] .top-search-box input,
+body[data-erp="room-service"] .pdv-menu-search input,
+body[data-erp="room-service"] .tab-search input,
+body[data-erp="room-service"] #topSearchInput,
+body[data-erp="room-service"] #pdvMenuSearch,
+body[data-erp="room-service"] .top-search-box input:hover,
+body[data-erp="room-service"] .pdv-menu-search input:hover,
+body[data-erp="room-service"] .tab-search input:hover,
+body[data-erp="room-service"] .top-search-box input:focus,
+body[data-erp="room-service"] .pdv-menu-search input:focus,
+body[data-erp="room-service"] .tab-search input:focus,
+body[data-erp="room-service"] .top-search-box input:focus-visible,
+body[data-erp="room-service"] .pdv-menu-search input:focus-visible,
+body[data-erp="room-service"] .tab-search input:focus-visible {
+  min-width: 0 !important;
+  height: 40px !important;
+  flex: 1 1 auto !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  outline: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  appearance: none;
+}
+
+body[data-erp="room-service"] .top-search-box:focus-within,
+body[data-erp="room-service"] .pdv-menu-search:focus-within,
+body[data-erp="room-service"] .tab-search:focus-within {
+  border-color: var(--brand-primary-border) !important;
+  box-shadow: none !important;
+}
+
+body[data-erp="room-service"] .top-search-box:has(input:focus-visible),
+body[data-erp="room-service"] .pdv-menu-search:has(input:focus-visible),
+body[data-erp="room-service"] .tab-search:has(input:focus-visible) {
+  outline: 3px solid var(--brand-primary-soft);
+  outline-offset: 2px;
+}
+
+/* Shared control sizing. */
+body[data-erp="room-service"] .admin-primary-btn,
+body[data-erp="room-service"] .admin-secondary-btn,
+body[data-erp="room-service"] .order-action-primary,
+body[data-erp="room-service"] .order-action-secondary,
+body[data-erp="room-service"] .erp-back,
+body[data-erp="room-service"] .print-action-primary,
+body[data-erp="room-service"] .print-action-soft,
+body[data-erp="room-service"] .print-save-btn {
+  min-height: var(--erp-control-md) !important;
+  border-radius: var(--erp-control-radius) !important;
+  font-size: var(--erp-text-sm) !important;
+}
+
+body[data-erp="room-service"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+body[data-erp="room-service"] select {
+  min-height: var(--erp-control-md);
+  font-size: var(--erp-text-sm) !important;
+}
+
+/* One durable axis for every settings view. */
+body[data-erp="room-service"] #adminContainer {
+  padding: 28px var(--erp-page-gutter) 36px !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+body[data-erp="room-service"] .erp-page-container,
+body[data-erp="room-service"] .erp-settings-page,
+body[data-erp="room-service"] .erp-settings-content {
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  min-height: 0;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 22px;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+}
+
+body[data-erp="room-service"] .erp-settings-content > *,
+body[data-erp="room-service"] .erp-settings-detail,
+body[data-erp="room-service"] .erp-settings-detail > *,
+body[data-erp="room-service"] .erp-schedule-form,
+body[data-erp="room-service"] .erp-order-preferences {
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+body[data-erp="room-service"] .erp-settings-detail {
+  width: 100%;
+  max-width: none !important;
+  margin: 0 !important;
+}
+
+body[data-erp="room-service"] .erp-settings-section-head,
+body[data-erp="room-service"] .erp-schedule-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+body[data-erp="room-service"] .erp-mode-segment {
+  width: min(100%, 620px);
+  min-height: var(--erp-control-lg);
+  padding: 4px;
+}
+
+body[data-erp="room-service"] .erp-mode-button {
+  min-height: 38px;
+  font-size: var(--erp-text-sm) !important;
+}
+
+body[data-erp="room-service"] .erp-order-preferences {
+  height: auto !important;
+  max-height: none !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
+body[data-erp="room-service"] .erp-order-preferences > label,
+body[data-erp="room-service"] .erp-setting-toggle-row,
+body[data-erp="room-service"] .erp-setting-select-row {
+  min-height: 78px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 14px 16px;
+}
+
+body[data-erp="room-service"] .erp-setting-toggle-copy,
+body[data-erp="room-service"] .erp-setting-select-row > span {
+  min-width: 0;
+  flex: 1;
+}
+
+body[data-erp="room-service"] .erp-order-preferences strong {
+  font-size: var(--erp-text-md) !important;
+}
+
+body[data-erp="room-service"] .erp-switch-control {
+  position: relative;
+  width: 48px;
+  height: 28px;
+  display: inline-flex;
+  flex: 0 0 48px;
+}
+
+body[data-erp="room-service"] .erp-switch-control input {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+body[data-erp="room-service"] .erp-switch-track {
+  width: 48px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  padding: 3px;
+  border: 1px solid var(--erp-line-strong);
+  border-radius: var(--erp-radius-pill);
+  background: var(--erp-surface-soft);
+  transition: background-color var(--erp-motion-fast) var(--erp-ease-standard), border-color var(--erp-motion-fast) var(--erp-ease-standard);
+}
+
+body[data-erp="room-service"] .erp-switch-track > span {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--erp-surface);
+  box-shadow: var(--erp-shadow-xs);
+  transition: transform var(--erp-motion-normal) var(--erp-ease-enter);
+}
+
+body[data-erp="room-service"] .erp-switch-control input:checked + .erp-switch-track {
+  border-color: var(--brand-primary);
+  background: var(--brand-primary);
+}
+
+body[data-erp="room-service"] .erp-switch-control input:checked + .erp-switch-track > span {
+  transform: translateX(20px);
+}
+
+body[data-erp="room-service"] .erp-switch-control input:focus-visible + .erp-switch-track {
+  outline: 3px solid var(--brand-primary-soft);
+  outline-offset: 2px;
+}
+
+body[data-erp="room-service"] .erp-setting-select-row select {
+  width: min(420px, 45%);
+}
+
+body[data-erp="room-service"] .erp-settings-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 14px 16px;
+  border-top: 1px solid var(--erp-line);
+}
+
+body[data-erp="room-service"] .erp-order-preferences > button {
+  margin: 0;
+}
+
+body[data-erp="room-service"] .erp-schedule-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 4px;
+}
+
+body[data-erp="room-service"] .erp-schedule-toolbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+body[data-erp="room-service"] .erp-schedule-layout {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--erp-control-radius);
+  background: var(--erp-surface-soft);
+}
+
+body[data-erp="room-service"] .erp-schedule-layout button {
+  min-height: var(--erp-control-sm);
+  padding: 0 12px !important;
+  border: 0 !important;
+  border-radius: var(--erp-radius-sm) !important;
+  background: transparent !important;
+  color: var(--erp-text-muted) !important;
+  font-size: var(--erp-text-xs) !important;
+  font-weight: 700;
+}
+
+body[data-erp="room-service"] .erp-schedule-layout button.active {
+  background: var(--erp-surface) !important;
+  color: var(--brand-primary-text) !important;
+  box-shadow: var(--erp-shadow-xs) !important;
+}
+
+body[data-erp="room-service"] .erp-schedule-form .erp-schedule-list {
+  grid-template-columns: 1fr;
+  overflow: visible;
+  padding-bottom: 0;
+}
+
+body[data-erp="room-service"] .erp-schedule-form .erp-schedule-row {
+  min-height: 66px;
+  display: grid;
+  grid-template-columns: minmax(130px, .8fr) minmax(130px, 1fr) minmax(130px, 1fr) auto;
+  gap: 12px;
+}
+
+body[data-erp="room-service"] .erp-rooms-list,
+body[data-erp="room-service"] .admin-user-list {
+  overflow: visible;
+}
+
+/* Denser PDV: product information and actions form one compact row. */
+body[data-erp="room-service"] #menuContent {
+  max-width: none !important;
+  margin: 0 !important;
+  gap: 28px !important;
+}
+
+body[data-erp="room-service"] #menuContent .erp-pdv-card {
+  min-height: 112px !important;
+  grid-template-columns: 82px minmax(0, 1fr) auto !important;
+  gap: 14px;
+  padding: 12px 14px !important;
+}
+
+body[data-erp="room-service"] #menuContent .erp-pdv-thumb {
+  width: 82px !important;
+  min-width: 82px !important;
+  height: 82px !important;
+  min-height: 82px !important;
+}
+
+body[data-erp="room-service"] #menuContent .erp-pdv-card-action {
+  min-width: 112px;
+  grid-column: auto;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+body[data-erp="room-service"] .erp-item-tag {
+  max-width: min(100%, 230px);
+  min-height: 20px;
+  padding: 0 !important;
+  overflow: hidden;
+  background: transparent !important;
+  color: var(--erp-text-muted) !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body[data-erp="room-service"] .erp-pdv-card-copy p {
+  color: var(--erp-text-muted) !important;
+  font-size: var(--erp-text-xs) !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-add {
+  min-height: var(--erp-control-sm);
+  font-size: var(--erp-text-xs) !important;
+}
+
+/* Header hierarchy: search leads, supporting actions recede. */
+body[data-erp="room-service"] .erp-feedback-trigger,
+body[data-erp="room-service"] .menu-icon-btn,
+body[data-erp="room-service"] .notif-button,
+body[data-erp="room-service"] .help-button {
+  border-color: transparent !important;
+  background: transparent !important;
+  color: var(--erp-text-soft) !important;
+}
+
+body[data-erp="room-service"] .store-status-btn,
+body[data-erp="room-service"] .top-session {
+  font-size: var(--erp-text-xs) !important;
+}
+
+/* The selected navigation item has one integrated indicator. */
+body[data-erp="room-service"] .side-nav-btn.tab-active,
+body[data-erp="room-service"] .side-nav-btn[aria-current="page"] {
+  background: var(--brand-primary-subtle) !important;
+  color: var(--brand-primary-text) !important;
+}
+
+body[data-erp="room-service"] .side-nav-btn::before {
+  inset: 8px auto 8px 0;
+  border-radius: var(--erp-radius-pill);
+}
+
+body[data-erp="room-service"].sidebar-collapsed .side-nav-btn.tab-active,
+body[data-erp="room-service"].sidebar-collapsed .side-nav-btn[aria-current="page"] {
+  background: var(--brand-primary-soft) !important;
+}
+
+/* Notebook and compact screens use a drawer instead of a clipped icon rail. */
+@media (max-width: 1100px) {
+  body[data-erp="room-service"] .app-sidebar {
+    position: fixed !important;
+    inset: 0 auto 0 0 !important;
+    z-index: var(--erp-z-overlay) !important;
+    width: min(286px, calc(100vw - 48px)) !important;
+    min-width: min(286px, calc(100vw - 48px)) !important;
+    flex-basis: auto !important;
+    box-shadow: var(--erp-shadow-floating) !important;
+    transform: translateX(-105%) !important;
+  }
+
+  body[data-erp="room-service"].sidebar-open .app-sidebar {
+    transform: translateX(0) !important;
+  }
+
+  body[data-erp="room-service"] .erp-sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: calc(var(--erp-z-overlay) - 1);
+    display: block;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: rgba(24, 30, 37, .38) !important;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--erp-motion-normal) var(--erp-ease-standard);
+  }
+
+  body[data-erp="room-service"].sidebar-open .erp-sidebar-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  body[data-erp="room-service"] .erp-sidebar-close {
+    position: absolute;
+    top: 9px;
+    right: 4px;
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border: 0 !important;
+    background: transparent !important;
+  }
+
+  body[data-erp="room-service"].sidebar-collapsed .app-sidebar {
+    width: min(286px, calc(100vw - 48px)) !important;
+    min-width: min(286px, calc(100vw - 48px)) !important;
+  }
+
+  body[data-erp="room-service"].sidebar-collapsed .side-brand {
+    justify-content: flex-start !important;
+    margin-inline: 8px !important;
+  }
+
+  body[data-erp="room-service"].sidebar-collapsed .side-brand-logo {
+    display: block !important;
+  }
+
+  body[data-erp="room-service"].sidebar-collapsed .side-brand-logo-seal {
+    display: none !important;
+  }
+
+  body[data-erp="room-service"].sidebar-collapsed .erp-nav-group-label {
+    max-height: none;
+    margin: 18px 11px 7px;
+    opacity: 1;
+  }
+
+  body[data-erp="room-service"].sidebar-collapsed .side-nav-btn {
+    justify-content: flex-start !important;
+    gap: 11px !important;
+    padding-inline: 12px !important;
+  }
+
+  body[data-erp="room-service"].sidebar-collapsed .side-text {
+    max-width: 170px !important;
+    opacity: 1 !important;
+    transform: none;
+  }
+}
+
+@media (max-width: 760px) {
+  body[data-erp="room-service"] .erp-settings-section-head,
+  body[data-erp="room-service"] .erp-schedule-toolbar,
+  body[data-erp="room-service"] .erp-schedule-toolbar-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  body[data-erp="room-service"] .erp-mode-segment,
+  body[data-erp="room-service"] .erp-schedule-layout,
+  body[data-erp="room-service"] .erp-schedule-toolbar-actions > button,
+  body[data-erp="room-service"] .erp-setting-select-row select {
+    width: 100%;
+  }
+
+  body[data-erp="room-service"] .erp-setting-select-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  body[data-erp="room-service"] .erp-schedule-form .erp-schedule-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  body[data-erp="room-service"] .erp-schedule-form .erp-schedule-row strong,
+  body[data-erp="room-service"] .erp-schedule-form .erp-schedule-row .erp-switch {
+    grid-column: 1 / -1;
+  }
+
+  body[data-erp="room-service"] #menuContent .erp-pdv-card {
+    grid-template-columns: 76px minmax(0, 1fr) !important;
+  }
+
+  body[data-erp="room-service"] #menuContent .erp-pdv-thumb {
+    width: 76px !important;
+    min-width: 76px !important;
+    height: 76px !important;
+    min-height: 76px !important;
+  }
+
+  body[data-erp="room-service"] #menuContent .erp-pdv-card-action {
+    grid-column: 2;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+/* Readability baseline: the legacy document used a 14px rem root, which made
+   utility text look as if the entire ERP had been scaled down. */
+html:has(body[data-erp="room-service"]) {
+  font-size: 16px !important;
+}
+
+body[data-erp="room-service"] {
+  font-size: var(--erp-text-md) !important;
+}
+
+body[data-erp="room-service"] .text-\[8px\],
+body[data-erp="room-service"] .text-\[9px\],
+body[data-erp="room-service"] .text-\[10px\],
+body[data-erp="room-service"] .text-xs,
+body[data-erp="room-service"] .erp-page-eyebrow,
+body[data-erp="room-service"] .erp-section-hint,
+body[data-erp="room-service"] .mini-card-label,
+body[data-erp="room-service"] .mini-room-badge,
+body[data-erp="room-service"] .legacy-status-chip,
+body[data-erp="room-service"] .erp-chip,
+body[data-erp="room-service"] .print-status-pill,
+body[data-erp="room-service"] .erp-pdv-kicker,
+body[data-erp="room-service"] .erp-pdv-order-count,
+body[data-erp="room-service"] .store-mode-label {
+  font-size: var(--erp-text-xs) !important;
+  letter-spacing: 0 !important;
+}
+
+body[data-erp="room-service"] .top-search-box kbd,
+body[data-erp="room-service"] .erp-feedback-trigger span,
+body[data-erp="room-service"] .store-status-btn span,
+body[data-erp="room-service"] .top-session p,
+body[data-erp="room-service"] .erp-dashboard-kpi small,
+body[data-erp="room-service"] .erp-dashboard-kpi em,
+body[data-erp="room-service"] .erp-dashboard-panel small,
+body[data-erp="room-service"] .erp-dashboard-panel .erp-panel-meta,
+body[data-erp="room-service"] .erp-dashboard-panel .erp-modern-bar small,
+body[data-erp="room-service"] .erp-dashboard-panel .erp-list-button small,
+body[data-erp="room-service"] .erp-cart-copy > small,
+body[data-erp="room-service"] .erp-pdv-catalog-meta small,
+body[data-erp="room-service"] .erp-pdv-order-head small,
+body[data-erp="room-service"] .erp-pdv-section-title small,
+body[data-erp="room-service"] .erp-pdv-cart-empty small,
+body[data-erp="room-service"] .erp-pdv-field > span,
+body[data-erp="room-service"] .erp-pdv-total-row > span,
+body[data-erp="room-service"] .erp-pdv-clear,
+body[data-erp="room-service"] .erp-pdv-submit {
+  font-size: 11px !important;
+  letter-spacing: 0 !important;
+}
+
+body[data-erp="room-service"] .erp-page-header > div > p:last-child,
+body[data-erp="room-service"] .erp-settings-section-head p,
+body[data-erp="room-service"] .erp-schedule-toolbar p,
+body[data-erp="room-service"] .erp-setting-toggle-copy small,
+body[data-erp="room-service"] .erp-setting-select-row small,
+body[data-erp="room-service"] .print-setting-copy p,
+body[data-erp="room-service"] .print-install-copy p {
+  color: var(--erp-text-muted) !important;
+  font-size: var(--erp-text-sm) !important;
+  line-height: 1.5;
+}
+
+body[data-erp="room-service"] .erp-settings-section-head h3,
+body[data-erp="room-service"] .erp-schedule-toolbar h3,
+body[data-erp="room-service"] .print-setting-copy h4,
+body[data-erp="room-service"] .print-install-copy h4 {
+  font-size: var(--erp-text-lg) !important;
+  line-height: 1.3;
+}
+
+body[data-erp="room-service"] .erp-feedback-trigger,
+body[data-erp="room-service"] .menu-icon-btn,
+body[data-erp="room-service"] .notif-button,
+body[data-erp="room-service"] .help-button {
+  min-width: var(--erp-control-md);
+  min-height: var(--erp-control-md);
+}
+
+body[data-erp="room-service"] #hdrStoreButton > span,
+body[data-erp="room-service"] #dashboardContainer small,
+body[data-erp="room-service"] #dashboardContainer em,
+body[data-erp="room-service"] #dashboardContainer .erp-dashboard-section-head span,
+body[data-erp="room-service"] #vendasContainer small,
+body[data-erp="room-service"] #vendasContainer .erp-pdv-catalog-meta > span,
+body[data-erp="room-service"] #vendasContainer .erp-pdv-section-title > span,
+body[data-erp="room-service"] #histContainer .erp-date-field > span,
+body[data-erp="room-service"] #histContainer .erp-section-header p,
+body[data-erp="room-service"] #hospedesContainer .erp-section-header p {
+  font-size: 11px !important;
+  letter-spacing: 0 !important;
+}

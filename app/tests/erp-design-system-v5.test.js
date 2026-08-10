@@ -35,6 +35,7 @@ test("nova fundacao define tokens, breakpoints e movimento acessivel", () => {
   }
 
   assert.match(css, /@media \(max-width: 1180px\)/);
+  assert.match(css, /@media \(max-width: 1100px\)/);
   assert.match(css, /@media \(max-width: 900px\)/);
   assert.match(css, /@media \(max-width: 680px\)/);
   assert.match(css, /width: calc\(100vw - 32px\) !important/);
@@ -46,6 +47,9 @@ test("nova fundacao define tokens, breakpoints e movimento acessivel", () => {
   assert.match(css, /\.erp-dashboard-donut/);
   assert.match(css, /#faturamentoContainer \.history-table-wrap/);
   assert.match(css, /\.erp-settings-grid/);
+  assert.match(css, /\.erp-page-container/);
+  assert.match(css, /\.erp-switch-track/);
+  assert.match(css, /\.top-search-box:has\(input:focus-visible\)/);
   assert.match(css, /#orderModal/);
   assert.match(css, /\.sidebar-collapsed/);
   assert.match(css, /attr\(data-tooltip\)/);
@@ -84,6 +88,10 @@ test("ERP aplica branding, contexto de rota e componentes da nova geracao", () =
   assert.match(app, /ordersRefreshButton/);
   assert.match(app, /guestsRefreshButton/);
   assert.match(app, /guestDirectoryMeta/);
+  assert.match(app, /id="settingsContent" class="erp-settings-content"/);
+  assert.match(app, /id="operationScheduleForm" class="erp-schedule-form"/);
+  assert.match(app, /class="erp-switch-track"/);
+  assert.doesNotMatch(app, /id="settingsContent" class="erp-v3-shell"/);
   assert.doesNotMatch(app, /classList\.add\("pdv-collapsed"\)/);
   assert.doesNotMatch(app, /class="erp-v4-page/);
 });

@@ -292,7 +292,7 @@ test("frontend aplica logos, fonte, titulo e cor primaria do contexto", () => {
   assert.doesNotMatch(app, /loginHotelSelect|legacyHotelSelect|fioreze-rs-login-hotel|fioreze-rs-hotel/);
   assert.match(app, /branding\.favicon_url/);
   assert.match(app, /--header-logo-scale/);
-  assert.match(app, /matchMedia\("\(max-width: 900px\)"\)/);
+  assert.match(app, /matchMedia\("\(max-width: 1100px\)"\)/);
   assert.match(app, /classList\.toggle\("sidebar-open"\)/);
   assert.match(app, /classList\.toggle\("sidebar-collapsed"\)/);
   assert.match(app, /classList\.remove\("sidebar-open"\)/);
