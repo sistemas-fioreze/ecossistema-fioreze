@@ -153,12 +153,18 @@ test("login mantem composicao coesa durante identificacao e carregamento", () =>
   assert.match(app, /function installLoginComposition\(\)/);
   assert.match(app, /className = "erp-login-brand"/);
   assert.match(app, /className = "erp-login-form"/);
-  assert.match(app, /className = "erp-login-user-avatar"/);
+  assert.match(app, /input\.dataset\.loginCredential = code/);
+  assert.match(app, /input\.value = displayName/);
+  assert.match(app, /const credential = loginCode\.dataset\.loginCredential \|\| loginCode\.value\.trim\(\)/);
+  assert.match(app, /loginCode\.placeholder = "Codigo do usuario"/);
+  assert.doesNotMatch(app, /Usuário localizado/);
+  assert.match(app, /function renderLoginServiceStatus\(\)/);
+  assert.match(app, /status\?\.open \? "ABERTO" : "FECHADO"/);
   assert.match(app, /classList\.toggle\("is-loading", busy\)/);
   assert.match(css, /\.login-card \{[\s\S]*grid-template-columns: minmax\(260px, 1fr\) minmax\(320px, 360px\)/);
-  assert.match(css, /#loginNameBadge \{[\s\S]*position: absolute/);
+  assert.match(css, /#loginNameBadge \{[\s\S]*display: none !important;/);
   assert.match(css, /\.login-card\.is-loading > :is\(\.erp-login-brand, \.erp-login-form\)/);
-  assert.match(css, /\.login-card input,[\s\S]*#btnLogin \{[\s\S]*width: 100% !important;/);
+  assert.match(css, /#btnLogin \{[\s\S]*width: min\(180px, 68%\) !important;[\s\S]*align-self: center;/);
 });
 
 test("PDV ancora a comanda e separa cabecalho, lista rolavel e rodape fixo", () => {

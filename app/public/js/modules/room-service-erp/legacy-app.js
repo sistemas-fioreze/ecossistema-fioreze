@@ -13,6 +13,7 @@ import {
   getDashboard,
   getGuests,
   getLoginContext,
+  getPublicHotelBootstrap,
   identifyLoginUser,
   getOperations,
   getPrinting,
@@ -41,6 +42,7 @@ import {
 } from "./api.js";
 import { desktop } from "./desktop-adapter.js";
 import { applyBrandTokens } from "./theme.js";
+import { evaluateServiceStatus } from "../room-service/service-status.js";
 
 const ROUTES = {
   dashboard: { button: "btnTabDashboard", container: "dashboardContainer" },
@@ -78,6 +80,7 @@ const state = {
   selectedOrderId: null,
   loginHotels: [],
   loginHotel: null,
+  loginServiceStatus: undefined,
   hotelSlug: resolveErpHotelSlug(),
   users: [],
   userPermissions: [],
@@ -146,6 +149,7 @@ async function loadLoginContext() {
   if (!state.loginHotel) throw new Error("Esta unidade nao possui um ERP Room Service disponivel.");
   state.hotelSlug = state.loginHotel.slug;
   applyBranding(state.loginHotel.branding, state.loginHotel);
+  await refreshLoginServiceStatus();
 }
 
 function prepareStaticInterface() {
@@ -153,7 +157,7 @@ function prepareStaticInterface() {
   loginCode.type = "text";
   loginCode.autocomplete = "username";
   loginCode.inputMode = "text";
-  loginCode.placeholder = "Codigo do usuario ou e-mail mestre";
+  loginCode.placeholder = "Codigo do usuario";
   byId("loginPass").autocomplete = "current-password";
   byId("btnLogin").type = "button";
 
@@ -166,7 +170,7 @@ function prepareStaticInterface() {
   error.className = "legacy-login-error";
   error.setAttribute("role", "alert");
   byId("btnLogin").before(error);
-  byId("loginNameBadge").setAttribute("aria-live", "polite");
+  byId("loginNameBadge").classList.add("hidden");
   installLoginComposition();
 
   installDashboardInterface();
@@ -201,8 +205,10 @@ function bindStaticActions() {
   byId("loginPass").addEventListener("keydown", (event) => {
     if (event.key === "Enter") handleLogin();
   });
-  byId("loginPass").addEventListener("focus", hideLoginUserName);
   byId("loginCode").addEventListener("keydown", (event) => {
+    if (byId("loginCode").dataset.loginCredential && isLoginIdentityEditKey(event)) {
+      clearLoginIdentity({ clearValue: true });
+    }
     if (event.key === "Enter") byId("loginPass").focus();
   });
   byId("loginCode").addEventListener("input", scheduleLoginUserLookup);
@@ -344,8 +350,36 @@ function installLoginComposition() {
   form.append(badge, fields, error, button);
   card.prepend(brand, form);
 
-  setText("loginStoreStatus", "Room Service");
-  setText("loginStoreMode", "Acesso seguro");
+  renderLoginServiceStatus();
+}
+
+async function refreshLoginServiceStatus() {
+  try {
+    const payload = await getPublicHotelBootstrap(state.loginHotel.slug);
+    const bootstrap = payload.data || {};
+    state.loginServiceStatus = evaluateServiceStatus({
+      serviceHours: bootstrap.service_hours?.["room-service"] || [],
+      timezone: bootstrap.timezone || state.loginHotel.timezone,
+      operationMode: bootstrap.settings?.["room-service.operation_mode"] || bootstrap.service_status?.room_service || "automatic",
+    });
+  } catch {
+    state.loginServiceStatus = null;
+  }
+  renderLoginServiceStatus();
+}
+
+function renderLoginServiceStatus() {
+  const badge = byId("loginStoreBadge", false);
+  if (!badge) return;
+  const status = state.loginServiceStatus;
+  badge.classList.toggle("is-open", Boolean(status?.open));
+  badge.classList.toggle("is-closed", status !== undefined && !status?.open);
+  badge.classList.toggle("is-pending", status === undefined);
+  const dot = document.createElement("span");
+  dot.className = "erp-login-status-dot";
+  const label = document.createElement("strong");
+  label.textContent = status === undefined ? "VERIFICANDO" : status?.open ? "ABERTO" : "FECHADO";
+  badge.replaceChildren(dot, label);
 }
 
 function installPdvInterface() {
@@ -929,7 +963,8 @@ async function handleSettingsSubmit(event) {
 }
 
 async function handleLogin() {
-  const credential = byId("loginCode").value.trim();
+  const loginCode = byId("loginCode");
+  const credential = loginCode.dataset.loginCredential || loginCode.value.trim();
   const hotelId = state.loginHotel?.hotel_id || "";
   const password = byId("loginPass").value;
   byId("legacyLoginError").textContent = "";
@@ -951,44 +986,44 @@ async function handleLogin() {
 }
 
 function scheduleLoginUserLookup() {
-  const code = byId("loginCode").value.trim();
+  const input = byId("loginCode");
+  if (input.dataset.loginCredential) clearLoginIdentity();
+  const code = input.value.trim();
   const hotelId = state.loginHotel?.hotel_id || "";
   const sequence = ++loginUserLookupSequence;
   window.clearTimeout(loginUserLookupTimer);
-  hideLoginUserName();
   if (!hotelId || !/^\d{1,9}$/.test(code)) return;
 
   loginUserLookupTimer = window.setTimeout(async () => {
     try {
       const payload = await identifyLoginUser({ hotelId, userCode: code });
-      if (sequence !== loginUserLookupSequence || byId("loginCode").value.trim() !== code) return;
+      if (sequence !== loginUserLookupSequence || input.value.trim() !== code) return;
       const displayName = String(payload.data?.display_name || "").trim();
       if (!payload.data?.found || !displayName) return;
-      const badge = byId("loginNameBadge");
-      badge.replaceChildren();
-      const avatar = document.createElement("span");
-      avatar.className = "erp-login-user-avatar";
-      avatar.textContent = displayName.slice(0, 1).toUpperCase();
-      const copy = document.createElement("span");
-      copy.className = "erp-login-user-copy";
-      const name = document.createElement("strong");
-      name.textContent = displayName;
-      const meta = document.createElement("small");
-      meta.textContent = "Usuário localizado";
-      copy.append(name, meta);
-      badge.append(avatar, copy);
-      badge.classList.remove("hidden");
+      input.dataset.loginCredential = code;
+      input.dataset.loginDisplayName = displayName;
+      input.value = displayName;
+      input.classList.add("login-resolved");
+      input.setAttribute("aria-label", `Codigo do usuario: ${displayName}`);
     } catch {
-      if (sequence === loginUserLookupSequence) hideLoginUserName();
+      if (sequence === loginUserLookupSequence) clearLoginIdentity();
     }
   }, 180);
 }
 
-function hideLoginUserName() {
-  const badge = byId("loginNameBadge", false);
-  if (!badge) return;
-  badge.replaceChildren();
-  badge.classList.add("hidden");
+function clearLoginIdentity({ clearValue = false } = {}) {
+  const input = byId("loginCode", false);
+  if (!input) return;
+  delete input.dataset.loginCredential;
+  delete input.dataset.loginDisplayName;
+  input.classList.remove("login-resolved");
+  input.removeAttribute("aria-label");
+  if (clearValue) input.value = "";
+}
+
+function isLoginIdentityEditKey(event) {
+  if (event.ctrlKey || event.metaKey || event.altKey) return false;
+  return event.key === "Backspace" || event.key === "Delete" || event.key.length === 1;
 }
 
 async function handleLogout() {

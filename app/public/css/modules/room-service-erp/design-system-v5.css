@@ -5546,37 +5546,39 @@ body[data-erp="room-service"] .erp-login-form header > span {
 }
 
 body[data-erp="room-service"] .login-store-badge {
-  min-height: 28px;
+  min-height: 24px;
+  display: inline-flex !important;
+  align-items: center;
   align-self: flex-start;
-  gap: 8px;
+  gap: 7px;
   margin: 0 !important;
   padding: 0 !important;
   border: 0 !important;
   background: transparent !important;
+  color: var(--erp-text-muted);
   font-size: 11px;
 }
 
-body[data-erp="room-service"] .login-store-badge span,
-body[data-erp="room-service"] .login-store-badge b,
-body[data-erp="room-service"] .login-store-badge em {
-  color: var(--erp-text-muted) !important;
+body[data-erp="room-service"] .login-store-badge strong {
+  color: currentColor;
   font-size: 11px;
-  font-style: normal;
-  font-weight: 700;
+  font-weight: 800;
 }
 
-body[data-erp="room-service"] .login-store-badge b {
-  color: var(--erp-text) !important;
+body[data-erp="room-service"] .login-store-badge.is-open {
+  color: #168148;
 }
 
-body[data-erp="room-service"] .login-store-badge em::before {
-  content: "";
-  width: 4px;
-  height: 4px;
-  display: inline-block;
-  margin: 0 8px 2px 0;
+body[data-erp="room-service"] .login-store-badge.is-closed {
+  color: #b54747;
+}
+
+body[data-erp="room-service"] .erp-login-status-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
   border-radius: 50%;
-  background: var(--erp-text-muted);
+  background: currentColor;
 }
 
 body[data-erp="room-service"] .login-fields {
@@ -5585,8 +5587,7 @@ body[data-erp="room-service"] .login-fields {
   margin: 0 !important;
 }
 
-body[data-erp="room-service"] .login-card input,
-body[data-erp="room-service"] #btnLogin {
+body[data-erp="room-service"] .login-card input {
   width: 100% !important;
   max-width: none !important;
   height: 48px !important;
@@ -5601,62 +5602,22 @@ body[data-erp="room-service"] .login-card input:focus-visible {
 }
 
 body[data-erp="room-service"] #loginNameBadge {
-  position: absolute;
-  inset: 6px 7px auto auto;
-  z-index: 12;
-  width: auto;
-  max-width: 190px;
-  min-height: 36px;
-  display: flex !important;
-  align-items: center;
-  gap: 7px;
-  padding: 3px 7px !important;
-  border: 0 !important;
-  border-radius: var(--erp-radius-sm) !important;
-  background: var(--erp-surface-soft) !important;
-  color: var(--erp-text) !important;
-  box-shadow: none !important;
-  pointer-events: none;
-}
-
-body[data-erp="room-service"] #loginNameBadge.hidden {
   display: none !important;
 }
 
-body[data-erp="room-service"] .erp-login-user-avatar {
-  width: 27px;
-  height: 27px;
-  display: grid;
-  place-items: center;
-  flex: 0 0 27px;
-  border-radius: var(--erp-radius-sm);
-  background: var(--brand-primary-soft);
-  color: var(--brand-primary-text);
-  font-size: 13px;
-  font-weight: 800;
-}
-
-body[data-erp="room-service"] .erp-login-user-copy {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-body[data-erp="room-service"] .erp-login-user-copy strong {
-  overflow: hidden;
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-body[data-erp="room-service"] .erp-login-user-copy small {
-  color: var(--erp-text-muted);
-  font-size: 10px;
-}
-
 body[data-erp="room-service"] #loginCode.login-resolved {
-  padding-right: 190px !important;
+  color: var(--erp-text) !important;
+  font-weight: 750 !important;
+}
+
+body[data-erp="room-service"] #btnLogin {
+  width: min(180px, 68%) !important;
+  max-width: 180px !important;
+  height: 44px !important;
+  align-self: center;
+  margin-inline: auto !important;
+  border-radius: var(--erp-control-radius) !important;
+  font-size: 13px !important;
 }
 
 body[data-erp="room-service"] .erp-login-form .legacy-login-error {
