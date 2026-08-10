@@ -231,12 +231,17 @@ body[data-erp="room-service"] .side-brand {
 
 body[data-erp="room-service"] .side-brand-logo {
   width: 100% !important;
-  max-width: 156px !important;
-  max-height: 50px !important;
+  max-width: 178px !important;
+  max-height: 54px !important;
   display: block;
   margin: 0 !important;
   object-fit: contain !important;
   object-position: left center !important;
+}
+
+body[data-erp="room-service"] .erp-sidebar-backdrop,
+body[data-erp="room-service"] .erp-sidebar-close {
+  display: none;
 }
 
 body[data-erp="room-service"] .side-brand-logo-seal {
@@ -509,6 +514,41 @@ body[data-erp="room-service"] .pdv-menu-search input:focus {
   box-shadow: 0 0 0 4px var(--brand-primary-soft) !important;
 }
 
+/* Composite search fields own one surface; inner inputs remain structural. */
+body[data-erp="room-service"] .top-search-box,
+body[data-erp="room-service"] .pdv-menu-search,
+body[data-erp="room-service"] .tab-search {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--erp-line) !important;
+  border-radius: var(--erp-radius-md) !important;
+  background: var(--erp-surface) !important;
+  box-shadow: none !important;
+  transition: border-color var(--erp-motion-fast) var(--erp-ease-standard), box-shadow var(--erp-motion-fast) var(--erp-ease-standard);
+}
+
+body[data-erp="room-service"] .top-search-box:focus-within,
+body[data-erp="room-service"] .pdv-menu-search:focus-within,
+body[data-erp="room-service"] .tab-search:focus-within {
+  border-color: var(--brand-primary-border) !important;
+  box-shadow: 0 0 0 4px var(--brand-primary-soft) !important;
+}
+
+body[data-erp="room-service"] .top-search-box input,
+body[data-erp="room-service"] .pdv-menu-search input,
+body[data-erp="room-service"] .tab-search input,
+body[data-erp="room-service"] .top-search-box input:focus,
+body[data-erp="room-service"] .pdv-menu-search input:focus,
+body[data-erp="room-service"] .tab-search input:focus {
+  height: 38px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+}
+
 body[data-erp="room-service"] .top-search-results,
 body[data-erp="room-service"] .account-popover,
 body[data-erp="room-service"] .notif-panel,
@@ -566,6 +606,10 @@ body[data-erp="room-service"] .top-session img {
   height: 30px !important;
   border-radius: var(--erp-radius-sm) !important;
   object-fit: cover;
+}
+
+body[data-erp="room-service"] .top-session-icon {
+  display: none;
 }
 
 body[data-erp="room-service"] .store-status-btn,
@@ -1024,6 +1068,21 @@ body[data-erp="room-service"] textarea:focus {
   box-shadow: 0 0 0 4px var(--brand-primary-soft) !important;
 }
 
+/* Composite fields draw the control chrome once, on their wrapper. */
+body[data-erp="room-service"] #topSearchInput,
+body[data-erp="room-service"] #pdvMenuSearch,
+body[data-erp="room-service"] .tab-search input[type="search"],
+body[data-erp="room-service"] #topSearchInput:focus,
+body[data-erp="room-service"] #pdvMenuSearch:focus,
+body[data-erp="room-service"] .tab-search input[type="search"]:focus {
+  height: 38px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+}
+
 body[data-erp="room-service"] input[type="checkbox"],
 body[data-erp="room-service"] input[type="radio"],
 body[data-erp="room-service"] input[type="range"] {
@@ -1214,14 +1273,14 @@ body[data-erp="room-service"] .dash-v2-kpis,
 body[data-erp="room-service"] .erp-v3-grid,
 body[data-erp="room-service"] .erp-dashboard-kpis {
   display: grid !important;
-  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
   gap: 12px !important;
 }
 
 body[data-erp="room-service"] .dash-v2-card,
 body[data-erp="room-service"] .erp-stat,
 body[data-erp="room-service"] .erp-dashboard-kpi {
-  min-height: 118px;
+  min-height: 112px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -1236,7 +1295,7 @@ body[data-erp="room-service"] .dash-v2-label,
 body[data-erp="room-service"] .erp-stat-label,
 body[data-erp="room-service"] .erp-dashboard-kpi-label {
   color: var(--erp-text-muted) !important;
-  font-size: 10px !important;
+  font-size: var(--erp-text-xs) !important;
   font-weight: 750 !important;
   text-transform: uppercase !important;
 }
@@ -1404,6 +1463,13 @@ body[data-erp="room-service"] .loose-list-empty {
   font-size: var(--erp-text-sm) !important;
   font-weight: 600 !important;
   text-align: center;
+}
+
+body[data-erp="room-service"] .erp-dashboard-bars > .erp-dashboard-empty {
+  width: 100%;
+  min-height: 190px;
+  border: 0 !important;
+  border-radius: 0 !important;
 }
 
 /* Orders */
@@ -1813,7 +1879,7 @@ body[data-erp="room-service"] .erp-pdv-list {
 
 body[data-erp="room-service"] .erp-pdv-card {
   min-width: 0;
-  min-height: 124px;
+  min-height: 124px !important;
   display: grid;
   grid-template-columns: 82px minmax(0, 1fr) auto;
   align-items: center;
@@ -1824,6 +1890,12 @@ body[data-erp="room-service"] .erp-pdv-card {
   background: var(--erp-surface) !important;
   box-shadow: none !important;
   transition: border-color var(--erp-motion-fast) var(--erp-ease-standard), box-shadow var(--erp-motion-fast) var(--erp-ease-standard), transform var(--erp-motion-fast) var(--erp-ease-standard);
+}
+
+body[data-erp="room-service"] #menuContent .erp-pdv-card {
+  height: auto !important;
+  min-height: 142px !important;
+  grid-template-columns: 72px minmax(0, 1fr) !important;
 }
 
 body[data-erp="room-service"] .erp-pdv-card:hover {
@@ -1845,6 +1917,13 @@ body[data-erp="room-service"] .erp-pdv-thumb {
   overflow: hidden;
   border-radius: var(--erp-radius-md);
   background: var(--erp-surface-soft);
+}
+
+body[data-erp="room-service"] #menuContent .erp-pdv-thumb {
+  width: 72px !important;
+  min-width: 72px !important;
+  height: 72px !important;
+  min-height: 72px !important;
 }
 
 body[data-erp="room-service"] .erp-pdv-thumb img {
@@ -1869,8 +1948,9 @@ body[data-erp="room-service"] .erp-pdv-card-copy h3 {
   font-size: var(--erp-text-md) !important;
   font-weight: 730 !important;
   line-height: 1.25;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 body[data-erp="room-service"] .erp-pdv-card-copy p {
@@ -1892,6 +1972,15 @@ body[data-erp="room-service"] .erp-pdv-card-action {
   align-items: flex-end;
   justify-content: center;
   gap: 10px;
+}
+
+body[data-erp="room-service"] #menuContent .erp-pdv-card-action {
+  min-width: 0;
+  grid-column: 2;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 body[data-erp="room-service"] .erp-pdv-price {
@@ -1957,6 +2046,11 @@ body[data-erp="room-service"] .pdv-panel h2 {
 body[data-erp="room-service"] .pdv-collapse-btn,
 body[data-erp="room-service"] .pdv-floating-tab {
   display: none !important;
+}
+
+body[data-erp="room-service"] .erp-pdv-mobile-jump,
+body[data-erp="room-service"] .erp-pdv-mobile-return {
+  display: none;
 }
 
 body[data-erp="room-service"] #cartItems {
@@ -2911,6 +3005,12 @@ body[data-erp="room-service"] .premium-pop {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@media (max-width: 1500px) {
+  body[data-erp="room-service"] .erp-pdv-list {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Notebook */
 @media (max-width: 1180px) {
   body[data-erp="room-service"] .app-sidebar {
@@ -2932,7 +3032,7 @@ body[data-erp="room-service"] .premium-pop {
   body[data-erp="room-service"] .dash-v2-kpis,
   body[data-erp="room-service"] .erp-v3-grid,
   body[data-erp="room-service"] .erp-dashboard-kpis {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   }
 
   body[data-erp="room-service"] .dash-v2-main,
@@ -2970,6 +3070,43 @@ body[data-erp="room-service"] .premium-pop {
 
   body[data-erp="room-service"].sidebar-open .app-sidebar {
     transform: translateX(0) !important;
+  }
+
+  body[data-erp="room-service"] .erp-sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: calc(var(--erp-z-overlay) - 1);
+    display: block;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: rgba(24, 30, 37, .38) !important;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--erp-motion-normal) var(--erp-ease-standard);
+  }
+
+  body[data-erp="room-service"].sidebar-open .erp-sidebar-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  body[data-erp="room-service"] .erp-sidebar-close {
+    position: absolute;
+    top: 9px;
+    right: 0;
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border: 0 !important;
+    border-radius: var(--erp-radius-md) !important;
+    background: transparent !important;
+    color: var(--erp-text-soft) !important;
+  }
+
+  body[data-erp="room-service"] .erp-sidebar-close:hover {
+    background: var(--erp-surface-hover) !important;
+    color: var(--erp-text) !important;
   }
 
   body[data-erp="room-service"].sidebar-collapsed .app-sidebar {
@@ -3023,24 +3160,29 @@ body[data-erp="room-service"] .premium-pop {
     grid-template-columns: 1fr !important;
   }
 
-  body[data-erp="room-service"] #vendasContainer {
+  body[data-erp="room-service"] #vendasContainer,
+  body[data-erp="room-service"] #vendasContainer.erp-pdv-workspace {
     overflow-y: auto !important;
     flex-direction: column !important;
   }
 
   body[data-erp="room-service"] #vendasContainer > main {
-    min-height: 580px;
+    min-height: auto;
+    flex: 0 0 auto;
     overflow: visible !important;
   }
 
   body[data-erp="room-service"] .pdv-panel {
+    position: relative !important;
+    inset: auto !important;
     width: 100% !important;
     min-width: 0 !important;
     height: auto !important;
-    min-height: 620px;
+    min-height: 560px;
     flex: 0 0 auto !important;
     border-top: 1px solid var(--erp-line) !important;
     border-left: 0 !important;
+    transform: none !important;
   }
 
   body[data-erp="room-service"] .order-edit-layout,
@@ -3069,13 +3211,129 @@ body[data-erp="room-service"] .premium-pop {
 
   body[data-erp="room-service"] .app-topbar {
     min-height: 60px !important;
-    gap: 8px;
+    display: grid !important;
+    grid-template-columns: minmax(116px, 1fr) 38px auto;
+    gap: 6px;
     padding: 8px 10px !important;
   }
 
-  body[data-erp="room-service"] .top-search {
+  body[data-erp="room-service"] .app-topbar > div:first-child,
+  body[data-erp="room-service"] .app-topbar > div:last-child {
+    grid-row: 1;
     min-width: 0;
-    flex: 1;
+    gap: 6px !important;
+  }
+
+  body[data-erp="room-service"] .app-topbar > div:first-child {
+    overflow: hidden;
+  }
+
+  body[data-erp="room-service"] .app-topbar > div:first-child > div {
+    min-width: 0;
+  }
+
+  body[data-erp="room-service"] .app-topbar > div:first-child p,
+  body[data-erp="room-service"] #topHelpButton,
+  body[data-erp="room-service"] #erpFeedbackButton {
+    display: none !important;
+  }
+
+  body[data-erp="room-service"] .app-topbar > div:first-child h1 {
+    max-width: 100%;
+    overflow: hidden;
+    font-size: 13px !important;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  body[data-erp="room-service"] .top-search {
+    width: 38px !important;
+    min-width: 38px;
+    grid-column: 2;
+    grid-row: 1;
+    cursor: text;
+  }
+
+  body[data-erp="room-service"] .top-search-box {
+    width: 38px;
+    min-height: 38px;
+    gap: 0;
+    padding: 0 10px !important;
+    overflow: hidden;
+  }
+
+  body[data-erp="room-service"] .top-search-box input {
+    width: 1px !important;
+    min-width: 0 !important;
+    flex: 0 0 1px !important;
+    padding: 0 !important;
+    opacity: 0;
+  }
+
+  body[data-erp="room-service"] .top-search-box kbd {
+    display: none !important;
+  }
+
+  body[data-erp="room-service"] .top-search:focus-within {
+    position: absolute;
+    inset: 8px 10px auto;
+    z-index: calc(var(--erp-z-dropdown) + 1);
+    width: auto !important;
+  }
+
+  body[data-erp="room-service"] .top-search:focus-within .top-search-box {
+    width: 100%;
+    gap: 9px;
+    padding: 0 12px !important;
+    background: var(--erp-surface) !important;
+  }
+
+  body[data-erp="room-service"] .top-search:focus-within .top-search-box input {
+    width: auto !important;
+    flex: 1 1 auto !important;
+    opacity: 1;
+  }
+
+  body[data-erp="room-service"] .app-topbar > div:last-child {
+    grid-column: 3;
+  }
+
+  body[data-erp="room-service"] .store-status-btn {
+    min-width: 60px !important;
+    min-height: 38px !important;
+    display: inline-flex !important;
+    justify-content: center;
+    padding: 0 9px !important;
+  }
+
+  body[data-erp="room-service"] .top-session {
+    width: 38px;
+    min-width: 38px;
+    padding: 4px !important;
+  }
+
+  body[data-erp="room-service"] .top-session > div,
+  body[data-erp="room-service"] .top-session::after,
+  body[data-erp="room-service"] .store-mode-label {
+    display: none !important;
+  }
+
+  body[data-erp="room-service"] .top-session img {
+    display: none !important;
+  }
+
+  body[data-erp="room-service"] .top-session-icon {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    color: var(--erp-text-soft);
+  }
+
+  body[data-erp="room-service"] .top-session-icon svg {
+    width: 18px;
+    height: 18px;
   }
 
   body[data-erp="room-service"] .top-session .side-user-info,
@@ -3097,11 +3355,23 @@ body[data-erp="room-service"] .premium-pop {
   body[data-erp="room-service"] .erp-v3-header,
   body[data-erp="room-service"] .admin-header,
   body[data-erp="room-service"] .menu-admin-toolbar,
+  body[data-erp="room-service"] .erp-page-header,
   body[data-erp="room-service"] .erp-v4-page-header,
   body[data-erp="room-service"] .erp-dashboard-header,
   body[data-erp="room-service"] .dash-v2-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  body[data-erp="room-service"] .erp-page-actions {
+    width: 100%;
+    justify-content: stretch;
+    flex-wrap: wrap;
+  }
+
+  body[data-erp="room-service"] .erp-page-actions > label {
+    min-width: 0;
+    flex: 1 1 190px;
   }
 
   body[data-erp="room-service"] .erp-v3-actions,
@@ -3124,7 +3394,14 @@ body[data-erp="room-service"] .premium-pop {
   body[data-erp="room-service"] .erp-schedule-list,
   body[data-erp="room-service"] .erp-rooms-list,
   body[data-erp="room-service"] .admin-user-list {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  body[data-erp="room-service"] .erp-dashboard-kpi,
+  body[data-erp="room-service"] .dash-v2-card,
+  body[data-erp="room-service"] .erp-stat {
+    min-height: 108px;
+    padding: 14px !important;
   }
 
   body[data-erp="room-service"] .erp-pdv-card {
@@ -3158,7 +3435,55 @@ body[data-erp="room-service"] .premium-pop {
   }
 
   body[data-erp="room-service"] #vendasContainer > main {
-    padding: 18px 14px 24px !important;
+    padding: 18px 14px 90px !important;
+  }
+
+  body[data-erp="room-service"] .pdv-panel {
+    min-height: 540px;
+  }
+
+  body[data-erp="room-service"] .erp-pdv-mobile-jump {
+    position: fixed;
+    right: 16px;
+    bottom: max(16px, env(safe-area-inset-bottom));
+    z-index: var(--erp-z-sticky);
+    min-height: 46px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 16px !important;
+    border: 0 !important;
+    border-radius: var(--erp-radius-pill) !important;
+    background: var(--brand-primary) !important;
+    color: var(--brand-on-primary) !important;
+    box-shadow: var(--erp-shadow-sm) !important;
+    font-size: var(--erp-text-sm);
+    font-weight: 750;
+  }
+
+  body[data-erp="room-service"] .erp-pdv-mobile-jump svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  body[data-erp="room-service"] .erp-pdv-mobile-return {
+    grid-column: 1 / -1;
+    width: max-content;
+    display: inline-flex;
+    align-items: center;
+    margin-top: 4px;
+    padding: 5px 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    color: var(--brand-primary-text) !important;
+    font-size: var(--erp-text-xs);
+    font-weight: 700;
+  }
+
+  body[data-erp="room-service"] .erp-pdv-customer,
+  body[data-erp="room-service"] .erp-pdv-cart-section,
+  body[data-erp="room-service"] .erp-pdv-checkout {
+    padding-inline: 14px !important;
   }
 
   body[data-erp="room-service"] .order-mini-card {
@@ -3211,7 +3536,7 @@ body[data-erp="room-service"] .premium-pop {
   body[data-erp="room-service"] .dash-v2-kpis,
   body[data-erp="room-service"] .erp-v3-grid,
   body[data-erp="room-service"] .erp-dashboard-kpis {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 
   body[data-erp="room-service"] .top-session {
@@ -3222,6 +3547,29 @@ body[data-erp="room-service"] .premium-pop {
   body[data-erp="room-service"] .erp-product-image {
     width: 90px;
     min-width: 90px;
+  }
+
+  body[data-erp="room-service"] .erp-catalog-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  body[data-erp="room-service"] .guest-letter-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  body[data-erp="room-service"] #menuContent .erp-pdv-thumb {
+    width: 70px !important;
+    min-width: 70px !important;
+    height: 70px !important;
+    min-height: 70px !important;
+  }
+
+  body[data-erp="room-service"] .erp-settings-grid,
+  body[data-erp="room-service"] .erp-settings-list,
+  body[data-erp="room-service"] .erp-schedule-list,
+  body[data-erp="room-service"] .erp-rooms-list,
+  body[data-erp="room-service"] .admin-user-list {
+    grid-template-columns: 1fr !important;
   }
 }
 

@@ -263,6 +263,9 @@ function bindStaticActions() {
   topSearch?.addEventListener("input", renderTopSearchResults);
   topSearch?.addEventListener("focus", renderTopSearchResults);
   topSearch?.addEventListener("keydown", handleTopSearchKeydown);
+  byId("topSearchWrap", false)?.addEventListener("click", (event) => {
+    if (!event.target.closest("#topSearchResults")) topSearch?.focus();
+  });
   byId("topSearchResults", false)?.addEventListener("click", handleTopSearchClick);
   byId("pdvMenuSearch")?.addEventListener("input", renderMenu);
   byId("guestSearchInput")?.addEventListener("input", renderGuests);
@@ -292,11 +295,20 @@ function bindStaticActions() {
   const toggleSidebar = () => {
     if (window.matchMedia("(max-width: 900px)").matches) {
       document.body.classList.toggle("sidebar-open");
+      byId("sidebarToggleButton")?.setAttribute("aria-expanded", String(document.body.classList.contains("sidebar-open")));
       return;
     }
     document.body.classList.toggle("sidebar-collapsed");
   };
   byId("sidebarToggleButton")?.addEventListener("click", toggleSidebar);
+  byId("erpSidebarBackdrop", false)?.addEventListener("click", () => {
+    document.body.classList.remove("sidebar-open");
+    byId("sidebarToggleButton")?.setAttribute("aria-expanded", "false");
+  });
+  byId("erpSidebarClose", false)?.addEventListener("click", () => {
+    document.body.classList.remove("sidebar-open");
+    byId("sidebarToggleButton")?.setAttribute("aria-expanded", "false");
+  });
 
   const orderModal = byId("orderModal");
   orderModal.querySelector('button[title="Fechar"]')?.addEventListener("click", () => orderModal.classList.add("hidden"));
@@ -334,11 +346,13 @@ function installPdvInterface() {
       <div class="erp-pdv-catalog-meta"><span id="pdvMenuSummary">Cardápio</span><small>Selecione um item para adicionar</small></div>
       <div id="menuContent" class="erp-pdv-content"></div>
     </main>
+    <button id="pdvMobileJump" type="button" class="erp-pdv-mobile-jump">${cartIcon()} <span id="pdvMobileJumpLabel">Ver comanda</span></button>
     <aside class="pdv-panel" aria-label="Nova comanda">
       <header class="erp-pdv-order-head">
         <span class="erp-pdv-order-icon">${cartIcon()}</span>
         <div><small>Atendimento</small><h2>Nova comanda</h2></div>
         <span id="cartItemCount" class="erp-pdv-order-count">0 itens</span>
+        <button id="pdvMobileCatalogReturn" type="button" class="erp-pdv-mobile-return">Voltar ao cardápio</button>
       </header>
       <section class="erp-pdv-customer">
         <div class="erp-pdv-section-title"><span>1</span><div><strong>Entrega</strong><small>Informe quem receberá o pedido</small></div></div>
@@ -424,6 +438,33 @@ function installVisualSystem() {
     button.dataset.tooltip = label;
     button.setAttribute("aria-label", label);
   });
+
+  if (!byId("erpSidebarBackdrop", false)) {
+    const backdrop = document.createElement("button");
+    backdrop.id = "erpSidebarBackdrop";
+    backdrop.type = "button";
+    backdrop.className = "erp-sidebar-backdrop";
+    backdrop.setAttribute("aria-label", "Fechar menu de navegacao");
+    byId("appShell").append(backdrop);
+  }
+
+  if (!byId("erpSidebarClose", false)) {
+    const close = document.createElement("button");
+    close.id = "erpSidebarClose";
+    close.type = "button";
+    close.className = "erp-sidebar-close";
+    close.setAttribute("aria-label", "Fechar menu de navegacao");
+    close.innerHTML = '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-width="2" d="M6 6l12 12M18 6L6 18"/></svg>';
+    document.querySelector(".side-brand")?.append(close);
+  }
+
+  const sessionButton = document.querySelector(".top-session");
+  if (sessionButton && !sessionButton.querySelector(".top-session-icon")) {
+    const icon = document.createElement("span");
+    icon.className = "top-session-icon";
+    icon.innerHTML = '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" stroke-width="2"/><path stroke-width="2" d="M5 21a7 7 0 0114 0"/></svg>';
+    sessionButton.prepend(icon);
+  }
 }
 
 function installDashboardInterface() {
@@ -684,15 +725,15 @@ function closeFeedbackDialog() {
 function renderSettingsHome() {
   const permissions = new Set(state.session?.permissions || []);
   const cards = [
-    permissions.has("room-service.settings.manage") ? settingsCard("operation", "clock", "Funcionamento", "Abertura, fechamento e horarios") : "",
-    permissions.has("room-service.settings.manage") ? settingsCard("rooms", "rooms", "Acomodacoes", "Quartos disponiveis para atendimento") : "",
-    permissions.has("room-service.settings.manage") ? settingsCard("printing", "printer", "Impressao", "Computadores, impressoras e comprovantes") : "",
-    permissions.has("room-service.users.manage") ? settingsCard("users", "users", "Usuarios do ERP", "Acessos e permissoes da equipe") : "",
+    permissions.has("room-service.settings.manage") ? settingsCard("operation", "clock", "Funcionamento", "Abertura, fechamento e horários") : "",
+    permissions.has("room-service.settings.manage") ? settingsCard("rooms", "rooms", "Acomodações", "Quartos disponíveis para atendimento") : "",
+    permissions.has("room-service.settings.manage") ? settingsCard("printing", "printer", "Impressão", "Computadores, impressoras e comprovantes") : "",
+    permissions.has("room-service.users.manage") ? settingsCard("users", "users", "Usuários do ERP", "Acessos e permissões da equipe") : "",
     settingsCard("account", "account", "Minha conta", "Perfil e senha"),
-    settingsCard("appearance", "palette", "Aparencia", "Marca e escala da interface"),
-    settingsCard("notifications", "bell", "Notificacoes", "Som e volume dos alertas"),
+    settingsCard("appearance", "palette", "Aparência", "Marca e escala da interface"),
+    settingsCard("notifications", "bell", "Notificações", "Som e volume dos alertas"),
   ].filter(Boolean);
-  return `<div><p class="erp-panel-title">Configuracoes do ERP</p><p class="erp-v3-subtitle">${escapeHtml(displayHotelName(state.context?.hotel))}</p></div><div class="erp-settings-grid">${cards.join("")}</div>`;
+  return `<div><p class="erp-panel-title">Configurações do ERP</p><p class="erp-v3-subtitle">${escapeHtml(displayHotelName(state.context?.hotel))}</p></div><div class="erp-settings-grid">${cards.join("")}</div>`;
 }
 
 function renderOperationSettings() {
@@ -702,7 +743,7 @@ function renderOperationSettings() {
   const hours = operation.service_hours || [];
   const layout = state.scheduleViewMode || inferScheduleViewMode(hours);
   state.scheduleViewMode = layout;
-  const dayNames = ["Domingo", "Segunda-feira", "Terca-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sabado"];
+  const dayNames = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
   const rows = dayNames.map((name, day) => {
     const slot = hours.find((entry) => Number(entry.day_of_week) === day && Number(entry.sort_order || 0) === 0) || hours.find((entry) => Number(entry.day_of_week) === day);
     const closed = !slot || Boolean(slot.is_closed);
@@ -780,6 +821,7 @@ function openSettingsView(view) {
   byId("accountPopover")?.classList.add("hidden");
   switchTab("admin");
   renderAdmin();
+  byId("adminContainer")?.scrollTo({ top: 0, left: 0 });
   if (view === "printing" && desktop.isElectron) void refreshLocalPrintAgentStatus();
 }
 
@@ -1354,6 +1396,7 @@ function renderCart() {
   target.querySelectorAll("[data-cart-change]").forEach((button) => button.addEventListener("click", () => changeCart(button.dataset.cartChange, Number(button.dataset.delta))));
   setText("cartTotal", money(rows.reduce((total, line) => total + Number(line.item.price_cents || 0) * line.quantity, 0)));
   setText("cartItemCount", `${quantity} ${quantity === 1 ? "item" : "itens"}`);
+  setText("pdvMobileJumpLabel", quantity ? "Comanda · " + quantity + " " + (quantity === 1 ? "item" : "itens") : "Ver comanda");
   bindPdvActions();
 }
 
@@ -1367,6 +1410,8 @@ function bindPdvActions() {
   const container = byId("vendasContainer");
   const send = [...container.querySelectorAll("button")].find((button) => button.textContent.includes("ENVIAR PEDIDO DIRETO"));
   const clear = [...container.querySelectorAll("button")].find((button) => button.textContent.trim().startsWith("Limpar"));
+  const jump = byId("pdvMobileJump", false);
+  const back = byId("pdvMobileCatalogReturn", false);
   if (send) send.disabled = state.cart.size === 0;
   if (clear) clear.disabled = state.cart.size === 0;
   if (send && !send.dataset.bound) {
@@ -1379,6 +1424,14 @@ function bindPdvActions() {
       state.cart.clear();
       renderCart();
     });
+  }
+  if (jump && !jump.dataset.bound) {
+    jump.dataset.bound = "true";
+    jump.addEventListener("click", () => container.querySelector(".pdv-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
+  if (back && !back.dataset.bound) {
+    back.dataset.bound = "true";
+    back.addEventListener("click", () => container.querySelector("main")?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
 }
 
@@ -2415,6 +2468,7 @@ function normalize(value) {
 }
 
 function clampNumber(value, minimum, maximum, fallback) {
+  if (value === null || value === undefined || String(value).trim() === "") return fallback;
   const number = Number(value);
   return Number.isFinite(number) ? Math.max(minimum, Math.min(maximum, Math.round(number))) : fallback;
 }
