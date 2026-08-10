@@ -282,9 +282,9 @@ test("frontend aplica logos, fonte, titulo e cor primaria do contexto", () => {
   assert.match(app, /--hotel-font/);
   assert.match(app, /--accent/);
   assert.match(app, /document\.title/);
-  assert.match(app, /Codigo do usuario ou e-mail mestre/);
+  assert.match(app, /loginCode\.placeholder = "Codigo do usuario"/);
   assert.match(app, /identifyLoginUser/);
-  assert.match(app, /loginNameBadge/);
+  assert.match(app, /dataset\.loginCredential/);
   assert.match(app, /classList\.add\("erp-authenticated"\)/);
   assert.match(app, /classList\.remove\("erp-authenticated"\)/);
   assert.match(app, /resolveErpHotelSlug/);

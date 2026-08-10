@@ -8,6 +8,10 @@ export function getLoginContext() {
   return adminApi("/api/v1/admin/room-service/login-context");
 }
 
+export function getPublicHotelBootstrap(hotelSlug) {
+  return adminApi(`/api/v1/public/hotels/${encodeURIComponent(hotelSlug)}/bootstrap`);
+}
+
 export function identifyLoginUser({ hotelId, userCode }) {
   const params = new URLSearchParams({ hotel_id: hotelId, user_code: userCode });
   return adminApi(`/api/v1/admin/room-service/login-user?${params.toString()}`);
