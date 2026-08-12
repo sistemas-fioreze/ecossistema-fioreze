@@ -8,8 +8,12 @@ Wrapper Electron fino para abrir o ERP Room Service oficial em `/<slug-da-unidad
 - Nao acessa D1, R2, Apps Script, Google Sheets ou impressora diretamente.
 - Nao embute credenciais, tokens ou senhas.
 - Usa a sessao administrativa controlada pelo Worker.
-- Usa uma janela sem moldura nativa, com barra branca integrada, atualizar,
-  estado da impressao, minimizar, maximizar e fechar no proprio ERP.
+- Usa a Window Controls Overlay oficial do Electron para preservar os controles
+  nativos, Snap Layouts, Alt + Space, redimensionamento e DPI do Windows.
+- No Windows 11 22H2 ou superior, titlebar e sidebar expõem Mica nativo. No
+  Windows 10, Windows 11 antigo, sessao remota ou falha da API, usam uma
+  superficie Fluent estavel sem DLL, hook ou API privada.
+- Mantem atualizar e estado da impressao na titlebar integrada ao Windows.
 - Carrega a URL oficial da unidade; alteracoes publicadas aparecem sem reinstalar o aplicativo.
 - Consulta e reinicia o Fioreze Print Agent por um canal local restrito.
 
@@ -71,6 +75,7 @@ window.fiorezeDesktop = {
   close,
   reload,
   getWindowState,
+  getWindowAppearance,
   getPrintAgentStatus,
   restartPrintAgent,
   openPrintManager,
@@ -78,6 +83,22 @@ window.fiorezeDesktop = {
   version
 }
 ```
+
+`getWindowAppearance` retorna somente `material` (`mica`, `fluent` ou `solid`)
+e se os controles nativos estao ativos. Build do Windows e detalhes internos da
+decisao permanecem no processo Main.
+
+## Materiais do Windows
+
+- Windows 11 build 22621 ou superior: `setBackgroundMaterial("mica")`.
+- Windows 10 e Windows 11 sem Mica: fallback Fluent opaco/semitranslucido.
+- Alto contraste ou plataforma nao suportada: fallback solido legivel.
+- A area principal, paginas, cards, formularios e modais permanecem opacos.
+- A decisao usa `os.release()` no Main e a disponibilidade real da API. Nao usa
+  user-agent no renderer.
+
+O Electron nao oferece Acrylic nativo para Windows 10 pela API utilizada neste
+pacote. Por isso o fallback nao tenta simular o desktop com hacks ou blur amplo.
 
 O status e lido de `%LOCALAPPDATA%\Fioreze\PrintAgent\runtime-status.json`, que
 contem apenas dados operacionais sanitizados. Se o agente estiver parado, somente

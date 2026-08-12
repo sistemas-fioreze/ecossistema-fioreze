@@ -11,10 +11,14 @@ function read(relativePath) {
 
 test("main process keeps Electron hardening enabled", () => {
   const main = read("main.cjs");
+  const material = read("window-material.cjs");
   assert.match(main, /contextIsolation:\s*true/);
   assert.match(main, /nodeIntegration:\s*false/);
   assert.match(main, /sandbox:\s*true/);
-  assert.match(main, /frame:\s*false/);
+  assert.match(main, /buildWindowSurfaceOptions\(requestedAppearance\)/);
+  assert.match(main, /activateWindowMaterial\(window, requestedAppearance\)/);
+  assert.match(material, /titleBarStyle:\s*"hidden"/);
+  assert.match(material, /titleBarOverlay/);
   assert.match(main, /loadFile\(path\.join\(__dirname, "unconfigured\.html"\)\)/);
   assert.match(main, /setWindowOpenHandler/);
   assert.match(main, /will-navigate/);
@@ -41,7 +45,7 @@ test("unconfigured window keeps local controls and does not embed remote code", 
 test("preload exposes only the approved desktop bridge", () => {
   const preload = read("preload.cjs");
   assert.match(preload, /contextBridge\.exposeInMainWorld\(\s*"fiorezeDesktop"/);
-  for (const key of ["isElectron", "minimize", "toggleMaximize", "close", "reload", "getWindowState", "getPrintAgentStatus", "restartPrintAgent", "openPrintManager", "platform", "version"]) {
+  for (const key of ["isElectron", "minimize", "toggleMaximize", "close", "reload", "getWindowState", "getWindowAppearance", "getPrintAgentStatus", "restartPrintAgent", "openPrintManager", "platform", "version"]) {
     assert.match(preload, new RegExp(`${key}\\s*:`));
   }
   assert.doesNotMatch(preload, /fs|child_process|exec|spawn|token|password|secret/i);

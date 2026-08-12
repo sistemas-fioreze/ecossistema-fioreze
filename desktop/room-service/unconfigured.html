@@ -17,17 +17,22 @@
       button:hover { background: #f1f3f4; }
       button:last-child:hover { background: #c42b1c; }
       svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.5; }
-      main { height: calc(100% - 44px); display: grid; place-items: center; padding: 32px; text-align: center; }
+      main { height: calc(100% - 44px); display: grid; place-items: center; padding: 32px; text-align: center; background: #f4f6f8; }
       section { max-width: 460px; padding: 34px; background: #fff; border: 1px solid #e2e6ea; }
       .mark { width: 54px; height: 54px; display: grid; place-items: center; margin: 0 auto 22px; border-radius: 12px; background: #41464d; color: #fff; font-size: 24px; font-weight: 800; }
       h1 { margin: 0 0 10px; font-size: 24px; letter-spacing: 0; }
       p { margin: 0; color: #69717c; font-size: 14px; line-height: 1.6; }
+      body[data-window-material="mica"] { background: transparent; }
+      body[data-window-material="mica"] header { background: transparent; }
+      body[data-window-material="fluent"] header { background: rgba(243, 243, 243, .96); }
+      body[data-window-controls="native"] header { padding-right: 138px; }
+      body[data-window-controls="native"] nav { display: none; }
     </style>
   </head>
   <body>
     <header>
       <strong>Fioreze ERP</strong>
-      <nav aria-label="Controles da janela">
+      <nav aria-label="Controles da janela" hidden>
         <button id="minimize" aria-label="Minimizar"><svg viewBox="0 0 20 20"><path d="M5 10h10"/></svg></button>
         <button id="maximize" aria-label="Maximizar"><svg viewBox="0 0 20 20"><rect x="5.5" y="5.5" width="9" height="9" rx="1"/></svg></button>
         <button id="close" aria-label="Fechar"><svg viewBox="0 0 20 20"><path d="m6 6 8 8M14 6l-8 8"/></svg></button>
@@ -41,6 +46,11 @@
       </section>
     </main>
     <script>
+      window.fiorezeDesktop.getWindowAppearance().then((appearance) => {
+        document.body.dataset.windowMaterial = appearance.material;
+        document.body.dataset.windowControls = appearance.nativeWindowControls ? "native" : "custom";
+        if (!appearance.nativeWindowControls) document.querySelector("nav").hidden = false;
+      });
       document.getElementById("minimize").addEventListener("click", () => window.fiorezeDesktop.minimize());
       document.getElementById("maximize").addEventListener("click", () => window.fiorezeDesktop.toggleMaximize());
       document.getElementById("close").addEventListener("click", () => window.fiorezeDesktop.close());
