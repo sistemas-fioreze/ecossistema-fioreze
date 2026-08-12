@@ -1,8 +1,16 @@
 "use strict";
 
-const { app, BrowserWindow, ipcMain, screen, shell } = require("electron");
+const { app, BrowserWindow, ipcMain, nativeTheme, screen, shell } = require("electron");
+const os = require("node:os");
 const path = require("node:path");
 const { openPrintManager, readErpConfiguration, readPrintAgentStatus, restartPrintAgent, suitePaths } = require("./runtime.cjs");
+const {
+  activateWindowMaterial,
+  buildWindowSurfaceOptions,
+  isRemoteWindowsSession,
+  publicWindowAppearance,
+  resolveWindowAppearance,
+} = require("./window-material.cjs");
 
 const DEFAULT_ALLOWED_HOSTS = [
   "127.0.0.1",
@@ -38,6 +46,7 @@ function createMainWindow() {
   const { workArea } = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
   const width = Math.min(1280, workArea.width);
   const height = Math.min(820, workArea.height);
+  const requestedAppearance = resolveCurrentWindowAppearance();
   const window = new BrowserWindow({
     x: workArea.x + Math.floor((workArea.width - width) / 2),
     y: workArea.y + Math.floor((workArea.height - height) / 2),
@@ -46,9 +55,8 @@ function createMainWindow() {
     minWidth: Math.min(1024, workArea.width),
     minHeight: Math.min(680, workArea.height),
     title: "ERP Room Service Fioreze",
-    frame: false,
+    ...buildWindowSurfaceOptions(requestedAppearance),
     autoHideMenuBar: true,
-    backgroundColor: "#ffffff",
     icon: suitePaths().iconFile,
     show: false,
     webPreferences: {
@@ -60,6 +68,7 @@ function createMainWindow() {
       devTools: process.env.FIOREZE_DESKTOP_DEVTOOLS === "true",
     },
   });
+  window.fiorezeWindowAppearance = activateWindowMaterial(window, requestedAppearance);
 
   window.once("ready-to-show", () => window.show());
 
@@ -86,6 +95,10 @@ async function loadConfiguredContent(window) {
 }
 
 function registerWindowControls() {
+  ipcMain.handle("fioreze:window:appearance", (event) => {
+    const window = BrowserWindow.fromWebContents(event.sender);
+    return publicWindowAppearance(window?.fiorezeWindowAppearance || resolveCurrentWindowAppearance());
+  });
   ipcMain.handle("fioreze:window:minimize", (event) => {
     BrowserWindow.fromWebContents(event.sender)?.minimize();
   });
@@ -117,6 +130,16 @@ function registerWindowControls() {
   ipcMain.handle("fioreze:print-agent:open", (event) => {
     assertTrustedSender(event);
     return openPrintManager();
+  });
+}
+
+function resolveCurrentWindowAppearance() {
+  return resolveWindowAppearance({
+    platform: process.platform,
+    release: os.release(),
+    highContrast: nativeTheme.shouldUseHighContrastColors,
+    remoteSession: isRemoteWindowsSession(process.env),
+    micaApiAvailable: typeof BrowserWindow.prototype.setBackgroundMaterial === "function",
   });
 }
 

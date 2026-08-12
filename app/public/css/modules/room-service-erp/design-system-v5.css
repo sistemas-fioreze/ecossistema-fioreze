@@ -6590,6 +6590,66 @@ body[data-erp="room-service"] .erp-pdv-total-value {
   min-width: 0;
 }
 
+/* Electron uses the OS material only for the structural titlebar/sidebar surface. */
+html[data-fioreze-desktop="electron"],
+body[data-fioreze-desktop="electron"] {
+  background: transparent !important;
+}
+
+body[data-fioreze-desktop="electron"] #appShell {
+  background: transparent !important;
+}
+
+body[data-fioreze-desktop="electron"][data-window-material="mica"] {
+  --erp-window-structural-surface: transparent;
+}
+
+body[data-fioreze-desktop="electron"][data-window-material="fluent"] {
+  --erp-window-structural-surface: rgba(243, 243, 243, .96);
+}
+
+body[data-fioreze-desktop="electron"][data-window-material="solid"] {
+  --erp-window-structural-surface: #f8f8f8;
+}
+
+body[data-fioreze-desktop="electron"] :is(.rs-desktop-titlebar, .app-sidebar) {
+  background: var(--erp-window-structural-surface, #f8f8f8) !important;
+  backdrop-filter: none !important;
+}
+
+body[data-fioreze-desktop="electron"] :is(.app-main, .app-content, .content-frame, .view-section, .scrollable) {
+  background: var(--erp-canvas) !important;
+}
+
+body[data-fioreze-desktop="electron"] .app-topbar,
+body[data-fioreze-desktop="electron"] #loginOverlay {
+  background: var(--erp-surface) !important;
+  backdrop-filter: none !important;
+}
+
+body[data-fioreze-desktop="electron"] .rs-desktop-tool {
+  background: transparent !important;
+  -webkit-app-region: no-drag;
+}
+
+body[data-fioreze-desktop="electron"] .rs-desktop-tool:hover {
+  background: rgba(71, 85, 105, .08) !important;
+}
+
+body[data-fioreze-desktop="electron"][data-window-controls="native"] .rs-desktop-titlebar {
+  padding-right: 138px;
+}
+
+body[data-fioreze-desktop="electron"][data-window-controls="native"] .rs-window-controls {
+  display: none !important;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  body[data-fioreze-desktop="electron"] :is(.rs-desktop-titlebar, .app-sidebar) {
+    background: #f8f8f8 !important;
+  }
+}
+
 body[data-erp="room-service"] .erp-pdv-total-value .erp-pdv-order-count {
   margin: 0;
   padding: 0;
