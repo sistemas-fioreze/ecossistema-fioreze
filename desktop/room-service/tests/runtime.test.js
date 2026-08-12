@@ -4,7 +4,7 @@ const path = require("node:path");
 const os = require("node:os");
 const test = require("node:test");
 
-const { readErpConfiguration, readPrintAgentStatus, restartPrintAgent, suitePaths } = require("../runtime.cjs");
+const { openPrintManager, readErpConfiguration, readPrintAgentStatus, restartPrintAgent, suitePaths } = require("../runtime.cjs");
 
 function sandbox() {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "fioreze-desktop-"));
@@ -83,6 +83,35 @@ test("restart uses a request file while online and a fixed executable while offl
   assert.equal(offline.action, "started");
   assert.equal(invocation.executable, paths.suiteExecutable);
   assert.deepEqual(invocation.args, ["--tray"]);
+  assert.equal(invocation.options.shell, false);
+  fs.rmSync(directory, { recursive: true, force: true });
+});
+
+test("print manager reuses the running agent and starts only the fixed executable when offline", () => {
+  const { directory, env } = sandbox();
+  const paths = suitePaths(env);
+  fs.mkdirSync(path.dirname(paths.suiteExecutable), { recursive: true });
+  fs.mkdirSync(path.dirname(paths.agentStatusFile), { recursive: true });
+  fs.writeFileSync(paths.suiteExecutable, "fixture");
+  fs.writeFileSync(paths.agentStatusFile, JSON.stringify({ status: "running", updated_at: "2026-08-04T12:00:00.000Z" }));
+
+  const online = openPrintManager({ env, now: new Date("2026-08-04T12:00:05.000Z") });
+  assert.equal(online.action, "show_requested");
+  assert.equal(fs.existsSync(paths.showRequestFile), true);
+
+  fs.writeFileSync(paths.agentStatusFile, JSON.stringify({ status: "stopped", updated_at: "2026-08-04T11:00:00.000Z" }));
+  let invocation;
+  const offline = openPrintManager({
+    env,
+    now: new Date("2026-08-04T12:00:05.000Z"),
+    spawnProcess(executable, args, options) {
+      invocation = { executable, args, options };
+      return { unref() {} };
+    },
+  });
+  assert.equal(offline.action, "started");
+  assert.equal(invocation.executable, paths.suiteExecutable);
+  assert.deepEqual(invocation.args, []);
   assert.equal(invocation.options.shell, false);
   fs.rmSync(directory, { recursive: true, force: true });
 });

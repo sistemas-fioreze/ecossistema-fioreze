@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - "app/print-agent/**"
+      - "desktop/room-service/**"
       - ".github/workflows/build-print-agent-windows.yml"
 
 permissions:

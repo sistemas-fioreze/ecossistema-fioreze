@@ -1,8 +1,8 @@
 {
   "name": "@fioreze/room-service-desktop",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
-  "description": "Wrapper Electron fino para o ERP Room Service Fioreze.",
+  "description": "Fioreze ERP para Windows com integracao segura ao gerenciador de impressao.",
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",

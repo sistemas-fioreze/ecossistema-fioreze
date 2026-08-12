@@ -85,6 +85,14 @@ test("build Windows gera pacote separado sem configuracao ou credencial", async 
   assert.doesNotMatch(source, /Copy-Item[^\n]*(config\.json|token|credential)/i);
 });
 
+test("build Windows valida o runtime Python e nao depende de caminho de usuario", async () => {
+  const source = await readFile(buildUrl, "utf8");
+  assert.match(source, /Test-Path -LiteralPath \$env:FIOREZE_PYTHON/);
+  assert.match(source, /Get-Command python/);
+  assert.match(source, /Remove-Item \$Venv -Recurse -Force/);
+  assert.doesNotMatch(source, /C:\\\\Users\\\\(?:Marketing|wesle)/i);
+});
+
 test("agente permite escolher template e ERP exibe estado real de conexao", async () => {
   const [service, app, erp] = await Promise.all([
     readFile(serviceUrl, "utf8"),

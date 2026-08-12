@@ -19,7 +19,34 @@ function suitePaths(env = process.env) {
     suiteExecutable: path.join(base, "Suite", "Fioreze-Suite.exe"),
     agentStatusFile: path.join(base, "PrintAgent", "runtime-status.json"),
     restartRequestFile: path.join(base, "PrintAgent", "restart.request"),
+    showRequestFile: path.join(base, "PrintAgent", "show.request"),
   };
+}
+
+function openPrintManager({ env = process.env, fileSystem = fs, spawnProcess = spawn, now = new Date() } = {}) {
+  const paths = suitePaths(env);
+  const status = readPrintAgentStatus({ env, fileSystem, now: now.getTime() });
+  if (!status.installed) {
+    return { ok: false, action: "not_installed", status };
+  }
+
+  if (status.running) {
+    writeAtomic(fileSystem, paths.showRequestFile, JSON.stringify({ requested_at: now.toISOString() }));
+    return { ok: true, action: "show_requested", status };
+  }
+
+  try {
+    const child = spawnProcess(paths.suiteExecutable, [], {
+      detached: true,
+      stdio: "ignore",
+      windowsHide: false,
+      shell: false,
+    });
+    child.unref();
+    return { ok: true, action: "started", status };
+  } catch {
+    return { ok: false, action: "start_failed", status };
+  }
 }
 
 function readErpConfiguration({ env = process.env, fileSystem = fs } = {}) {
@@ -130,6 +157,7 @@ module.exports = {
   STATUS_MAX_AGE_MS,
   readErpConfiguration,
   readPrintAgentStatus,
+  openPrintManager,
   restartPrintAgent,
   suitePaths,
 };

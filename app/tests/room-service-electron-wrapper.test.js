@@ -23,7 +23,10 @@ test("ERP Room Service exposes desktop controls only through the adapter", () =>
   assert.match(adapter, /dataset\.fiorezeDesktop = "electron"/);
   assert.match(css, /body\[data-fioreze-desktop="electron"\] \.rs-window-controls/);
   assert.match(html, /rs-desktop-titlebar/);
+  assert.match(html, /desktopPrintManager/);
+  assert.match(html, /desktopReload/);
   assert.match(css, /-webkit-app-region:\s*drag/);
+  assert.match(css, /background:\s*#fff\s*!important/);
   assert.doesNotMatch(html, /require\("electron"\)|require\('electron'\)/);
 });
 
@@ -43,6 +46,7 @@ test("Electron wrapper is thin, hardened, and does not duplicate backend access"
   assert.match(preload, /contextBridge\.exposeInMainWorld\(\s*"fiorezeDesktop"/);
   assert.match(preload, /getPrintAgentStatus/);
   assert.match(preload, /restartPrintAgent/);
+  assert.match(preload, /openPrintManager/);
 
   const combined = `${main}\n${preload}`;
   assert.doesNotMatch(combined, /script\.google\.com|spreadsheets|private_key|client_email/i);

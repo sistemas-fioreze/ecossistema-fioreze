@@ -2,7 +2,7 @@
 
 const { app, BrowserWindow, ipcMain, shell } = require("electron");
 const path = require("node:path");
-const { readErpConfiguration, readPrintAgentStatus, restartPrintAgent, suitePaths } = require("./runtime.cjs");
+const { openPrintManager, readErpConfiguration, readPrintAgentStatus, restartPrintAgent, suitePaths } = require("./runtime.cjs");
 
 const DEFAULT_ALLOWED_HOSTS = [
   "127.0.0.1",
@@ -43,7 +43,7 @@ function createMainWindow() {
     title: "ERP Room Service Fioreze",
     frame: false,
     autoHideMenuBar: true,
-    backgroundColor: "#f6f1ec",
+    backgroundColor: "#ffffff",
     icon: suitePaths().iconFile,
     show: false,
     webPreferences: {
@@ -97,6 +97,10 @@ function registerWindowControls() {
     const window = BrowserWindow.fromWebContents(event.sender);
     return { maximized: Boolean(window?.isMaximized()) };
   });
+  ipcMain.handle("fioreze:window:reload", (event) => {
+    assertTrustedSender(event);
+    BrowserWindow.fromWebContents(event.sender)?.webContents.reloadIgnoringCache();
+  });
   ipcMain.handle("fioreze:print-agent:status", (event) => {
     assertTrustedSender(event);
     return readPrintAgentStatus();
@@ -104,6 +108,10 @@ function registerWindowControls() {
   ipcMain.handle("fioreze:print-agent:restart", (event) => {
     assertTrustedSender(event);
     return restartPrintAgent();
+  });
+  ipcMain.handle("fioreze:print-agent:open", (event) => {
+    assertTrustedSender(event);
+    return openPrintManager();
   });
 }
 

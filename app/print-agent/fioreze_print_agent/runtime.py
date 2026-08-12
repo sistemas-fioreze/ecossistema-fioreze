@@ -9,6 +9,7 @@ from .version import APP_VERSION
 
 STATUS_FILE = APP_DIR / "runtime-status.json"
 RESTART_REQUEST_FILE = APP_DIR / "restart.request"
+SHOW_REQUEST_FILE = APP_DIR / "show.request"
 
 
 def write_runtime_status(status, message, config=None, path=STATUS_FILE):
@@ -33,6 +34,17 @@ def write_runtime_status(status, message, config=None, path=STATUS_FILE):
 
 
 def consume_restart_request(path=RESTART_REQUEST_FILE):
+    target = Path(path)
+    if not target.exists():
+        return False
+    try:
+        target.unlink()
+    except FileNotFoundError:
+        return False
+    return True
+
+
+def consume_show_request(path=SHOW_REQUEST_FILE):
     target = Path(path)
     if not target.exists():
         return False
