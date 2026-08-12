@@ -89,8 +89,11 @@ necessaria.
 
 ## Superficie da janela
 
-- Windows usa Window Controls Overlay com fundo `#f7f8fa`.
+- Windows usa Window Controls Overlay sobre o fundo solido `#f7f8fa`; o overlay
+  fica vazado somente para preservar o contorno CSS sob os botoes nativos.
 - Titlebar e sidebar compartilham a mesma superficie solida.
+- O painel principal desenha uma unica borda superior/esquerda com canto
+  arredondado, incluindo a area sob minimizar, maximizar e fechar.
 - A area principal, paginas, cards, formularios e modais permanecem opacos.
 - Nao ha tentativa de simular Mica, Acrylic ou Fluent com APIs nativas ou CSS.
 

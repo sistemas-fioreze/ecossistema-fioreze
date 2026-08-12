@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 const {
   WINDOW_CHROME_BACKGROUND,
+  WINDOW_CHROME_OVERLAY,
   buildWindowChromeOptions,
   publicWindowChrome,
 } = require("../window-chrome.cjs");
@@ -12,7 +13,7 @@ test("Windows uses a stable solid title bar with native controls", () => {
   assert.deepEqual(buildWindowChromeOptions("win32"), {
     titleBarStyle: "hidden",
     titleBarOverlay: {
-      color: WINDOW_CHROME_BACKGROUND,
+      color: WINDOW_CHROME_OVERLAY,
       symbolColor: "#475569",
       height: 44,
     },
@@ -35,7 +36,7 @@ test("other platforms keep the same solid surface with custom controls", () => {
   });
 });
 
-test("window chrome never requests translucent operating-system materials", () => {
+test("window chrome never requests operating-system backdrop materials", () => {
   const source = require("node:fs").readFileSync(require.resolve("../window-chrome.cjs"), "utf8");
-  assert.doesNotMatch(source, /mica|fluent|setBackgroundMaterial|transparent/i);
+  assert.doesNotMatch(source, /mica|fluent|setBackgroundMaterial/i);
 });

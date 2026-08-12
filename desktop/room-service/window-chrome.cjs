@@ -1,6 +1,7 @@
 "use strict";
 
 const WINDOW_CHROME_BACKGROUND = "#f7f8fa";
+const WINDOW_CHROME_OVERLAY = "#f7f8fa00";
 const WINDOW_CHROME_SYMBOL = "#475569";
 const WINDOW_TITLEBAR_HEIGHT = 44;
 
@@ -15,7 +16,7 @@ function buildWindowChromeOptions(platform = process.platform) {
   return {
     titleBarStyle: "hidden",
     titleBarOverlay: {
-      color: WINDOW_CHROME_BACKGROUND,
+      color: WINDOW_CHROME_OVERLAY,
       symbolColor: WINDOW_CHROME_SYMBOL,
       height: WINDOW_TITLEBAR_HEIGHT,
     },
@@ -32,6 +33,7 @@ function publicWindowChrome(platform = process.platform) {
 
 module.exports = {
   WINDOW_CHROME_BACKGROUND,
+  WINDOW_CHROME_OVERLAY,
   WINDOW_CHROME_SYMBOL,
   WINDOW_TITLEBAR_HEIGHT,
   buildWindowChromeOptions,
