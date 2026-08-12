@@ -6568,6 +6568,7 @@ body[data-erp="room-service"] .rs-desktop-titlebar::after {
   left: 248px;
   height: 1px;
   background: var(--erp-line);
+  border-radius: 999px 0 0 999px;
   pointer-events: none;
 }
 
@@ -6590,31 +6591,24 @@ body[data-erp="room-service"] .erp-pdv-total-value {
   min-width: 0;
 }
 
-/* Electron uses the OS material only for the structural titlebar/sidebar surface. */
+/* Electron uses one stable solid surface for the structural titlebar/sidebar. */
 html[data-fioreze-desktop="electron"],
 body[data-fioreze-desktop="electron"] {
-  background: transparent !important;
+  background: #f7f8fa !important;
 }
 
 body[data-fioreze-desktop="electron"] #appShell {
-  background: transparent !important;
-}
-
-body[data-fioreze-desktop="electron"][data-window-material="mica"] {
-  --erp-window-structural-surface: transparent;
-}
-
-body[data-fioreze-desktop="electron"][data-window-material="fluent"] {
-  --erp-window-structural-surface: rgba(243, 243, 243, .96);
-}
-
-body[data-fioreze-desktop="electron"][data-window-material="solid"] {
-  --erp-window-structural-surface: #f8f8f8;
+  background: #f7f8fa !important;
 }
 
 body[data-fioreze-desktop="electron"] :is(.rs-desktop-titlebar, .app-sidebar) {
-  background: var(--erp-window-structural-surface, #f8f8f8) !important;
+  background: #f7f8fa !important;
   backdrop-filter: none !important;
+}
+
+body[data-fioreze-desktop="electron"] .app-main,
+body[data-fioreze-desktop="electron"] .app-topbar {
+  border-top-left-radius: 14px;
 }
 
 body[data-fioreze-desktop="electron"] :is(.app-main, .app-content, .content-frame, .view-section, .scrollable) {
@@ -6642,12 +6636,6 @@ body[data-fioreze-desktop="electron"][data-window-controls="native"] .rs-desktop
 
 body[data-fioreze-desktop="electron"][data-window-controls="native"] .rs-window-controls {
   display: none !important;
-}
-
-@media (prefers-reduced-transparency: reduce) {
-  body[data-fioreze-desktop="electron"] :is(.rs-desktop-titlebar, .app-sidebar) {
-    background: #f8f8f8 !important;
-  }
 }
 
 body[data-erp="room-service"] .erp-pdv-total-value .erp-pdv-order-count {

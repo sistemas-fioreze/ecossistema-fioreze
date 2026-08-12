@@ -10,9 +10,8 @@ Wrapper Electron fino para abrir o ERP Room Service oficial em `/<slug-da-unidad
 - Usa a sessao administrativa controlada pelo Worker.
 - Usa a Window Controls Overlay oficial do Electron para preservar os controles
   nativos, Snap Layouts, Alt + Space, redimensionamento e DPI do Windows.
-- No Windows 11 22H2 ou superior, titlebar e sidebar expõem Mica nativo. No
-  Windows 10, Windows 11 antigo, sessao remota ou falha da API, usam uma
-  superficie Fluent estavel sem DLL, hook ou API privada.
+- Titlebar e sidebar usam uma superficie cinza clara, solida e identica em
+  todas as versoes do Windows, sem Mica, Acrylic, blur ou transparencia.
 - Mantem atualizar e estado da impressao na titlebar integrada ao Windows.
 - Carrega a URL oficial da unidade; alteracoes publicadas aparecem sem reinstalar o aplicativo.
 - Consulta e reinicia o Fioreze Print Agent por um canal local restrito.
@@ -84,21 +83,16 @@ window.fiorezeDesktop = {
 }
 ```
 
-`getWindowAppearance` retorna somente `material` (`mica`, `fluent` ou `solid`)
-e se os controles nativos estao ativos. Build do Windows e detalhes internos da
-decisao permanecem no processo Main.
+`getWindowAppearance` retorna `material: "solid"` e informa se os controles
+nativos estao ativos. Nenhuma deteccao de material do sistema operacional e
+necessaria.
 
-## Materiais do Windows
+## Superficie da janela
 
-- Windows 11 build 22621 ou superior: `setBackgroundMaterial("mica")`.
-- Windows 10 e Windows 11 sem Mica: fallback Fluent opaco/semitranslucido.
-- Alto contraste ou plataforma nao suportada: fallback solido legivel.
+- Windows usa Window Controls Overlay com fundo `#f7f8fa`.
+- Titlebar e sidebar compartilham a mesma superficie solida.
 - A area principal, paginas, cards, formularios e modais permanecem opacos.
-- A decisao usa `os.release()` no Main e a disponibilidade real da API. Nao usa
-  user-agent no renderer.
-
-O Electron nao oferece Acrylic nativo para Windows 10 pela API utilizada neste
-pacote. Por isso o fallback nao tenta simular o desktop com hacks ou blur amplo.
+- Nao ha tentativa de simular Mica, Acrylic ou Fluent com APIs nativas ou CSS.
 
 O status e lido de `%LOCALAPPDATA%\Fioreze\PrintAgent\runtime-status.json`, que
 contem apenas dados operacionais sanitizados. Se o agente estiver parado, somente

@@ -11,14 +11,15 @@ function read(relativePath) {
 
 test("main process keeps Electron hardening enabled", () => {
   const main = read("main.cjs");
-  const material = read("window-material.cjs");
+  const chrome = read("window-chrome.cjs");
   assert.match(main, /contextIsolation:\s*true/);
   assert.match(main, /nodeIntegration:\s*false/);
   assert.match(main, /sandbox:\s*true/);
-  assert.match(main, /buildWindowSurfaceOptions\(requestedAppearance\)/);
-  assert.match(main, /activateWindowMaterial\(window, requestedAppearance\)/);
-  assert.match(material, /titleBarStyle:\s*"hidden"/);
-  assert.match(material, /titleBarOverlay/);
+  assert.match(main, /buildWindowChromeOptions\(process\.platform\)/);
+  assert.match(main, /publicWindowChrome\(process\.platform\)/);
+  assert.match(chrome, /titleBarStyle:\s*"hidden"/);
+  assert.match(chrome, /titleBarOverlay/);
+  assert.doesNotMatch(`${main}\n${chrome}`, /setBackgroundMaterial|mica|fluent/i);
   assert.match(main, /loadFile\(path\.join\(__dirname, "unconfigured\.html"\)\)/);
   assert.match(main, /setWindowOpenHandler/);
   assert.match(main, /will-navigate/);
