@@ -5732,11 +5732,11 @@ body[data-erp="room-service"] #loginCode.login-resolved {
 }
 
 body[data-erp="room-service"] #btnLogin {
-  width: 100% !important;
-  max-width: none !important;
-  height: 48px !important;
-  align-self: stretch;
-  margin: 1px 0 0 !important;
+  width: 176px !important;
+  max-width: 100% !important;
+  height: 42px !important;
+  align-self: center;
+  margin: 1px auto 0 !important;
   border-radius: var(--erp-control-radius) !important;
   font-size: 14px !important;
   font-weight: 750 !important;
@@ -5960,8 +5960,9 @@ body[data-erp="room-service"].erp-search-open #appShell::after {
   position: fixed;
   inset: 70px 0 0;
   z-index: 65;
-  background: rgba(28, 32, 38, .16);
-  backdrop-filter: blur(1px);
+  background: rgba(28, 32, 38, .12);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
   pointer-events: none;
 }
 
@@ -5970,11 +5971,27 @@ body[data-erp="room-service"] .app-topbar {
   z-index: 70;
 }
 
+body[data-erp="room-service"].erp-search-open .app-topbar {
+  z-index: 100;
+}
+
+body[data-erp="room-service"].erp-search-open .top-search {
+  z-index: 110 !important;
+}
+
 body[data-erp="room-service"] .top-search-results {
   max-height: min(330px, calc(100dvh - 100px)) !important;
   padding: 6px !important;
   scrollbar-width: thin;
   scrollbar-color: var(--erp-line-strong) transparent;
+}
+
+body[data-erp="room-service"].erp-search-open .top-search-results {
+  z-index: 111 !important;
+  pointer-events: auto !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  filter: none !important;
 }
 
 body[data-erp="room-service"] .top-search-group + .top-search-group {
@@ -6585,6 +6602,10 @@ body[data-fioreze-desktop="electron"] #appShell {
 body[data-fioreze-desktop="electron"] :is(.rs-desktop-titlebar, .app-sidebar) {
   background: #f7f8fa !important;
   backdrop-filter: none !important;
+}
+
+body[data-fioreze-desktop="electron"].erp-login .rs-desktop-titlebar {
+  background: #fff !important;
 }
 
 body[data-fioreze-desktop="electron"] .app-sidebar {
