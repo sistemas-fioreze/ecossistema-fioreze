@@ -25,6 +25,7 @@ test("ERP Room Service exposes desktop controls only through the adapter", () =>
   assert.match(html, /rs-desktop-titlebar/);
   assert.match(html, /desktopPrintManager/);
   assert.match(html, /desktopReload/);
+  assert.doesNotMatch(html, /rs-desktop-app-mark/);
   assert.match(css, /-webkit-app-region:\s*drag/);
   assert.match(css, /background:\s*#fff\s*!important/);
   assert.doesNotMatch(html, /require\("electron"\)|require\('electron'\)/);

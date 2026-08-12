@@ -185,6 +185,16 @@ test("PDV ancora a comanda e separa cabecalho, lista rolavel e rodape fixo", () 
   assert.match(css, /#menuContent \.erp-pdv-card-copy p \{[\s\S]*-webkit-line-clamp: 2;/);
   assert.match(css, /#menuContent \.erp-pdv-card-action \{[\s\S]*border-top: 0 !important;/);
   assert.doesNotMatch(app, /Selecione um item para adicionar/);
+  assert.doesNotMatch(app, /class="erp-pdv-order-head"/);
+  assert.match(app, /class="erp-pdv-total-value"><span id="cartItemCount"/);
+});
+
+test("buscas e datas usam uma unica superficie visual", () => {
+  const css = read("public/css/modules/room-service-erp/design-system-v5.css");
+
+  assert.match(css, /:is\(\.top-search-box, \.pdv-menu-search, \.tab-search\) > input[\s\S]*border: 0 !important;[\s\S]*background: transparent !important;/);
+  assert.match(css, /input\[type="date"\]:not\(\[type="checkbox"\]\):not\(\[type="radio"\]\):not\(\[type="range"\]\)[\s\S]*border: 0 !important;[\s\S]*box-shadow: none !important;/);
+  assert.match(css, /:has\(input\[type="date"\]:focus-visible\)/);
 });
 
 test("PDV usa acomodacao pesquisavel e busca global sem identificadores internos", () => {

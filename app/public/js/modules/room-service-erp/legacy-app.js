@@ -415,12 +415,7 @@ function installPdvInterface() {
     </main>
     <button id="pdvMobileJump" type="button" class="erp-pdv-mobile-jump">${cartIcon()} <span id="pdvMobileJumpLabel">Ver comanda</span></button>
     <aside class="pdv-panel" aria-label="Nova comanda">
-      <header class="erp-pdv-order-head">
-        <span class="erp-pdv-order-icon">${cartIcon()}</span>
-        <div><small>Atendimento</small><h2>Nova comanda</h2></div>
-        <span id="cartItemCount" class="erp-pdv-order-count">0 itens</span>
-        <button id="pdvMobileCatalogReturn" type="button" class="erp-pdv-mobile-return">Voltar ao cardápio</button>
-      </header>
+      <button id="pdvMobileCatalogReturn" type="button" class="erp-pdv-mobile-return">Voltar ao cardápio</button>
       <section class="erp-pdv-customer">
         <div class="erp-pdv-section-title"><span>1</span><div><strong>Entrega</strong><small>Informe quem receberá o pedido</small></div></div>
         <div class="erp-pdv-field-grid">
@@ -435,7 +430,7 @@ function installPdvInterface() {
         <div id="cartItems" class="erp-pdv-cart-list scrollable"></div>
       </section>
       <footer class="erp-pdv-checkout">
-        <div class="erp-pdv-total-row"><span>Total do pedido</span><strong id="cartTotal">R$ 0,00</strong></div>
+        <div class="erp-pdv-total-row"><span>Total do pedido</span><div class="erp-pdv-total-value"><span id="cartItemCount" class="erp-pdv-order-count">0 itens</span><strong id="cartTotal">R$ 0,00</strong></div></div>
         <div class="erp-pdv-checkout-actions">
           <button type="button" class="erp-pdv-clear">${trashIcon()} <span>Limpar</span></button>
           <button type="button" class="erp-pdv-submit">${checkIcon()} <span>Enviar pedido direto</span></button>
