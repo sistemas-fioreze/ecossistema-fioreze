@@ -21,6 +21,15 @@ test("main process keeps Electron hardening enabled", () => {
   assert.match(main, /\/erp\/room-service\//);
 });
 
+test("desktop window stays inside the active monitor work area", () => {
+  const main = read("main.cjs");
+  assert.match(main, /screen\.getDisplayNearestPoint\(screen\.getCursorScreenPoint\(\)\)/);
+  assert.match(main, /Math\.min\(1280, workArea\.width\)/);
+  assert.match(main, /Math\.min\(820, workArea\.height\)/);
+  assert.match(main, /workArea\.y \+ Math\.floor\(\(workArea\.height - height\) \/ 2\)/);
+  assert.match(main, /minHeight: Math\.min\(680, workArea\.height\)/);
+});
+
 test("unconfigured window keeps local controls and does not embed remote code", () => {
   const page = read("unconfigured.html");
   assert.match(page, /fiorezeDesktop\.minimize/);

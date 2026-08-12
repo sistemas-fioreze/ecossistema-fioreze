@@ -192,9 +192,19 @@ test("PDV ancora a comanda e separa cabecalho, lista rolavel e rodape fixo", () 
 test("buscas e datas usam uma unica superficie visual", () => {
   const css = read("public/css/modules/room-service-erp/design-system-v5.css");
 
-  assert.match(css, /:is\(\.top-search-box, \.pdv-menu-search, \.tab-search\) > input[\s\S]*border: 0 !important;[\s\S]*background: transparent !important;/);
+  assert.match(css, /:is\(\.top-search-box, \.pdv-menu-search, \.tab-search, \.erp-search-field\) > input[\s\S]*border: 0 !important;[\s\S]*background: transparent !important;/);
   assert.match(css, /input\[type="date"\]:not\(\[type="checkbox"\]\):not\(\[type="radio"\]\):not\(\[type="range"\]\)[\s\S]*border: 0 !important;[\s\S]*box-shadow: none !important;/);
+  assert.match(css, /\.erp-billing-filters > label \{[\s\S]*border: 1px solid var\(--erp-line-strong\) !important;/);
   assert.match(css, /:has\(input\[type="date"\]:focus-visible\)/);
+});
+
+test("Electron conecta a barra de titulo a lateral sem dividir o cabecalho interno", () => {
+  const css = read("public/css/modules/room-service-erp/design-system-v5.css");
+
+  assert.match(css, /\.app-topbar \{\s*border-bottom: 0 !important;/);
+  assert.match(css, /\.rs-desktop-titlebar \{\s*border-bottom: 0 !important;/);
+  assert.match(css, /\.rs-desktop-titlebar::after \{[\s\S]*left: 248px;[\s\S]*background: var\(--erp-line\);/);
+  assert.match(css, /sidebar-collapsed \.rs-desktop-titlebar::after \{\s*left: 80px;/);
 });
 
 test("PDV usa acomodacao pesquisavel e busca global sem identificadores internos", () => {

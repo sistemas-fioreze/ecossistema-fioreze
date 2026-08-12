@@ -6503,10 +6503,10 @@ body[data-erp="room-service"] .erp-password-form .admin-primary-btn {
 }
 
 /* Final shell polish: composite controls own the only visible surface. */
-body[data-erp="room-service"] :is(.top-search-box, .pdv-menu-search, .tab-search) > input,
-body[data-erp="room-service"] :is(.top-search-box, .pdv-menu-search, .tab-search) > input:hover,
-body[data-erp="room-service"] :is(.top-search-box, .pdv-menu-search, .tab-search) > input:focus,
-body[data-erp="room-service"] :is(.top-search-box, .pdv-menu-search, .tab-search) > input:focus-visible,
+body[data-erp="room-service"] :is(.top-search-box, .pdv-menu-search, .tab-search, .erp-search-field) > input,
+body[data-erp="room-service"] :is(.top-search-box, .pdv-menu-search, .tab-search, .erp-search-field) > input:hover,
+body[data-erp="room-service"] :is(.top-search-box, .pdv-menu-search, .tab-search, .erp-search-field) > input:focus,
+body[data-erp="room-service"] :is(.top-search-box, .pdv-menu-search, .tab-search, .erp-search-field) > input:focus-visible,
 body[data-erp="room-service"] input[type="date"]:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
 body[data-erp="room-service"] input[type="date"]:not([type="checkbox"]):not([type="radio"]):not([type="range"]):hover,
 body[data-erp="room-service"] input[type="date"]:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
@@ -6528,6 +6528,58 @@ body[data-erp="room-service"] input[type="search"]::-webkit-search-results-decor
 body[data-erp="room-service"] :is(.dash-date-pill, .erp-dashboard-date, .erp-date-field, .erp-billing-filters label):has(input[type="date"]:focus-visible) {
   border-color: var(--brand-primary-border) !important;
   box-shadow: 0 0 0 2px var(--brand-primary-soft) !important;
+}
+
+body[data-erp="room-service"] .erp-billing-filters > label {
+  min-height: var(--erp-control-height);
+  display: inline-flex !important;
+  align-items: center;
+  gap: 8px;
+  padding: 0 11px !important;
+  border: 1px solid var(--erp-line-strong) !important;
+  border-radius: var(--erp-control-radius) !important;
+  background: var(--erp-surface) !important;
+}
+
+body[data-erp="room-service"] .erp-billing-filters > label > input[type="date"] {
+  min-width: 132px;
+  padding: 0 !important;
+}
+
+body[data-erp="room-service"] :is(.top-search-box, .pdv-menu-search, .tab-search, .erp-search-field):has(input:focus-visible) {
+  border-color: var(--brand-primary-border) !important;
+  box-shadow: 0 0 0 2px var(--brand-primary-soft) !important;
+}
+
+/* Electron shell: the title bar and sidebar meet as one deliberate L-shaped divider. */
+body[data-erp="room-service"] .app-topbar {
+  border-bottom: 0 !important;
+}
+
+body[data-erp="room-service"] .rs-desktop-titlebar {
+  border-bottom: 0 !important;
+}
+
+body[data-erp="room-service"] .rs-desktop-titlebar::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 248px;
+  height: 1px;
+  background: var(--erp-line);
+  pointer-events: none;
+}
+
+body[data-erp="room-service"].sidebar-collapsed .rs-desktop-titlebar::after {
+  left: 80px;
+}
+
+@media (max-width: 1100px) {
+  body[data-erp="room-service"] .rs-desktop-titlebar::after,
+  body[data-erp="room-service"].sidebar-collapsed .rs-desktop-titlebar::after {
+    left: 0;
+  }
 }
 
 body[data-erp="room-service"] .erp-pdv-total-value {
