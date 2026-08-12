@@ -92,7 +92,9 @@ test("lista de modulos respeita habilitacao por hotel", async () => {
 
 test("portal publico entrega somente conteudo publicado da unidade solicitada", async () => {
   const { json } = createWorkerTestContext();
-  const { response, body } = await json("/api/v1/public/hotels/muller-fioreze/portal/home");
+  const { response, body } = await json("/api/v1/public/hotels/muller-fioreze/portal/home", {
+    headers: { "x-fioreze-test-now": "2026-08-09T12:00:00.000Z" },
+  });
 
   assert.equal(response.status, 200);
   assert.equal(body.data.hotel_id, "muller-fioreze");
@@ -135,8 +137,12 @@ test("evento recorrente retorna um único card com todas as ocorrências", async
 test("paginas e eventos do portal preservam isolamento por hotel", async () => {
   const { json } = createWorkerTestContext();
   const [{ body: pages }, { body: events }] = await Promise.all([
-    json("/api/v1/public/hotels/aurora-demo/portal/pages"),
-    json("/api/v1/public/hotels/aurora-demo/portal/events"),
+    json("/api/v1/public/hotels/aurora-demo/portal/pages", {
+      headers: { "x-fioreze-test-now": "2026-08-09T12:00:00.000Z" },
+    }),
+    json("/api/v1/public/hotels/aurora-demo/portal/events", {
+      headers: { "x-fioreze-test-now": "2026-08-09T12:00:00.000Z" },
+    }),
   ]);
 
   assert.deepEqual(pages.data.pages.map((page) => page.id), ["page-aurora-home"]);

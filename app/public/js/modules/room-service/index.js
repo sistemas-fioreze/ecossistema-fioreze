@@ -466,11 +466,26 @@ function syncSubmitButton(container, state) {
 }
 
 function canScheduleToday(state) {
-  if (!orderSchedulingEnabled(state) || !state.status || state.status.mode === "forced_closed") return false;
+  if (!orderSchedulingEnabled(state) || !state.status || state.status.mode !== "automatic") return false;
   const nowMinutes = state.status.local.hour * 60 + state.status.local.minute;
   return (state.status.today_slots || []).some((slot) => {
     const [hour, minute] = String(slot.closes_at || "00:00").split(":").map(Number);
     return hour * 60 + minute > nowMinutes;
+  });
+}
+
+function isScheduledTimeAllowed(state, value) {
+  if (!canScheduleToday(state) || !/^\d{2}:\d{2}$/.test(String(value || ""))) return false;
+  const selectedMinutes = clockValueToMinutes(value);
+  const nowMinutes = state.status.local.hour * 60 + state.status.local.minute;
+  if (selectedMinutes <= nowMinutes) return false;
+
+  return (state.status.today_slots || []).some((slot) => {
+    const opensAt = clockValueToMinutes(slot.opens_at);
+    const closesAt = clockValueToMinutes(slot.closes_at);
+    if (opensAt === closesAt) return true;
+    if (opensAt < closesAt) return selectedMinutes >= opensAt && selectedMinutes < closesAt;
+    return selectedMinutes >= opensAt;
   });
 }
 
@@ -851,6 +866,14 @@ async function submitOrder(container, state, form) {
       showModal(container, "Escolha um horário", "Selecione o horário de entrega para hoje.");
       return;
     }
+    if (!isScheduledTimeAllowed(state, scheduledTime)) {
+      showModal(
+        container,
+        "Horário indisponível",
+        "Escolha um horário futuro dentro do funcionamento do Room Service para hoje.",
+      );
+      return;
+    }
     scheduledFor = hotelLocalTimeToIso(scheduledTime, state.bootstrap.timezone);
   } else if (!state.status?.open) {
     showModal(container, "Escolha um horário", "O Room Service está fechado agora. Programe a entrega para hoje.");
@@ -1202,6 +1225,7 @@ async function loadCss(path) {
 export const internalsForTests = {
   buildNotes,
   canScheduleToday,
+  isScheduledTimeAllowed,
   hotelLocalTimeToIso,
   renderStaticShell,
   sanitizeAssetPath,

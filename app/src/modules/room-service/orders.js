@@ -5,7 +5,6 @@ import { multiplyCents } from "../../core/money.js";
 import { nowIso } from "../../core/time.js";
 import { optionalString, readJson, requireArray, requirePositiveInteger, requireString } from "../../core/validation.js";
 import {
-  applyOperationMode,
   assertRoomServiceOpen,
   evaluateServiceHours,
   getLocalDateKey,
@@ -316,6 +315,9 @@ function validatePreparation({ request, env, tenant, payload }) {
   if (tenant.settings?.[`${MODULE_KEY}.order_scheduling_enabled`] !== true) {
     throw unprocessable("Agendamento de pedidos indisponivel para esta unidade.");
   }
+  if ((tenant.settings?.[`${MODULE_KEY}.operation_mode`] || "automatic") !== "automatic") {
+    throw unprocessable("Agendamento disponivel somente no modo automatico do Room Service.");
+  }
   const rawScheduledFor = requireString(payload.scheduled_for, "scheduled_for", { max: 40 });
   const scheduledDate = new Date(rawScheduledFor);
   if (Number.isNaN(scheduledDate.getTime())) throw badRequest("scheduled_for deve ser uma data valida.");
@@ -325,14 +327,11 @@ function validatePreparation({ request, env, tenant, payload }) {
   if (getLocalDateKey(scheduledDate, timezone) !== getLocalDateKey(now, timezone)) {
     throw unprocessable("O pedido so pode ser agendado para o mesmo dia.");
   }
-  const schedule = applyOperationMode(
-    evaluateServiceHours({
-      serviceHours: tenant.service_hours?.[MODULE_KEY] || [],
-      timezone,
-      now: scheduledDate,
-    }),
-    tenant.settings?.[`${MODULE_KEY}.operation_mode`],
-  );
+  const schedule = evaluateServiceHours({
+    serviceHours: tenant.service_hours?.[MODULE_KEY] || [],
+    timezone,
+    now: scheduledDate,
+  });
   if (!schedule.open) throw unprocessable("O horario escolhido esta fora do funcionamento do Room Service.");
   return { mode, scheduled_for: scheduledDate.toISOString() };
 }
