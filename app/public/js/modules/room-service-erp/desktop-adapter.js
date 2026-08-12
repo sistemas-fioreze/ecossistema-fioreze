@@ -44,14 +44,13 @@ export async function setupDesktopControls(root = document) {
   }
 
   const appearance = await desktop.windowAppearance().catch(() => ({ material: "solid", nativeWindowControls: false }));
-  const material = ["mica", "fluent", "solid"].includes(appearance?.material) ? appearance.material : "solid";
   const controlMode = appearance?.nativeWindowControls ? "native" : "custom";
 
   document.body.dataset.fiorezeDesktop = "electron";
-  document.body.dataset.windowMaterial = material;
+  document.body.dataset.windowMaterial = "solid";
   document.body.dataset.windowControls = controlMode;
   document.documentElement.dataset.fiorezeDesktop = "electron";
-  document.documentElement.dataset.windowMaterial = material;
+  document.documentElement.dataset.windowMaterial = "solid";
   document.documentElement.dataset.windowControls = controlMode;
   const customWindowControls = root.querySelector(".rs-window-controls");
   if (customWindowControls) customWindowControls.hidden = controlMode === "native";
