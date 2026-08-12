@@ -1,6 +1,6 @@
 "use strict";
 
-const { app, BrowserWindow, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, ipcMain, screen, shell } = require("electron");
 const path = require("node:path");
 const { openPrintManager, readErpConfiguration, readPrintAgentStatus, restartPrintAgent, suitePaths } = require("./runtime.cjs");
 
@@ -35,11 +35,16 @@ app.on("activate", async () => {
 });
 
 function createMainWindow() {
+  const { workArea } = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+  const width = Math.min(1280, workArea.width);
+  const height = Math.min(820, workArea.height);
   const window = new BrowserWindow({
-    width: 1280,
-    height: 820,
-    minWidth: 1024,
-    minHeight: 680,
+    x: workArea.x + Math.floor((workArea.width - width) / 2),
+    y: workArea.y + Math.floor((workArea.height - height) / 2),
+    width,
+    height,
+    minWidth: Math.min(1024, workArea.width),
+    minHeight: Math.min(680, workArea.height),
     title: "ERP Room Service Fioreze",
     frame: false,
     autoHideMenuBar: true,
