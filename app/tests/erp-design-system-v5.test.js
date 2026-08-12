@@ -171,7 +171,7 @@ test("login mantem composicao coesa durante identificacao e carregamento", () =>
   assert.match(css, /\.erp-login-field \{[\s\S]*display: grid;[\s\S]*font-size: 12px;/);
   assert.match(css, /#loginNameBadge \{[\s\S]*display: none !important;/);
   assert.match(css, /\.login-card\.is-loading > :is\(\.erp-login-brand, \.erp-login-form\)/);
-  assert.match(css, /#btnLogin \{[\s\S]*width: 176px !important;[\s\S]*height: 42px !important;[\s\S]*align-self: center;[\s\S]*margin: 1px auto 0 !important;/);
+  assert.match(css, /#btnLogin \{[\s\S]*width: 176px !important;[\s\S]*height: 42px !important;[\s\S]*align-self: flex-start;[\s\S]*margin: 1px 0 0 !important;/);
 });
 
 test("PDV ancora a comanda e separa cabecalho, lista rolavel e rodape fixo", () => {
@@ -179,7 +179,7 @@ test("PDV ancora a comanda e separa cabecalho, lista rolavel e rodape fixo", () 
   const app = read("public/js/modules/room-service-erp/legacy-app.js");
 
   assert.match(css, /#vendasContainer\.erp-pdv-workspace \{[\s\S]*padding: 0 !important;[\s\S]*overflow: hidden !important;/);
-  assert.match(css, /#vendasContainer \.pdv-panel \{[\s\S]*height: 100% !important;[\s\S]*margin: 0 !important;[\s\S]*border-radius: 0 !important;/);
+  assert.match(css, /#vendasContainer \.pdv-panel \{[\s\S]*height: calc\(100% - 32px\) !important;[\s\S]*margin: 16px 16px 16px 0 !important;[\s\S]*border: 1px solid var\(--erp-line\) !important;[\s\S]*border-radius: var\(--erp-radius-lg\) !important;/);
   assert.match(css, /#cartItems\.erp-pdv-cart-list \{[\s\S]*overflow-y: auto !important;/);
   assert.match(css, /\.erp-pdv-checkout \{[\s\S]*position: sticky;[\s\S]*inset: auto 0 0;/);
   assert.match(css, /\.erp-pdv-list \{[\s\S]*minmax\(300px, 1fr\)/);
@@ -212,7 +212,7 @@ test("Electron conecta a barra de titulo a lateral sem dividir o cabecalho inter
 test("busca global mantem sugestoes acima da camada de contexto e clicaveis", () => {
   const css = read("public/css/modules/room-service-erp/design-system-v5.css");
 
-  assert.match(css, /erp-search-open #appShell::after \{[\s\S]*backdrop-filter: none;[\s\S]*pointer-events: none;/);
+  assert.match(css, /erp-search-open #appShell::after \{[\s\S]*content: none !important;[\s\S]*display: none !important;/);
   assert.match(css, /erp-search-open \.app-topbar \{\s*z-index: 100;/);
   assert.match(css, /erp-search-open \.top-search \{\s*z-index: 110 !important;/);
   assert.match(css, /erp-search-open \.top-search-results \{[\s\S]*z-index: 111 !important;[\s\S]*pointer-events: auto !important;[\s\S]*filter: none !important;/);
