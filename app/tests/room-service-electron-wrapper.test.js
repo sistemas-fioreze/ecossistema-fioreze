@@ -34,7 +34,8 @@ test("ERP Room Service exposes desktop controls only through the adapter", () =>
   assert.doesNotMatch(html, /rs-desktop-app-mark/);
   assert.match(css, /-webkit-app-region:\s*drag/);
   assert.match(css, /:is\(\.rs-desktop-titlebar, \.app-sidebar\) \{[\s\S]*background:\s*#f7f8fa/);
-  assert.match(css, /\.app-main,[\s\S]*\.app-topbar \{[\s\S]*border-top-left-radius:\s*14px/);
+  assert.match(css, /\.app-main \{[\s\S]*border-top:\s*1px solid var\(--erp-line\)[\s\S]*border-left:\s*1px solid var\(--erp-line\)[\s\S]*border-top-left-radius:\s*14px/);
+  assert.match(css, /\.rs-desktop-titlebar::after \{\s*content:\s*none;/);
   assert.doesNotMatch(css, /data-window-material="mica"|data-window-material="fluent"/);
   assert.match(css, /data-window-controls="native"/);
   assert.doesNotMatch(html, /require\("electron"\)|require\('electron'\)/);
@@ -53,6 +54,7 @@ test("Electron wrapper is thin, hardened, and does not duplicate backend access"
   assert.match(windowChrome, /titleBarStyle:\s*"hidden"/);
   assert.match(windowChrome, /titleBarOverlay/);
   assert.match(windowChrome, /WINDOW_CHROME_BACKGROUND\s*=\s*"#f7f8fa"/);
+  assert.match(windowChrome, /WINDOW_CHROME_OVERLAY\s*=\s*"#f7f8fa00"/);
   assert.doesNotMatch(windowChrome, /setBackgroundMaterial|mica|fluent/i);
   assert.match(main, /\/erp\/room-service\//);
   assert.match(main, /setWindowOpenHandler/);

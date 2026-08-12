@@ -6551,7 +6551,7 @@ body[data-erp="room-service"] :is(.top-search-box, .pdv-menu-search, .tab-search
   box-shadow: 0 0 0 2px var(--brand-primary-soft) !important;
 }
 
-/* Electron shell: the title bar and sidebar meet as one deliberate L-shaped divider. */
+/* Electron shell: the main panel owns one continuous rounded divider. */
 body[data-erp="room-service"] .app-topbar {
   border-bottom: 0 !important;
 }
@@ -6561,26 +6561,7 @@ body[data-erp="room-service"] .rs-desktop-titlebar {
 }
 
 body[data-erp="room-service"] .rs-desktop-titlebar::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 248px;
-  height: 1px;
-  background: var(--erp-line);
-  border-radius: 999px 0 0 999px;
-  pointer-events: none;
-}
-
-body[data-erp="room-service"].sidebar-collapsed .rs-desktop-titlebar::after {
-  left: 80px;
-}
-
-@media (max-width: 1100px) {
-  body[data-erp="room-service"] .rs-desktop-titlebar::after,
-  body[data-erp="room-service"].sidebar-collapsed .rs-desktop-titlebar::after {
-    left: 0;
-  }
+  content: none;
 }
 
 body[data-erp="room-service"] .erp-pdv-total-value {
@@ -6606,8 +6587,13 @@ body[data-fioreze-desktop="electron"] :is(.rs-desktop-titlebar, .app-sidebar) {
   backdrop-filter: none !important;
 }
 
-body[data-fioreze-desktop="electron"] .app-main,
-body[data-fioreze-desktop="electron"] .app-topbar {
+body[data-fioreze-desktop="electron"] .app-sidebar {
+  border-right: 0 !important;
+}
+
+body[data-fioreze-desktop="electron"] .app-main {
+  border-top: 1px solid var(--erp-line) !important;
+  border-left: 1px solid var(--erp-line) !important;
   border-top-left-radius: 14px;
 }
 

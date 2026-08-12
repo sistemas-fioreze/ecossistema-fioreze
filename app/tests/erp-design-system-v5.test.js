@@ -99,6 +99,7 @@ test("ERP aplica branding, contexto de rota e componentes da nova geracao", () =
 test("editor, modais e layout estreito preservam conteudo e acoes", () => {
   const css = read("public/css/modules/room-service-erp/design-system-v5.css");
   const app = read("public/js/modules/room-service-erp/legacy-app.js");
+  const baseSidebar = css.match(/body\[data-erp="room-service"\] \.app-sidebar \{([\s\S]*?)\}/)?.[1] || "";
 
   assert.match(css, /\.erp-catalog-grid \{[\s\S]*grid-template-columns: repeat\(auto-fill, minmax\(290px, 1fr\)\)/);
   assert.match(css, /\.erp-product-card \{[\s\S]*height: auto;[\s\S]*overflow: visible;/);
@@ -107,8 +108,8 @@ test("editor, modais e layout estreito preservam conteudo e acoes", () => {
   assert.match(css, /\.erp-user-modal-actions \{[\s\S]*position: sticky;[\s\S]*bottom: 0;/);
   assert.match(css, /\.erp-user-permission-grid label \{[\s\S]*min-height: 52px;/);
   assert.match(css, /@media \(max-width: 1100px\) \{[\s\S]*\.app-main \{[\s\S]*flex: 1 1 100% !important;/);
-  assert.match(css, /\.app-sidebar \{[\s\S]*border-right: 1px solid var\(--erp-line\) !important;/);
-  assert.doesNotMatch(css, /\.app-sidebar \{[^}]*border-right: 0 !important;/);
+  assert.match(baseSidebar, /border-right: 1px solid var\(--erp-line\) !important;/);
+  assert.doesNotMatch(baseSidebar, /border-right: 0 !important;/);
   assert.match(css, /\.sidebar-footer \{[\s\S]*border-top: 0 !important;/);
   assert.match(css, /#vendasContainer > main\.erp-pdv-catalog[\s\S]*flex: 1 1 0 !important;/);
   assert.match(css, /#menuContent \.erp-pdv-card-copy h3 \{[\s\S]*-webkit-line-clamp: unset;/);
@@ -203,8 +204,8 @@ test("Electron conecta a barra de titulo a lateral sem dividir o cabecalho inter
 
   assert.match(css, /\.app-topbar \{\s*border-bottom: 0 !important;/);
   assert.match(css, /\.rs-desktop-titlebar \{\s*border-bottom: 0 !important;/);
-  assert.match(css, /\.rs-desktop-titlebar::after \{[\s\S]*left: 248px;[\s\S]*background: var\(--erp-line\);/);
-  assert.match(css, /sidebar-collapsed \.rs-desktop-titlebar::after \{\s*left: 80px;/);
+  assert.match(css, /\.rs-desktop-titlebar::after \{\s*content: none;/);
+  assert.match(css, /data-fioreze-desktop="electron"\] \.app-main \{[\s\S]*border-top: 1px solid var\(--erp-line\) !important;[\s\S]*border-left: 1px solid var\(--erp-line\) !important;[\s\S]*border-top-left-radius: 14px;/);
 });
 
 test("PDV usa acomodacao pesquisavel e busca global sem identificadores internos", () => {
