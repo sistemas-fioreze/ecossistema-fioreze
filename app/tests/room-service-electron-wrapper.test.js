@@ -24,6 +24,8 @@ test("ERP Room Service exposes desktop controls only through the adapter", () =>
   assert.match(adapter, /window\.fiorezeDesktop/);
   assert.match(adapter, /dataset\.fiorezeDesktop = "browser"/);
   assert.match(adapter, /dataset\.fiorezeDesktop = "electron"/);
+  assert.match(adapter, /--erp-desktop-bottom-inset/);
+  assert.match(adapter, /workAreaBottomInset/);
   assert.match(adapter, /dataset\.windowMaterial = "solid"/);
   assert.match(adapter, /dataset\.windowControls = controlMode/);
   assert.match(adapter, /getWindowAppearance/);

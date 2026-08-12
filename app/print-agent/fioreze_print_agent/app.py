@@ -1,3 +1,4 @@
+import ctypes
 import os
 import platform
 import queue
@@ -5,6 +6,7 @@ import subprocess
 import sys
 import time
 import tkinter as tk
+from ctypes.wintypes import RECT
 from datetime import datetime
 from tkinter import messagebox, ttk
 
@@ -21,6 +23,9 @@ from .worker import PrintWorker
 
 
 DEFAULT_ORIGIN = "https://portal.hoteisfioreze.com.br"
+STATUS_WINDOW_WIDTH = 390
+STATUS_WINDOW_HEIGHT = 700
+STATUS_WINDOW_MARGIN = 12
 COLORS = {
     "canvas": "#f4f6f8",
     "surface": "#ffffff",
@@ -38,6 +43,28 @@ COLORS = {
     "danger": "#c43d4b",
     "danger_soft": "#fff0f1",
 }
+
+
+def status_window_geometry(work_area, width=STATUS_WINDOW_WIDTH, height=STATUS_WINDOW_HEIGHT, margin=STATUS_WINDOW_MARGIN):
+    left, top, right, bottom = work_area
+    available_width = max(320, right - left - (margin * 2))
+    available_height = max(560, bottom - top - (margin * 2))
+    final_width = min(width, available_width)
+    final_height = min(height, available_height)
+    x = max(left + margin, right - final_width - margin)
+    y = max(top + margin, bottom - final_height - margin)
+    return f"{final_width}x{final_height}+{x}+{y}"
+
+
+def work_area_bounds(root):
+    if os.name == "nt":
+        try:
+            bounds = RECT()
+            if ctypes.windll.user32.SystemParametersInfoW(48, 0, ctypes.byref(bounds), 0):
+                return bounds.left, bounds.top, bounds.right, bounds.bottom
+        except (AttributeError, OSError):
+            pass
+    return 0, 0, root.winfo_screenwidth(), root.winfo_screenheight()
 
 
 def runtime_tone(message):
@@ -68,6 +95,8 @@ class AgentApplication:
         self.status_chip = None
         self.activity_time = None
         self.notice = None
+        self.window_mode = None
+        self.drag_origin = None
         self._configure_styles()
         self._set_window_icon()
         self.root.protocol("WM_DELETE_WINDOW", self.close)
@@ -126,6 +155,78 @@ class AgentApplication:
         self.status_chip = None
         self.activity_time = None
         self.notice = None
+
+    def _set_setup_window(self):
+        if self.window_mode == "setup":
+            return
+        self.root.overrideredirect(False)
+        self.root.resizable(True, True)
+        self.root.minsize(780, 620)
+        self.root.maxsize(self.root.winfo_screenwidth(), self.root.winfo_screenheight())
+        self.root.geometry("920x690")
+        self.root.configure(bg=COLORS["canvas"])
+        self.window_mode = "setup"
+
+    def _set_status_window(self):
+        self.root.overrideredirect(True)
+        self.root.resizable(False, False)
+        self.root.minsize(STATUS_WINDOW_WIDTH, 560)
+        self.root.maxsize(STATUS_WINDOW_WIDTH, STATUS_WINDOW_HEIGHT)
+        self.root.geometry(status_window_geometry(work_area_bounds(self.root)))
+        self.root.configure(bg=COLORS["line"])
+        self.window_mode = "status"
+
+    def _start_window_drag(self, event):
+        self.drag_origin = (event.x_root - self.root.winfo_x(), event.y_root - self.root.winfo_y())
+
+    def _move_window(self, event):
+        if not self.drag_origin:
+            return
+        offset_x, offset_y = self.drag_origin
+        self.root.geometry(f"+{event.x_root - offset_x}+{event.y_root - offset_y}")
+
+    def _stop_window_drag(self, _event=None):
+        self.drag_origin = None
+
+    def _status_shell(self):
+        shell = tk.Frame(
+            self.root,
+            bg=COLORS["canvas"],
+            highlightthickness=1,
+            highlightbackground=COLORS["line"],
+        )
+        shell.pack(fill="both", expand=True)
+        titlebar = tk.Frame(shell, bg=COLORS["surface"], height=48)
+        titlebar.pack(fill="x")
+        titlebar.pack_propagate(False)
+        identity = tk.Frame(titlebar, bg=COLORS["surface"])
+        identity.pack(side="left", fill="both", expand=True, padx=(16, 0))
+        title = tk.Label(identity, text="Fioreze Impressao", bg=COLORS["surface"], fg=COLORS["ink"], font=("Segoe UI", 10, "bold"))
+        title.pack(anchor="w", pady=(7, 0))
+        subtitle = tk.Label(identity, text=self.config.get("hotel_name", "Unidade Fioreze"), bg=COLORS["surface"], fg=COLORS["muted"], font=("Segoe UI", 8))
+        subtitle.pack(anchor="w", pady=(1, 0))
+        close_button = tk.Button(
+            titlebar,
+            text="\u00d7",
+            command=self.hide_to_tray,
+            bg=COLORS["surface"],
+            fg=COLORS["muted"],
+            activebackground=COLORS["danger_soft"],
+            activeforeground=COLORS["danger"],
+            relief="flat",
+            bd=0,
+            width=5,
+            cursor="hand2",
+            font=("Segoe UI", 13),
+        )
+        close_button.pack(side="right", fill="y")
+        for draggable in (titlebar, identity, title, subtitle):
+            draggable.bind("<ButtonPress-1>", self._start_window_drag)
+            draggable.bind("<B1-Motion>", self._move_window)
+            draggable.bind("<ButtonRelease-1>", self._stop_window_drag)
+        body = tk.Frame(shell, bg=COLORS["canvas"], padx=14, pady=10)
+        body.pack(fill="both", expand=True)
+        return body
 
     def _shell(self, section, description):
         shell = tk.Frame(self.root, bg=COLORS["canvas"])
@@ -226,6 +327,7 @@ class AgentApplication:
         self.notice.configure(text=text, bg=background, fg=foreground)
 
     def show_setup(self):
+        self._set_setup_window()
         self.clear()
         content = self._shell("Configurar este computador", "Conecte o ERP e a impressao da unidade em uma unica instalacao.")
         body = tk.Frame(content, bg=COLORS["canvas"])
@@ -365,58 +467,50 @@ class AgentApplication:
         load_hotels()
 
     def show_status(self):
+        self._set_status_window()
         self.clear()
-        content = self._shell("Gerenciador de impressao", "Acompanhe a conexao, o computador e o modelo usado pela unidade.")
-        status_card = self._card(content, 20)
+        content = self._status_shell()
+        status_card = self._card(content, 12)
         status_card.pack(fill="x")
-        status_left = tk.Frame(status_card, bg=COLORS["surface"])
-        status_left.pack(side="left", fill="x", expand=True)
-        status_line = tk.Frame(status_left, bg=COLORS["surface"])
-        status_line.pack(anchor="w")
-        self.status_dot = tk.Label(status_line, text="●", bg=COLORS["surface"], fg=COLORS["warning"], font=("Segoe UI", 13, "bold"))
-        self.status_dot.pack(side="left", padx=(0, 8))
-        tk.Label(status_line, text="Agente de impressao", bg=COLORS["surface"], fg=COLORS["ink"], font=("Segoe UI", 13, "bold")).pack(side="left")
-        self.status_chip = tk.Label(status_line, text="INICIANDO", bg=COLORS["warning_soft"], fg=COLORS["warning"], padx=9, pady=4, font=("Segoe UI", 8, "bold"))
-        self.status_chip.pack(side="left", padx=(10, 0))
+        status_line = tk.Frame(status_card, bg=COLORS["surface"])
+        status_line.pack(fill="x")
+        self.status_dot = tk.Label(status_line, text="\u25cf", bg=COLORS["surface"], fg=COLORS["warning"], font=("Segoe UI", 11, "bold"))
+        self.status_dot.pack(side="left", padx=(0, 7))
+        tk.Label(status_line, text="Impressao automatica", bg=COLORS["surface"], fg=COLORS["ink"], font=("Segoe UI", 11, "bold")).pack(side="left")
+        self.status_chip = tk.Label(status_line, text="INICIANDO", bg=COLORS["warning_soft"], fg=COLORS["warning"], padx=8, pady=3, font=("Segoe UI", 7, "bold"))
+        self.status_chip.pack(side="right")
         self.status = tk.StringVar(value="Iniciando conexao segura...")
         self.runtime_message = self.status.get()
         write_runtime_status("starting", self.runtime_message, self.config)
-        tk.Label(status_left, textvariable=self.status, bg=COLORS["surface"], fg=COLORS["muted"], font=("Segoe UI", 10)).pack(anchor="w", pady=(7, 0))
-        self._button(status_card, "Abrir ERP", self.open_erp, primary=True).pack(side="right", padx=(12, 0))
+        tk.Label(status_card, textvariable=self.status, bg=COLORS["surface"], fg=COLORS["muted"], font=("Segoe UI", 9), wraplength=320, justify="left").pack(anchor="w", pady=(5, 7))
+        status_actions = tk.Frame(status_card, bg=COLORS["surface"])
+        status_actions.pack(fill="x")
+        tk.Label(status_actions, text=f"Versao {APP_VERSION}", bg=COLORS["surface"], fg=COLORS["subtle"], font=("Segoe UI", 8)).pack(side="left")
+        self._button(status_actions, "Abrir ERP", self.open_erp, primary=True).pack(side="right")
 
         facts = tk.Frame(content, bg=COLORS["canvas"])
-        facts.pack(fill="x", pady=12)
-        facts.grid_columnconfigure((0, 1, 2, 3), weight=1, uniform="facts")
+        facts.pack(fill="x", pady=8)
+        facts.grid_columnconfigure((0, 1), weight=1, uniform="facts")
         for column, (label, value) in enumerate((
             ("Unidade", self.config.get("hotel_name", "Unidade vinculada")),
             ("Computador", self.config.get("device_name", "-")),
-            ("Impressora", self.config.get("printer_name", "Nao selecionada")),
-            ("Versao", APP_VERSION),
         )):
-            fact = self._card(facts, 14)
-            fact.grid(row=0, column=column, sticky="nsew", padx=(0 if column == 0 else 5, 0 if column == 3 else 5))
-            tk.Label(fact, text=label.upper(), bg=COLORS["surface"], fg=COLORS["subtle"], font=("Segoe UI", 8, "bold")).pack(anchor="w")
-            tk.Label(fact, text=value, bg=COLORS["surface"], fg=COLORS["ink"], font=("Segoe UI", 10, "bold"), wraplength=170, justify="left").pack(anchor="w", pady=(5, 0))
+            fact = self._card(facts, 9)
+            fact.grid(row=0, column=column, sticky="nsew", padx=(0 if column == 0 else 5, 5 if column == 0 else 0))
+            tk.Label(fact, text=label.upper(), bg=COLORS["surface"], fg=COLORS["subtle"], font=("Segoe UI", 7, "bold")).pack(anchor="w")
+            tk.Label(fact, text=value, bg=COLORS["surface"], fg=COLORS["ink"], font=("Segoe UI", 9, "bold"), wraplength=145, justify="left").pack(anchor="w", pady=(4, 0))
 
-        columns = tk.Frame(content, bg=COLORS["canvas"])
-        columns.pack(fill="both", expand=True)
-        columns.grid_columnconfigure(0, weight=3, uniform="status")
-        columns.grid_columnconfigure(1, weight=2, uniform="status")
-        columns.grid_rowconfigure(0, weight=1)
-        settings_card = self._card(columns, 18)
-        settings_card.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
-        activity_card = self._card(columns, 18)
-        activity_card.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
-
-        tk.Label(settings_card, text="Configuracao deste computador", bg=COLORS["surface"], fg=COLORS["ink"], font=("Segoe UI", 12, "bold")).pack(anchor="w")
-        tk.Label(settings_card, text="Escolha onde e como as comandas serao impressas.", bg=COLORS["surface"], fg=COLORS["muted"], font=("Segoe UI", 9)).pack(anchor="w", pady=(3, 14))
+        settings_card = self._card(content, 12)
+        settings_card.pack(fill="x")
+        tk.Label(settings_card, text="Este computador", bg=COLORS["surface"], fg=COLORS["ink"], font=("Segoe UI", 11, "bold")).pack(anchor="w")
+        tk.Label(settings_card, text="Escolha a impressora e o modelo da comanda.", bg=COLORS["surface"], fg=COLORS["muted"], font=("Segoe UI", 8)).pack(anchor="w", pady=(2, 7))
         available_printers = list_printers()
         current_printer = self.config.get("printer_name", "")
         if current_printer and current_printer not in available_printers:
             available_printers.insert(0, current_printer)
         printer = tk.StringVar(value=current_printer or (available_printers[0] if available_printers else ""))
         printer_field, printer_widget = self._field(settings_card, "Impressora", printer, available_printers)
-        printer_field.pack(fill="x", pady=(0, 12))
+        printer_field.pack(fill="x", pady=(0, 6))
 
         api = PrintAgentApi(self.config["origin"], self.config["token"])
         settings = {"templates": [], "device": {}}
@@ -428,7 +522,7 @@ class AgentApplication:
         selected_template = next((entry["name"] for entry in templates.values() if entry["id"] == settings.get("device", {}).get("template_id")), "")
         template_name = tk.StringVar(value=selected_template or (next(iter(templates), "")))
         template_field, template_widget = self._field(settings_card, "Modelo do comprovante", template_name, list(templates))
-        template_field.pack(fill="x", pady=(0, 12))
+        template_field.pack(fill="x", pady=(0, 6))
 
         def refresh_printers():
             values = list_printers()
@@ -451,21 +545,29 @@ class AgentApplication:
                 self._set_activity(str(error), "danger")
 
         settings_actions = tk.Frame(settings_card, bg=COLORS["surface"])
-        settings_actions.pack(fill="x", pady=(4, 0))
-        self._button(settings_actions, "Atualizar impressoras", refresh_printers).pack(side="left")
-        self._button(settings_actions, "Salvar configuracao", save_device_settings, primary=True).pack(side="right")
+        settings_actions.pack(fill="x", pady=(2, 0))
+        refresh_button = self._button(settings_actions, "Atualizar", refresh_printers)
+        refresh_button.configure(pady=7)
+        refresh_button.pack(side="left")
+        save_button = self._button(settings_actions, "Salvar", save_device_settings, primary=True)
+        save_button.configure(pady=7)
+        save_button.pack(side="right")
 
-        tk.Label(activity_card, text="Diagnostico e atividade", bg=COLORS["surface"], fg=COLORS["ink"], font=("Segoe UI", 12, "bold")).pack(anchor="w")
-        tk.Label(activity_card, text="Operacao local protegida, sem porta HTTP aberta.", bg=COLORS["surface"], fg=COLORS["muted"], font=("Segoe UI", 9)).pack(anchor="w", pady=(3, 12))
-        self.notice = tk.Label(activity_card, text="Aguardando o primeiro contato...", justify="left", anchor="nw", wraplength=280, bg=COLORS["surface_soft"], fg=COLORS["muted"], padx=13, pady=12, font=("Segoe UI", 9))
+        activity_card = self._card(content, 12)
+        activity_card.pack(fill="x", pady=(8, 0))
+        tk.Label(activity_card, text="Atividade", bg=COLORS["surface"], fg=COLORS["ink"], font=("Segoe UI", 11, "bold")).pack(anchor="w")
+        self.notice = tk.Label(activity_card, text="Aguardando o primeiro contato...", justify="left", anchor="w", wraplength=320, bg=COLORS["surface_soft"], fg=COLORS["muted"], padx=11, pady=9, font=("Segoe UI", 8))
         self.notice.pack(fill="x")
         self.activity_time = tk.Label(activity_card, text="", bg=COLORS["surface"], fg=COLORS["subtle"], font=("Segoe UI", 8))
-        self.activity_time.pack(anchor="w", pady=(6, 14))
+        self.activity_time.pack(anchor="w", pady=(4, 6))
         activity_actions = tk.Frame(activity_card, bg=COLORS["surface"])
         activity_actions.pack(fill="x")
-        self._button(activity_actions, "Testar conexao", self.test_connection).pack(fill="x", pady=(0, 8))
-        self._button(activity_actions, "Imprimir pagina de teste", lambda: self.test_print(printer.get(), templates.get(template_name.get()))).pack(fill="x", pady=(0, 8))
-        self._button(activity_actions, "Minimizar para a bandeja", self.hide_to_tray).pack(fill="x")
+        connection_button = self._button(activity_actions, "Testar conexao", self.test_connection)
+        connection_button.configure(pady=7)
+        connection_button.pack(side="left", fill="x", expand=True, padx=(0, 4))
+        print_button = self._button(activity_actions, "Imprimir teste", lambda: self.test_print(printer.get(), templates.get(template_name.get())))
+        print_button.configure(pady=7)
+        print_button.pack(side="left", fill="x", expand=True, padx=(4, 0))
         self.ensure_tray()
         if not self.worker or not self.worker.is_alive():
             self.worker = PrintWorker(self.config, on_status=lambda message: self.events.put(message))
@@ -507,13 +609,18 @@ class AgentApplication:
             self.exit_application,
             self.test_connection,
             self.test_print,
+            self.show_window,
         )
         self.tray.start()
 
     def show_window(self):
+        if self.config.get("token"):
+            self.root.geometry(status_window_geometry(work_area_bounds(self.root)))
         self.root.deiconify()
         self.root.lift()
         self.root.focus_force()
+        self.root.attributes("-topmost", True)
+        self.root.after(180, lambda: self.root.attributes("-topmost", False))
 
     def hide_to_tray(self):
         if self.tray:

@@ -26,7 +26,9 @@ Na janela redesenhada e no menu da bandeja, o operador pode:
 - abrir o ERP da unidade.
 
 O gerenciador apresenta estado de conexao, unidade, computador, impressora,
-versao e atividade recente em uma unica tela. O ERP Electron tambem mostra o
+versao e atividade recente em um painel vertical compacto. Ao abrir pelo icone,
+a janela de tamanho fixo e posicionada junto a bandeja do Windows e retorna para
+a bandeja pelo botao de fechar. O ERP Electron tambem mostra o
 estado local da impressao em sua barra de titulo branca e abre esta janela sem
 iniciar uma segunda instancia do agente.
 

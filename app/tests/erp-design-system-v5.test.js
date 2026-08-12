@@ -179,7 +179,7 @@ test("PDV ancora a comanda e separa cabecalho, lista rolavel e rodape fixo", () 
   const app = read("public/js/modules/room-service-erp/legacy-app.js");
 
   assert.match(css, /#vendasContainer\.erp-pdv-workspace \{[\s\S]*padding: 0 !important;[\s\S]*overflow: hidden !important;/);
-  assert.match(css, /#vendasContainer \.pdv-panel \{[\s\S]*height: calc\(100% - 32px\) !important;[\s\S]*margin: 16px 16px 16px 0 !important;[\s\S]*border: 1px solid var\(--erp-line\) !important;[\s\S]*border-radius: var\(--erp-radius-lg\) !important;/);
+  assert.match(css, /#vendasContainer \.pdv-panel \{[\s\S]*height: calc\(100% - 32px - var\(--erp-desktop-bottom-inset, 0px\)\) !important;[\s\S]*margin: 16px 16px 16px 0 !important;[\s\S]*border: 1px solid var\(--erp-line\) !important;[\s\S]*border-radius: var\(--erp-radius-lg\) !important;/);
   assert.match(css, /#cartItems\.erp-pdv-cart-list \{[\s\S]*overflow-y: auto !important;/);
   assert.match(css, /\.erp-pdv-checkout \{[\s\S]*position: sticky;[\s\S]*inset: auto 0 0;/);
   assert.match(css, /\.erp-pdv-list \{[\s\S]*minmax\(300px, 1fr\)/);

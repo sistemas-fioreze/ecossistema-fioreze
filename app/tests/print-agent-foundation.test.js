@@ -70,7 +70,7 @@ test("unidade fornece logo reduzida e agente preserva selecao de impressora e ba
   ]);
   assert.match(service, /COALESCE\(hb\.icon_url, hb\.logo_url\) AS icon_url/i);
   assert.match(app, /list_printers\(\)/);
-  assert.match(app, /Salvar configuracao/);
+  assert.match(app, /_button\(settings_actions, "Salvar"/);
   assert.match(app, /load_unit_tray_icon/);
   assert.match(tray, /pystray\.Icon/);
   assert.match(tray, /MenuItem\("Abrir"/);
@@ -103,7 +103,10 @@ test("agente permite escolher template e ERP exibe estado real de conexao", asyn
   assert.match(service, /template_id = \?/);
   assert.match(service, /hotel_id = \? AND module_key = \?/);
   assert.match(app, /Modelo do comprovante/);
-  assert.match(app, /Imprimir pagina de teste/);
+  assert.match(app, /Imprimir teste/);
+  assert.match(app, /overrideredirect\(True\)/);
+  assert.match(app, /status_window_geometry\(work_area_bounds\(self\.root\)\)/);
+  assert.match(app, /resizable\(False, False\)/);
   assert.match(erp, /connection_status/);
   assert.match(erp, /Online/);
   assert.match(erp, /Offline/);
