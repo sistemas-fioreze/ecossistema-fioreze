@@ -2,9 +2,10 @@ import pystray
 
 
 class TrayController:
-    def __init__(self, root, image, hotel_name, on_exit, on_test_connection=None, on_test_print=None):
+    def __init__(self, root, image, hotel_name, on_exit, on_test_connection=None, on_test_print=None, on_show=None):
         self.root = root
         self.on_exit = on_exit
+        self.on_show = on_show
         menu_items = [pystray.MenuItem("Abrir", self.show_window, default=True)]
         if on_test_connection:
             menu_items.append(pystray.MenuItem("Testar conexao", lambda *_args: root.after(0, on_test_connection)))
@@ -31,6 +32,9 @@ class TrayController:
         self.root.after(0, self.on_exit)
 
     def _show_window(self):
+        if self.on_show:
+            self.on_show()
+            return
         self.root.deiconify()
         self.root.lift()
         self.root.focus_force()

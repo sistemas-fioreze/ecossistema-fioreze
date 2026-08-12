@@ -108,7 +108,15 @@ function registerWindowControls() {
   });
   ipcMain.handle("fioreze:window:state", (event) => {
     const window = BrowserWindow.fromWebContents(event.sender);
-    return { maximized: Boolean(window?.isMaximized()) };
+    if (!window) return { maximized: false, workAreaBottomInset: 0 };
+    const bounds = window.getBounds();
+    const { workArea } = screen.getDisplayMatching(bounds);
+    const workAreaBottom = workArea.y + workArea.height;
+    const windowBottom = bounds.y + bounds.height;
+    return {
+      maximized: window.isMaximized(),
+      workAreaBottomInset: Math.max(0, Math.min(96, windowBottom - workAreaBottom)),
+    };
   });
   ipcMain.handle("fioreze:window:reload", (event) => {
     assertTrustedSender(event);

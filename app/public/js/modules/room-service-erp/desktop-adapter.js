@@ -55,6 +55,17 @@ export async function setupDesktopControls(root = document) {
   const customWindowControls = root.querySelector(".rs-window-controls");
   if (customWindowControls) customWindowControls.hidden = controlMode === "native";
   root.getElementById("desktopTitlebar")?.removeAttribute("hidden");
+  const syncViewportInsets = async () => {
+    const state = await desktop.windowState().catch(() => ({ workAreaBottomInset: 0 }));
+    const bottomInset = Math.max(0, Math.min(96, Number(state?.workAreaBottomInset) || 0));
+    document.documentElement.style.setProperty("--erp-desktop-bottom-inset", `${bottomInset}px`);
+  };
+  await syncViewportInsets();
+  let viewportSyncFrame = 0;
+  window.addEventListener("resize", () => {
+    window.cancelAnimationFrame(viewportSyncFrame);
+    viewportSyncFrame = window.requestAnimationFrame(syncViewportInsets);
+  });
 
   if (controlMode === "custom") {
     root.getElementById("desktopMinimize")?.addEventListener("click", () => desktop.minimize());

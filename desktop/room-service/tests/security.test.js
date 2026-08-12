@@ -33,6 +33,8 @@ test("desktop window stays inside the active monitor work area", () => {
   assert.match(main, /Math\.min\(820, workArea\.height\)/);
   assert.match(main, /workArea\.y \+ Math\.floor\(\(workArea\.height - height\) \/ 2\)/);
   assert.match(main, /minHeight: Math\.min\(680, workArea\.height\)/);
+  assert.match(main, /screen\.getDisplayMatching\(bounds\)/);
+  assert.match(main, /workAreaBottomInset: Math\.max\(0, Math\.min\(96, windowBottom - workAreaBottom\)\)/);
 });
 
 test("unconfigured window keeps local controls and does not embed remote code", () => {
