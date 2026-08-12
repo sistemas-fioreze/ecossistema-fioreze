@@ -347,6 +347,17 @@ function installLoginComposition() {
   const form = document.createElement("section");
   form.className = "erp-login-form";
   form.innerHTML = '<header><p>Acesso da unidade</p><h2>Entrar no ERP</h2><span>Use seu código de usuário e senha.</span></header>';
+
+  const codeField = document.createElement("label");
+  const passwordField = document.createElement("label");
+  codeField.className = "erp-login-field";
+  passwordField.className = "erp-login-field";
+  codeField.innerHTML = "<span>C&oacute;digo do usu&aacute;rio</span>";
+  passwordField.innerHTML = "<span>Senha</span>";
+  codeField.append(byId("loginCode"));
+  passwordField.append(byId("loginPass"));
+  fields.replaceChildren(codeField, passwordField, byId("loginNameBadge"));
+
   form.append(badge, fields, error, button);
   card.prepend(brand, form);
 
@@ -378,7 +389,7 @@ function renderLoginServiceStatus() {
   const dot = document.createElement("span");
   dot.className = "erp-login-status-dot";
   const label = document.createElement("strong");
-  label.textContent = status === undefined ? "VERIFICANDO" : status?.open ? "ABERTO" : "FECHADO";
+  label.textContent = status === undefined ? "Verificando atendimento" : status?.open ? "Sistema aberto" : "Sistema fechado";
   badge.replaceChildren(dot, label);
 }
 
