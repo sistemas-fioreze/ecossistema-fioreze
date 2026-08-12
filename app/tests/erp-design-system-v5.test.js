@@ -171,7 +171,7 @@ test("login mantem composicao coesa durante identificacao e carregamento", () =>
   assert.match(css, /\.erp-login-field \{[\s\S]*display: grid;[\s\S]*font-size: 12px;/);
   assert.match(css, /#loginNameBadge \{[\s\S]*display: none !important;/);
   assert.match(css, /\.login-card\.is-loading > :is\(\.erp-login-brand, \.erp-login-form\)/);
-  assert.match(css, /#btnLogin \{[\s\S]*width: 100% !important;[\s\S]*height: 48px !important;[\s\S]*align-self: stretch;/);
+  assert.match(css, /#btnLogin \{[\s\S]*width: 176px !important;[\s\S]*height: 42px !important;[\s\S]*align-self: center;[\s\S]*margin: 1px auto 0 !important;/);
 });
 
 test("PDV ancora a comanda e separa cabecalho, lista rolavel e rodape fixo", () => {
@@ -206,6 +206,16 @@ test("Electron conecta a barra de titulo a lateral sem dividir o cabecalho inter
   assert.match(css, /\.rs-desktop-titlebar \{\s*border-bottom: 0 !important;/);
   assert.match(css, /\.rs-desktop-titlebar::after \{\s*content: none;/);
   assert.match(css, /data-fioreze-desktop="electron"\] \.app-main \{[\s\S]*border-top: 1px solid var\(--erp-line\) !important;[\s\S]*border-left: 1px solid var\(--erp-line\) !important;[\s\S]*border-top-left-radius: 14px;/);
+  assert.match(css, /data-fioreze-desktop="electron"\]\.erp-login \.rs-desktop-titlebar \{\s*background: #fff !important;/);
+});
+
+test("busca global mantem sugestoes acima da camada de contexto e clicaveis", () => {
+  const css = read("public/css/modules/room-service-erp/design-system-v5.css");
+
+  assert.match(css, /erp-search-open #appShell::after \{[\s\S]*backdrop-filter: none;[\s\S]*pointer-events: none;/);
+  assert.match(css, /erp-search-open \.app-topbar \{\s*z-index: 100;/);
+  assert.match(css, /erp-search-open \.top-search \{\s*z-index: 110 !important;/);
+  assert.match(css, /erp-search-open \.top-search-results \{[\s\S]*z-index: 111 !important;[\s\S]*pointer-events: auto !important;[\s\S]*filter: none !important;/);
 });
 
 test("PDV usa acomodacao pesquisavel e busca global sem identificadores internos", () => {
