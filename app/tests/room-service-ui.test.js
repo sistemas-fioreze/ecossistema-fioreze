@@ -11,6 +11,7 @@ const {
   canScheduleToday,
   clampDetailQuantity,
   hotelLocalTimeToIso,
+  isScheduledTimeAllowed,
   renderStaticShell,
   renderProductOptions,
   splitProductDescription,
@@ -179,12 +180,36 @@ test("agendamento visual fica limitado ao restante do mesmo dia", () => {
   };
 
   assert.equal(canScheduleToday(state), true);
+  assert.equal(isScheduledTimeAllowed(state, "17:00"), false);
+  assert.equal(isScheduledTimeAllowed(state, "17:15"), true);
+  assert.equal(isScheduledTimeAllowed(state, "21:45"), true);
+  assert.equal(isScheduledTimeAllowed(state, "22:00"), false);
+  assert.equal(isScheduledTimeAllowed(state, "23:00"), false);
   state.status.local = { hour: 22, minute: 0 };
   assert.equal(canScheduleToday(state), false);
   assert.equal(
     hotelLocalTimeToIso("19:30", "America/Sao_Paulo", new Date("2026-07-05T20:00:00.000Z")),
     "2026-07-05T22:30:00.000Z",
   );
+});
+
+test("agendamento visual fica indisponivel em qualquer modo manual", () => {
+  const state = {
+    bootstrap: { settings: { "room-service.order_scheduling_enabled": true } },
+    status: {
+      open: true,
+      mode: "forced_open",
+      local: { hour: 17, minute: 0 },
+      today_slots: [{ opens_at: "16:00", closes_at: "22:00" }],
+    },
+  };
+
+  assert.equal(canScheduleToday(state), false);
+  assert.equal(isScheduledTimeAllowed(state, "18:00"), false);
+  state.status.open = false;
+  state.status.mode = "forced_closed";
+  assert.equal(canScheduleToday(state), false);
+  assert.equal(isScheduledTimeAllowed(state, "18:00"), false);
 });
 
 test("observacao desabilitada nao entra no texto persistido do pedido", () => {

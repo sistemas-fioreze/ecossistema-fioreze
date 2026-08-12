@@ -189,6 +189,67 @@ test("agenda entrega somente para o mesmo dia e dentro do horario da unidade", a
   assert.equal(env.__data.orders[0].scheduled_for, scheduledFor);
 });
 
+test("rejeita agendamento fora do horario automatico da unidade", async () => {
+  const { json, env } = createWorkerTestContext();
+  env.__data.settings.push({
+    hotel_id: "muller-fioreze",
+    setting_key: "room-service.order_scheduling_enabled",
+    setting_value: "true",
+    value_type: "boolean",
+    is_public: 1,
+  });
+  const { response, body } = await json(
+    "/api/v1/public/hotels/muller-fioreze/room-service/orders",
+    jsonPost(
+      { ...VALID_ORDER, preparation_mode: "scheduled", scheduled_for: "2026-07-06T02:45:00.000Z" },
+      { "x-fioreze-test-now": "2026-07-05T20:00:00.000Z" },
+    ),
+  );
+
+  assert.equal(response.status, 422);
+  assert.match(body.error.message, /fora do funcionamento/i);
+  assert.equal(env.__data.orders.length, 0);
+});
+
+test("rejeita agendamento nos modos manuais aberto e fechado", async () => {
+  for (const operationMode of ["forced_open", "forced_closed"]) {
+    const { json, env } = createWorkerTestContext();
+    env.__data.settings = env.__data.settings.filter(
+      (setting) =>
+        setting.hotel_id !== "muller-fioreze" ||
+        !["room-service.order_scheduling_enabled", "room-service.operation_mode"].includes(setting.setting_key),
+    );
+    env.__data.settings.push(
+      {
+        hotel_id: "muller-fioreze",
+        setting_key: "room-service.order_scheduling_enabled",
+        setting_value: "true",
+        value_type: "boolean",
+        is_public: 1,
+      },
+      {
+        hotel_id: "muller-fioreze",
+        setting_key: "room-service.operation_mode",
+        setting_value: operationMode,
+        value_type: "string",
+        is_public: 1,
+      },
+    );
+
+    const { response, body } = await json(
+      "/api/v1/public/hotels/muller-fioreze/room-service/orders",
+      jsonPost(
+        { ...VALID_ORDER, preparation_mode: "scheduled", scheduled_for: "2026-07-05T21:30:00.000Z" },
+        { "x-fioreze-test-now": "2026-07-05T20:00:00.000Z" },
+      ),
+    );
+
+    assert.equal(response.status, 422, operationMode);
+    assert.match(body.error.message, /somente no modo automatico/i);
+    assert.equal(env.__data.orders.length, 0);
+  }
+});
+
 test("rejeita agendamento para outro dia ou quando a unidade desabilita a opcao", async () => {
   const { json, env } = createWorkerTestContext();
   const disabled = await json(
