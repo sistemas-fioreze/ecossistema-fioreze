@@ -7,22 +7,24 @@ $Package = Join-Path $Release "Fioreze-Suite-Windows"
 $Archive = Join-Path $Release "Fioreze-Suite-Windows.zip"
 $DesktopRoot = Resolve-Path (Join-Path $Root "..\..\desktop\room-service")
 $DesktopPackage = Join-Path $DesktopRoot "release\win-unpacked"
+$VersionFile = Join-Path $Root "fioreze_print_agent\version.py"
 
-if ($env:FIOREZE_PYTHON) {
+if ($env:FIOREZE_PYTHON -and (Test-Path -LiteralPath $env:FIOREZE_PYTHON)) {
   $PythonCommand = $env:FIOREZE_PYTHON
+  $PythonArguments = @()
+} elseif (Get-Command python -ErrorAction SilentlyContinue) {
+  $PythonCommand = (Get-Command python).Source
   $PythonArguments = @()
 } elseif (Get-Command py -ErrorAction SilentlyContinue) {
   $PythonCommand = "py"
-  $PythonArguments = @("-3.12")
-} elseif (Get-Command python -ErrorAction SilentlyContinue) {
-  $PythonCommand = "python"
   $PythonArguments = @()
 } else {
-  throw "Python 3.12 nao encontrado para o processo de build."
+  throw "Nenhum runtime Python compativel foi encontrado para o build."
 }
 
 if (Test-Path $Dist) { Remove-Item $Dist -Recurse -Force }
 if (Test-Path $Release) { Remove-Item $Release -Recurse -Force }
+if (Test-Path $Venv) { Remove-Item $Venv -Recurse -Force }
 
 Push-Location $DesktopRoot
 try {
@@ -67,7 +69,9 @@ parte deste pacote.
 
 $Commit = (git -C $Root rev-parse --short=12 HEAD 2>$null)
 if (-not $Commit) { $Commit = "build-local" }
-"Versao 1.3.0`nCommit $Commit" | Set-Content -Path (Join-Path $Package "VERSAO.txt") -Encoding UTF8
+$VersionMatch = Select-String -Path $VersionFile -Pattern 'APP_VERSION\s*=\s*"([^"]+)"'
+$Version = if ($VersionMatch) { $VersionMatch.Matches[0].Groups[1].Value } else { "build-local" }
+"Versao $Version`nCommit $Commit" | Set-Content -Path (Join-Path $Package "VERSAO.txt") -Encoding UTF8
 $SuiteHash = (Get-FileHash (Join-Path $Package "Fioreze-Suite.exe") -Algorithm SHA256).Hash.ToLowerInvariant()
 $ErpHash = (Get-FileHash (Join-Path $Package "Fioreze-ERP\Fioreze ERP.exe") -Algorithm SHA256).Hash.ToLowerInvariant()
 "$SuiteHash  Fioreze-Suite.exe`n$ErpHash  Fioreze-ERP\Fioreze ERP.exe" | Set-Content -Path (Join-Path $Package "SHA256SUMS.txt") -Encoding ASCII

@@ -15,11 +15,19 @@
   </head>
   <body data-erp="room-service" class="erp-login flex flex-col h-screen bg-[#f7f5ef] text-[#444746] dark:bg-gray-900 dark:text-gray-200 transition-colors duration-300">
     <header id="desktopTitlebar" class="rs-desktop-titlebar" hidden>
-      <div class="rs-desktop-drag-region"><span>ERP Room Service Fioreze</span></div>
-      <div class="rs-window-controls" aria-label="Controles da janela">
+      <div class="rs-desktop-drag-region">
+        <span class="rs-desktop-app-mark" aria-hidden="true">F</span>
+        <span class="rs-desktop-app-name">Fioreze ERP</span>
+        <span class="rs-desktop-app-section">Room Service</span>
+      </div>
+      <div class="rs-desktop-tools">
+        <button id="desktopPrintManager" class="rs-desktop-tool" type="button" data-state="offline" title="Abrir gerenciador de impressao"><i aria-hidden="true"></i><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8V4h10v4M7 17h10v3H7zM6 17H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M17 12h.01"/></svg><span>Impressao</span></button>
+        <button id="desktopReload" class="rs-desktop-tool rs-desktop-icon-tool" type="button" aria-label="Atualizar ERP" title="Atualizar ERP"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7"/></svg></button>
+        <div class="rs-window-controls" aria-label="Controles da janela">
         <button id="desktopMinimize" class="rs-window-button" type="button" aria-label="Minimizar janela" title="Minimizar"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 10h10"/></svg></button>
         <button id="desktopMaximize" class="rs-window-button" type="button" aria-label="Maximizar janela" title="Maximizar"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="5.5" y="5.5" width="9" height="9" rx="1"/></svg></button>
         <button id="desktopClose" class="rs-window-button rs-window-button-danger" type="button" aria-label="Fechar janela" title="Fechar"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 6 8 8M14 6l-8 8"/></svg></button>
+        </div>
       </div>
     </header>
     <div class="legacy-compatible-scaffold" hidden aria-hidden="true">

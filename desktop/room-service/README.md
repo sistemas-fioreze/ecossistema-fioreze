@@ -8,7 +8,8 @@ Wrapper Electron fino para abrir o ERP Room Service oficial em `/<slug-da-unidad
 - Nao acessa D1, R2, Apps Script, Google Sheets ou impressora diretamente.
 - Nao embute credenciais, tokens ou senhas.
 - Usa a sessao administrativa controlada pelo Worker.
-- Usa uma janela sem moldura nativa, com minimizar, maximizar e fechar no proprio ERP.
+- Usa uma janela sem moldura nativa, com barra branca integrada, atualizar,
+  estado da impressao, minimizar, maximizar e fechar no proprio ERP.
 - Carrega a URL oficial da unidade; alteracoes publicadas aparecem sem reinstalar o aplicativo.
 - Consulta e reinicia o Fioreze Print Agent por um canal local restrito.
 
@@ -68,9 +69,11 @@ window.fiorezeDesktop = {
   minimize,
   toggleMaximize,
   close,
+  reload,
   getWindowState,
   getPrintAgentStatus,
   restartPrintAgent,
+  openPrintManager,
   platform,
   version
 }
@@ -79,6 +82,8 @@ window.fiorezeDesktop = {
 O status e lido de `%LOCALAPPDATA%\Fioreze\PrintAgent\runtime-status.json`, que
 contem apenas dados operacionais sanitizados. Se o agente estiver parado, somente
 `%LOCALAPPDATA%\Fioreze\Suite\Fioreze-Suite.exe --tray` pode ser iniciado.
+Quando o gerenciador ja esta em execucao, o ERP grava apenas `show.request` para
+trazer a janela existente para frente, evitando agentes concorrentes.
 
 ## Build Windows
 

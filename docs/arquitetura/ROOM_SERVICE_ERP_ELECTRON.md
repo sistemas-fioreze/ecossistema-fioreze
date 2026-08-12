@@ -18,6 +18,8 @@ O wrapper Electron fica em `desktop/room-service/` e abre a mesma aplicacao onli
 - `nodeIntegration: false`
 - `sandbox: true`
 - preload minimo
+- barra de titulo branca renderizada pelo frontend compartilhado
+- abertura e reinicio do agente por acoes locais fixas, sem shell arbitrario
 - navegacao externa bloqueada ou aberta no navegador padrao
 - allowlist de hosts autorizados
 - DevTools habilitado somente por variavel de ambiente
@@ -32,6 +34,10 @@ window.fiorezeDesktop = {
   minimize,
   toggleMaximize,
   close,
+  reload,
+  getPrintAgentStatus,
+  restartPrintAgent,
+  openPrintManager,
   platform,
   version
 }

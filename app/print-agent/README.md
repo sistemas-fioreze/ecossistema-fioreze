@@ -16,7 +16,7 @@ O atalho abre o `Fioreze-ERP.exe`, que usa a rota da unidade `/<slug>/admin/erp/
 
 ## Operacao
 
-Na janela e no menu da bandeja, o operador pode:
+Na janela redesenhada e no menu da bandeja, o operador pode:
 
 - testar a conexao HTTPS com a plataforma;
 - atualizar a lista de impressoras;
@@ -25,11 +25,17 @@ Na janela e no menu da bandeja, o operador pode:
 - enviar uma pagina de teste, sempre depois de confirmacao explicita;
 - abrir o ERP da unidade.
 
+O gerenciador apresenta estado de conexao, unidade, computador, impressora,
+versao e atividade recente em uma unica tela. O ERP Electron tambem mostra o
+estado local da impressao em sua barra de titulo branca e abre esta janela sem
+iniciar uma segunda instancia do agente.
+
 O ERP mostra o computador como online quando recebeu contato nos ultimos dois minutos. Tambem mostra versao, impressora, template, ultimo contato e permite pausar ou revogar o dispositivo.
 
 No aplicativo desktop, o ERP tambem consulta o estado local e pode solicitar o reinicio do agente.
 O estado e gravado em `%LOCALAPPDATA%\Fioreze\PrintAgent\runtime-status.json` sem token,
-senha ou credencial. Nenhuma porta HTTP local e aberta.
+senha ou credencial. Os pedidos locais `show.request` e `restart.request` permitem
+mostrar ou reiniciar o processo existente. Nenhuma porta HTTP local e aberta.
 
 ## Templates
 
