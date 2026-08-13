@@ -41,6 +41,7 @@ import {
   uploadOwnAvatar,
 } from "./api.js";
 import { desktop } from "./desktop-adapter.js";
+import { buildInterfaceViewport } from "./interface-viewport.js";
 import { bindPdvCheckoutActions } from "./pdv-actions.js";
 import { applyBrandTokens } from "./theme.js";
 import { evaluateServiceStatus } from "../room-service/service-status.js";
@@ -2279,20 +2280,21 @@ function applyInterfaceScale(value, persist = false) {
   const scale = clampNumber(value, 85, 115, 100);
   const factor = scale / 100;
   const shell = byId("appShell", false);
+  const viewport = buildInterfaceViewport(factor, { isElectron: desktop.isElectron });
   document.documentElement.style.setProperty("--interface-scale", String(factor));
   document.documentElement.style.setProperty("--interface-inverse", String(1 / factor));
-  document.documentElement.style.setProperty("--interface-width", `${100 / factor}vw`);
-  document.documentElement.style.setProperty("--interface-height", `${100 / factor}vh`);
+  document.documentElement.style.setProperty("--interface-width", viewport.width);
+  document.documentElement.style.setProperty("--interface-height", viewport.height);
   if (shell && globalThis.CSS?.supports?.("zoom", "1")) {
     shell.style.zoom = String(factor);
     shell.style.setProperty("transform", "none", "important");
-    shell.style.setProperty("width", `${100 / factor}vw`, "important");
-    shell.style.setProperty("height", `${100 / factor}dvh`, "important");
+    shell.style.setProperty("width", viewport.width, "important");
+    shell.style.setProperty("height", viewport.height, "important");
   } else if (shell) {
     shell.style.removeProperty("zoom");
     shell.style.setProperty("transform", `scale(${factor})`, "important");
-    shell.style.setProperty("width", `${100 / factor}vw`, "important");
-    shell.style.setProperty("height", `${100 / factor}dvh`, "important");
+    shell.style.setProperty("width", viewport.width, "important");
+    shell.style.setProperty("height", viewport.height, "important");
   }
   state.interfaceScale = scale;
   const headerRange = byId("interfaceScaleRange", false);

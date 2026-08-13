@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
+import { buildInterfaceViewport, ERP_DESKTOP_TITLEBAR_HEIGHT } from "../public/js/modules/room-service-erp/interface-viewport.js";
 import { buildBrandTokens, normalizeHex } from "../public/js/modules/room-service-erp/theme.js";
 
 const read = (path) => fs.readFileSync(path, "utf8");
@@ -145,8 +146,9 @@ test("login, menu rapido e escala usam a estrutura final sem superficies concorr
   assert.doesNotMatch(app, /function toggleTheme\(/);
   assert.doesNotMatch(app, /function applySavedTheme\(/);
   assert.doesNotMatch(polish, /#appShell \{\s*transform: scale/);
-  assert.match(app, /setProperty\("width", `\$\{100 \/ factor\}vw`, "important"\)/);
-  assert.match(app, /setProperty\("height", `\$\{100 \/ factor\}dvh`, "important"\)/);
+  assert.match(app, /buildInterfaceViewport\(factor, \{ isElectron: desktop\.isElectron \}\)/);
+  assert.match(app, /setProperty\("width", viewport\.width, "important"\)/);
+  assert.match(app, /setProperty\("height", viewport\.height, "important"\)/);
 });
 
 test("login mantem composicao coesa durante identificacao e carregamento", () => {
@@ -191,6 +193,23 @@ test("PDV ancora a comanda e separa cabecalho, lista rolavel e rodape fixo", () 
   assert.doesNotMatch(app, /class="erp-pdv-order-head"/);
   assert.match(app, /class="erp-pdv-total-value"><span id="cartItemCount"/);
   assert.match(app, /bindPdvCheckoutActions\(\{/);
+});
+
+test("escala do Electron preserva a barra de titulo e o rodape do PDV", () => {
+  assert.equal(ERP_DESKTOP_TITLEBAR_HEIGHT, 44);
+
+  for (const scale of [85, 100, 115]) {
+    const factor = scale / 100;
+    const viewport = buildInterfaceViewport(factor, { isElectron: true });
+    const viewportPercent = Number.parseFloat(viewport.height.match(/calc\(([^d]+)dvh/)?.[1] || "0");
+    const titlebarPixels = Number.parseFloat(viewport.height.match(/- ([^p]+)px/)?.[1] || "0");
+
+    assert.ok(Math.abs((viewportPercent * factor) - 100) < 0.0001);
+    assert.ok(Math.abs((titlebarPixels * factor) - ERP_DESKTOP_TITLEBAR_HEIGHT) < 0.0001);
+  }
+
+  assert.equal(buildInterfaceViewport(1, { isElectron: true }).height, "calc(100dvh - 44px)");
+  assert.equal(buildInterfaceViewport(1, { isElectron: false }).height, "100dvh");
 });
 
 test("buscas e datas usam uma unica superficie visual", () => {
