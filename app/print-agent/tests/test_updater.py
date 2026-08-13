@@ -9,6 +9,7 @@ from tempfile import TemporaryDirectory
 from fioreze_print_agent.updater import (
     UPDATE_BASE_URL,
     UpdateError,
+    bootstrap_installed_suite,
     check_for_update,
     defer_update,
     download_update,
@@ -128,7 +129,36 @@ class UpdaterTests(unittest.TestCase):
             self.assertIn("-CurrentPid", command)
             self.assertIn("1234", command)
             self.assertIn("-LiteralPath", script.read_text(encoding="utf-8"))
+            self.assertIn("ExecutablePath -eq $Target", script.read_text(encoding="utf-8"))
             self.assertFalse(calls[0][1]["shell"])
+
+    def test_external_package_stages_itself_without_removing_the_original(self):
+        scheduled = []
+        with TemporaryDirectory() as directory:
+            base = Path(directory)
+            source = base / "Downloads" / "Fioreze-Suite.exe"
+            target = base / "Installed" / "Fioreze-Suite.exe"
+            source.parent.mkdir()
+            target.parent.mkdir()
+            source.write_bytes(b"MZ new suite")
+            target.write_bytes(b"MZ old suite")
+            self.assertTrue(bootstrap_installed_suite(
+                executable=source,
+                installed_executable=target,
+                frozen=True,
+                directory=base / "updates",
+                scheduler=lambda staged, **kwargs: scheduled.append((Path(staged), kwargs)),
+            ))
+            self.assertEqual(source.read_bytes(), b"MZ new suite")
+            self.assertEqual(scheduled[0][0].read_bytes(), b"MZ new suite")
+            self.assertEqual(scheduled[0][1]["target"], target)
+
+    def test_installed_or_source_execution_does_not_bootstrap_again(self):
+        with TemporaryDirectory() as directory:
+            executable = Path(directory) / "Fioreze-Suite.exe"
+            executable.write_bytes(b"MZ")
+            self.assertFalse(bootstrap_installed_suite(executable=executable, installed_executable=executable, frozen=True))
+            self.assertFalse(bootstrap_installed_suite(executable=executable, installed_executable=executable, frozen=False))
 
 
 if __name__ == "__main__":
