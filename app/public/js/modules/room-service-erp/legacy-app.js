@@ -43,6 +43,7 @@ import {
 import { desktop } from "./desktop-adapter.js";
 import { buildInterfaceViewport } from "./interface-viewport.js";
 import { bindPdvCheckoutActions } from "./pdv-actions.js";
+import { ERP_APP_VERSION } from "./static-config.js";
 import { applyBrandTokens } from "./theme.js";
 import { evaluateServiceStatus } from "../room-service/service-status.js";
 
@@ -103,6 +104,7 @@ const state = {
   interfaceScale: clampNumber(localStorage.getItem("fioreze-erp-interface-scale"), 85, 115, 100),
   feedbackScreenshot: null,
   feedbackPreviewUrl: "",
+  applicationVersions: createInitialApplicationVersions(),
 };
 
 const ERP_KEYBOARD_SHORTCUTS = Object.freeze({
@@ -823,6 +825,7 @@ function renderSettingsHome() {
     settingsCard("account", "account", "Minha conta", "Perfil e senha"),
     settingsCard("appearance", "palette", "Aparência", "Marca e escala da interface"),
     settingsCard("notifications", "bell", "Notificações", "Som e volume dos alertas"),
+    settingsCard("version", "version", "Versão do aplicativo", "ERP, Fioreze Suite e atualizações"),
   ].filter(Boolean);
   return `<div><p class="erp-panel-title">Configurações do ERP</p><p class="erp-v3-subtitle">${escapeHtml(displayHotelName(state.context?.hotel))}</p></div><div class="erp-settings-grid">${cards.join("")}</div>`;
 }
@@ -903,6 +906,157 @@ function renderNotificationSettings() {
   return `<button type="button" class="erp-back" data-settings-view="home">${settingsIcon("back")} Configuracoes</button><section class="erp-settings-detail"><div><p class="erp-panel-title">Notificacoes</p><p class="erp-v3-subtitle">Alertas de novos pedidos.</p></div><article class="erp-panel erp-notification-settings"><div><strong>Som de novo pedido</strong><small>${state.notificationSoundEnabled ? "Ativado" : "Silenciado"}</small></div><button type="button" class="admin-secondary-btn" data-toggle-notification-sound>${state.notificationSoundEnabled ? "Silenciar" : "Ativar"}</button><label>Volume <b>${state.notificationVolume}%</b><input id="settingsNotificationVolume" type="range" min="0" max="100" step="5" value="${state.notificationVolume}"></label><button type="button" class="admin-secondary-btn" data-test-notification-sound>Testar som</button></article></section>`;
 }
 
+function renderApplicationVersionSettings() {
+  const versions = state.applicationVersions || createInitialApplicationVersions();
+  const checkedAt = versions.checkedAt
+    ? `Última verificação em ${formatDate(versions.checkedAt)}`
+    : "As versões instaladas são consultadas neste computador.";
+  return `<nav class="erp-settings-breadcrumb" aria-label="Navegação das configurações"><button type="button" data-settings-view="home">Configurações</button>${settingsIcon("chevron")}<strong>Versão do aplicativo</strong></nav><section class="erp-settings-detail erp-version-settings"><header class="erp-settings-section-head"><div><p class="erp-panel-title">Versão do aplicativo</p><p class="erp-v3-subtitle">Acompanhe o ERP e o Fioreze Suite instalados neste computador.</p></div><button id="checkApplicationUpdatesButton" type="button" class="admin-primary-btn erp-version-check" ${versions.checking ? 'disabled aria-busy="true"' : ""}>${settingsIcon("refresh")} ${versions.checking ? "Verificando..." : "Verificar atualizações"}</button></header><div class="erp-version-list" aria-live="polite">${applicationVersionCard({ icon: "desktop", title: "Fioreze ERP", product: versions.erp })}${applicationVersionCard({ icon: "suite", title: "Fioreze Suite", product: versions.suite })}</div>${versions.error ? `<p class="erp-version-error" role="status">${escapeHtml(versions.error)}</p>` : ""}<p class="erp-version-last-check">${escapeHtml(checkedAt)}</p></section>`;
+}
+
+function applicationVersionCard({ icon, title, product }) {
+  const current = product.current || "Não instalado";
+  const available = product.available && product.available !== product.current
+    ? `<p class="erp-version-available">Versão disponível <strong>${escapeHtml(product.available)}</strong></p>`
+    : "";
+  return `<article class="erp-version-card" data-version-status="${escapeAttr(product.status)}"><span class="erp-version-product-icon">${settingsIcon(icon)}</span><div class="erp-version-copy"><div class="erp-version-title"><strong>${escapeHtml(title)}</strong><span class="erp-version-badge">${escapeHtml(applicationVersionStatusLabel(product.status))}</span></div><p class="erp-version-current">${escapeHtml(current)}</p><small>${escapeHtml(product.message)}</small>${available}</div></article>`;
+}
+
+function createInitialApplicationVersions() {
+  return {
+    checking: false,
+    checkedAt: "",
+    error: "",
+    erp: {
+      current: ERP_APP_VERSION,
+      available: "",
+      status: desktop.isElectron ? "pending" : "web",
+      message: desktop.isElectron ? "Consultando a instalação local." : "A versão web é atualizada automaticamente.",
+    },
+    suite: {
+      current: "",
+      available: "",
+      status: desktop.isElectron ? "pending" : "not-installed",
+      message: desktop.isElectron ? "Consultando o agente de impressão." : "Disponível apenas no aplicativo para Windows.",
+    },
+  };
+}
+
+async function refreshApplicationVersions({ check = false } = {}) {
+  if (state.applicationVersions?.checking) return;
+  state.applicationVersions = { ...(state.applicationVersions || createInitialApplicationVersions()), checking: true, error: "" };
+  if (state.settingsView === "version") renderAdmin();
+
+  const erpRequest = desktop.isElectron
+    ? check ? desktop.checkForUpdates() : desktop.updateState()
+    : Promise.resolve({ status: "web", currentVersion: ERP_APP_VERSION });
+  const suiteRequest = desktop.isElectron ? desktop.printAgentStatus() : Promise.resolve(null);
+  const [erpResult, suiteResult, manifestResult] = await Promise.allSettled([
+    erpRequest,
+    suiteRequest,
+    fetchSuiteReleaseManifest(),
+  ]);
+
+  const erpState = erpResult.status === "fulfilled" ? erpResult.value || {} : {};
+  const localSuite = suiteResult.status === "fulfilled" ? suiteResult.value || null : null;
+  const suiteManifest = manifestResult.status === "fulfilled" ? manifestResult.value : null;
+  const erpCurrent = normalizeApplicationVersion(erpState.currentVersion) || ERP_APP_VERSION;
+  const erpAvailable = normalizeApplicationVersion(erpState.availableVersion);
+  const suiteCurrent = normalizeApplicationVersion(localSuite?.app_version);
+  const suiteAvailable = normalizeApplicationVersion(suiteManifest?.version);
+  const erpStatus = resolveErpVersionStatus(erpState.status, erpAvailable);
+  const suiteStatus = resolveSuiteVersionStatus({ localSuite, suiteCurrent, suiteAvailable });
+  const errors = [];
+  if (erpResult.status === "rejected") errors.push("Não foi possível consultar a atualização do ERP.");
+  if (desktop.isElectron && suiteResult.status === "rejected") errors.push("Não foi possível consultar o Fioreze Suite instalado.");
+  if (manifestResult.status === "rejected") errors.push("Não foi possível consultar a versão mais recente do Fioreze Suite.");
+
+  state.applicationVersions = {
+    checking: false,
+    checkedAt: check ? new Date().toISOString() : state.applicationVersions.checkedAt,
+    error: errors.join(" "),
+    erp: {
+      current: erpCurrent,
+      available: erpAvailable,
+      status: erpStatus,
+      message: applicationVersionMessage("erp", erpStatus, erpState.message),
+    },
+    suite: {
+      current: suiteCurrent,
+      available: suiteAvailable,
+      status: suiteStatus,
+      message: applicationVersionMessage("suite", suiteStatus, localSuite?.message),
+    },
+  };
+  if (state.settingsView === "version") renderAdmin();
+  if (check) notify(errors.length ? "Verificação concluída com informações indisponíveis." : "Versões verificadas.");
+}
+
+async function fetchSuiteReleaseManifest() {
+  const response = await fetch("/downloads/print-agent/latest.json", {
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error("suite_manifest_unavailable");
+  const payload = await response.json();
+  const version = normalizeApplicationVersion(payload?.version);
+  if (!version) throw new Error("suite_manifest_invalid");
+  return { version };
+}
+
+function normalizeApplicationVersion(value) {
+  const version = String(value || "").trim();
+  return /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version) ? version : "";
+}
+
+function compareApplicationVersions(left, right) {
+  const first = normalizeApplicationVersion(left).split("-")[0].split(".").map(Number);
+  const second = normalizeApplicationVersion(right).split("-")[0].split(".").map(Number);
+  for (let index = 0; index < 3; index += 1) {
+    if ((first[index] || 0) !== (second[index] || 0)) return (first[index] || 0) - (second[index] || 0);
+  }
+  return 0;
+}
+
+function resolveErpVersionStatus(status, availableVersion) {
+  if (!desktop.isElectron) return "web";
+  if (["available", "deferred", "downloading", "ready"].includes(status) || availableVersion) return "available";
+  if (status === "checking") return "checking";
+  if (status === "development") return "development";
+  if (status === "error") return "unavailable";
+  return "current";
+}
+
+function resolveSuiteVersionStatus({ localSuite, suiteCurrent, suiteAvailable }) {
+  if (!desktop.isElectron || localSuite?.status === "not_installed" || !localSuite?.installed) return "not-installed";
+  if (suiteCurrent && suiteAvailable && compareApplicationVersions(suiteAvailable, suiteCurrent) > 0) return "available";
+  if (suiteCurrent && suiteAvailable) return "current";
+  return suiteCurrent ? "unavailable" : "pending";
+}
+
+function applicationVersionStatusLabel(status) {
+  return ({
+    available: "Atualização disponível",
+    checking: "Verificando",
+    current: "Atualizado",
+    development: "Modo local",
+    "not-installed": "Não instalado",
+    pending: "Consultando",
+    unavailable: "Indisponível",
+    web: "Atualização contínua",
+  })[status] || "Indisponível";
+}
+
+function applicationVersionMessage(product, status, runtimeMessage = "") {
+  if (status === "available") return product === "erp" ? "Uma nova versão pode ser baixada e instalada." : "Abra o Fioreze Suite para baixar e instalar a atualização.";
+  if (status === "current") return "Esta é a versão mais recente.";
+  if (status === "web") return "A versão web é atualizada automaticamente.";
+  if (status === "not-installed") return desktop.isElectron ? "O Fioreze Suite não está instalado neste computador." : "Disponível apenas no aplicativo para Windows.";
+  if (status === "development") return runtimeMessage || "A verificação OTA fica desativada no modo local.";
+  if (status === "checking" || status === "pending") return "Consultando a versão instalada.";
+  return runtimeMessage || "Não foi possível confirmar a versão mais recente.";
+}
+
 function settingsCard(view, icon, title, description) {
   return `<button type="button" class="erp-settings-link" data-settings-view="${view}"><span class="erp-settings-icon">${settingsIcon(icon)}</span><span><strong>${title}</strong><small>${description}</small></span><span class="erp-settings-chevron">${settingsIcon("chevron")}</span></button>`;
 }
@@ -918,6 +1072,7 @@ function openSettingsView(view) {
   renderAdmin();
   byId("adminContainer")?.scrollTo({ top: 0, left: 0 });
   if (view === "printing" && desktop.isElectron) void refreshLocalPrintAgentStatus();
+  if (view === "version") void refreshApplicationVersions();
 }
 
 async function handleCatalogClick(event) {
@@ -964,6 +1119,7 @@ async function handleSettingsClick(event) {
   if (event.target.closest("#refreshPrintingButton")) return refreshPrinting();
   if (event.target.closest("#refreshLocalPrintAgentButton")) return refreshLocalPrintAgentStatus();
   if (event.target.closest("#restartLocalPrintAgentButton")) return restartLocalPrintAgent();
+  if (event.target.closest("#checkApplicationUpdatesButton")) return refreshApplicationVersions({ check: true });
   const printerDevice = event.target.closest("[data-printer-device]");
   if (printerDevice) return changePrinterDeviceStatus(printerDevice.dataset.printerDevice, printerDevice.dataset.printerStatus);
   const room = event.target.closest("[data-edit-room]");
@@ -1752,6 +1908,7 @@ function renderAdmin() {
   if (state.settingsView === "account") target.innerHTML = renderAccountSettings();
   if (state.settingsView === "appearance") target.innerHTML = renderAppearanceSettings();
   if (state.settingsView === "notifications") target.innerHTML = renderNotificationSettings();
+  if (state.settingsView === "version") target.innerHTML = renderApplicationVersionSettings();
   const settingsScale = byId("settingsScaleRange", false);
   settingsScale?.addEventListener("input", () => applyInterfaceScale(settingsScale.value, false));
   settingsScale?.addEventListener("change", () => {
@@ -2800,6 +2957,10 @@ function settingsIcon(type) {
     palette: '<path d="M12 3a9 9 0 100 18h1.5a2 2 0 001.5-3.3 2 2 0 011.5-3.3H18A3 3 0 0021 11a8 8 0 00-9-8z"/><circle cx="7.5" cy="11" r=".5"/><circle cx="10" cy="7" r=".5"/><circle cx="15" cy="7" r=".5"/>',
     bell: '<path d="M18 8a6 6 0 00-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',
     printer: '<path d="M6 9V3h12v6M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v7H6z"/>',
+    version: '<path d="M12 3a9 9 0 109 9"/><path d="M12 7v5l3 2M8 3h4v4"/>',
+    desktop: '<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>',
+    suite: '<path d="M4 7h16v12H4zM8 7V4h8v3M4 11h16M9 15h6"/>',
+    refresh: '<path d="M20 7v5h-5M4 17v-5h5M6.1 8a7 7 0 0111.2-2L20 12M4 12l2.7 6a7 7 0 0011.2-2"/>',
     copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2"/>',
     chevron: '<path d="M9 6l6 6-6 6"/>',
     back: '<path d="M19 12H5M12 19l-7-7 7-7"/>',

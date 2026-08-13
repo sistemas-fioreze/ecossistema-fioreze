@@ -1,4 +1,5 @@
 export const ERP_STORAGE_VERSION = "rs-erp-v1";
+export const ERP_APP_VERSION = "1.2.0";
 
 export const NAV_ITEMS = [
   {

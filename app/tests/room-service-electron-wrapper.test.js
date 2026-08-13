@@ -29,6 +29,7 @@ test("ERP Room Service exposes desktop controls only through the adapter", () =>
   assert.match(adapter, /dataset\.windowMaterial = "solid"/);
   assert.match(adapter, /dataset\.windowControls = controlMode/);
   assert.match(adapter, /getWindowAppearance/);
+  assert.match(adapter, /checkForUpdates/);
   assert.match(css, /body\[data-fioreze-desktop="electron"\] \.rs-window-controls/);
   assert.match(css, /--erp-desktop-titlebar-height:\s*44px/);
   assert.match(css, /padding-top:\s*var\(--erp-desktop-titlebar-height/);
