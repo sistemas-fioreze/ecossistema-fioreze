@@ -1,6 +1,7 @@
+import os
 import unittest
 
-from fioreze_print_agent.app import runtime_tone, status_window_geometry
+from fioreze_print_agent.app import apply_rounded_window, runtime_tone, status_window_geometry
 
 
 class AppPresentationTests(unittest.TestCase):
@@ -20,6 +21,10 @@ class AppPresentationTests(unittest.TestCase):
             status_window_geometry((0, 0, 360, 600)),
             "336x576+12+12",
         )
+
+    def test_native_rounding_is_optional_outside_windows(self):
+        if os.name != "nt":
+            self.assertFalse(apply_rounded_window(object()))
 
 
 if __name__ == "__main__":

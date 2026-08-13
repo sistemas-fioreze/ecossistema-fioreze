@@ -5,10 +5,20 @@ from unittest.mock import patch
 
 from PIL import Image
 
-from fioreze_print_agent.installer import erp_url, install_suite
+from fioreze_print_agent.installer import erp_url, find_bundled_erp_installer, install_suite
 
 
 class InstallerTests(unittest.TestCase):
+    def test_selects_versioned_native_installer_from_suite_package(self):
+        with TemporaryDirectory() as directory:
+            target = Path(directory) / "Fioreze-ERP-Installer"
+            target.mkdir()
+            older = target / "Fioreze-ERP-Setup-1.1.6.exe"
+            current = target / "Fioreze-ERP-Setup-1.1.7.exe"
+            older.write_bytes(b"old")
+            current.write_bytes(b"current")
+            self.assertEqual(find_bundled_erp_installer(directory), current)
+
     def test_erp_url_uses_selected_unit_slug(self):
         self.assertEqual(
             erp_url("https://portal.example.invalid/", "hotel-ficticio"),

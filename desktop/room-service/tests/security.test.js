@@ -48,7 +48,7 @@ test("unconfigured window keeps local controls and does not embed remote code", 
 test("preload exposes only the approved desktop bridge", () => {
   const preload = read("preload.cjs");
   assert.match(preload, /contextBridge\.exposeInMainWorld\(\s*"fiorezeDesktop"/);
-  for (const key of ["isElectron", "minimize", "toggleMaximize", "close", "reload", "getWindowState", "getWindowAppearance", "getPrintAgentStatus", "restartPrintAgent", "openPrintManager", "platform", "version"]) {
+  for (const key of ["isElectron", "minimize", "toggleMaximize", "close", "reload", "capturePage", "getWindowState", "getWindowAppearance", "getPrintAgentStatus", "restartPrintAgent", "openPrintManager", "getUpdateState", "checkForUpdates", "downloadAndInstallUpdate", "deferUpdate", "onUpdateState", "platform", "version"]) {
     assert.match(preload, new RegExp(`${key}\\s*:`));
   }
   assert.doesNotMatch(preload, /fs|child_process|exec|spawn|token|password|secret/i);
@@ -73,4 +73,26 @@ test("local print integration exposes fixed actions instead of arbitrary executi
   assert.match(runtime, /show\.request/);
   assert.match(runtime, /shell:\s*false/);
   assert.doesNotMatch(runtime, /exec\(|execFile\(|shell:\s*true|cmd\.exe|powershell/i);
+});
+
+test("feedback capture uses the trusted Electron window only", () => {
+  const main = read("main.cjs");
+  const preload = read("preload.cjs");
+  assert.match(main, /fioreze:window:capture/);
+  assert.match(main, /assertTrustedSender\(event\)/);
+  assert.match(main, /webContents\.capturePage\(\)/);
+  assert.match(main, /png\.length > 8 \* 1024 \* 1024/);
+  assert.match(preload, /capturePage:\s*\(\) => ipcRenderer\.invoke\("fioreze:window:capture"\)/);
+});
+
+test("native updater uses the fixed HTTPS feed and never downloads silently", () => {
+  const main = read("main.cjs");
+  const updater = read("updater.cjs");
+  assert.match(main, /createUpdateController/);
+  assert.match(updater, /https:\/\/portal\.hoteisfioreze\.com\.br\/downloads\/erp/);
+  assert.match(updater, /autoDownload = false/);
+  assert.match(updater, /fioreze:update:download-install/);
+  assert.match(updater, /fioreze:update:defer/);
+  assert.match(updater, /assertTrustedSender\(event\)/);
+  assert.doesNotMatch(updater, /token|cookie|password|secret/i);
 });

@@ -5,6 +5,7 @@ $Dist = Join-Path $Root "dist"
 $Release = Join-Path $Root "release"
 $Package = Join-Path $Release "Fioreze-Suite-Windows"
 $Archive = Join-Path $Release "Fioreze-Suite-Windows.zip"
+$UpdaterRelease = Join-Path $Release "Updater"
 $DesktopRoot = Resolve-Path (Join-Path $Root "..\..\desktop\room-service")
 $DesktopPackage = Join-Path $DesktopRoot "release\win-unpacked"
 $VersionFile = Join-Path $Root "fioreze_print_agent\version.py"
@@ -31,6 +32,7 @@ try {
   npm.cmd ci
   npm.cmd run test
   npm.cmd run dist:win
+  npm.cmd run dist:release
 } finally {
   Pop-Location
 }
@@ -38,18 +40,34 @@ try {
 & $PythonCommand @PythonArguments -m venv $Venv
 & "$Venv\Scripts\python.exe" -m pip install --upgrade pip
 & "$Venv\Scripts\python.exe" -m pip install -r (Join-Path $Root "requirements-build.txt")
-& "$Venv\Scripts\pyinstaller.exe" `
-  --noconfirm `
-  --clean `
-  --onefile `
-  --windowed `
-  --name "Fioreze-Suite" `
-  --paths $Root `
-  (Join-Path $Root "launcher.py")
+Push-Location $Root
+try {
+  & "$Venv\Scripts\pyinstaller.exe" `
+    --noconfirm `
+    --clean `
+    --onefile `
+    --windowed `
+    --name "Fioreze-Suite" `
+    --paths $Root `
+    (Join-Path $Root "launcher.py")
+} finally {
+  Pop-Location
+}
 
 New-Item -ItemType Directory -Force -Path $Package | Out-Null
 Copy-Item (Join-Path $Dist "Fioreze-Suite.exe") (Join-Path $Package "Fioreze-Suite.exe")
-Copy-Item $DesktopPackage (Join-Path $Package "Fioreze-ERP") -Recurse
+$NativeInstaller = Get-ChildItem -LiteralPath (Join-Path $DesktopRoot "release") -Filter "Fioreze-ERP-Setup-*.exe" -File | Sort-Object Name -Descending | Select-Object -First 1
+$NativeBlockmap = Get-ChildItem -LiteralPath (Join-Path $DesktopRoot "release") -Filter "Fioreze-ERP-Setup-*.exe.blockmap" -File | Sort-Object Name -Descending | Select-Object -First 1
+$NativeManifest = Join-Path $DesktopRoot "release\latest.yml"
+if (-not $NativeInstaller -or -not $NativeBlockmap -or -not (Test-Path -LiteralPath $NativeManifest)) {
+  throw "Os artefatos de atualizacao nativa do ERP nao foram gerados."
+}
+New-Item -ItemType Directory -Force -Path (Join-Path $Package "Fioreze-ERP-Installer") | Out-Null
+New-Item -ItemType Directory -Force -Path $UpdaterRelease | Out-Null
+Copy-Item $NativeInstaller.FullName (Join-Path $Package "Fioreze-ERP-Installer\$($NativeInstaller.Name)")
+Copy-Item $NativeInstaller.FullName (Join-Path $UpdaterRelease $NativeInstaller.Name)
+Copy-Item $NativeBlockmap.FullName (Join-Path $UpdaterRelease $NativeBlockmap.Name)
+Copy-Item $NativeManifest (Join-Path $UpdaterRelease "latest.yml")
 
 @"
 FIOREZE SUITE - ERP E IMPRESSAO DE PEDIDOS
@@ -60,9 +78,10 @@ FIOREZE SUITE - ERP E IMPRESSAO DE PEDIDOS
 4. Para a impressao, informe o codigo de conexao gerado no ERP.
 5. Selecione a impressora e o modelo do comprovante.
 
-O pacote inclui o ERP desktop, o Python e as dependencias necessarias. O ERP
-carrega a versao web oficial da unidade e recebe as atualizacoes publicadas sem
-precisar ser reinstalado. A configuracao e o
+O pacote inclui o instalador nativo do ERP, o Python e as dependencias necessarias.
+O ERP carrega a versao web oficial da unidade e recebe as atualizacoes publicadas
+sem precisar ser reinstalado. Quando houver uma atualizacao nativa, o aplicativo
+pedira confirmacao antes de baixar e instalar. A configuracao e o
 token protegido sao criados somente no computador depois da ativacao e nao fazem
 parte deste pacote.
 "@ | Set-Content -Path (Join-Path $Package "LEIA-ME.txt") -Encoding UTF8
@@ -73,9 +92,10 @@ $VersionMatch = Select-String -Path $VersionFile -Pattern 'APP_VERSION\s*=\s*"([
 $Version = if ($VersionMatch) { $VersionMatch.Matches[0].Groups[1].Value } else { "build-local" }
 "Versao $Version`nCommit $Commit" | Set-Content -Path (Join-Path $Package "VERSAO.txt") -Encoding UTF8
 $SuiteHash = (Get-FileHash (Join-Path $Package "Fioreze-Suite.exe") -Algorithm SHA256).Hash.ToLowerInvariant()
-$ErpHash = (Get-FileHash (Join-Path $Package "Fioreze-ERP\Fioreze ERP.exe") -Algorithm SHA256).Hash.ToLowerInvariant()
-"$SuiteHash  Fioreze-Suite.exe`n$ErpHash  Fioreze-ERP\Fioreze ERP.exe" | Set-Content -Path (Join-Path $Package "SHA256SUMS.txt") -Encoding ASCII
+$ErpHash = (Get-FileHash (Join-Path $Package "Fioreze-ERP-Installer\$($NativeInstaller.Name)") -Algorithm SHA256).Hash.ToLowerInvariant()
+"$SuiteHash  Fioreze-Suite.exe`n$ErpHash  Fioreze-ERP-Installer\$($NativeInstaller.Name)" | Set-Content -Path (Join-Path $Package "SHA256SUMS.txt") -Encoding ASCII
 Compress-Archive -Path $Package -DestinationPath $Archive -CompressionLevel Optimal -Force
 
 Write-Host "Pacote criado em $Package"
 Write-Host "Arquivo ZIP criado em $Archive"
+Write-Host "Artefatos OTA criados em $UpdaterRelease"

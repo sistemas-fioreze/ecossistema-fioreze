@@ -45,6 +45,55 @@ COLORS = {
 }
 
 
+class RoundedFrame(tk.Frame):
+    def __init__(self, parent, *, fill, border, radius=14, padding=18):
+        parent_background = parent.cget("bg")
+        super().__init__(parent, bg=parent_background, padx=padding, pady=padding, bd=0, highlightthickness=0)
+        self._fill = fill
+        self._border = border
+        self._radius = radius
+        self._background = tk.Canvas(self, bg=parent_background, bd=0, highlightthickness=0)
+        self._background.place(x=0, y=0, relwidth=1, relheight=1)
+        self._background.lower()
+        self.bind("<Configure>", self._redraw_background)
+
+    def _redraw_background(self, _event=None):
+        width = max(1, self.winfo_width())
+        height = max(1, self.winfo_height())
+        radius = min(self._radius, width // 2, height // 2)
+        self._background.delete("all")
+        points = [
+            radius, 1, width - radius, 1, width - 1, 1, width - 1, radius,
+            width - 1, height - radius, width - 1, height - 1, width - radius, height - 1,
+            radius, height - 1, 1, height - 1, 1, height - radius, 1, radius, 1, 1,
+        ]
+        self._background.create_polygon(
+            points,
+            smooth=True,
+            splinesteps=24,
+            fill=self._fill,
+            outline=self._border,
+            width=1,
+        )
+
+
+def apply_rounded_window(root):
+    if os.name != "nt":
+        return False
+    try:
+        root.update_idletasks()
+        preference = ctypes.c_int(2)
+        result = ctypes.windll.dwmapi.DwmSetWindowAttribute(
+            root.winfo_id(),
+            33,
+            ctypes.byref(preference),
+            ctypes.sizeof(preference),
+        )
+        return result == 0
+    except (AttributeError, OSError, tk.TclError):
+        return False
+
+
 def status_window_geometry(work_area, width=STATUS_WINDOW_WIDTH, height=STATUS_WINDOW_HEIGHT, margin=STATUS_WINDOW_MARGIN):
     left, top, right, bottom = work_area
     available_width = max(320, right - left - (margin * 2))
@@ -165,6 +214,7 @@ class AgentApplication:
         self.root.maxsize(self.root.winfo_screenwidth(), self.root.winfo_screenheight())
         self.root.geometry("920x690")
         self.root.configure(bg=COLORS["canvas"])
+        self.root.after_idle(lambda: apply_rounded_window(self.root))
         self.window_mode = "setup"
 
     def _set_status_window(self):
@@ -174,6 +224,7 @@ class AgentApplication:
         self.root.maxsize(STATUS_WINDOW_WIDTH, STATUS_WINDOW_HEIGHT)
         self.root.geometry(status_window_geometry(work_area_bounds(self.root)))
         self.root.configure(bg=COLORS["line"])
+        self.root.after_idle(lambda: apply_rounded_window(self.root))
         self.window_mode = "status"
 
     def _start_window_drag(self, event):
@@ -258,13 +309,12 @@ class AgentApplication:
         return content
 
     def _card(self, parent, padding=18):
-        return tk.Frame(
+        return RoundedFrame(
             parent,
-            bg=COLORS["surface"],
-            padx=padding,
-            pady=padding,
-            highlightthickness=1,
-            highlightbackground=COLORS["line"],
+            fill=COLORS["surface"],
+            border=COLORS["line"],
+            radius=14,
+            padding=padding,
         )
 
     def _field(self, parent, label, variable, values=None, secret=False):

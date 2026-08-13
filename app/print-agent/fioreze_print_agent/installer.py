@@ -2,6 +2,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import subprocess
 import sys
 
 from .branding import load_unit_tray_icon
@@ -9,7 +10,7 @@ from .branding import load_unit_tray_icon
 
 SUITE_DIR = Path(os.getenv("LOCALAPPDATA", Path.home())) / "Fioreze" / "Suite"
 INSTALLED_EXE = SUITE_DIR / "Fioreze-Suite.exe"
-INSTALLED_ERP_DIR = SUITE_DIR / "ERP"
+INSTALLED_ERP_DIR = Path(os.getenv("LOCALAPPDATA", Path.home())) / "Programs" / "Fioreze ERP"
 INSTALLED_ERP_EXE = INSTALLED_ERP_DIR / "Fioreze ERP.exe"
 ERP_CONFIG_FILE = SUITE_DIR / "erp-config.json"
 UNIT_ICON = SUITE_DIR / "unidade.ico"
@@ -38,8 +39,17 @@ def install_suite(
     if getattr(sys, "frozen", False) and source.exists() and source.resolve() != installed_exe.resolve():
         shutil.copy2(source, installed_exe)
     erp_source = Path(erp_executable) if erp_executable else source.parent / "Fioreze-ERP" / "Fioreze ERP.exe"
+    erp_installer = find_bundled_erp_installer(source.parent)
     installed_erp = INSTALLED_ERP_EXE
-    if erp_source.exists() and erp_source.resolve() != installed_erp.resolve():
+    if os.name == "nt" and not erp_executable and erp_installer:
+        subprocess.run(
+            [str(erp_installer), "/S"],
+            check=True,
+            timeout=240,
+            shell=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+    elif erp_source.exists() and erp_source.resolve() != installed_erp.resolve():
         if erp_executable:
             installed_erp.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(erp_source, installed_erp)
@@ -72,6 +82,12 @@ def install_suite(
         "installed_exe": installed_exe if installed_exe.exists() else source,
         "installed_erp": installed_erp if installed_erp.exists() else None,
     }
+
+
+def find_bundled_erp_installer(package_directory):
+    directory = Path(package_directory) / "Fioreze-ERP-Installer"
+    candidates = sorted(directory.glob("Fioreze-ERP-Setup-*.exe"), reverse=True)
+    return candidates[0] if candidates else None
 
 
 def write_erp_config(origin, hotel_slug, hotel_name, path=ERP_CONFIG_FILE):

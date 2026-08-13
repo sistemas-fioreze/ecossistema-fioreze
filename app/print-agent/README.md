@@ -32,6 +32,11 @@ a bandeja pelo botao de fechar. O ERP Electron tambem mostra o
 estado local da impressao em sua barra de titulo branca e abre esta janela sem
 iniciar uma segunda instancia do agente.
 
+A janela e os paineis usam cantos arredondados no Windows 11 e mantem um fallback
+solido no Windows 10. O aplicativo ERP e instalado pelo NSIS incluído na Suite;
+assim, novas versoes nativas podem ser baixadas e instaladas pelo proprio ERP
+somente depois da confirmacao do operador.
+
 O ERP mostra o computador como online quando recebeu contato nos ultimos dois minutos. Tambem mostra versao, impressora, template, ultimo contato e permite pausar ou revogar o dispositivo.
 
 No aplicativo desktop, o ERP tambem consulta o estado local e pode solicitar o reinicio do agente.
@@ -70,4 +75,8 @@ Os testes renderizam bytes em memoria e usam pastas temporarias. Eles nunca cham
 powershell -ExecutionPolicy Bypass -File .\build-windows.ps1
 ```
 
-O build gera `release/Fioreze-Suite-Windows/` e `release/Fioreze-Suite-Windows.zip`, com `Fioreze-Suite.exe`, a pasta `Fioreze-ERP/`, instrucoes, versao e checksums SHA-256.
+O build gera `release/Fioreze-Suite-Windows/`, `release/Fioreze-Suite-Windows.zip`
+e `release/Updater/`. A Suite contem `Fioreze-Suite.exe`, o instalador nativo do
+ERP, instrucoes, versao e checksums SHA-256. `Updater/` contem `latest.yml`, o
+instalador versionado e o blockmap que devem ser publicados no caminho privado
+`desktop/erp/releases/` do bucket R2 de desenvolvimento.

@@ -15,6 +15,8 @@ Wrapper Electron fino para abrir o ERP Room Service oficial em `/<slug-da-unidad
 - Mantem atualizar e estado da impressao na titlebar integrada ao Windows.
 - Carrega a URL oficial da unidade; alteracoes publicadas aparecem sem reinstalar o aplicativo.
 - Consulta e reinicia o Fioreze Print Agent por um canal local restrito.
+- Captura a propria janela por uma API nativa do Electron ao enviar feedback.
+- Verifica atualizacoes nativas sem download automatico e pede confirmacao.
 
 ## Desenvolvimento local
 
@@ -73,11 +75,17 @@ window.fiorezeDesktop = {
   toggleMaximize,
   close,
   reload,
+  capturePage,
   getWindowState,
   getWindowAppearance,
   getPrintAgentStatus,
   restartPrintAgent,
   openPrintManager,
+  getUpdateState,
+  checkForUpdates,
+  downloadAndInstallUpdate,
+  deferUpdate,
+  onUpdateState,
   platform,
   version
 }
@@ -109,13 +117,28 @@ trazer a janela existente para frente, evitando agentes concorrentes.
 npm ci
 npm test
 npm run dist:win
+npm run dist:release
 ```
 
-O aplicativo e criado em `release/win-unpacked/` e incorporado pelo build da Suite como `Fioreze-ERP/`.
+O build local cria `release/win-unpacked/`. O release cria o instalador NSIS,
+`latest.yml` e o blockmap. A Suite incorpora o instalador em
+`Fioreze-ERP-Installer/` para que a primeira instalacao ja fique apta a receber OTA.
 O usuario abre somente o atalho `ERP <unidade>`, que aponta para `Fioreze ERP.exe` dentro da instalacao local.
 Se a Suite ainda nao tiver configurado uma unidade, o aplicativo mostra apenas uma tela local de orientacao e os controles da janela.
 
 No navegador comum, `desktop-adapter.js` usa no-op seguro e os controles de janela ficam ocultos.
+
+## Atualizacoes nativas
+
+O aplicativo consulta `https://portal.hoteisfioreze.com.br/downloads/erp/latest.yml`.
+O manifesto e os binarios versionados sao servidos pelo Worker a partir do bucket
+R2 privado. O download nunca comeca automaticamente: o operador escolhe entre
+`Baixar e instalar` e `Lembrar mais tarde`. O adiamento fica apenas no computador
+e vale por 24 horas. O hash SHA-512 do `latest.yml` e validado pelo
+`electron-updater`; os hashes SHA-256 tambem sao registrados no pacote da Suite.
+
+Mudancas no ERP web continuam chegando imediatamente. O OTA existe apenas para
+alteracoes da integracao nativa com Windows, impressao, captura e barra de titulo.
 
 ## Offline
 
