@@ -711,7 +711,13 @@ async function openFeedbackDialog() {
 
 async function captureFeedbackScreenshot() {
   const status = byId("erpFeedbackStatus");
-  status.textContent = "Selecione esta janela para capturar.";
+  const modal = byId("erpFeedbackModal", false);
+  const hideModalForNativeCapture = desktop.isElectron && modal && !modal.classList.contains("hidden");
+  status.textContent = desktop.isElectron ? "Capturando a janela do ERP..." : "Selecione esta janela para capturar.";
+  if (hideModalForNativeCapture) {
+    modal.style.visibility = "hidden";
+    await new Promise((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(resolve)));
+  }
   try {
     const blob = await captureVisibleScreen();
     setFeedbackScreenshot(blob);
@@ -720,10 +726,17 @@ async function captureFeedbackScreenshot() {
     status.textContent = error?.name === "NotAllowedError"
       ? "Captura cancelada. Você ainda pode enviar o relato."
       : "Não foi possível capturar. Você ainda pode enviar o relato.";
+  } finally {
+    if (hideModalForNativeCapture) modal.style.removeProperty("visibility");
   }
 }
 
 async function captureVisibleScreen() {
+  if (desktop.isElectron) {
+    const capture = await desktop.capturePage();
+    if (!capture?.base64 || capture.mimeType !== "image/png") throw new Error("desktop_capture_failed");
+    return new Blob([decodeBase64(capture.base64)], { type: capture.mimeType });
+  }
   if (!navigator.mediaDevices?.getDisplayMedia) throw new Error("screen_capture_unavailable");
   const stream = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: "window" }, audio: false });
   try {
@@ -746,6 +759,13 @@ async function captureVisibleScreen() {
   } finally {
     stream.getTracks().forEach((track) => track.stop());
   }
+}
+
+function decodeBase64(value) {
+  const binary = window.atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes;
 }
 
 function setFeedbackScreenshot(blob) {

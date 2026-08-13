@@ -1,13 +1,14 @@
 {
   "name": "@fioreze/room-service-desktop",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "private": true,
   "description": "Fioreze ERP para Windows com integracao segura ao gerenciador de impressao.",
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",
     "test": "node --test \"tests/**/*.test.js\"",
-    "dist:win": "electron-builder --win --dir"
+    "dist:win": "electron-builder --win --dir",
+    "dist:release": "electron-builder --win nsis"
   },
   "devDependencies": {
     "electron": "43.1.0",
@@ -25,12 +26,24 @@
       "preload.cjs",
       "runtime.cjs",
       "window-chrome.cjs",
+      "updater.cjs",
       "unconfigured.html",
       "package.json"
     ],
     "win": {
-      "target": "dir",
+      "target": ["dir", "nsis"],
+      "artifactName": "Fioreze-ERP-Setup-${version}.${ext}",
       "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "deleteAppDataOnUninstall": false
+    },
+    "publish": {
+      "provider": "generic",
+      "url": "https://portal.hoteisfioreze.com.br/downloads/erp"
     }
   },
   "allowScripts": {
@@ -40,5 +53,8 @@
     "@electron/get": {
       "undici": "7.29.0"
     }
+  },
+  "dependencies": {
+    "electron-updater": "6.8.9"
   }
 }

@@ -108,6 +108,8 @@ test("ERP publica PDV em lista, busca tematizada, feedback e captura descartavel
   assert.match(app, /Itens da comanda/);
   assert.doesNotMatch(app, /classList\.add\("pdv-collapsed"\)/);
   assert.match(app, /getDisplayMedia/);
+  assert.match(app, /desktop\.capturePage\(\)/);
+  assert.match(app, /decodeBase64/);
   assert.match(app, /stream\.getTracks\(\)\.forEach\(\(track\) => track\.stop\(\)\)/);
   assert.match(messages, /Captura enviada pelo ERP/);
 });

@@ -1,12 +1,14 @@
 "use strict";
 
 const { app, BrowserWindow, ipcMain, screen, shell } = require("electron");
+const { autoUpdater } = require("electron-updater");
 const path = require("node:path");
 const { openPrintManager, readErpConfiguration, readPrintAgentStatus, restartPrintAgent, suitePaths } = require("./runtime.cjs");
 const {
   buildWindowChromeOptions,
   publicWindowChrome,
 } = require("./window-chrome.cjs");
+const { createUpdateController } = require("./updater.cjs");
 
 const DEFAULT_ALLOWED_HOSTS = [
   "127.0.0.1",
@@ -21,11 +23,20 @@ const configuredUrl = erpConfiguration.url;
 const allowedHosts = parseAllowedHosts(process.env.FIOREZE_ROOM_SERVICE_ALLOWED_HOSTS);
 
 let mainWindow;
+let updateController;
 
 app.whenReady().then(async () => {
   registerWindowControls();
   mainWindow = createMainWindow();
+  updateController = createUpdateController({
+    updater: autoUpdater,
+    app,
+    ipcMain,
+    getWindow: () => mainWindow,
+    assertTrustedSender,
+  });
   await loadConfiguredContent(mainWindow);
+  setTimeout(() => updateController.check(), 5_000);
 });
 
 app.on("window-all-closed", () => {
@@ -121,6 +132,23 @@ function registerWindowControls() {
   ipcMain.handle("fioreze:window:reload", (event) => {
     assertTrustedSender(event);
     BrowserWindow.fromWebContents(event.sender)?.webContents.reloadIgnoringCache();
+  });
+  ipcMain.handle("fioreze:window:capture", async (event) => {
+    assertTrustedSender(event);
+    const window = BrowserWindow.fromWebContents(event.sender);
+    if (!window || window.isDestroyed()) throw new Error("Desktop window is unavailable.");
+    const captured = await window.webContents.capturePage();
+    const size = captured.getSize();
+    const image = size.width > 1600
+      ? captured.resize({ width: 1600, quality: "best" })
+      : captured;
+    const png = image.toPNG();
+    if (!png.length || png.length > 8 * 1024 * 1024) throw new Error("Desktop capture is invalid.");
+    return {
+      mimeType: "image/png",
+      base64: png.toString("base64"),
+      size: png.length,
+    };
   });
   ipcMain.handle("fioreze:print-agent:status", (event) => {
     assertTrustedSender(event);

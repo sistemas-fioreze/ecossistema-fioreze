@@ -10,6 +10,7 @@ import { registerEmbedRoutes } from "./modules/embed/public.js";
 import { redirectShortLink } from "./modules/short-links/public.js";
 import { extractCustomDomainSlug, isShortLinkCustomDomainRequest } from "./modules/short-links/shared.js";
 import { serveCustomPortalPage } from "./modules/portal-pages/public.js";
+import { serveDesktopRelease } from "./modules/desktop-releases.js";
 import { archiveExpiredPortalEvents } from "./services/portal-event-lifecycle.js";
 import { registerPrintAgentRoutes } from "./modules/print-agent/routes.js";
 import {
@@ -48,6 +49,8 @@ registerPrintAgentRoutes(router);
 
 router.get("/media/:id", async ({ request, env, params }) => servePublicMedia({ request, env, params }));
 router.head("/media/:id", async ({ request, env, params }) => servePublicMedia({ request, env, params, head: true }));
+router.get("/downloads/erp/:file", async ({ env, params }) => serveDesktopRelease({ env, params }));
+router.head("/downloads/erp/:file", async ({ env, params }) => serveDesktopRelease({ env, params, head: true }));
 router.get("/go/:slug", async ({ request, env, ctx, params }) => redirectShortLink({ request, env, ctx, params }));
 router.head("/go/:slug", async ({ request, env, params }) => redirectShortLink({ request, env, params, head: true }));
 router.get("/portal-content/:hotel_slug/:page_slug", async ({ env, params }) => serveCustomPortalPage({ env, params }));
@@ -92,6 +95,7 @@ async function handleRequest(request, env, ctx) {
   if (
     url.pathname.startsWith("/api/") ||
     url.pathname.startsWith("/media/") ||
+    url.pathname.startsWith("/downloads/erp/") ||
     url.pathname.startsWith("/embed/") ||
     url.pathname.startsWith("/go/") ||
     url.pathname.startsWith("/portal-content/")
