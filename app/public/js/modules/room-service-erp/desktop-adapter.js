@@ -32,6 +32,9 @@ export const desktop = {
   updateState() {
     return window.fiorezeDesktop?.getUpdateState?.() || Promise.resolve({ status: "unsupported" });
   },
+  checkForUpdates() {
+    return window.fiorezeDesktop?.checkForUpdates?.() || Promise.resolve({ status: "unsupported" });
+  },
   downloadAndInstallUpdate() {
     return window.fiorezeDesktop?.downloadAndInstallUpdate?.() || Promise.resolve({ status: "unsupported" });
   },
