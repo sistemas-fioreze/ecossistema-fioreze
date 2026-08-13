@@ -75,8 +75,21 @@ Os testes renderizam bytes em memoria e usam pastas temporarias. Eles nunca cham
 powershell -ExecutionPolicy Bypass -File .\build-windows.ps1
 ```
 
-O build gera `release/Fioreze-Suite-Windows/`, `release/Fioreze-Suite-Windows.zip`
-e `release/Updater/`. A Suite contem `Fioreze-Suite.exe`, o instalador nativo do
-ERP, instrucoes, versao e checksums SHA-256. `Updater/` contem `latest.yml`, o
-instalador versionado e o blockmap que devem ser publicados no caminho privado
-`desktop/erp/releases/` do bucket R2 de desenvolvimento.
+O build gera `release/Fioreze-Suite-Windows/`, `release/Fioreze-Suite-Windows.zip`,
+`release/Updater/` e `release/Print-Agent-Updater/`. A Suite contem
+`Fioreze-Suite.exe`, o instalador nativo do ERP, instrucoes, versao e checksums
+SHA-256.
+
+`Updater/` contem `latest.yml`, o instalador versionado e o blockmap do ERP,
+publicados em `desktop/erp/releases/` no bucket R2 privado.
+`Print-Agent-Updater/` contem `latest.json` e `Fioreze-Suite-<versao>.exe`,
+publicados em `desktop/print-agent/releases/`.
+
+O agente instalado consulta apenas
+`https://portal.hoteisfioreze.com.br/downloads/print-agent/latest.json`. Quando
+ha uma versao nova, mostra `Baixar e instalar` ou `Lembrar mais tarde`. Nenhum
+download comeca sozinho. O adiamento vale por 24 horas e fica somente no
+computador. Antes de substituir o executavel instalado, o agente valida nome,
+versao, limite de tamanho e SHA-256. A troca ocorre depois do encerramento do
+processo e reinicia o agente na bandeja; o token e a configuracao local nao
+entram no manifesto nem no pacote baixado.

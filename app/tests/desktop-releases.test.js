@@ -36,3 +36,44 @@ test("desktop release route rejects traversal and unknown artifacts as JSON", as
     assert.doesNotMatch(await response.text(), /<html/i);
   }
 });
+
+test("print agent updater streams only its versioned executable and JSON manifest", async () => {
+  const { env, fetch } = createWorkerTestContext();
+  const manifest = JSON.stringify({
+    schema_version: 1,
+    version: "1.4.4",
+    file: "Fioreze-Suite-1.4.4.exe",
+    sha256: "a".repeat(64),
+    size_bytes: 3,
+  });
+  await env.MEDIA_BUCKET.put("desktop/print-agent/releases/Fioreze-Suite-1.4.4.exe", new Uint8Array([0x4d, 0x5a, 0x02]));
+  await env.MEDIA_BUCKET.put("desktop/print-agent/releases/latest.json", manifest);
+
+  const executable = await fetch("/downloads/print-agent/Fioreze-Suite-1.4.4.exe");
+  const latest = await fetch("/downloads/print-agent/latest.json");
+  const head = await fetch("/downloads/print-agent/Fioreze-Suite-1.4.4.exe", { method: "HEAD" });
+
+  assert.equal(executable.status, 200);
+  assert.equal(executable.headers.get("content-type"), "application/vnd.microsoft.portable-executable");
+  assert.match(executable.headers.get("cache-control"), /immutable/);
+  assert.equal(latest.status, 200);
+  assert.equal(latest.headers.get("content-type"), "application/json; charset=utf-8");
+  assert.equal(latest.headers.get("cache-control"), "no-store");
+  assert.equal(await latest.text(), manifest);
+  assert.equal(head.status, 200);
+  assert.equal((await head.arrayBuffer()).byteLength, 0);
+});
+
+test("print agent release route rejects arbitrary and traversed files", async () => {
+  const { fetch } = createWorkerTestContext();
+  for (const path of [
+    "/downloads/print-agent/Fioreze-Suite.exe",
+    "/downloads/print-agent/Fioreze-Suite-1.4.4.zip",
+    "/downloads/print-agent/%2e%2e%2flatest.json",
+  ]) {
+    const response = await fetch(path);
+    assert.equal(response.status, 404);
+    assert.match(response.headers.get("content-type"), /application\/json/);
+    assert.doesNotMatch(await response.text(), /<html/i);
+  }
+});

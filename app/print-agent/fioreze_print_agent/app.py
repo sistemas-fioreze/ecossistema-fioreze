@@ -4,6 +4,7 @@ import platform
 import queue
 import subprocess
 import sys
+import threading
 import time
 import tkinter as tk
 from ctypes.wintypes import RECT
@@ -18,6 +19,15 @@ from .printer import list_printers, print_raw
 from .runtime import consume_restart_request, consume_show_request, write_runtime_status
 from .templates import render_test_page
 from .tray import TrayController
+from .updater import (
+    UpdateError,
+    can_self_update,
+    check_for_update,
+    defer_update,
+    download_update,
+    is_update_deferred,
+    schedule_update_install,
+)
 from .version import APP_VERSION
 from .worker import PrintWorker
 
@@ -146,6 +156,10 @@ class AgentApplication:
         self.notice = None
         self.window_mode = None
         self.drag_origin = None
+        self.update_check_running = False
+        self.update_dialog = None
+        self.update_progress = None
+        self.update_progress_label = None
         self._configure_styles()
         self._set_window_icon()
         self.root.protocol("WM_DELETE_WINDOW", self.close)
@@ -155,6 +169,8 @@ class AgentApplication:
             write_runtime_status("not_configured", self.runtime_message, self.config)
             self.show_setup()
         self.root.after(250, self.process_events)
+        if can_self_update():
+            self.root.after(4000, self.check_for_agent_update)
 
     def _configure_styles(self):
         style = ttk.Style(self.root)
@@ -676,6 +692,147 @@ class AgentApplication:
         if self.tray:
             self.root.withdraw()
 
+    def check_for_agent_update(self):
+        if self.update_check_running or not can_self_update():
+            return
+        self.update_check_running = True
+
+        def run_check():
+            try:
+                manifest = check_for_update()
+            except UpdateError:
+                manifest = None
+            self.events.put(lambda: self._complete_agent_update_check(manifest))
+
+        threading.Thread(target=run_check, name="fioreze-update-check", daemon=True).start()
+
+    def _complete_agent_update_check(self, manifest):
+        self.update_check_running = False
+        if manifest and not is_update_deferred(manifest["version"]):
+            self._show_agent_update(manifest)
+        self.root.after(6 * 60 * 60 * 1000, self.check_for_agent_update)
+
+    def _show_agent_update(self, manifest):
+        if self.update_dialog and self.update_dialog.winfo_exists():
+            self.update_dialog.lift()
+            return
+        if self.config.get("token"):
+            self.show_window()
+        dialog = tk.Toplevel(self.root)
+        self.update_dialog = dialog
+        dialog.overrideredirect(True)
+        dialog.resizable(False, False)
+        dialog.configure(bg=COLORS["line"])
+        width, height = 430, 310
+        screen_width = dialog.winfo_screenwidth()
+        screen_height = dialog.winfo_screenheight()
+        dialog.geometry(f"{width}x{height}+{(screen_width - width) // 2}+{(screen_height - height) // 2}")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        dialog.attributes("-topmost", True)
+        dialog.after(180, lambda: dialog.attributes("-topmost", False))
+        dialog.after_idle(lambda: apply_rounded_window(dialog))
+
+        shell = tk.Frame(dialog, bg=COLORS["surface"], highlightthickness=1, highlightbackground=COLORS["line"])
+        shell.pack(fill="both", expand=True)
+        titlebar = tk.Frame(shell, bg=COLORS["surface"], height=46)
+        titlebar.pack(fill="x")
+        titlebar.pack_propagate(False)
+        tk.Label(titlebar, text="Atualizacao do Fioreze Suite", bg=COLORS["surface"], fg=COLORS["ink"], font=("Segoe UI", 10, "bold")).pack(side="left", padx=18)
+
+        def remind_later():
+            defer_update(manifest["version"])
+            if dialog.winfo_exists():
+                dialog.grab_release()
+                dialog.destroy()
+            self.update_dialog = None
+
+        close_button = tk.Button(
+            titlebar,
+            text="\u00d7",
+            command=remind_later,
+            bg=COLORS["surface"],
+            fg=COLORS["muted"],
+            activebackground=COLORS["danger_soft"],
+            activeforeground=COLORS["danger"],
+            relief="flat",
+            bd=0,
+            width=5,
+            cursor="hand2",
+            font=("Segoe UI", 13),
+        )
+        close_button.pack(side="right", fill="y")
+
+        body = tk.Frame(shell, bg=COLORS["surface"], padx=24, pady=16)
+        body.pack(fill="both", expand=True)
+        tk.Label(body, text=f"Versao {manifest['version']} disponivel", bg=COLORS["surface"], fg=COLORS["ink"], font=("Segoe UI", 17, "bold")).pack(anchor="w")
+        tk.Label(
+            body,
+            text=manifest.get("release_notes") or "Melhorias de estabilidade e seguranca para o ERP e a impressao.",
+            bg=COLORS["surface"],
+            fg=COLORS["muted"],
+            justify="left",
+            wraplength=370,
+            font=("Segoe UI", 9),
+        ).pack(anchor="w", pady=(7, 16))
+        self.update_progress_label = tk.Label(body, text="Pronta para baixar.", bg=COLORS["surface"], fg=COLORS["muted"], font=("Segoe UI", 8))
+        self.update_progress_label.pack(anchor="w", pady=(0, 7))
+        self.update_progress = tk.Canvas(body, height=7, bg=COLORS["surface_soft"], bd=0, highlightthickness=0)
+        self.update_progress.pack(fill="x")
+
+        actions = tk.Frame(body, bg=COLORS["surface"])
+        actions.pack(fill="x", side="bottom", pady=(18, 0))
+        later_button = self._button(actions, "Lembrar mais tarde", remind_later)
+        later_button.pack(side="left")
+
+        def download_and_install():
+            install_button.configure(state="disabled", cursor="arrow")
+            later_button.configure(state="disabled", cursor="arrow")
+            close_button.configure(state="disabled", cursor="arrow")
+            self._set_agent_update_progress(1, "Preparando download seguro...")
+
+            def run_download():
+                try:
+                    path = download_update(
+                        manifest,
+                        on_progress=lambda value: self.events.put(
+                            lambda progress=value: self._set_agent_update_progress(progress, f"Baixando atualizacao... {progress}%")
+                        ),
+                    )
+                    self.events.put(lambda: self._install_agent_update(path))
+                except UpdateError as error:
+                    self.events.put(lambda message=str(error): self._fail_agent_update(message, install_button, later_button, close_button))
+
+            threading.Thread(target=run_download, name="fioreze-update-download", daemon=True).start()
+
+        install_button = self._button(actions, "Baixar e instalar", download_and_install, primary=True)
+        install_button.pack(side="right")
+
+    def _set_agent_update_progress(self, value, label):
+        if not self.update_dialog or not self.update_dialog.winfo_exists() or not self.update_progress:
+            return
+        self.update_progress_label.configure(text=label)
+        self.update_progress.update_idletasks()
+        width = max(1, self.update_progress.winfo_width())
+        self.update_progress.delete("all")
+        self.update_progress.create_rectangle(0, 0, width * max(0, min(100, value)) / 100, 7, fill=COLORS["success"], outline="")
+
+    def _fail_agent_update(self, message, install_button, later_button, close_button):
+        self._set_agent_update_progress(0, message)
+        for button in (install_button, later_button, close_button):
+            button.configure(state="normal", cursor="hand2")
+
+    def _install_agent_update(self, path):
+        try:
+            self._set_agent_update_progress(100, "Instalando e reiniciando...")
+            schedule_update_install(path)
+            self.restarting = True
+            write_runtime_status("updating", "Instalando atualizacao do Fioreze Suite", self.config)
+            self.root.after(350, self.exit_application)
+        except UpdateError as error:
+            if self.update_progress_label:
+                self.update_progress_label.configure(text=str(error), fg=COLORS["danger"])
+
     def process_events(self):
         if consume_restart_request():
             self.restart_application()
@@ -684,7 +841,11 @@ class AgentApplication:
             self.show_window()
         try:
             while True:
-                self._update_runtime_message(self.events.get_nowait())
+                event = self.events.get_nowait()
+                if callable(event):
+                    event()
+                else:
+                    self._update_runtime_message(event)
         except queue.Empty:
             pass
         now = time.monotonic()

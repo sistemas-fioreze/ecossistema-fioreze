@@ -1,13 +1,36 @@
 const RELEASE_PREFIX = "desktop/erp/releases/";
 const RELEASE_FILE_PATTERN = /^(?:latest\.yml|Fioreze-ERP-Setup-\d+\.\d+\.\d+\.exe(?:\.blockmap)?)$/;
+const PRINT_AGENT_RELEASE_PREFIX = "desktop/print-agent/releases/";
+const PRINT_AGENT_RELEASE_FILE_PATTERN = /^(?:latest\.json|Fioreze-Suite-\d+\.\d+\.\d+\.exe)$/;
 
 export async function serveDesktopRelease({ env, params, head = false }) {
-  const filename = String(params.file || "");
-  if (!RELEASE_FILE_PATTERN.test(filename) || !env?.MEDIA_BUCKET) {
+  return serveRelease({
+    env,
+    filename: String(params.file || ""),
+    head,
+    prefix: RELEASE_PREFIX,
+    pattern: RELEASE_FILE_PATTERN,
+    manifest: "latest.yml",
+  });
+}
+
+export async function servePrintAgentRelease({ env, params, head = false }) {
+  return serveRelease({
+    env,
+    filename: String(params.file || ""),
+    head,
+    prefix: PRINT_AGENT_RELEASE_PREFIX,
+    pattern: PRINT_AGENT_RELEASE_FILE_PATTERN,
+    manifest: "latest.json",
+  });
+}
+
+async function serveRelease({ env, filename, head, prefix, pattern, manifest }) {
+  if (!pattern.test(filename) || !env?.MEDIA_BUCKET) {
     return releaseNotFound();
   }
 
-  const objectKey = `${RELEASE_PREFIX}${filename}`;
+  const objectKey = `${prefix}${filename}`;
   const object = head
     ? await env.MEDIA_BUCKET.head(objectKey)
     : await env.MEDIA_BUCKET.get(objectKey);
@@ -15,7 +38,7 @@ export async function serveDesktopRelease({ env, params, head = false }) {
 
   const headers = new Headers({
     "content-type": contentTypeFor(filename),
-    "cache-control": filename === "latest.yml"
+    "cache-control": filename === manifest
       ? "no-store"
       : "public, max-age=31536000, immutable",
     "x-content-type-options": "nosniff",
@@ -29,6 +52,7 @@ export async function serveDesktopRelease({ env, params, head = false }) {
 
 function contentTypeFor(filename) {
   if (filename === "latest.yml") return "application/yaml; charset=utf-8";
+  if (filename === "latest.json") return "application/json; charset=utf-8";
   if (filename.endsWith(".blockmap")) return "application/octet-stream";
   return "application/vnd.microsoft.portable-executable";
 }
@@ -44,4 +68,9 @@ function releaseNotFound() {
   });
 }
 
-export { RELEASE_FILE_PATTERN, RELEASE_PREFIX };
+export {
+  PRINT_AGENT_RELEASE_FILE_PATTERN,
+  PRINT_AGENT_RELEASE_PREFIX,
+  RELEASE_FILE_PATTERN,
+  RELEASE_PREFIX,
+};
