@@ -5369,13 +5369,13 @@ body[data-erp="room-service"] #vendasContainer .pdv-panel {
   inset: auto !important;
   width: var(--pdv-panel-width) !important;
   min-width: var(--pdv-panel-width) !important;
-  height: calc(100% - 32px - var(--erp-desktop-bottom-inset, 0px)) !important;
+  height: auto !important;
   min-height: 0 !important;
   display: flex !important;
   flex: 0 0 var(--pdv-panel-width) !important;
   flex-direction: column !important;
-  align-self: center;
-  margin: 16px 16px 16px 0 !important;
+  align-self: stretch;
+  margin: 16px 16px calc(16px + var(--erp-desktop-bottom-inset, 0px)) 0 !important;
   padding: 0 !important;
   overflow: hidden !important;
   border: 1px solid var(--erp-line) !important;
@@ -5481,7 +5481,11 @@ body[data-fioreze-desktop="electron"] #vendasContainer.erp-pdv-workspace {
 }
 
 body[data-fioreze-desktop="electron"] #vendasContainer .pdv-panel {
-  max-height: calc(100% - 32px - var(--erp-desktop-bottom-inset, 0px)) !important;
+  max-height: none !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] #appShell.app-shell {
+  height: calc(100dvh - 40px) !important;
 }
 
 body[data-erp="room-service"] .erp-pdv-total-row {

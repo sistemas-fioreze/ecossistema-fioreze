@@ -41,6 +41,7 @@ import {
   uploadOwnAvatar,
 } from "./api.js";
 import { desktop } from "./desktop-adapter.js";
+import { bindPdvCheckoutActions } from "./pdv-actions.js";
 import { applyBrandTokens } from "./theme.js";
 import { evaluateServiceStatus } from "../room-service/service-status.js";
 
@@ -1560,23 +1561,17 @@ function cartLine(line) {
 
 function bindPdvActions() {
   const container = byId("vendasContainer");
-  const send = [...container.querySelectorAll("button")].find((button) => button.textContent.includes("ENVIAR PEDIDO DIRETO"));
-  const clear = [...container.querySelectorAll("button")].find((button) => button.textContent.trim().startsWith("Limpar"));
   const jump = byId("pdvMobileJump", false);
   const back = byId("pdvMobileCatalogReturn", false);
-  if (send) send.disabled = state.cart.size === 0;
-  if (clear) clear.disabled = state.cart.size === 0;
-  if (send && !send.dataset.bound) {
-    send.dataset.bound = "true";
-    send.addEventListener("click", submitPdvOrder);
-  }
-  if (clear && !clear.dataset.bound) {
-    clear.dataset.bound = "true";
-    clear.addEventListener("click", () => {
+  bindPdvCheckoutActions({
+    container,
+    empty: state.cart.size === 0,
+    onSubmit: submitPdvOrder,
+    onClear: () => {
       state.cart.clear();
       renderCart();
-    });
-  }
+    },
+  });
   if (jump && !jump.dataset.bound) {
     jump.dataset.bound = "true";
     jump.addEventListener("click", () => container.querySelector(".pdv-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }));
