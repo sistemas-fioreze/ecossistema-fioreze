@@ -179,15 +179,17 @@ test("PDV ancora a comanda e separa cabecalho, lista rolavel e rodape fixo", () 
   const app = read("public/js/modules/room-service-erp/legacy-app.js");
 
   assert.match(css, /#vendasContainer\.erp-pdv-workspace \{[\s\S]*padding: 0 !important;[\s\S]*overflow: hidden !important;/);
-  assert.match(css, /#vendasContainer \.pdv-panel \{[\s\S]*height: calc\(100% - 32px - var\(--erp-desktop-bottom-inset, 0px\)\) !important;[\s\S]*margin: 16px 16px 16px 0 !important;[\s\S]*border: 1px solid var\(--erp-line\) !important;[\s\S]*border-radius: var\(--erp-radius-lg\) !important;/);
+  assert.match(css, /#vendasContainer \.pdv-panel \{[\s\S]*height: auto !important;[\s\S]*align-self: stretch;[\s\S]*margin: 16px 16px calc\(16px \+ var\(--erp-desktop-bottom-inset, 0px\)\) 0 !important;[\s\S]*border: 1px solid var\(--erp-line\) !important;[\s\S]*border-radius: var\(--erp-radius-lg\) !important;/);
   assert.match(css, /#cartItems\.erp-pdv-cart-list \{[\s\S]*overflow-y: auto !important;/);
   assert.match(css, /\.erp-pdv-checkout \{[\s\S]*position: sticky;[\s\S]*inset: auto 0 0;/);
+  assert.match(css, /data-fioreze-desktop="electron"\] #appShell\.app-shell \{\s*height: calc\(100dvh - 40px\) !important;/);
   assert.match(css, /\.erp-pdv-list \{[\s\S]*minmax\(300px, 1fr\)/);
   assert.match(css, /#menuContent \.erp-pdv-card-copy p \{[\s\S]*-webkit-line-clamp: 2;/);
   assert.match(css, /#menuContent \.erp-pdv-card-action \{[\s\S]*border-top: 0 !important;/);
   assert.doesNotMatch(app, /Selecione um item para adicionar/);
   assert.doesNotMatch(app, /class="erp-pdv-order-head"/);
   assert.match(app, /class="erp-pdv-total-value"><span id="cartItemCount"/);
+  assert.match(app, /bindPdvCheckoutActions\(\{/);
 });
 
 test("buscas e datas usam uma unica superficie visual", () => {
