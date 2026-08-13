@@ -279,8 +279,8 @@ test("acabamento visual preserva dashboard legado e ativa recursos operacionais"
   assert.match(css, /\.notif-badge\.hidden/);
   assert.match(css, /\.erp-settings-grid/);
   assert.doesNotMatch(polishCss, /#appShell\s*\{[^}]*transform: scale/s);
-  assert.match(script, /shell\.style\.setProperty\("width", `\$\{100 \/ factor\}vw`, "important"\)/);
-  assert.match(script, /shell\.style\.setProperty\("height", `\$\{100 \/ factor\}dvh`, "important"\)/);
+  assert.match(script, /shell\.style\.setProperty\("width", viewport\.width, "important"\)/);
+  assert.match(script, /shell\.style\.setProperty\("height", viewport\.height, "important"\)/);
   assert.match(polishCss, /\.sidebar-collapsed \.side-nav-btn/);
   assert.match(polishCss, /\.erp-store-quick/);
   assert.match(polishCss, /\.erp-pdv-thumb/);
