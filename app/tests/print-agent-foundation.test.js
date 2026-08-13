@@ -10,6 +10,7 @@ const serviceUrl = new URL("../src/modules/print-agent/service.js", import.meta.
 const agentUrl = new URL("../print-agent/fioreze_print_agent/worker.py", import.meta.url);
 const appUrl = new URL("../print-agent/fioreze_print_agent/app.py", import.meta.url);
 const trayUrl = new URL("../print-agent/fioreze_print_agent/tray.py", import.meta.url);
+const updaterUrl = new URL("../print-agent/fioreze_print_agent/updater.py", import.meta.url);
 const buildUrl = new URL("../print-agent/build-windows.ps1", import.meta.url);
 const erpAppUrl = new URL("../public/js/modules/room-service-erp/legacy-app.js", import.meta.url);
 
@@ -78,11 +79,20 @@ test("unidade fornece logo reduzida e agente preserva selecao de impressora e ba
 });
 
 test("build Windows gera pacote separado sem configuracao ou credencial", async () => {
-  const source = await readFile(buildUrl, "utf8");
+  const [source, updater] = await Promise.all([
+    readFile(buildUrl, "utf8"),
+    readFile(updaterUrl, "utf8"),
+  ]);
   assert.match(source, /Fioreze-Suite-Windows/);
   assert.match(source, /Fioreze-Suite-Windows\.zip/i);
+  assert.match(source, /Print-Agent-Updater/);
+  assert.match(source, /latest\.json/);
   assert.match(source, /SHA256SUMS\.txt/i);
   assert.doesNotMatch(source, /Copy-Item[^\n]*(config\.json|token|credential)/i);
+  assert.match(updater, /downloads\/print-agent/);
+  assert.match(updater, /sha256/i);
+  assert.match(updater, /auto|download/i);
+  assert.doesNotMatch(updater, /cookie|password|secret/i);
 });
 
 test("build Windows valida o runtime Python e nao depende de caminho de usuario", async () => {

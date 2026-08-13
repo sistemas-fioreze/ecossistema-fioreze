@@ -24,6 +24,11 @@ No primeiro acesso, o aplicativo reaproveita as impressoras instaladas no Window
 - Todas as consultas do agente incluem `hotel_id` e `module_key` derivados do token.
 - O agente nao abre servidor HTTP, nao usa planilha e nao aceita comandos de impressao da rede local.
 - Erros enviados pelo agente sao limitados e nao incluem stack trace ou credenciais.
+- Atualizacoes usam um feed HTTPS fixo servido pelo Worker a partir do R2 privado.
+- O manifesto aceita somente executavel versionado, tamanho limitado e SHA-256 valido.
+- O download depende de confirmacao do operador; nunca e iniciado silenciosamente.
+- A instalacao substitui somente o executavel local depois que o processo atual encerra.
+- Token, unidade, impressora e demais configuracoes permanecem fora dos artefatos OTA.
 
 ## Template inicial
 
@@ -34,11 +39,16 @@ No primeiro acesso, o aplicativo reaproveita as impressoras instaladas no Window
 
 O conteudo vem do snapshot do pedido no D1. Nenhum arquivo, credencial, endpoint ou configuracao de impressora do legado foi copiado.
 
-## Empacotamento
+## Empacotamento e atualizacoes
 
-O workflow `build-print-agent-windows.yml` executa testes de renderizacao e cria `Fioreze-Impressao.exe` com PyInstaller em Windows. O executavel inclui Python e dependencias. O build nao conecta impressora e o artefato nao contem configuracao de unidade ou token.
+O build Windows cria um unico `Fioreze-Suite.exe` com Python e dependencias, alem
+do instalador Electron do ERP. Ele nao conecta impressora e nao inclui token ou
+configuracao de unidade.
 
-A saida oficial fica em `release/Fioreze-Impressao-Windows/` e inclui somente o EXE, instrucoes, versao e checksum SHA-256. O workflow publica o ZIP dessa pasta como artefato.
+A saida oficial fica em `release/Fioreze-Suite-Windows/`. Os artefatos OTA do ERP
+ficam em `release/Updater/`; os do agente ficam em
+`release/Print-Agent-Updater/`. Os feeds sao independentes, permitindo atualizar
+o wrapper Electron e o processo de impressao sem reinstalar manualmente a Suite.
 
 ## Ativacao por etapas
 
