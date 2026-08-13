@@ -266,8 +266,12 @@ class RoundedBadge(tk.Canvas):
     config = configure
 
 
+def client_window_handle(root):
+    return int(root.winfo_id())
+
+
 def native_window_handle(root):
-    handle = int(root.winfo_id())
+    handle = client_window_handle(root)
     if os.name != "nt":
         return handle
     user32 = ctypes.windll.user32
@@ -282,6 +286,7 @@ def apply_rounded_window(root, radius=None):
         return False
     try:
         root.update_idletasks()
+        client_handle = client_window_handle(root)
         handle = native_window_handle(root)
         preference = ctypes.c_int(2)
         dwm_result = ctypes.windll.dwmapi.DwmSetWindowAttribute(
@@ -298,14 +303,33 @@ def apply_rounded_window(root, radius=None):
             region = ctypes.windll.gdi32.CreateRoundRectRgn(0, 0, width + 1, height + 1, diameter, diameter)
             if not region:
                 region_result = False
-            elif not ctypes.windll.user32.SetWindowRgn(handle, region, True):
+            elif not ctypes.windll.user32.SetWindowRgn(client_handle, region, True):
                 ctypes.windll.gdi32.DeleteObject(region)
                 region_result = False
         else:
-            ctypes.windll.user32.SetWindowRgn(handle, None, True)
+            ctypes.windll.user32.SetWindowRgn(client_handle, None, True)
         return dwm_result == 0 and region_result
     except (AttributeError, OSError, tk.TclError):
         return False
+
+
+def window_ready_for_rounding(root):
+    try:
+        root.update_idletasks()
+        return root.winfo_viewable() and root.winfo_width() > 1 and root.winfo_height() > 1
+    except tk.TclError:
+        return False
+
+
+def apply_rounded_window_when_ready(root, radius=None, remaining_attempts=12):
+    if window_ready_for_rounding(root):
+        return apply_rounded_window(root, radius)
+    if remaining_attempts > 0:
+        root.after(
+            40,
+            lambda: apply_rounded_window_when_ready(root, radius, remaining_attempts - 1),
+        )
+    return False
 
 
 def application_owns_foreground_window(root):
@@ -325,8 +349,8 @@ def application_owns_foreground_window(root):
         return False
 
 
-def should_hide_status_window(window_mode, visible, application_has_focus):
-    return window_mode == "status" and visible and not application_has_focus
+def should_hide_status_window(window_mode, visible, application_has_focus, focus_armed=True):
+    return window_mode == "status" and visible and focus_armed and not application_has_focus
 
 
 def status_window_geometry(work_area, width=STATUS_WINDOW_WIDTH, height=STATUS_WINDOW_HEIGHT, margin=STATUS_WINDOW_MARGIN):
@@ -382,6 +406,7 @@ class AgentApplication:
         self.window_mode = None
         self.drag_origin = None
         self.focus_check = None
+        self.status_focus_armed = False
         self.update_check_running = False
         self.update_dialog = None
         self.update_progress = None
@@ -389,6 +414,7 @@ class AgentApplication:
         self._configure_styles()
         self._set_window_icon()
         self.root.protocol("WM_DELETE_WINDOW", self.close)
+        self.root.bind("<FocusIn>", self._arm_status_focus, add="+")
         self.root.bind("<FocusOut>", self._schedule_status_focus_check, add="+")
         if self.config.get("token"):
             self.show_status()
@@ -462,12 +488,7 @@ class AgentApplication:
         self.root.maxsize(self.root.winfo_screenwidth(), self.root.winfo_screenheight())
         self.root.geometry("920x690")
         self.root.configure(bg=COLORS["canvas"])
-        if os.name == "nt":
-            try:
-                self.root.attributes("-transparentcolor", "")
-            except tk.TclError:
-                pass
-        self.root.after_idle(lambda: apply_rounded_window(self.root))
+        apply_rounded_window_when_ready(self.root)
         self.window_mode = "setup"
 
     def _set_status_window(self):
@@ -477,12 +498,7 @@ class AgentApplication:
         self.root.maxsize(STATUS_WINDOW_WIDTH, STATUS_WINDOW_HEIGHT)
         self.root.geometry(status_window_geometry(work_area_bounds(self.root)))
         self.root.configure(bg=COLORS["surface"])
-        if os.name == "nt":
-            try:
-                self.root.attributes("-transparentcolor", "")
-            except tk.TclError:
-                pass
-        self.root.after_idle(lambda: apply_rounded_window(self.root, radius=20))
+        apply_rounded_window_when_ready(self.root, radius=20)
         self.window_mode = "status"
 
     def _start_window_drag(self, event):
@@ -933,15 +949,27 @@ class AgentApplication:
     def show_window(self):
         if self.config.get("token"):
             self.root.geometry(status_window_geometry(work_area_bounds(self.root)))
+        self.status_focus_armed = False
         self.root.deiconify()
         self.root.lift()
         self.root.focus_force()
         self.root.attributes("-topmost", True)
         self.root.after(180, lambda: self.root.attributes("-topmost", False))
+        self.root.after(240, self._arm_status_focus_if_active)
         if self.window_mode == "status":
-            self.root.after_idle(lambda: apply_rounded_window(self.root, radius=20))
+            apply_rounded_window_when_ready(self.root, radius=20)
+
+    def _arm_status_focus(self, _event=None):
+        if self.window_mode == "status" and self.root.state() != "withdrawn":
+            self.status_focus_armed = True
+
+    def _arm_status_focus_if_active(self):
+        if self.window_mode == "status" and application_owns_foreground_window(self.root):
+            self.status_focus_armed = True
 
     def _schedule_status_focus_check(self, _event=None):
+        if not self.status_focus_armed:
+            return
         if self.focus_check:
             self.root.after_cancel(self.focus_check)
         self.focus_check = self.root.after(140, self._hide_status_if_inactive)
@@ -949,13 +977,19 @@ class AgentApplication:
     def _hide_status_if_inactive(self):
         self.focus_check = None
         visible = self.root.state() != "withdrawn"
-        if should_hide_status_window(self.window_mode, visible, application_owns_foreground_window(self.root)):
+        if should_hide_status_window(
+            self.window_mode,
+            visible,
+            application_owns_foreground_window(self.root),
+            self.status_focus_armed,
+        ):
             self.hide_to_tray()
 
     def hide_to_tray(self):
         if self.focus_check:
             self.root.after_cancel(self.focus_check)
             self.focus_check = None
+        self.status_focus_armed = False
         if self.tray:
             self.root.withdraw()
 
@@ -998,7 +1032,7 @@ class AgentApplication:
         dialog.grab_set()
         dialog.attributes("-topmost", True)
         dialog.after(180, lambda: dialog.attributes("-topmost", False))
-        dialog.after_idle(lambda: apply_rounded_window(dialog))
+        apply_rounded_window_when_ready(dialog)
 
         shell = tk.Frame(dialog, bg=COLORS["surface"], highlightthickness=1, highlightbackground=COLORS["line"])
         shell.pack(fill="both", expand=True)
