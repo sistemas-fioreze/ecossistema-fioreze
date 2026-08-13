@@ -56,6 +56,7 @@ import {
 import {
   createRoomServiceCategory,
   createRoomServiceCatalogItem,
+  deleteRoomServiceCatalogItem,
   updateRoomServiceCategory,
   updateRoomServiceCatalogItem,
 } from "./erp-catalog.js";
@@ -90,6 +91,7 @@ import {
 } from "./erp-operations.js";
 import {
   createPrinterEnrollment,
+  deletePrinterDevice,
   getRoomServicePrinting,
   updatePrinterDevice,
   updateRoomServicePrinting,
@@ -693,6 +695,11 @@ export function registerAdminRoutes(router) {
     return ok(await updateRoomServiceCatalogItem({ request, env, session, itemId: params.id }));
   });
 
+  router.delete("/api/v1/admin/room-service/catalog/items/:id", async ({ request, env, params }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(await deleteRoomServiceCatalogItem({ request, env, session, itemId: params.id }));
+  });
+
   router.get("/api/v1/admin/room-service/media", async ({ request, env, url }) => {
     const session = await getCurrentRoomServiceErpSession({ request, env });
     return ok(await listRoomServiceErpMedia({ env, session, url }));
@@ -751,6 +758,11 @@ export function registerAdminRoutes(router) {
   router.patch("/api/v1/admin/room-service/printing/devices/:id", async ({ request, env, params }) => {
     const session = await getCurrentRoomServiceErpSession({ request, env });
     return ok(await updatePrinterDevice({ request, env, session, deviceId: params.id }));
+  });
+
+  router.delete("/api/v1/admin/room-service/printing/devices/:id", async ({ request, env, params }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(await deletePrinterDevice({ request, env, session, deviceId: params.id }));
   });
   router.get("/api/v1/admin/room-service/rooms", async ({ request, env, url }) => {
     const session = await getCurrentRoomServiceErpSession({ request, env });

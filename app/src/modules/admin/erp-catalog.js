@@ -198,6 +198,49 @@ export async function updateRoomServiceCatalogItem({ request, env, session, item
   return { item: await requireCatalogItem(env, hotelId, itemId) };
 }
 
+export async function deleteRoomServiceCatalogItem({ request, env, session, itemId }) {
+  requirePermission(session, ERP_CATALOG_MANAGE_PERMISSION);
+  assertAdminMutationAllowed({ request });
+  const payload = await readJson(request);
+  const hotelId = requestedHotel(session, payload.hotel_id);
+  const current = await requireCatalogItem(env, hotelId, itemId);
+  const now = requestNow({ request, env });
+  const actor = erpActorIds(session);
+  const results = await batch(env, [
+    statement(
+      env,
+      `INSERT INTO admin_audit_log (
+         id, hotel_id, module_key, actor_user_id, actor_erp_user_id,
+         action, entity_type, entity_id, metadata_json, created_at
+       )
+       SELECT ?, ci.hotel_id, ci.module_key, ?, ?,
+              'room-service.catalog_item.deleted', 'catalog_item', ci.id, ?, ?
+         FROM catalog_items ci
+        WHERE ci.id = ? AND ci.hotel_id = ? AND ci.module_key = ?`,
+      [
+        createPublicId("audit"),
+        actor.adminUserId,
+        actor.erpUserId,
+        JSON.stringify({ name: current.name, category_id: current.category_id, public_id: current.public_id }),
+        now,
+        itemId,
+        hotelId,
+        MODULE_KEY,
+      ],
+    ),
+    statement(
+      env,
+      `DELETE FROM catalog_items
+        WHERE id = ? AND hotel_id = ? AND module_key = ?`,
+      [itemId, hotelId, MODULE_KEY],
+    ),
+  ]);
+  if (Number(results?.[0]?.meta?.changes || 0) !== 1 || Number(results?.[1]?.meta?.changes || 0) !== 1) {
+    throw conflict("Item do cardapio foi alterado por outro usuario.");
+  }
+  return { deleted: true, item_id: itemId };
+}
+
 export async function listRoomServiceCatalogCategories(env, hotelId) {
   return all(
     env,

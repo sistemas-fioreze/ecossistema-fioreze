@@ -127,6 +127,10 @@ export function createPrinterEnrollment(body) {
 export function updatePrinterDevice(deviceId, body) {
   return adminApi(`/api/v1/admin/room-service/printing/devices/${encodeURIComponent(deviceId)}`, { method: "PATCH", body });
 }
+
+export function deletePrinterDevice(deviceId, body) {
+  return adminApi(`/api/v1/admin/room-service/printing/devices/${encodeURIComponent(deviceId)}`, { method: "DELETE", body });
+}
 export function listRooms({ hotelId } = {}) {
   return adminApi(`/api/v1/admin/room-service/rooms?${hotelParams(hotelId)}`);
 }
@@ -153,6 +157,10 @@ export function createCatalogItem(body) {
 
 export function updateCatalogItem(itemId, body) {
   return adminApi(`/api/v1/admin/room-service/catalog/items/${encodeURIComponent(itemId)}`, { method: "PATCH", body });
+}
+
+export function deleteCatalogItem(itemId, body) {
+  return adminApi(`/api/v1/admin/room-service/catalog/items/${encodeURIComponent(itemId)}`, { method: "DELETE", body });
 }
 
 export function listErpMedia({ hotelId } = {}) {

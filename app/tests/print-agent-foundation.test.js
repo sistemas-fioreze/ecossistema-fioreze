@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { createEnrollmentCode, createPrintAgentToken, sha256Hex } from "../src/services/print-agent-auth.js";
+import { ADMIN_ORIGIN, createSessionCookie, withCookie } from "./helpers/admin-session.js";
+import { createWorkerTestContext } from "./helpers/worker.js";
 
 const migrationUrl = new URL("../migrations/0038_print_agent_foundation.sql", import.meta.url);
 const centroTemplateUrl = new URL("../migrations/0042_fioreze_centro_print_template.sql", import.meta.url);
@@ -138,3 +140,129 @@ test("tokens e codigos de vinculo possuem entropia e somente hashes persistiveis
   assert.match(code, /^[A-Z2-9]{5}-[A-Z2-9]{5}$/);
   assert.match(await sha256Hex(tokenA), /^[a-f0-9]{64}$/);
 });
+
+test("ERP permite somente um servidor de impressao conectado por unidade", async () => {
+  const { env, json } = createWorkerTestContext();
+  const cookie = await createSessionCookie(env);
+  const enrollment = await json(
+    "/api/v1/admin/room-service/printing/enrollment-codes",
+    adminJson(cookie, "POST", { hotel_id: "muller-fioreze" }),
+  );
+  const activationCode = enrollment.body.data.activation_code;
+
+  const [firstEnrollment, concurrentEnrollment] = await Promise.all([
+    json("/api/v1/print-agent/enroll", agentEnrollment(activationCode, "Servidor principal")),
+    json("/api/v1/print-agent/enroll", agentEnrollment(activationCode, "Servidor concorrente")),
+  ]);
+  const statuses = [firstEnrollment.response.status, concurrentEnrollment.response.status].sort((a, b) => a - b);
+  const blockedCode = await json(
+    "/api/v1/admin/room-service/printing/enrollment-codes",
+    adminJson(cookie, "POST", { hotel_id: "muller-fioreze" }),
+  );
+
+  assert.deepEqual(statuses, [201, 409]);
+  assert.equal(env.__data.printerDevices.filter((device) => device.status !== "revoked").length, 1);
+  assert.equal(blockedCode.response.status, 409);
+  assert.match(blockedCode.body.error.message, /revogue o computador/i);
+});
+
+test("computador pausado ocupa a vaga e somente o revogado pode ser excluido", async () => {
+  const { env, json } = createWorkerTestContext();
+  const cookie = await createSessionCookie(env);
+  env.__data.printerDevices.push(printerDevice({ id: "printer-test-active", status: "active" }));
+  env.__data.printEvents.push({
+    id: "print-event-device-history",
+    hotel_id: "muller-fioreze",
+    module_key: "room-service",
+    device_id: "printer-test-active",
+    status: "printed",
+  });
+
+  const rejectedDelete = await json(
+    "/api/v1/admin/room-service/printing/devices/printer-test-active",
+    adminJson(cookie, "DELETE", { hotel_id: "muller-fioreze" }),
+  );
+  const paused = await json(
+    "/api/v1/admin/room-service/printing/devices/printer-test-active",
+    adminJson(cookie, "PATCH", { hotel_id: "muller-fioreze", status: "paused" }),
+  );
+  const blockedWhilePaused = await json(
+    "/api/v1/admin/room-service/printing/enrollment-codes",
+    adminJson(cookie, "POST", { hotel_id: "muller-fioreze" }),
+  );
+  const revoked = await json(
+    "/api/v1/admin/room-service/printing/devices/printer-test-active",
+    adminJson(cookie, "PATCH", { hotel_id: "muller-fioreze", status: "revoked" }),
+  );
+  const printing = await json(
+    "/api/v1/admin/room-service/printing?hotel_id=muller-fioreze",
+    withCookie(cookie),
+  );
+  const removed = await json(
+    "/api/v1/admin/room-service/printing/devices/printer-test-active",
+    adminJson(cookie, "DELETE", { hotel_id: "muller-fioreze" }),
+  );
+
+  assert.equal(rejectedDelete.response.status, 409);
+  assert.equal(paused.response.status, 200);
+  assert.equal(blockedWhilePaused.response.status, 409);
+  assert.equal(revoked.response.status, 200);
+  assert.equal(printing.body.data.can_create_enrollment, true);
+  assert.equal(removed.response.status, 200);
+  assert.equal(env.__data.printerDevices.length, 0);
+  assert.equal(env.__data.printEvents[0].device_id, null);
+  assert.ok(env.__data.adminAuditLog.some((entry) => entry.action === "room-service.printer.device.deleted"));
+});
+
+test("migration garante uma unica conexao ativa ou pausada por hotel", async () => {
+  const sql = await readFile(new URL("../migrations/0046_single_print_server_per_hotel.sql", import.meta.url), "utf8");
+  assert.match(sql, /CREATE UNIQUE INDEX IF NOT EXISTS uq_printer_devices_single_connected/i);
+  assert.match(sql, /ON printer_devices\(hotel_id, module_key\)/i);
+  assert.match(sql, /WHERE status IN \('active', 'paused'\)/i);
+});
+
+function adminJson(cookie, method, body) {
+  return withCookie(cookie, {
+    method,
+    headers: {
+      "content-type": "application/json",
+      "x-fioreze-admin-action": "erp-admin",
+      origin: ADMIN_ORIGIN,
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+function agentEnrollment(activationCode, deviceName) {
+  return {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-fioreze-test-now": "2026-07-12T12:00:00.000Z" },
+    body: JSON.stringify({
+      hotel_id: "muller-fioreze",
+      activation_code: activationCode,
+      device_name: deviceName,
+      platform: "windows",
+      app_version: "1.0.0-test",
+      printer_name: "Impressora ficticia",
+    }),
+  };
+}
+
+function printerDevice({ id, status }) {
+  return {
+    id,
+    hotel_id: "muller-fioreze",
+    module_key: "room-service",
+    name: "Servidor ficticio",
+    token_hash: `hash-${id}`,
+    platform: "windows",
+    app_version: "1.0.0-test",
+    printer_name: "Impressora ficticia",
+    template_id: "print-template-muller-default",
+    status,
+    created_at: "2026-07-12T10:00:00.000Z",
+    updated_at: "2026-07-12T10:00:00.000Z",
+    last_seen_at: "2026-07-12T11:59:30.000Z",
+    revoked_at: null,
+  };
+}

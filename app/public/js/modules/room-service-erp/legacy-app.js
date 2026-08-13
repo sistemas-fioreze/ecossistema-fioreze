@@ -6,7 +6,9 @@ import {
   createPdvOrder,
   createPrinterEnrollment,
   createRoom,
+  deleteCatalogItem,
   deleteOwnAvatar,
+  deletePrinterDevice,
   getBilling,
   getCatalog,
   getContext,
@@ -223,6 +225,7 @@ function bindStaticActions() {
     if (event.target === byId("erpUserModal")) closeUserModal();
   });
   byId("catalogItemForm")?.addEventListener("submit", saveCatalogItem);
+  byId("deleteCatalogItemButton")?.addEventListener("click", removeCatalogItem);
   byId("catalogCategoryForm")?.addEventListener("submit", saveCatalogCategory);
   byId("roomForm")?.addEventListener("submit", saveRoom);
   document.querySelectorAll("[data-close-erp-modal]").forEach((button) => button.addEventListener("click", () => button.closest(".erp-modal")?.classList.add("hidden")));
@@ -662,7 +665,7 @@ function installSettingsInterface() {
 
 function installOperationalModals() {
   const wrapper = document.createElement("div");
-  wrapper.innerHTML = `<div id="catalogItemModal" class="erp-modal hidden"><div class="erp-modal-card" role="dialog" aria-modal="true"><header class="erp-modal-head"><div><p class="admin-kicker">Cardapio</p><h2 id="catalogItemModalTitle">Novo item</h2></div><button type="button" class="erp-modal-close" data-close-erp-modal aria-label="Fechar">x</button></header><form id="catalogItemForm" class="erp-form"><input id="catalogItemId" type="hidden"><div class="erp-form-grid"><label>Nome<input id="catalogItemName" required maxlength="160"></label><label>Categoria<select id="catalogItemCategory" required></select></label><label>Preco (R$)<input id="catalogItemPrice" required inputmode="decimal" placeholder="0,00"></label><label>Tag do item<input id="catalogItemTag" maxlength="60" placeholder="Ex: Recomendado"></label><label>Ordem<input id="catalogItemSort" type="number" min="0" max="100000" value="100"></label><label>Status<select id="catalogItemStatus"><option value="active">Ativo</option><option value="inactive">Inativo</option><option value="archived">Arquivado</option></select></label><label>Disponibilidade<select id="catalogItemAvailable"><option value="true">Disponivel</option><option value="false">Indisponivel</option></select></label></div><label>Descricao<textarea id="catalogItemDescription" rows="3" maxlength="1000"></textarea></label><label>Mensagem de indisponibilidade<input id="catalogItemAvailabilityLabel" maxlength="120" placeholder="Ex: Indisponivel hoje"></label><input id="catalogItemMediaId" type="hidden"><div><p class="erp-panel-title">Imagem do prato</p><p class="erp-v3-subtitle">Escolha uma imagem da biblioteca ou envie uma nova.</p></div><div id="catalogImagePicker" class="erp-image-picker"></div><div class="erp-upload-row"><input id="catalogMediaFile" type="file" accept="image/jpeg,image/png,image/webp,image/avif"><button id="catalogUploadButton" type="button" class="admin-secondary-btn">Enviar imagem</button></div><p id="catalogItemFormError" class="legacy-login-error" role="alert"></p><div class="erp-v3-actions"><button type="button" class="admin-secondary-btn" data-close-erp-modal>Cancelar</button><button type="submit" class="admin-primary-btn">Salvar item</button></div></form></div></div><div id="catalogCategoryModal" class="erp-modal hidden"><div class="erp-modal-card" role="dialog" aria-modal="true"><header class="erp-modal-head"><div><p class="admin-kicker">Cardapio</p><h2>Nova categoria</h2></div><button type="button" class="erp-modal-close" data-close-erp-modal aria-label="Fechar">x</button></header><form id="catalogCategoryForm" class="erp-form"><label>Nome<input id="catalogCategoryName" required maxlength="120"></label><label>Descricao<textarea id="catalogCategoryDescription" rows="3" maxlength="500"></textarea></label><label>Ordem<input id="catalogCategorySort" type="number" min="0" max="100000" value="100"></label><p id="catalogCategoryFormError" class="legacy-login-error" role="alert"></p><div class="erp-v3-actions"><button type="button" class="admin-secondary-btn" data-close-erp-modal>Cancelar</button><button type="submit" class="admin-primary-btn">Criar categoria</button></div></form></div></div><div id="roomModal" class="erp-modal hidden"><div class="erp-modal-card" role="dialog" aria-modal="true"><header class="erp-modal-head"><div><p class="admin-kicker">Acomodacoes</p><h2 id="roomModalTitle">Nova acomodacao</h2></div><button type="button" class="erp-modal-close" data-close-erp-modal aria-label="Fechar">x</button></header><form id="roomForm" class="erp-form"><input id="roomId" type="hidden"><div class="erp-form-grid"><label>Codigo<input id="roomCode" required maxlength="24" placeholder="Ex: 101"></label><label>Nome de exibicao<input id="roomLabel" maxlength="120" placeholder="Ex: Suite Jardim"></label><label>Tipo<input id="roomType" maxlength="80" placeholder="Ex: Suite"></label><label>Ordem<input id="roomSort" type="number" min="0" max="100000" value="100"></label><label>Status<select id="roomStatus"><option value="active">Ativa</option><option value="inactive">Inativa</option><option value="archived">Arquivada</option></select></label></div><p id="roomFormError" class="legacy-login-error" role="alert"></p><div class="erp-v3-actions"><button type="button" class="admin-secondary-btn" data-close-erp-modal>Cancelar</button><button type="submit" class="admin-primary-btn">Salvar acomodacao</button></div></form></div></div>`;
+  wrapper.innerHTML = `<div id="catalogItemModal" class="erp-modal hidden"><div class="erp-modal-card" role="dialog" aria-modal="true"><header class="erp-modal-head"><div><p class="admin-kicker">Cardapio</p><h2 id="catalogItemModalTitle">Novo item</h2></div><button type="button" class="erp-modal-close" data-close-erp-modal aria-label="Fechar">x</button></header><form id="catalogItemForm" class="erp-form"><input id="catalogItemId" type="hidden"><div class="erp-form-grid"><label>Nome<input id="catalogItemName" required maxlength="160"></label><label>Categoria<select id="catalogItemCategory" required></select></label><label>Preco (R$)<input id="catalogItemPrice" required inputmode="decimal" placeholder="0,00"></label><label>Tag do item<input id="catalogItemTag" maxlength="60" placeholder="Ex: Recomendado"></label><label>Ordem<input id="catalogItemSort" type="number" min="0" max="100000" value="100"></label><label>Status<select id="catalogItemStatus"><option value="active">Ativo</option><option value="inactive">Inativo</option><option value="archived">Arquivado</option></select></label><label>Disponibilidade<select id="catalogItemAvailable"><option value="true">Disponivel</option><option value="false">Indisponivel</option></select></label></div><label>Descricao<textarea id="catalogItemDescription" rows="3" maxlength="1000"></textarea></label><label>Mensagem de indisponibilidade<input id="catalogItemAvailabilityLabel" maxlength="120" placeholder="Ex: Indisponivel hoje"></label><input id="catalogItemMediaId" type="hidden"><div><p class="erp-panel-title">Imagem do prato</p><p class="erp-v3-subtitle">Escolha uma imagem da biblioteca ou envie uma nova.</p></div><div id="catalogImagePicker" class="erp-image-picker"></div><div class="erp-upload-row"><input id="catalogMediaFile" type="file" accept="image/jpeg,image/png,image/webp,image/avif"><button id="catalogUploadButton" type="button" class="admin-secondary-btn">Enviar imagem</button></div><p id="catalogItemFormError" class="legacy-login-error" role="alert"></p><div class="erp-v3-actions erp-modal-actions"><button id="deleteCatalogItemButton" type="button" class="admin-secondary-btn erp-danger-button" hidden>Excluir item</button><span class="erp-modal-actions-spacer"></span><button type="button" class="admin-secondary-btn" data-close-erp-modal>Cancelar</button><button type="submit" class="admin-primary-btn">Salvar item</button></div></form></div></div><div id="catalogCategoryModal" class="erp-modal hidden"><div class="erp-modal-card" role="dialog" aria-modal="true"><header class="erp-modal-head"><div><p class="admin-kicker">Cardapio</p><h2>Nova categoria</h2></div><button type="button" class="erp-modal-close" data-close-erp-modal aria-label="Fechar">x</button></header><form id="catalogCategoryForm" class="erp-form"><label>Nome<input id="catalogCategoryName" required maxlength="120"></label><label>Descricao<textarea id="catalogCategoryDescription" rows="3" maxlength="500"></textarea></label><label>Ordem<input id="catalogCategorySort" type="number" min="0" max="100000" value="100"></label><p id="catalogCategoryFormError" class="legacy-login-error" role="alert"></p><div class="erp-v3-actions"><button type="button" class="admin-secondary-btn" data-close-erp-modal>Cancelar</button><button type="submit" class="admin-primary-btn">Criar categoria</button></div></form></div></div><div id="roomModal" class="erp-modal hidden"><div class="erp-modal-card" role="dialog" aria-modal="true"><header class="erp-modal-head"><div><p class="admin-kicker">Acomodacoes</p><h2 id="roomModalTitle">Nova acomodacao</h2></div><button type="button" class="erp-modal-close" data-close-erp-modal aria-label="Fechar">x</button></header><form id="roomForm" class="erp-form"><input id="roomId" type="hidden"><div class="erp-form-grid"><label>Codigo<input id="roomCode" required maxlength="24" placeholder="Ex: 101"></label><label>Nome de exibicao<input id="roomLabel" maxlength="120" placeholder="Ex: Suite Jardim"></label><label>Tipo<input id="roomType" maxlength="80" placeholder="Ex: Suite"></label><label>Ordem<input id="roomSort" type="number" min="0" max="100000" value="100"></label><label>Status<select id="roomStatus"><option value="active">Ativa</option><option value="inactive">Inativa</option><option value="archived">Arquivada</option></select></label></div><p id="roomFormError" class="legacy-login-error" role="alert"></p><div class="erp-v3-actions"><button type="button" class="admin-secondary-btn" data-close-erp-modal>Cancelar</button><button type="submit" class="admin-primary-btn">Salvar acomodacao</button></div></form></div></div>`;
   document.body.append(...wrapper.children);
   byId("catalogImagePicker").addEventListener("click", (event) => {
     const button = event.target.closest("[data-media-id]");
@@ -860,7 +863,7 @@ function renderRoomSettings() {
   return `<button type="button" class="erp-back" data-settings-view="home">${settingsIcon("back")} Configuracoes</button><section class="erp-settings-detail"><div class="erp-panel-head"><div><p class="erp-panel-title">Acomodacoes da unidade</p><p class="erp-v3-subtitle">Somente acomodacoes ativas aparecem no portal e aceitam pedidos.</p></div><button id="newRoomButton" type="button" class="admin-primary-btn">Nova acomodacao</button></div><div class="erp-rooms-list">${rooms.length ? rooms.map((room) => `<button type="button" class="erp-room-card" data-edit-room="${escapeAttr(room.id)}"><span><strong>${escapeHtml(room.code)}</strong><small>${escapeHtml(displayBusinessText(room.label || room.room_type, "Sem descricao"))}</small></span><span class="erp-chip ${room.status === "active" ? "" : "off"}">${room.status === "active" ? "Ativa" : "Inativa"}</span></button>`).join("") : '<div class="legacy-list-empty">Nenhuma acomodacao cadastrada.</div>'}</div></section>`;
 }
 
-function renderPrintingSettings() {
+function renderPrintingSettingsBase() {
   if (!state.session?.permissions?.includes("room-service.settings.manage")) return restrictedSettings();
   const printing = state.printing || { global_enabled: false, unit_enabled: false, effective_enabled: false, templates: [], devices: [] };
   const templates = printing.templates || [];
@@ -868,6 +871,34 @@ function renderPrintingSettings() {
   const defaultTemplate = templates.find((entry) => Number(entry.is_default) === 1)?.id || "";
   const activation = state.printerEnrollment;
   return `<button type="button" class="erp-back" data-settings-view="home">${settingsIcon("back")} Configuracoes</button><section class="erp-settings-detail"><header class="erp-settings-section-head"><div><p class="erp-panel-title">Impressao automatica</p><p class="erp-v3-subtitle">Vincule o computador da unidade e escolha o modelo do comprovante.</p></div><span class="erp-chip ${printing.effective_enabled ? "" : "off"}">${printing.effective_enabled ? "Ativa" : "Desativada"}</span></header>${!printing.global_enabled ? '<div class="legacy-list-empty">A impressao permanece desativada no ambiente atual. A configuracao pode ser preparada sem enviar nada a uma impressora.</div>' : ""}<form id="printingSettingsForm" class="erp-order-preferences">${settingsToggle("enabled", printing.unit_enabled, "Impressao automatica desta unidade", "Cria uma comanda quando um pedido e recebido.")}<label class="erp-setting-select-row"><span><strong>Modelo do comprovante</strong><small>Cada unidade pode usar o formato adequado a sua impressora.</small></span><select name="template_id">${templates.map((template) => `<option value="${escapeAttr(template.id)}" ${template.id === defaultTemplate ? "selected" : ""}>${escapeHtml(template.name)}</option>`).join("")}</select></label><div class="erp-settings-form-actions"><button type="submit" class="admin-primary-btn">Salvar impressao</button></div></form><article class="erp-panel"><div class="erp-panel-head"><div><strong class="erp-panel-title">Instalar computador</strong><p class="erp-v3-subtitle">Use o Fioreze Suite e informe o codigo abaixo. Ele vale por 15 minutos e uma unica instalacao.</p></div><button id="createPrinterEnrollmentButton" type="button" class="admin-primary-btn">Gerar codigo</button></div>${activation ? `<div class="erp-printer-code"><small>Codigo de conexao</small><strong>${escapeHtml(activation.activation_code)}</strong><div class="erp-printer-code-actions"><span>Expira em ${escapeHtml(formatDate(activation.expires_at))}</span><button id="copyPrinterEnrollmentCode" type="button" class="admin-secondary-btn" aria-label="Copiar codigo de conexao">${settingsIcon("copy")} Copiar codigo</button></div></div>` : ""}</article>${renderLocalPrintAgent()}<div class="erp-panel-head"><div><strong class="erp-panel-title">Computadores vinculados</strong><p class="erp-v3-subtitle">Acompanhe conexao, impressora e modelo de cada computador.</p></div><button id="refreshPrintingButton" type="button" class="admin-secondary-btn">Atualizar</button></div><div class="erp-rooms-list">${devices.length ? devices.map((device) => `<article class="erp-room-card"><span><strong>${escapeHtml(device.name)}</strong><small>${escapeHtml(device.printer_name || "Impressora ainda nao informada")} · ${escapeHtml(device.template_name || "Modelo padrao")} · versao ${escapeHtml(device.app_version || "nao informada")}</small><small>${device.last_seen_at ? `Ultimo contato em ${escapeHtml(formatDate(device.last_seen_at))}` : "Aguardando primeiro contato"}</small></span><span class="erp-v3-actions"><span class="erp-chip ${device.connection_status === "online" ? "" : "off"}">${device.connection_status === "online" ? "Online" : device.connection_status === "offline" ? "Offline" : device.connection_status === "paused" ? "Pausado" : "Revogado"}</span>${device.status !== "revoked" ? `<button type="button" class="admin-secondary-btn" data-printer-device="${escapeAttr(device.id)}" data-printer-status="${device.status === "active" ? "paused" : "active"}">${device.status === "active" ? "Pausar" : "Retomar"}</button><button type="button" class="admin-secondary-btn" data-printer-device="${escapeAttr(device.id)}" data-printer-status="revoked">Revogar</button>` : ""}</span></article>`).join("") : '<div class="legacy-list-empty">Nenhum computador conectado.</div>'}</div></section>`;
+}
+
+function renderPrintingSettings() {
+  const printing = state.printing || { devices: [] };
+  const template = document.createElement("template");
+  template.innerHTML = renderPrintingSettingsBase();
+  const canCreateEnrollment = printing.can_create_enrollment !== false;
+  const enrollmentButton = template.content.querySelector("#createPrinterEnrollmentButton");
+  if (enrollmentButton) {
+    enrollmentButton.disabled = !canCreateEnrollment;
+    if (!canCreateEnrollment) {
+      const helper = enrollmentButton.closest(".erp-panel-head")?.querySelector(".erp-v3-subtitle");
+      if (helper) helper.textContent = "Revogue o computador vinculado antes de instalar outro servidor de impressao.";
+    }
+  }
+  const cards = template.content.querySelectorAll(".erp-room-card");
+  (printing.devices || []).forEach((device, index) => {
+    if (device.status !== "revoked") return;
+    const actions = cards[index]?.querySelector(".erp-v3-actions");
+    if (!actions) return;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "admin-secondary-btn erp-danger-button";
+    button.dataset.deletePrinterDevice = device.id;
+    button.textContent = "Excluir";
+    actions.append(button);
+  });
+  return template.innerHTML;
 }
 
 function renderLocalPrintAgent() {
@@ -1120,6 +1151,8 @@ async function handleSettingsClick(event) {
   if (event.target.closest("#refreshLocalPrintAgentButton")) return refreshLocalPrintAgentStatus();
   if (event.target.closest("#restartLocalPrintAgentButton")) return restartLocalPrintAgent();
   if (event.target.closest("#checkApplicationUpdatesButton")) return refreshApplicationVersions({ check: true });
+  const deleteDevice = event.target.closest("[data-delete-printer-device]");
+  if (deleteDevice) return removePrinterDevice(deleteDevice.dataset.deletePrinterDevice);
   const printerDevice = event.target.closest("[data-printer-device]");
   if (printerDevice) return changePrinterDeviceStatus(printerDevice.dataset.printerDevice, printerDevice.dataset.printerStatus);
   const room = event.target.closest("[data-edit-room]");
@@ -2031,6 +2064,7 @@ function openCatalogItemModal(item = null) {
   byId("catalogItemAvailabilityLabel").value = item?.availability_label || "";
   byId("catalogItemMediaId").value = item?.media_asset_id || "";
   byId("catalogItemFormError").textContent = "";
+  byId("deleteCatalogItemButton").hidden = !item;
   const categories = state.catalog?.category_options || state.catalog?.categories || [];
   byId("catalogItemCategory").innerHTML = categories.map((category) => `<option value="${escapeAttr(category.id)}">${escapeHtml(category.name)}</option>`).join("");
   if (item?.category_id) byId("catalogItemCategory").value = item.category_id;
@@ -2099,6 +2133,24 @@ async function saveCatalogItem(event) {
     notify(itemId ? "Item atualizado." : "Item criado.");
   } catch (error) {
     byId("catalogItemFormError").textContent = error.message || "Nao foi possivel salvar o item.";
+  } finally {
+    setPageBusy(false);
+  }
+}
+
+async function removeCatalogItem() {
+  const itemId = byId("catalogItemId").value;
+  const itemName = byId("catalogItemName").value.trim();
+  if (!itemId) return;
+  if (!window.confirm(`Excluir definitivamente o item "${itemName}" do cardapio?`)) return;
+  setPageBusy(true, "Excluindo item...");
+  try {
+    await deleteCatalogItem(itemId, { hotel_id: state.hotelId });
+    byId("catalogItemModal").classList.add("hidden");
+    await refreshCatalogData();
+    notify("Item excluido do cardapio.");
+  } catch (error) {
+    byId("catalogItemFormError").textContent = error.message || "Nao foi possivel excluir o item.";
   } finally {
     setPageBusy(false);
   }
@@ -2258,6 +2310,7 @@ async function refreshPrinting() {
   setPageBusy(true, "Atualizando impressao...");
   try {
     state.printing = (await getPrinting({ hotelId: state.hotelId })).data;
+    if (state.printing.can_create_enrollment === false) state.printerEnrollment = null;
     renderAdmin();
   } catch (error) {
     notify(error.message || "Nao foi possivel atualizar a impressao.");
@@ -2357,6 +2410,20 @@ async function changePrinterDeviceStatus(deviceId, status) {
     notify(status === "revoked" ? "Computador revogado." : status === "paused" ? "Computador pausado." : "Computador reativado.");
   } catch (error) {
     notify(error.message || "Nao foi possivel atualizar o computador.");
+  } finally {
+    setPageBusy(false);
+  }
+}
+
+async function removePrinterDevice(deviceId) {
+  if (!window.confirm("Excluir este computador revogado do historico de dispositivos?")) return;
+  setPageBusy(true, "Excluindo computador...");
+  try {
+    await deletePrinterDevice(deviceId, { hotel_id: state.hotelId });
+    await refreshPrinting();
+    notify("Computador revogado excluido.");
+  } catch (error) {
+    notify(error.message || "Nao foi possivel excluir o computador.");
   } finally {
     setPageBusy(false);
   }

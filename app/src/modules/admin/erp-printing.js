@@ -1,5 +1,5 @@
 import { all, batch, first, run, statement } from "../../core/database.js";
-import { badRequest, notFoundError } from "../../core/errors.js";
+import { badRequest, conflict, notFoundError } from "../../core/errors.js";
 import { createPublicId } from "../../core/identifiers.js";
 import { requestNow } from "../../core/time.js";
 import { optionalString, readJson, requireString } from "../../core/validation.js";
@@ -58,6 +58,7 @@ export async function getRoomServicePrinting({ request, env, session, url }) {
     effective_enabled: globalEnabled && unitEnabled,
     templates: templates.map((template) => ({ ...template, config: safeJson(template.config_json, {}) })),
     devices: devices.map((device) => ({ ...device, connection_status: deviceConnectionStatus(device, now) })),
+    can_create_enrollment: devices.every((device) => device.status === "revoked"),
     summary: Object.fromEntries(summary.map((entry) => [entry.status, Number(entry.total || 0)])),
   };
 }
@@ -107,22 +108,69 @@ export async function createPrinterEnrollment({ request, env, session }) {
   assertAdminMutationAllowed({ request });
   const payload = await readJson(request);
   const hotelId = requestedHotel(session, payload.hotel_id);
+  const connectedDevice = await first(
+    env,
+    `SELECT id
+       FROM printer_devices
+      WHERE hotel_id = ? AND module_key = ? AND status IN ('active', 'paused')
+      LIMIT 1`,
+    [hotelId, MODULE_KEY],
+  );
+  if (connectedDevice) {
+    throw conflict("Revogue o computador vinculado antes de gerar um novo codigo.");
+  }
   const now = requestNow({ request, env });
   const expiresAt = new Date(Date.parse(now) + ENROLLMENT_TTL_MS).toISOString();
   const code = createEnrollmentCode();
   const id = createPublicId("enroll");
   const actor = erpActorIds(session);
-  await batch(env, [
+  const results = await batch(env, [
+    statement(
+      env,
+      `UPDATE printer_enrollment_codes
+          SET expires_at = ?
+        WHERE hotel_id = ? AND module_key = ? AND used_at IS NULL AND expires_at > ?`,
+      [now, hotelId, MODULE_KEY, now],
+    ),
     statement(
       env,
       `INSERT INTO printer_enrollment_codes (
          id, hotel_id, module_key, code_hash, expires_at,
          created_by_admin_user_id, created_by_erp_user_id, created_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, hotelId, MODULE_KEY, await sha256Hex(code), expiresAt, actor.adminUserId, actor.erpUserId, now],
+       )
+       SELECT ?, ?, ?, ?, ?, ?, ?, ?
+        WHERE NOT EXISTS (
+          SELECT 1
+            FROM printer_devices pd
+           WHERE pd.hotel_id = ? AND pd.module_key = ? AND pd.status IN ('active', 'paused')
+        )`,
+      [id, hotelId, MODULE_KEY, await sha256Hex(code), expiresAt, actor.adminUserId, actor.erpUserId, now, hotelId, MODULE_KEY],
     ),
-    auditStatement(env, session, hotelId, "room-service.printer.enrollment.created", "printer_enrollment_code", id, { expires_at: expiresAt }, now),
+    statement(
+      env,
+      `INSERT INTO admin_audit_log (
+         id, hotel_id, module_key, actor_user_id, actor_erp_user_id,
+         action, entity_type, entity_id, metadata_json, created_at
+       )
+       SELECT ?, pec.hotel_id, pec.module_key, ?, ?,
+              'room-service.printer.enrollment.created', 'printer_enrollment_code', pec.id, ?, ?
+         FROM printer_enrollment_codes pec
+        WHERE pec.id = ? AND pec.hotel_id = ? AND pec.module_key = ?`,
+      [
+        createPublicId("audit"),
+        actor.adminUserId,
+        actor.erpUserId,
+        JSON.stringify({ expires_at: expiresAt }),
+        now,
+        id,
+        hotelId,
+        MODULE_KEY,
+      ],
+    ),
   ]);
+  if (Number(results?.[1]?.meta?.changes || 0) !== 1 || Number(results?.[2]?.meta?.changes || 0) !== 1) {
+    throw conflict("Revogue o computador vinculado antes de gerar um novo codigo.");
+  }
   return { hotel_id: hotelId, activation_code: code, expires_at: expiresAt };
 }
 
@@ -135,6 +183,9 @@ export async function updatePrinterDevice({ request, env, session, deviceId }) {
   if (!current) throw notFoundError("Computador de impressao nao encontrado.");
   const status = Object.hasOwn(payload, "status") ? requireString(payload.status, "status", { max: 20 }) : current.status;
   if (!DEVICE_STATUSES.has(status)) throw badRequest("Status do computador invalido.");
+  if (current.status === "revoked" && status !== "revoked") {
+    throw conflict("Computador revogado nao pode ser reativado.");
+  }
   const name = Object.hasOwn(payload, "name") ? requireString(payload.name, "name", { max: 100 }) : current.name;
   const templateId = Object.hasOwn(payload, "template_id") ? optionalString(payload.template_id, "template_id", { max: 100 }) : current.template_id;
   if (templateId) await requireTemplate(env, hotelId, templateId);
@@ -150,6 +201,58 @@ export async function updatePrinterDevice({ request, env, session, deviceId }) {
     auditStatement(env, session, hotelId, "room-service.printer.device.updated", "printer_device", deviceId, { status, template_id: templateId }, now),
   ]);
   return { device: { id: deviceId, hotel_id: hotelId, name, status, template_id: templateId } };
+}
+
+export async function deletePrinterDevice({ request, env, session, deviceId }) {
+  requirePermission(session, ERP_SETTINGS_PERMISSION);
+  assertAdminMutationAllowed({ request });
+  const payload = await readJson(request);
+  const hotelId = requestedHotel(session, payload.hotel_id);
+  const current = await first(
+    env,
+    `SELECT id, name, status
+       FROM printer_devices
+      WHERE id = ? AND hotel_id = ? AND module_key = ?
+      LIMIT 1`,
+    [deviceId, hotelId, MODULE_KEY],
+  );
+  if (!current) throw notFoundError("Computador de impressao nao encontrado.");
+  if (current.status !== "revoked") throw conflict("Revogue o computador antes de exclui-lo.");
+  const now = requestNow({ request, env });
+  const actor = erpActorIds(session);
+  const results = await batch(env, [
+    statement(
+      env,
+      `INSERT INTO admin_audit_log (
+         id, hotel_id, module_key, actor_user_id, actor_erp_user_id,
+         action, entity_type, entity_id, metadata_json, created_at
+       )
+       SELECT ?, pd.hotel_id, pd.module_key, ?, ?,
+              'room-service.printer.device.deleted', 'printer_device', pd.id, ?, ?
+         FROM printer_devices pd
+        WHERE pd.id = ? AND pd.hotel_id = ? AND pd.module_key = ? AND pd.status = 'revoked'`,
+      [
+        createPublicId("audit"),
+        actor.adminUserId,
+        actor.erpUserId,
+        JSON.stringify({ name: current.name }),
+        now,
+        deviceId,
+        hotelId,
+        MODULE_KEY,
+      ],
+    ),
+    statement(
+      env,
+      `DELETE FROM printer_devices
+        WHERE id = ? AND hotel_id = ? AND module_key = ? AND status = 'revoked'`,
+      [deviceId, hotelId, MODULE_KEY],
+    ),
+  ]);
+  if (Number(results?.[0]?.meta?.changes || 0) !== 1 || Number(results?.[1]?.meta?.changes || 0) !== 1) {
+    throw conflict("Computador foi alterado por outro usuario.");
+  }
+  return { deleted: true, device_id: deviceId };
 }
 
 async function requireTemplate(env, hotelId, templateId) {
