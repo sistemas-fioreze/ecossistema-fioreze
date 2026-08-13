@@ -33,11 +33,12 @@ from .worker import PrintWorker
 
 
 DEFAULT_ORIGIN = "https://portal.hoteisfioreze.com.br"
-STATUS_WINDOW_WIDTH = 390
-STATUS_WINDOW_HEIGHT = 700
-STATUS_WINDOW_MARGIN = 12
+STATUS_WINDOW_WIDTH = 410
+STATUS_WINDOW_HEIGHT = 708
+STATUS_WINDOW_MARGIN = 6
+WINDOW_TRANSPARENT_KEY = "#ff00ff"
 COLORS = {
-    "canvas": "#f4f6f8",
+    "canvas": "#f3f5f7",
     "surface": "#ffffff",
     "surface_soft": "#f8f9fa",
     "ink": "#202124",
@@ -59,6 +60,27 @@ def lower_widget(widget):
     widget.tk.call("lower", widget._w)
 
 
+def draw_rounded_rectangle(canvas, width, height, radius, fill, border=None, border_width=1):
+    def draw_layer(inset, layer_radius, color, tag):
+        left = inset
+        top = inset
+        right = max(left + 1, width - inset)
+        bottom = max(top + 1, height - inset)
+        corner = max(1, min(layer_radius, (right - left) // 2, (bottom - top) // 2))
+        diameter = corner * 2
+        canvas.create_rectangle(left + corner, top, right - corner, bottom, fill=color, outline="", tags=tag)
+        canvas.create_rectangle(left, top + corner, right, bottom - corner, fill=color, outline="", tags=tag)
+        canvas.create_oval(left, top, left + diameter, top + diameter, fill=color, outline="", tags=tag)
+        canvas.create_oval(right - diameter, top, right, top + diameter, fill=color, outline="", tags=tag)
+        canvas.create_oval(left, bottom - diameter, left + diameter, bottom, fill=color, outline="", tags=tag)
+        canvas.create_oval(right - diameter, bottom - diameter, right, bottom, fill=color, outline="", tags=tag)
+
+    outline = border or fill
+    draw_layer(0, radius, outline, "rounded-background")
+    if fill != outline and border_width > 0:
+        draw_layer(border_width, max(1, radius - border_width), fill, "rounded-foreground")
+
+
 class RoundedFrame(tk.Frame):
     def __init__(self, parent, *, fill, border, radius=14, padding=18):
         parent_background = parent.cget("bg")
@@ -66,9 +88,21 @@ class RoundedFrame(tk.Frame):
         self._fill = fill
         self._border = border
         self._radius = radius
+        self._padding = padding
+        self._parent_background = parent_background
         self._background = tk.Canvas(self, bg=parent_background, bd=0, highlightthickness=0)
         self._background.place(x=0, y=0, relwidth=1, relheight=1)
         lower_widget(self._background)
+        self._corner_masks = {}
+        if parent_background == WINDOW_TRANSPARENT_KEY:
+            self._corner_masks = {
+                name: tk.Canvas(self, bg=parent_background, bd=0, highlightthickness=0)
+                for name in ("nw", "ne", "sw", "se")
+            }
+            self._corner_masks["nw"].place(x=0, y=0, anchor="nw")
+            self._corner_masks["ne"].place(relx=1, x=0, y=0, anchor="ne")
+            self._corner_masks["sw"].place(x=0, rely=1, y=0, anchor="sw")
+            self._corner_masks["se"].place(relx=1, rely=1, x=0, y=0, anchor="se")
         self.bind("<Configure>", self._redraw_background)
 
     def _redraw_background(self, _event=None):
@@ -76,19 +110,208 @@ class RoundedFrame(tk.Frame):
         height = max(1, self.winfo_height())
         radius = min(self._radius, width // 2, height // 2)
         self._background.delete("all")
-        points = [
-            radius, 1, width - radius, 1, width - 1, 1, width - 1, radius,
-            width - 1, height - radius, width - 1, height - 1, width - radius, height - 1,
-            radius, height - 1, 1, height - 1, 1, height - radius, 1, radius, 1, 1,
-        ]
-        self._background.create_polygon(
-            points,
-            smooth=True,
-            splinesteps=24,
-            fill=self._fill,
-            outline=self._border,
-            width=1,
+        draw_rounded_rectangle(
+            self._background,
+            width,
+            height,
+            radius,
+            self._fill,
+            self._border,
         )
+        if self._corner_masks:
+            self._redraw_corner_masks(min(radius, max(3, self._padding - 1)))
+
+    def _redraw_corner_masks(self, radius):
+        diameter = radius * 2
+        specifications = {
+            "nw": ((0, 0, diameter, diameter), 90),
+            "ne": ((-radius, 0, radius, diameter), 0),
+            "sw": ((0, -radius, diameter, radius), 180),
+            "se": ((-radius, -radius, radius, radius), 270),
+        }
+        for name, (bounds, start) in specifications.items():
+            mask = self._corner_masks[name]
+            mask.configure(width=radius, height=radius, bg=self._parent_background)
+            mask.delete("all")
+            mask.create_oval(*bounds, fill=self._fill, outline="")
+            if self._border and self._border != self._fill:
+                mask.create_arc(
+                    *bounds,
+                    start=start,
+                    extent=90,
+                    style="arc",
+                    outline=self._border,
+                    width=1,
+                )
+            mask.tk.call("raise", mask._w)
+
+
+class RoundedPanel(tk.Canvas):
+    def __init__(self, parent, *, fill, border, radius=16, padding=12):
+        self._fill = fill
+        self._border = border
+        self._radius = radius
+        self._padding = padding
+        super().__init__(
+            parent,
+            bg=parent.cget("bg"),
+            bd=0,
+            highlightthickness=0,
+            height=1,
+        )
+        self.content = tk.Frame(self, bg=fill, bd=0, highlightthickness=0)
+        self._content_window = self.create_window(
+            padding,
+            padding,
+            anchor="nw",
+            window=self.content,
+        )
+        self.bind("<Configure>", self._sync_layout)
+        self.content.bind("<Configure>", self._sync_height)
+        self.after_idle(self._sync_height)
+
+    def _sync_layout(self, _event=None):
+        width = max(1, self.winfo_width())
+        height = max(1, self.winfo_height())
+        self.delete("rounded-background")
+        self.delete("rounded-foreground")
+        draw_rounded_rectangle(self, width, height, self._radius, self._fill, self._border)
+        self.tag_raise(self._content_window)
+        self.itemconfigure(self._content_window, width=max(1, width - (self._padding * 2)))
+
+    def _sync_height(self, _event=None):
+        requested = self.content.winfo_reqheight() + (self._padding * 2)
+        if requested != int(float(self.cget("height"))):
+            self.configure(height=requested)
+        self.after_idle(self._sync_layout)
+
+
+class RoundedButton(tk.Canvas):
+    def __init__(self, parent, *, text, command, background, foreground, active_background, width=None, height=34, radius=9):
+        self._text = text
+        self._command = command
+        self._background_color = background
+        self._foreground = foreground
+        self._active_background = active_background
+        self._radius = radius
+        self._hovered = False
+        self._enabled = True
+        requested_width = width or max(92, (len(text) * 7) + 32)
+        super().__init__(
+            parent,
+            width=requested_width,
+            height=height,
+            bg=parent.cget("bg"),
+            bd=0,
+            highlightthickness=0,
+            cursor="hand2",
+            takefocus=1,
+        )
+        self.bind("<Configure>", self._redraw)
+        self.bind("<Enter>", self._enter)
+        self.bind("<Leave>", self._leave)
+        self.bind("<ButtonRelease-1>", self._activate)
+        self.bind("<Return>", self._activate)
+        self.bind("<space>", self._activate)
+
+    def _enter(self, _event=None):
+        if self._enabled:
+            self._hovered = True
+            self._redraw()
+
+    def _leave(self, _event=None):
+        self._hovered = False
+        self._redraw()
+
+    def _activate(self, _event=None):
+        if self._enabled and self._command:
+            self._command()
+
+    def _redraw(self, _event=None):
+        self.delete("all")
+        width = max(1, self.winfo_width())
+        height = max(1, self.winfo_height())
+        fill = self._active_background if self._hovered and self._enabled else self._background_color
+        foreground = self._foreground if self._enabled else COLORS["subtle"]
+        draw_rounded_rectangle(self, width, height, self._radius, fill)
+        self.create_text(
+            width // 2,
+            height // 2,
+            text=self._text,
+            fill=foreground,
+            font=("Segoe UI", 9, "bold"),
+        )
+
+    def configure(self, cnf=None, **kwargs):
+        options = dict(cnf or {})
+        options.update(kwargs)
+        if "state" in options:
+            self._enabled = options.pop("state") != "disabled"
+        if "text" in options:
+            self._text = options.pop("text")
+        options.pop("pady", None)
+        if "cursor" in options:
+            cursor = options.pop("cursor")
+            super().configure(cursor=cursor)
+        if options:
+            super().configure(**options)
+        self._redraw()
+
+    config = configure
+
+
+class RoundedBadge(tk.Canvas):
+    def __init__(self, parent, *, text, background, foreground, width=74, height=24, radius=12):
+        self._text = text
+        self._background_color = background
+        self._foreground = foreground
+        self._radius = radius
+        super().__init__(
+            parent,
+            width=width,
+            height=height,
+            bg=parent.cget("bg"),
+            bd=0,
+            highlightthickness=0,
+        )
+        self.bind("<Configure>", self._redraw)
+
+    def _redraw(self, _event=None):
+        self.delete("all")
+        width = max(1, self.winfo_width())
+        height = max(1, self.winfo_height())
+        draw_rounded_rectangle(self, width, height, self._radius, self._background_color)
+        self.create_text(
+            width // 2,
+            height // 2,
+            text=self._text,
+            fill=self._foreground,
+            font=("Segoe UI", 7, "bold"),
+        )
+
+    def configure(self, cnf=None, **kwargs):
+        options = dict(cnf or {})
+        options.update(kwargs)
+        if "text" in options:
+            self._text = options.pop("text")
+        self._background_color = options.pop("background", options.pop("bg", self._background_color))
+        self._foreground = options.pop("foreground", options.pop("fg", self._foreground))
+        if options:
+            super().configure(**options)
+        self._redraw()
+
+    config = configure
+
+
+def native_window_handle(root):
+    handle = int(root.winfo_id())
+    if os.name != "nt":
+        return handle
+    user32 = ctypes.windll.user32
+    user32.GetParent.argtypes = [ctypes.wintypes.HWND]
+    user32.GetParent.restype = ctypes.wintypes.HWND
+    parent = user32.GetParent(handle)
+    return int(parent or handle)
 
 
 def apply_rounded_window(root):
@@ -96,14 +319,15 @@ def apply_rounded_window(root):
         return False
     try:
         root.update_idletasks()
+        handle = native_window_handle(root)
         preference = ctypes.c_int(2)
-        result = ctypes.windll.dwmapi.DwmSetWindowAttribute(
-            root.winfo_id(),
+        dwm_result = ctypes.windll.dwmapi.DwmSetWindowAttribute(
+            handle,
             33,
             ctypes.byref(preference),
             ctypes.sizeof(preference),
         )
-        return result == 0
+        return dwm_result == 0
     except (AttributeError, OSError, tk.TclError):
         return False
 
@@ -184,18 +408,23 @@ class AgentApplication:
             pass
         style.configure(
             "Fioreze.TCombobox",
-            fieldbackground=COLORS["surface"],
-            background=COLORS["surface"],
+            fieldbackground=COLORS["surface_soft"],
+            background=COLORS["surface_soft"],
             foreground=COLORS["ink"],
-            bordercolor=COLORS["line"],
-            lightcolor=COLORS["line"],
-            darkcolor=COLORS["line"],
+            borderwidth=0,
+            relief="flat",
+            bordercolor=COLORS["surface_soft"],
+            lightcolor=COLORS["surface_soft"],
+            darkcolor=COLORS["surface_soft"],
             arrowcolor=COLORS["muted"],
-            padding=9,
+            padding=(8, 4),
             font=("Segoe UI", 10),
         )
         style.map(
             "Fioreze.TCombobox",
+            fieldbackground=[("readonly", COLORS["surface_soft"])],
+            background=[("readonly", COLORS["surface_soft"])],
+            foreground=[("readonly", COLORS["ink"])],
             bordercolor=[("focus", COLORS["accent"])],
             lightcolor=[("focus", COLORS["accent"])],
             darkcolor=[("focus", COLORS["accent"])],
@@ -234,6 +463,11 @@ class AgentApplication:
         self.root.maxsize(self.root.winfo_screenwidth(), self.root.winfo_screenheight())
         self.root.geometry("920x690")
         self.root.configure(bg=COLORS["canvas"])
+        if os.name == "nt":
+            try:
+                self.root.attributes("-transparentcolor", "")
+            except tk.TclError:
+                pass
         self.root.after_idle(lambda: apply_rounded_window(self.root))
         self.window_mode = "setup"
 
@@ -243,8 +477,14 @@ class AgentApplication:
         self.root.minsize(STATUS_WINDOW_WIDTH, 560)
         self.root.maxsize(STATUS_WINDOW_WIDTH, STATUS_WINDOW_HEIGHT)
         self.root.geometry(status_window_geometry(work_area_bounds(self.root)))
-        self.root.configure(bg=COLORS["line"])
-        self.root.after_idle(lambda: apply_rounded_window(self.root))
+        if os.name == "nt":
+            self.root.configure(bg=WINDOW_TRANSPARENT_KEY)
+            try:
+                self.root.attributes("-transparentcolor", WINDOW_TRANSPARENT_KEY)
+            except tk.TclError:
+                self.root.configure(bg=COLORS["canvas"])
+        else:
+            self.root.configure(bg=COLORS["canvas"])
         self.window_mode = "status"
 
     def _start_window_drag(self, event):
@@ -260,42 +500,40 @@ class AgentApplication:
         self.drag_origin = None
 
     def _status_shell(self):
-        shell = tk.Frame(
+        shell = RoundedFrame(
             self.root,
-            bg=COLORS["canvas"],
-            highlightthickness=1,
-            highlightbackground=COLORS["line"],
+            fill=COLORS["canvas"],
+            border=COLORS["line"],
+            radius=20,
+            padding=7,
         )
         shell.pack(fill="both", expand=True)
-        titlebar = tk.Frame(shell, bg=COLORS["surface"], height=48)
+        titlebar = tk.Frame(shell, bg=COLORS["surface"], height=50)
         titlebar.pack(fill="x")
         titlebar.pack_propagate(False)
         identity = tk.Frame(titlebar, bg=COLORS["surface"])
-        identity.pack(side="left", fill="both", expand=True, padx=(16, 0))
+        identity.pack(side="left", fill="both", expand=True, padx=(18, 0))
         title = tk.Label(identity, text="Fioreze Impressao", bg=COLORS["surface"], fg=COLORS["ink"], font=("Segoe UI", 10, "bold"))
         title.pack(anchor="w", pady=(7, 0))
         subtitle = tk.Label(identity, text=self.config.get("hotel_name", "Unidade Fioreze"), bg=COLORS["surface"], fg=COLORS["muted"], font=("Segoe UI", 8))
         subtitle.pack(anchor="w", pady=(1, 0))
-        close_button = tk.Button(
+        close_button = RoundedButton(
             titlebar,
             text="\u00d7",
             command=self.hide_to_tray,
-            bg=COLORS["surface"],
-            fg=COLORS["muted"],
-            activebackground=COLORS["danger_soft"],
-            activeforeground=COLORS["danger"],
-            relief="flat",
-            bd=0,
-            width=5,
-            cursor="hand2",
-            font=("Segoe UI", 13),
+            background=COLORS["surface_soft"],
+            foreground=COLORS["muted"],
+            active_background=COLORS["danger_soft"],
+            width=32,
+            height=32,
+            radius=16,
         )
-        close_button.pack(side="right", fill="y")
+        close_button.pack(side="right", padx=(0, 12), pady=11)
         for draggable in (titlebar, identity, title, subtitle):
             draggable.bind("<ButtonPress-1>", self._start_window_drag)
             draggable.bind("<B1-Motion>", self._move_window)
             draggable.bind("<ButtonRelease-1>", self._stop_window_drag)
-        body = tk.Frame(shell, bg=COLORS["canvas"], padx=14, pady=10)
+        body = tk.Frame(shell, bg=COLORS["canvas"], padx=12, pady=9)
         body.pack(fill="both", expand=True)
         return body
 
@@ -333,31 +571,47 @@ class AgentApplication:
             parent,
             fill=COLORS["surface"],
             border=COLORS["line"],
-            radius=14,
+            radius=18,
             padding=padding,
         )
 
+    def _panel(self, parent, padding=12):
+        panel = RoundedPanel(
+            parent,
+            fill=COLORS["surface"],
+            border=COLORS["line"],
+            radius=16,
+            padding=padding,
+        )
+        return panel, panel.content
+
     def _field(self, parent, label, variable, values=None, secret=False):
         wrapper = tk.Frame(parent, bg=COLORS["surface"])
-        tk.Label(wrapper, text=label.upper(), bg=COLORS["surface"], fg=COLORS["muted"], font=("Segoe UI", 8, "bold")).pack(anchor="w", pady=(0, 6))
+        tk.Label(wrapper, text=label.upper(), bg=COLORS["surface"], fg=COLORS["muted"], font=("Segoe UI", 8, "bold")).pack(anchor="w", pady=(0, 3))
+        field_shell = RoundedFrame(
+            wrapper,
+            fill=COLORS["surface_soft"],
+            border=COLORS["line"],
+            radius=11,
+            padding=2,
+        )
+        field_shell.pack(fill="x")
         if values is not None:
-            widget = ttk.Combobox(wrapper, textvariable=variable, values=values, state="readonly", style="Fioreze.TCombobox")
+            widget = ttk.Combobox(field_shell, textvariable=variable, values=values, state="readonly", style="Fioreze.TCombobox")
         else:
             widget = tk.Entry(
-                wrapper,
+                field_shell,
                 textvariable=variable,
                 show="*" if secret else "",
-                bg=COLORS["surface"],
+                bg=COLORS["surface_soft"],
                 fg=COLORS["ink"],
                 insertbackground=COLORS["ink"],
                 relief="flat",
-                highlightthickness=1,
-                highlightbackground=COLORS["line"],
-                highlightcolor=COLORS["accent"],
+                highlightthickness=0,
                 font=("Segoe UI", 10),
             )
             widget.configure(width=30)
-        widget.pack(fill="x", ipady=5 if values is None else 0)
+        widget.pack(fill="x", padx=4, pady=1, ipady=4 if values is None else 0)
         return wrapper, widget
 
     def _button(self, parent, text, command, primary=False, danger=False, width=None):
@@ -367,21 +621,15 @@ class AgentApplication:
             background, foreground, active = COLORS["danger_soft"], COLORS["danger"], "#ffe3e5"
         else:
             background, foreground, active = COLORS["surface_soft"], COLORS["ink"], "#edf0f2"
-        return tk.Button(
+        pixel_width = ((width * 7) + 24) if width else None
+        return RoundedButton(
             parent,
             text=text,
             command=command,
-            width=width,
-            bg=background,
-            fg=foreground,
-            activebackground=active,
-            activeforeground=foreground,
-            relief="flat",
-            bd=0,
-            padx=14,
-            pady=9,
-            cursor="hand2",
-            font=("Segoe UI", 9, "bold"),
+            width=pixel_width,
+            background=background,
+            foreground=foreground,
+            active_background=active,
         )
 
     def _set_notice(self, text, tone="neutral"):
@@ -540,14 +788,19 @@ class AgentApplication:
         self._set_status_window()
         self.clear()
         content = self._status_shell()
-        status_card = self._card(content, 12)
-        status_card.pack(fill="x")
+        status_panel, status_card = self._panel(content, 10)
+        status_panel.pack(fill="x")
         status_line = tk.Frame(status_card, bg=COLORS["surface"])
         status_line.pack(fill="x")
         self.status_dot = tk.Label(status_line, text="\u25cf", bg=COLORS["surface"], fg=COLORS["warning"], font=("Segoe UI", 11, "bold"))
         self.status_dot.pack(side="left", padx=(0, 7))
         tk.Label(status_line, text="Impressao automatica", bg=COLORS["surface"], fg=COLORS["ink"], font=("Segoe UI", 11, "bold")).pack(side="left")
-        self.status_chip = tk.Label(status_line, text="INICIANDO", bg=COLORS["warning_soft"], fg=COLORS["warning"], padx=8, pady=3, font=("Segoe UI", 7, "bold"))
+        self.status_chip = RoundedBadge(
+            status_line,
+            text="INICIANDO",
+            background=COLORS["warning_soft"],
+            foreground=COLORS["warning"],
+        )
         self.status_chip.pack(side="right")
         self.status = tk.StringVar(value="Iniciando conexao segura...")
         self.runtime_message = self.status.get()
@@ -559,19 +812,19 @@ class AgentApplication:
         self._button(status_actions, "Abrir ERP", self.open_erp, primary=True).pack(side="right")
 
         facts = tk.Frame(content, bg=COLORS["canvas"])
-        facts.pack(fill="x", pady=8)
+        facts.pack(fill="x", pady=5)
         facts.grid_columnconfigure((0, 1), weight=1, uniform="facts")
         for column, (label, value) in enumerate((
             ("Unidade", self.config.get("hotel_name", "Unidade vinculada")),
             ("Computador", self.config.get("device_name", "-")),
         )):
-            fact = self._card(facts, 9)
-            fact.grid(row=0, column=column, sticky="nsew", padx=(0 if column == 0 else 5, 5 if column == 0 else 0))
+            fact_panel, fact = self._panel(facts, 9)
+            fact_panel.grid(row=0, column=column, sticky="nsew", padx=(0 if column == 0 else 5, 5 if column == 0 else 0))
             tk.Label(fact, text=label.upper(), bg=COLORS["surface"], fg=COLORS["subtle"], font=("Segoe UI", 7, "bold")).pack(anchor="w")
             tk.Label(fact, text=value, bg=COLORS["surface"], fg=COLORS["ink"], font=("Segoe UI", 9, "bold"), wraplength=145, justify="left").pack(anchor="w", pady=(4, 0))
 
-        settings_card = self._card(content, 12)
-        settings_card.pack(fill="x")
+        settings_panel, settings_card = self._panel(content, 10)
+        settings_panel.pack(fill="x")
         tk.Label(settings_card, text="Este computador", bg=COLORS["surface"], fg=COLORS["ink"], font=("Segoe UI", 11, "bold")).pack(anchor="w")
         tk.Label(settings_card, text="Escolha a impressora e o modelo da comanda.", bg=COLORS["surface"], fg=COLORS["muted"], font=("Segoe UI", 8)).pack(anchor="w", pady=(2, 7))
         available_printers = list_printers()
@@ -580,7 +833,7 @@ class AgentApplication:
             available_printers.insert(0, current_printer)
         printer = tk.StringVar(value=current_printer or (available_printers[0] if available_printers else ""))
         printer_field, printer_widget = self._field(settings_card, "Impressora", printer, available_printers)
-        printer_field.pack(fill="x", pady=(0, 6))
+        printer_field.pack(fill="x", pady=(0, 4))
 
         api = PrintAgentApi(self.config["origin"], self.config["token"])
         settings = {"templates": [], "device": {}}
@@ -592,7 +845,7 @@ class AgentApplication:
         selected_template = next((entry["name"] for entry in templates.values() if entry["id"] == settings.get("device", {}).get("template_id")), "")
         template_name = tk.StringVar(value=selected_template or (next(iter(templates), "")))
         template_field, template_widget = self._field(settings_card, "Modelo do comprovante", template_name, list(templates))
-        template_field.pack(fill="x", pady=(0, 6))
+        template_field.pack(fill="x", pady=(0, 4))
 
         def refresh_printers():
             values = list_printers()
@@ -623,10 +876,18 @@ class AgentApplication:
         save_button.configure(pady=7)
         save_button.pack(side="right")
 
-        activity_card = self._card(content, 12)
-        activity_card.pack(fill="x", pady=(8, 0))
+        activity_panel, activity_card = self._panel(content, 10)
+        activity_panel.pack(fill="x", pady=(5, 0))
         tk.Label(activity_card, text="Atividade", bg=COLORS["surface"], fg=COLORS["ink"], font=("Segoe UI", 11, "bold")).pack(anchor="w")
-        self.notice = tk.Label(activity_card, text="Aguardando o primeiro contato...", justify="left", anchor="w", wraplength=320, bg=COLORS["surface_soft"], fg=COLORS["muted"], padx=11, pady=9, font=("Segoe UI", 8))
+        notice_shell = RoundedFrame(
+            activity_card,
+            fill=COLORS["surface_soft"],
+            border=COLORS["surface_soft"],
+            radius=10,
+            padding=9,
+        )
+        notice_shell.pack(fill="x", pady=(6, 0))
+        self.notice = tk.Label(notice_shell, text="Aguardando o primeiro contato...", justify="left", anchor="w", wraplength=320, bg=COLORS["surface_soft"], fg=COLORS["muted"], font=("Segoe UI", 8))
         self.notice.pack(fill="x")
         self.activity_time = tk.Label(activity_card, text="", bg=COLORS["surface"], fg=COLORS["subtle"], font=("Segoe UI", 8))
         self.activity_time.pack(anchor="w", pady=(4, 6))

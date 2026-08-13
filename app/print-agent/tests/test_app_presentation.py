@@ -1,7 +1,13 @@
 import os
 import unittest
 
-from fioreze_print_agent.app import apply_rounded_window, lower_widget, runtime_tone, status_window_geometry
+from fioreze_print_agent.app import (
+    apply_rounded_window,
+    draw_rounded_rectangle,
+    lower_widget,
+    runtime_tone,
+    status_window_geometry,
+)
 
 
 class FakeTk:
@@ -18,6 +24,17 @@ class FakeCanvas:
         self._w = ".rounded.background"
 
 
+class ShapeCanvas:
+    def __init__(self):
+        self.shapes = []
+
+    def create_rectangle(self, *coordinates, **options):
+        self.shapes.append(("rectangle", coordinates, options))
+
+    def create_oval(self, *coordinates, **options):
+        self.shapes.append(("oval", coordinates, options))
+
+
 class AppPresentationTests(unittest.TestCase):
     def test_runtime_messages_use_clear_operational_tones(self):
         self.assertEqual(runtime_tone("Aguardando novos pedidos"), "success")
@@ -27,13 +44,13 @@ class AppPresentationTests(unittest.TestCase):
     def test_status_window_is_vertical_and_anchored_to_the_tray_corner(self):
         self.assertEqual(
             status_window_geometry((0, 0, 1920, 1040)),
-            "390x700+1518+328",
+            "410x708+1504+326",
         )
 
     def test_status_window_respects_small_work_areas(self):
         self.assertEqual(
             status_window_geometry((0, 0, 360, 600)),
-            "336x576+12+12",
+            "348x588+6+6",
         )
 
     def test_native_rounding_is_optional_outside_windows(self):
@@ -46,6 +63,14 @@ class AppPresentationTests(unittest.TestCase):
         lower_widget(canvas)
 
         self.assertEqual(canvas.tk.calls, [("lower", ".rounded.background")])
+
+    def test_rounded_surface_uses_real_circular_corners(self):
+        canvas = ShapeCanvas()
+
+        draw_rounded_rectangle(canvas, 120, 40, 12, "white", "gray")
+
+        self.assertEqual(sum(shape[0] == "oval" for shape in canvas.shapes), 8)
+        self.assertEqual(sum(shape[0] == "rectangle" for shape in canvas.shapes), 4)
 
 
 if __name__ == "__main__":
