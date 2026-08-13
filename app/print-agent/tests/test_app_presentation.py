@@ -1,7 +1,21 @@
 import os
 import unittest
 
-from fioreze_print_agent.app import apply_rounded_window, runtime_tone, status_window_geometry
+from fioreze_print_agent.app import apply_rounded_window, lower_widget, runtime_tone, status_window_geometry
+
+
+class FakeTk:
+    def __init__(self):
+        self.calls = []
+
+    def call(self, *arguments):
+        self.calls.append(arguments)
+
+
+class FakeCanvas:
+    def __init__(self):
+        self.tk = FakeTk()
+        self._w = ".rounded.background"
 
 
 class AppPresentationTests(unittest.TestCase):
@@ -25,6 +39,13 @@ class AppPresentationTests(unittest.TestCase):
     def test_native_rounding_is_optional_outside_windows(self):
         if os.name != "nt":
             self.assertFalse(apply_rounded_window(object()))
+
+    def test_rounded_background_uses_widget_stacking_instead_of_canvas_item_lowering(self):
+        canvas = FakeCanvas()
+
+        lower_widget(canvas)
+
+        self.assertEqual(canvas.tk.calls, [("lower", ".rounded.background")])
 
 
 if __name__ == "__main__":

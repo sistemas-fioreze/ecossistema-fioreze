@@ -55,6 +55,10 @@ COLORS = {
 }
 
 
+def lower_widget(widget):
+    widget.tk.call("lower", widget._w)
+
+
 class RoundedFrame(tk.Frame):
     def __init__(self, parent, *, fill, border, radius=14, padding=18):
         parent_background = parent.cget("bg")
@@ -64,7 +68,7 @@ class RoundedFrame(tk.Frame):
         self._radius = radius
         self._background = tk.Canvas(self, bg=parent_background, bd=0, highlightthickness=0)
         self._background.place(x=0, y=0, relwidth=1, relheight=1)
-        self._background.lower()
+        lower_widget(self._background)
         self.bind("<Configure>", self._redraw_background)
 
     def _redraw_background(self, _event=None):
