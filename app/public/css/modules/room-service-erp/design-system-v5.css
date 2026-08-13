@@ -3669,6 +3669,179 @@ body[data-erp="room-service"] .premium-pop {
   }
 }
 
+/* Electron print status: the ERP observes the agent, it never starts one on open. */
+body[data-erp="room-service"] #printManagerModal.desktop-print-status-modal {
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 20px !important;
+  background: rgba(24, 30, 37, .42) !important;
+  backdrop-filter: blur(5px) !important;
+}
+
+body[data-erp="room-service"] #printManagerModal.desktop-print-status-modal:not(.hidden) {
+  display: flex !important;
+}
+
+body[data-erp="room-service"] .desktop-print-status-card {
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100dvh - 40px);
+  overflow: auto;
+  padding: 22px;
+  border: 1px solid var(--erp-line);
+  border-radius: var(--erp-radius-lg);
+  background: #fff;
+  box-shadow: var(--erp-shadow-floating);
+}
+
+body[data-erp="room-service"] .desktop-print-status-header {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+body[data-erp="room-service"] .desktop-print-status-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--erp-radius-md);
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-text);
+}
+
+body[data-erp="room-service"] .desktop-print-status-icon svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+}
+
+body[data-erp="room-service"] .desktop-print-status-pill {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  border-radius: var(--erp-radius-pill);
+  background: var(--erp-surface-soft);
+  color: var(--erp-text-soft);
+  font-size: var(--erp-text-xs);
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+body[data-erp="room-service"] .desktop-print-status-pill.online {
+  background: var(--erp-success-soft);
+  color: var(--erp-success);
+}
+
+body[data-erp="room-service"] .desktop-print-status-pill.offline {
+  background: var(--erp-danger-soft);
+  color: var(--erp-danger);
+}
+
+body[data-erp="room-service"] .desktop-print-status-message {
+  margin: 18px 0 14px;
+  padding: 12px 14px;
+  border-radius: var(--erp-radius-md);
+  background: var(--erp-surface-soft);
+  color: var(--erp-text-soft);
+  font-size: var(--erp-text-sm);
+  line-height: 1.45;
+}
+
+body[data-erp="room-service"] .desktop-print-status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+body[data-erp="room-service"] .desktop-print-status-grid > div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--erp-line);
+  border-radius: var(--erp-radius-md);
+  background: #fff;
+}
+
+body[data-erp="room-service"] .desktop-print-status-grid span,
+body[data-erp="room-service"] .desktop-print-status-grid b {
+  display: block;
+}
+
+body[data-erp="room-service"] .desktop-print-status-grid span {
+  margin-bottom: 5px;
+  color: var(--erp-text-muted);
+  font-size: var(--erp-text-xs);
+  font-weight: 700;
+}
+
+body[data-erp="room-service"] .desktop-print-status-grid b {
+  overflow: hidden;
+  color: var(--erp-text);
+  font-size: var(--erp-text-sm);
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body[data-erp="room-service"] .desktop-print-status-wide {
+  grid-column: 1 / -1;
+}
+
+body[data-erp="room-service"] .desktop-print-status-hint {
+  margin: 14px 0 0;
+  color: var(--erp-text-muted);
+  font-size: var(--erp-text-xs);
+  line-height: 1.45;
+}
+
+body[data-erp="room-service"] .desktop-print-status-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--erp-line);
+}
+
+body[data-erp="room-service"] .desktop-print-status-actions button:disabled {
+  opacity: .45;
+  cursor: not-allowed !important;
+  transform: none !important;
+}
+
+@media (max-width: 620px) {
+  body[data-erp="room-service"] #printManagerModal.desktop-print-status-modal {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+
+  body[data-erp="room-service"] .desktop-print-status-card {
+    width: 100%;
+    max-height: 92dvh;
+    border-radius: var(--erp-radius-xl) var(--erp-radius-xl) 0 0;
+  }
+
+  body[data-erp="room-service"] .desktop-print-status-header {
+    grid-template-columns: 42px minmax(0, 1fr);
+  }
+
+  body[data-erp="room-service"] .desktop-print-status-pill {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  body[data-erp="room-service"] .desktop-print-status-grid {
+    grid-template-columns: 1fr;
+  }
+
+  body[data-erp="room-service"] .desktop-print-status-actions {
+    flex-wrap: wrap;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   body[data-erp="room-service"] *,
   body[data-erp="room-service"] *::before,

@@ -1,11 +1,13 @@
 import os
 import unittest
+from pathlib import Path
 
 from fioreze_print_agent.app import (
     apply_rounded_window,
     draw_rounded_rectangle,
     lower_widget,
     runtime_tone,
+    should_hide_status_window,
     status_window_geometry,
 )
 
@@ -56,6 +58,18 @@ class AppPresentationTests(unittest.TestCase):
     def test_native_rounding_is_optional_outside_windows(self):
         if os.name != "nt":
             self.assertFalse(apply_rounded_window(object()))
+
+    def test_status_popup_hides_only_after_losing_application_focus(self):
+        self.assertTrue(should_hide_status_window("status", True, False))
+        self.assertFalse(should_hide_status_window("status", True, True))
+        self.assertFalse(should_hide_status_window("setup", True, False))
+
+    def test_status_popup_has_no_transparent_key_or_close_button(self):
+        source = (Path(__file__).parents[1] / "fioreze_print_agent" / "app.py").read_text(encoding="utf-8")
+        status_shell = source[source.index("    def _status_shell"):source.index("    def _shell", source.index("    def _status_shell"))]
+        self.assertNotIn("WINDOW_TRANSPARENT_KEY", source)
+        self.assertNotIn('text="\\u00d7"', status_shell)
+        self.assertIn('fill=COLORS["surface"]', status_shell)
 
     def test_rounded_background_uses_widget_stacking_instead_of_canvas_item_lowering(self):
         canvas = FakeCanvas()

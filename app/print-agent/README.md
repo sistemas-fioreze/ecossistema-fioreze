@@ -27,10 +27,10 @@ Na janela redesenhada e no menu da bandeja, o operador pode:
 
 O gerenciador apresenta estado de conexao, unidade, computador, impressora,
 versao e atividade recente em um painel vertical compacto. Ao abrir pelo icone,
-a janela de tamanho fixo e posicionada junto a bandeja do Windows e retorna para
-a bandeja pelo botao de fechar. O ERP Electron tambem mostra o
-estado local da impressao em sua barra de titulo branca e abre esta janela sem
-iniciar uma segunda instancia do agente.
+a janela branca de tamanho fixo e posicionada junto a bandeja do Windows, sem
+botao de fechar; um clique fora dela a recolhe automaticamente. O ERP Electron
+mostra o estado local em uma interface propria e nunca abre nem inicia o agente
+somente para consultar a impressao.
 
 A janela e os paineis usam cantos arredondados no Windows 11 e mantem um fallback
 solido no Windows 10. O aplicativo ERP e instalado pelo NSIS incluído na Suite;
@@ -39,7 +39,9 @@ somente depois da confirmacao do operador.
 
 O ERP mostra o computador como online quando recebeu contato nos ultimos dois minutos. Tambem mostra versao, impressora, template, ultimo contato e permite pausar ou revogar o dispositivo.
 
-No aplicativo desktop, o ERP tambem consulta o estado local e pode solicitar o reinicio do agente.
+No aplicativo desktop, o ERP tambem consulta o estado local. A solicitacao de
+reinicio so e permitida no computador que possui a configuracao protegida do
+agente; estacoes usadas apenas para o ERP nao iniciam outro servidor.
 O estado e gravado em `%LOCALAPPDATA%\Fioreze\PrintAgent\runtime-status.json` sem token,
 senha ou credencial. Os pedidos locais `show.request` e `restart.request` permitem
 mostrar ou reiniciar o processo existente. Nenhuma porta HTTP local e aberta.

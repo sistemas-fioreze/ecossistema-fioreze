@@ -17,36 +17,10 @@ function suitePaths(env = process.env) {
     configFile: path.join(base, "Suite", "erp-config.json"),
     iconFile: path.join(base, "Suite", "unidade.ico"),
     suiteExecutable: path.join(base, "Suite", "Fioreze-Suite.exe"),
+    agentConfigFile: path.join(base, "PrintAgent", "config.json"),
     agentStatusFile: path.join(base, "PrintAgent", "runtime-status.json"),
     restartRequestFile: path.join(base, "PrintAgent", "restart.request"),
-    showRequestFile: path.join(base, "PrintAgent", "show.request"),
   };
-}
-
-function openPrintManager({ env = process.env, fileSystem = fs, spawnProcess = spawn, now = new Date() } = {}) {
-  const paths = suitePaths(env);
-  const status = readPrintAgentStatus({ env, fileSystem, now: now.getTime() });
-  if (!status.installed) {
-    return { ok: false, action: "not_installed", status };
-  }
-
-  if (status.running) {
-    writeAtomic(fileSystem, paths.showRequestFile, JSON.stringify({ requested_at: now.toISOString() }));
-    return { ok: true, action: "show_requested", status };
-  }
-
-  try {
-    const child = spawnProcess(paths.suiteExecutable, [], {
-      detached: true,
-      stdio: "ignore",
-      windowsHide: false,
-      shell: false,
-    });
-    child.unref();
-    return { ok: true, action: "started", status };
-  } catch {
-    return { ok: false, action: "start_failed", status };
-  }
 }
 
 function readErpConfiguration({ env = process.env, fileSystem = fs } = {}) {
@@ -76,6 +50,8 @@ function readErpConfiguration({ env = process.env, fileSystem = fs } = {}) {
 function readPrintAgentStatus({ env = process.env, fileSystem = fs, now = Date.now() } = {}) {
   const paths = suitePaths(env);
   const installed = fileSystem.existsSync(paths.suiteExecutable);
+  const configuration = readAgentConfiguration(paths.agentConfigFile, fileSystem);
+  const configured = Boolean(configuration.hotel_id && configuration.device_id && configuration.protected_token);
   let payload = {};
   try {
     payload = JSON.parse(fileSystem.readFileSync(paths.agentStatusFile, "utf8"));
@@ -85,17 +61,24 @@ function readPrintAgentStatus({ env = process.env, fileSystem = fs, now = Date.n
 
   const updatedAt = parseTimestamp(payload.updated_at);
   const fresh = Boolean(updatedAt && now - updatedAt <= STATUS_MAX_AGE_MS);
-  const running = fresh && ["starting", "running", "restarting"].includes(payload.status);
+  const running = configured && fresh && ["starting", "running", "restarting"].includes(payload.status);
   return {
     installed,
+    configured,
     running,
-    status: running ? payload.status : installed ? "offline" : "not_installed",
-    message: running ? cleanText(payload.message, 180) : installed ? "Agente de impressao sem resposta" : "Fioreze Suite nao instalado",
+    status: running ? payload.status : !configured ? "not_configured" : installed ? "offline" : "not_installed",
+    message: running
+      ? cleanText(payload.message, 180)
+      : !configured
+        ? "Este computador usa somente o ERP"
+        : installed
+          ? "Servidor de impressao sem resposta"
+          : "Fioreze Suite nao instalado",
     updated_at: updatedAt ? new Date(updatedAt).toISOString() : null,
-    hotel_id: cleanIdentifier(payload.hotel_id),
-    device_id: cleanIdentifier(payload.device_id),
-    device_name: cleanText(payload.device_name, 120),
-    printer_name: cleanText(payload.printer_name, 160),
+    hotel_id: cleanIdentifier(payload.hotel_id || configuration.hotel_id),
+    device_id: cleanIdentifier(payload.device_id || configuration.device_id),
+    device_name: cleanText(payload.device_name || configuration.device_name, 120),
+    printer_name: cleanText(payload.printer_name || configuration.printer_name, 160),
     app_version: cleanText(payload.app_version, 32),
   };
 }
@@ -103,6 +86,9 @@ function readPrintAgentStatus({ env = process.env, fileSystem = fs, now = Date.n
 function restartPrintAgent({ env = process.env, fileSystem = fs, spawnProcess = spawn, now = new Date() } = {}) {
   const paths = suitePaths(env);
   const status = readPrintAgentStatus({ env, fileSystem, now: now.getTime() });
+  if (!status.configured) {
+    return { ok: false, action: "not_configured", status };
+  }
   if (!status.installed) {
     return { ok: false, action: "not_installed", status };
   }
@@ -125,6 +111,21 @@ function restartPrintAgent({ env = process.env, fileSystem = fs, spawnProcess = 
     return { ok: true, action: "started", status };
   } catch {
     return { ok: false, action: "start_failed", status };
+  }
+}
+
+function readAgentConfiguration(target, fileSystem) {
+  try {
+    const payload = JSON.parse(fileSystem.readFileSync(target, "utf8"));
+    return {
+      hotel_id: cleanIdentifier(payload.hotel_id),
+      device_id: cleanIdentifier(payload.device_id),
+      device_name: cleanText(payload.device_name, 120),
+      printer_name: cleanText(payload.printer_name, 160),
+      protected_token: typeof payload.protected_token === "string" && payload.protected_token.trim() ? true : false,
+    };
+  } catch {
+    return {};
   }
 }
 
@@ -157,7 +158,6 @@ module.exports = {
   STATUS_MAX_AGE_MS,
   readErpConfiguration,
   readPrintAgentStatus,
-  openPrintManager,
   restartPrintAgent,
   suitePaths,
 };

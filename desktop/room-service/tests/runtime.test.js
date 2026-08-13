@@ -4,7 +4,7 @@ const path = require("node:path");
 const os = require("node:os");
 const test = require("node:test");
 
-const { openPrintManager, readErpConfiguration, readPrintAgentStatus, restartPrintAgent, suitePaths } = require("../runtime.cjs");
+const { readErpConfiguration, readPrintAgentStatus, restartPrintAgent, suitePaths } = require("../runtime.cjs");
 
 function sandbox() {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "fioreze-desktop-"));
@@ -42,6 +42,11 @@ test("agent status is sanitized and stale status becomes offline", () => {
   fs.mkdirSync(path.dirname(paths.suiteExecutable), { recursive: true });
   fs.mkdirSync(path.dirname(paths.agentStatusFile), { recursive: true });
   fs.writeFileSync(paths.suiteExecutable, "fixture");
+  fs.writeFileSync(paths.agentConfigFile, JSON.stringify({
+    hotel_id: "hotel-ficticio",
+    device_id: "device-ficticio",
+    protected_token: "fixture-protegida",
+  }));
   fs.writeFileSync(paths.agentStatusFile, JSON.stringify({
     status: "running",
     message: "Aguardando novos pedidos",
@@ -51,6 +56,7 @@ test("agent status is sanitized and stale status becomes offline", () => {
   }));
   const online = readPrintAgentStatus({ env, now: Date.parse("2026-08-04T12:00:05.000Z") });
   assert.equal(online.running, true);
+  assert.equal(online.configured, true);
   assert.equal(online.printer_name, "Impressora de teste");
   assert.equal("token" in online, false);
   const offline = readPrintAgentStatus({ env, now: Date.parse("2026-08-04T12:01:00.000Z") });
@@ -65,6 +71,11 @@ test("restart uses a request file while online and a fixed executable while offl
   fs.mkdirSync(path.dirname(paths.suiteExecutable), { recursive: true });
   fs.mkdirSync(path.dirname(paths.agentStatusFile), { recursive: true });
   fs.writeFileSync(paths.suiteExecutable, "fixture");
+  fs.writeFileSync(paths.agentConfigFile, JSON.stringify({
+    hotel_id: "hotel-ficticio",
+    device_id: "device-ficticio",
+    protected_token: "fixture-protegida",
+  }));
   fs.writeFileSync(paths.agentStatusFile, JSON.stringify({ status: "running", updated_at: "2026-08-04T12:00:00.000Z" }));
   const online = restartPrintAgent({ env, now: new Date("2026-08-04T12:00:05.000Z") });
   assert.equal(online.action, "restart_requested");
@@ -87,31 +98,27 @@ test("restart uses a request file while online and a fixed executable while offl
   fs.rmSync(directory, { recursive: true, force: true });
 });
 
-test("print manager reuses the running agent and starts only the fixed executable when offline", () => {
+test("ERP-only computers never start a print agent or create restart requests", () => {
   const { directory, env } = sandbox();
   const paths = suitePaths(env);
   fs.mkdirSync(path.dirname(paths.suiteExecutable), { recursive: true });
   fs.mkdirSync(path.dirname(paths.agentStatusFile), { recursive: true });
   fs.writeFileSync(paths.suiteExecutable, "fixture");
   fs.writeFileSync(paths.agentStatusFile, JSON.stringify({ status: "running", updated_at: "2026-08-04T12:00:00.000Z" }));
-
-  const online = openPrintManager({ env, now: new Date("2026-08-04T12:00:05.000Z") });
-  assert.equal(online.action, "show_requested");
-  assert.equal(fs.existsSync(paths.showRequestFile), true);
-
-  fs.writeFileSync(paths.agentStatusFile, JSON.stringify({ status: "stopped", updated_at: "2026-08-04T11:00:00.000Z" }));
-  let invocation;
-  const offline = openPrintManager({
+  let spawned = false;
+  const result = restartPrintAgent({
     env,
     now: new Date("2026-08-04T12:00:05.000Z"),
-    spawnProcess(executable, args, options) {
-      invocation = { executable, args, options };
+    spawnProcess() {
+      spawned = true;
       return { unref() {} };
     },
   });
-  assert.equal(offline.action, "started");
-  assert.equal(invocation.executable, paths.suiteExecutable);
-  assert.deepEqual(invocation.args, []);
-  assert.equal(invocation.options.shell, false);
+  const status = readPrintAgentStatus({ env, now: Date.parse("2026-08-04T12:00:05.000Z") });
+  assert.equal(status.configured, false);
+  assert.equal(status.running, false);
+  assert.equal(result.action, "not_configured");
+  assert.equal(spawned, false);
+  assert.equal(fs.existsSync(paths.restartRequestFile), false);
   fs.rmSync(directory, { recursive: true, force: true });
 });

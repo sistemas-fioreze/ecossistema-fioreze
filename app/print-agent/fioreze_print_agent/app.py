@@ -36,7 +36,6 @@ DEFAULT_ORIGIN = "https://portal.hoteisfioreze.com.br"
 STATUS_WINDOW_WIDTH = 410
 STATUS_WINDOW_HEIGHT = 708
 STATUS_WINDOW_MARGIN = 6
-WINDOW_TRANSPARENT_KEY = "#ff00ff"
 COLORS = {
     "canvas": "#f3f5f7",
     "surface": "#ffffff",
@@ -93,16 +92,6 @@ class RoundedFrame(tk.Frame):
         self._background = tk.Canvas(self, bg=parent_background, bd=0, highlightthickness=0)
         self._background.place(x=0, y=0, relwidth=1, relheight=1)
         lower_widget(self._background)
-        self._corner_masks = {}
-        if parent_background == WINDOW_TRANSPARENT_KEY:
-            self._corner_masks = {
-                name: tk.Canvas(self, bg=parent_background, bd=0, highlightthickness=0)
-                for name in ("nw", "ne", "sw", "se")
-            }
-            self._corner_masks["nw"].place(x=0, y=0, anchor="nw")
-            self._corner_masks["ne"].place(relx=1, x=0, y=0, anchor="ne")
-            self._corner_masks["sw"].place(x=0, rely=1, y=0, anchor="sw")
-            self._corner_masks["se"].place(relx=1, rely=1, x=0, y=0, anchor="se")
         self.bind("<Configure>", self._redraw_background)
 
     def _redraw_background(self, _event=None):
@@ -118,32 +107,6 @@ class RoundedFrame(tk.Frame):
             self._fill,
             self._border,
         )
-        if self._corner_masks:
-            self._redraw_corner_masks(min(radius, max(3, self._padding - 1)))
-
-    def _redraw_corner_masks(self, radius):
-        diameter = radius * 2
-        specifications = {
-            "nw": ((0, 0, diameter, diameter), 90),
-            "ne": ((-radius, 0, radius, diameter), 0),
-            "sw": ((0, -radius, diameter, radius), 180),
-            "se": ((-radius, -radius, radius, radius), 270),
-        }
-        for name, (bounds, start) in specifications.items():
-            mask = self._corner_masks[name]
-            mask.configure(width=radius, height=radius, bg=self._parent_background)
-            mask.delete("all")
-            mask.create_oval(*bounds, fill=self._fill, outline="")
-            if self._border and self._border != self._fill:
-                mask.create_arc(
-                    *bounds,
-                    start=start,
-                    extent=90,
-                    style="arc",
-                    outline=self._border,
-                    width=1,
-                )
-            mask.tk.call("raise", mask._w)
 
 
 class RoundedPanel(tk.Canvas):
@@ -314,7 +277,7 @@ def native_window_handle(root):
     return int(parent or handle)
 
 
-def apply_rounded_window(root):
+def apply_rounded_window(root, radius=None):
     if os.name != "nt":
         return False
     try:
@@ -327,9 +290,43 @@ def apply_rounded_window(root):
             ctypes.byref(preference),
             ctypes.sizeof(preference),
         )
-        return dwm_result == 0
+        region_result = True
+        if radius:
+            width = max(1, root.winfo_width())
+            height = max(1, root.winfo_height())
+            diameter = max(2, int(radius) * 2)
+            region = ctypes.windll.gdi32.CreateRoundRectRgn(0, 0, width + 1, height + 1, diameter, diameter)
+            if not region:
+                region_result = False
+            elif not ctypes.windll.user32.SetWindowRgn(handle, region, True):
+                ctypes.windll.gdi32.DeleteObject(region)
+                region_result = False
+        else:
+            ctypes.windll.user32.SetWindowRgn(handle, None, True)
+        return dwm_result == 0 and region_result
     except (AttributeError, OSError, tk.TclError):
         return False
+
+
+def application_owns_foreground_window(root):
+    if os.name != "nt":
+        try:
+            return root.focus_displayof() is not None
+        except tk.TclError:
+            return False
+    try:
+        foreground = ctypes.windll.user32.GetForegroundWindow()
+        if not foreground:
+            return False
+        process_id = ctypes.wintypes.DWORD()
+        ctypes.windll.user32.GetWindowThreadProcessId(foreground, ctypes.byref(process_id))
+        return process_id.value == os.getpid()
+    except (AttributeError, OSError):
+        return False
+
+
+def should_hide_status_window(window_mode, visible, application_has_focus):
+    return window_mode == "status" and visible and not application_has_focus
 
 
 def status_window_geometry(work_area, width=STATUS_WINDOW_WIDTH, height=STATUS_WINDOW_HEIGHT, margin=STATUS_WINDOW_MARGIN):
@@ -384,6 +381,7 @@ class AgentApplication:
         self.notice = None
         self.window_mode = None
         self.drag_origin = None
+        self.focus_check = None
         self.update_check_running = False
         self.update_dialog = None
         self.update_progress = None
@@ -391,6 +389,7 @@ class AgentApplication:
         self._configure_styles()
         self._set_window_icon()
         self.root.protocol("WM_DELETE_WINDOW", self.close)
+        self.root.bind("<FocusOut>", self._schedule_status_focus_check, add="+")
         if self.config.get("token"):
             self.show_status()
         else:
@@ -477,14 +476,13 @@ class AgentApplication:
         self.root.minsize(STATUS_WINDOW_WIDTH, 560)
         self.root.maxsize(STATUS_WINDOW_WIDTH, STATUS_WINDOW_HEIGHT)
         self.root.geometry(status_window_geometry(work_area_bounds(self.root)))
+        self.root.configure(bg=COLORS["surface"])
         if os.name == "nt":
-            self.root.configure(bg=WINDOW_TRANSPARENT_KEY)
             try:
-                self.root.attributes("-transparentcolor", WINDOW_TRANSPARENT_KEY)
+                self.root.attributes("-transparentcolor", "")
             except tk.TclError:
-                self.root.configure(bg=COLORS["canvas"])
-        else:
-            self.root.configure(bg=COLORS["canvas"])
+                pass
+        self.root.after_idle(lambda: apply_rounded_window(self.root, radius=20))
         self.window_mode = "status"
 
     def _start_window_drag(self, event):
@@ -502,7 +500,7 @@ class AgentApplication:
     def _status_shell(self):
         shell = RoundedFrame(
             self.root,
-            fill=COLORS["canvas"],
+            fill=COLORS["surface"],
             border=COLORS["line"],
             radius=20,
             padding=7,
@@ -517,23 +515,11 @@ class AgentApplication:
         title.pack(anchor="w", pady=(7, 0))
         subtitle = tk.Label(identity, text=self.config.get("hotel_name", "Unidade Fioreze"), bg=COLORS["surface"], fg=COLORS["muted"], font=("Segoe UI", 8))
         subtitle.pack(anchor="w", pady=(1, 0))
-        close_button = RoundedButton(
-            titlebar,
-            text="\u00d7",
-            command=self.hide_to_tray,
-            background=COLORS["surface_soft"],
-            foreground=COLORS["muted"],
-            active_background=COLORS["danger_soft"],
-            width=32,
-            height=32,
-            radius=16,
-        )
-        close_button.pack(side="right", padx=(0, 12), pady=11)
         for draggable in (titlebar, identity, title, subtitle):
             draggable.bind("<ButtonPress-1>", self._start_window_drag)
             draggable.bind("<B1-Motion>", self._move_window)
             draggable.bind("<ButtonRelease-1>", self._stop_window_drag)
-        body = tk.Frame(shell, bg=COLORS["canvas"], padx=12, pady=9)
+        body = tk.Frame(shell, bg=COLORS["surface"], padx=12, pady=9)
         body.pack(fill="both", expand=True)
         return body
 
@@ -811,7 +797,7 @@ class AgentApplication:
         tk.Label(status_actions, text=f"Versao {APP_VERSION}", bg=COLORS["surface"], fg=COLORS["subtle"], font=("Segoe UI", 8)).pack(side="left")
         self._button(status_actions, "Abrir ERP", self.open_erp, primary=True).pack(side="right")
 
-        facts = tk.Frame(content, bg=COLORS["canvas"])
+        facts = tk.Frame(content, bg=COLORS["surface"])
         facts.pack(fill="x", pady=5)
         facts.grid_columnconfigure((0, 1), weight=1, uniform="facts")
         for column, (label, value) in enumerate((
@@ -952,8 +938,24 @@ class AgentApplication:
         self.root.focus_force()
         self.root.attributes("-topmost", True)
         self.root.after(180, lambda: self.root.attributes("-topmost", False))
+        if self.window_mode == "status":
+            self.root.after_idle(lambda: apply_rounded_window(self.root, radius=20))
+
+    def _schedule_status_focus_check(self, _event=None):
+        if self.focus_check:
+            self.root.after_cancel(self.focus_check)
+        self.focus_check = self.root.after(140, self._hide_status_if_inactive)
+
+    def _hide_status_if_inactive(self):
+        self.focus_check = None
+        visible = self.root.state() != "withdrawn"
+        if should_hide_status_window(self.window_mode, visible, application_owns_foreground_window(self.root)):
+            self.hide_to_tray()
 
     def hide_to_tray(self):
+        if self.focus_check:
+            self.root.after_cancel(self.focus_check)
+            self.focus_check = None
         if self.tray:
             self.root.withdraw()
 

@@ -64,79 +64,28 @@
 <div id="orderEditMenuGrid" class="order-edit-menu-grid"></div>
 </section>
 </div>
-</div></div><div class="order-detail-actions"><button id="btnEditarPedido" class="order-action-secondary"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M12 20h9"/><path stroke-width="2" d="M16.5 3.5a2.1 2.1 0 113 3L7 19l-4 1 1-4 12.5-12.5z"/></svg> Editar pedido</button> <button id="btnSalvarPedido" class="order-action-secondary"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Salvar edição</button> <button id="btnSalvarReimprimir" class="order-action-secondary"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2"/></svg> Salvar e reimprimir</button> <button id="btnReimprimir" class="order-action-primary"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg> Imprimir novamente</button></div></div></div><div id="printManagerModal" class="hidden fixed inset-0 bg-black/55 backdrop-blur-sm z-[255] flex items-center justify-center p-4">
-<div class="print-manager-card premium-pop">
-<div class="flex items-start justify-between gap-4 mb-4">
-<div>
-<p class="print-manager-kicker">Servidor local</p>
-<h2 class="print-manager-title dark:text-white">Impressao</h2>
+</div></div><div class="order-detail-actions"><button id="btnEditarPedido" class="order-action-secondary"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M12 20h9"/><path stroke-width="2" d="M16.5 3.5a2.1 2.1 0 113 3L7 19l-4 1 1-4 12.5-12.5z"/></svg> Editar pedido</button> <button id="btnSalvarPedido" class="order-action-secondary"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Salvar edição</button> <button id="btnSalvarReimprimir" class="order-action-secondary"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2"/></svg> Salvar e reimprimir</button> <button id="btnReimprimir" class="order-action-primary"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg> Imprimir novamente</button></div></div></div><div id="printManagerModal" class="hidden desktop-print-status-modal fixed inset-0 z-[255] flex items-center justify-center p-4">
+<section class="desktop-print-status-card premium-pop" role="dialog" aria-modal="true" aria-labelledby="desktopPrintStatusTitle">
+<header class="desktop-print-status-header">
+<div class="desktop-print-status-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 8V4h10v4M7 17h10v3H7zM6 17H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M17 12h.01"/></svg></div>
+<div><p class="print-manager-kicker">Impressão automática</p><h2 id="desktopPrintStatusTitle" class="print-manager-title">Status deste computador</h2></div>
+<span id="desktopPrintStatusPill" class="desktop-print-status-pill offline">Verificando</span>
+</header>
+<p id="desktopPrintStatusMessage" class="desktop-print-status-message">Consultando o agente de impressão...</p>
+<div class="desktop-print-status-grid">
+<div><span>Função</span><b id="desktopPrintRole">-</b></div>
+<div><span>Computador</span><b id="desktopPrintDevice">-</b></div>
+<div><span>Impressora</span><b id="desktopPrintPrinter">-</b></div>
+<div><span>Versão</span><b id="desktopPrintVersion">-</b></div>
+<div class="desktop-print-status-wide"><span>Última atualização</span><b id="desktopPrintUpdatedAt">-</b></div>
 </div>
-<button class="w-10 h-10 bg-gray-100 dark:bg-gray-800 text-gray-500" title="Fechar">x</button>
-</div>
-<div class="print-manager-grid">
-<section class="print-manager-block">
-<div class="flex items-center justify-between gap-3">
-<p class="print-manager-kicker">Status</p>
-<span id="printStatusPill" class="print-status-pill offline">Offline</span>
-</div>
-<div class="print-info-list">
-<div class="print-info-row"><span>Servidor</span><b id="printServerValue">-</b></div>
-<div class="print-info-row"><span>Impressora</span><b id="printPrinterValue">-</b></div>
-<div class="print-info-row"><span>Automatica</span><b id="printAutoValue">-</b></div>
-<div class="print-info-row"><span>Ultima impressao</span><b id="printLastValue">-</b></div>
-<div class="print-info-row"><span>Ultimo erro</span><b id="printErrorValue">-</b></div>
-<div class="print-info-row"><span>Total sessao</span><b id="printTotalValue">0</b></div>
-</div>
-<div class="print-action-grid">
-<button class="print-action-primary">Imprimir teste</button>
-<button class="print-action-soft">Reimprimir ultimo</button>
-<button class="print-action-soft">Pausar</button>
-<button class="print-action-primary">Retomar</button>
-</div>
+<p id="desktopPrintStatusHint" class="desktop-print-status-hint">Abrir esta tela nunca inicia um servidor de impressão.</p>
+<footer class="desktop-print-status-actions">
+<button type="button" class="admin-secondary-btn" data-print-status-close>Fechar</button>
+<button id="desktopPrintRefresh" type="button" class="admin-secondary-btn">Atualizar</button>
+<button id="desktopPrintRestart" type="button" class="admin-primary-btn" disabled>Reiniciar servidor</button>
+</footer>
 </section>
-<section class="print-manager-block">
-<p class="print-manager-kicker mb-3">Configuracao</p>
-<div class="print-config-grid">
-<div class="print-field">
-<label>Nome do hotel</label>
-<input id="printCfgHotel" type="text">
-</div>
-<div class="print-field">
-<label>Impressora</label>
-<select id="printCfgPrinter"></select>
-</div>
-<div class="print-field">
-<label>Vias da comanda</label>
-<select id="printCfgModoVias">
-<option value="hotel">Somente via hotel</option>
-<option value="hotel_cliente">Via hotel e cliente</option>
-</select>
-</div>
-<div class="print-field">
-<label>Intervalo segundos</label>
-<input id="printCfgInterval" type="number" min="2" max="300">
-</div>
-<div class="print-field">
-<label>Notificacao Windows</label>
-<select id="printCfgWinNotify">
-<option value="true">Habilitada</option>
-<option value="false">Desabilitada</option>
-</select>
-</div>
-</div>
-<button class="print-save-btn print-action-primary w-full mt-3">Salvar configuracao</button>
-</section>
-</div>
-<section class="print-manager-block mt-4">
-<div class="flex items-center justify-between gap-3">
-<p class="print-manager-kicker">Diagnostico</p>
-<div class="flex items-center gap-2">
-<button class="print-mini-btn">Visualizar logs</button>
-<button class="print-mini-btn">Atualizar</button>
-</div>
-</div>
-</section>
-</div>
 </div>
 <div id="printLogModal" class="hidden fixed inset-0 bg-black/55 backdrop-blur-sm z-[270] flex items-center justify-center p-4">
 <div class="print-log-modal-card premium-pop">

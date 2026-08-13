@@ -34,6 +34,7 @@ test("ERP Room Service exposes desktop controls only through the adapter", () =>
   assert.match(css, /padding-top:\s*var\(--erp-desktop-titlebar-height/);
   assert.match(css, /height:\s*calc\(100dvh - var\(--erp-desktop-titlebar-height/);
   assert.match(css, /#loginOverlay[^}]*top:\s*var\(--erp-desktop-titlebar-height/s);
+  assert.match(css, /#printManagerModal\.desktop-print-status-modal:not\(\.hidden\)\s*\{[\s\S]*?display:\s*flex\s*!important/);
   assert.match(html, /rs-desktop-titlebar/);
   assert.match(html, /desktopPrintManager/);
   assert.match(html, /desktopReload/);
@@ -51,6 +52,8 @@ test("Electron wrapper is thin, hardened, and does not duplicate backend access"
   const main = read("desktop/room-service/main.cjs");
   const preload = read("desktop/room-service/preload.cjs");
   const windowChrome = read("desktop/room-service/window-chrome.cjs");
+  const html = read("app/public/erp/room-service/index.html");
+  const adapter = read("app/public/js/modules/room-service-erp/desktop-adapter.js");
   const packageJson = JSON.parse(read("desktop/room-service/package.json"));
 
   assert.equal(packageJson.main, "main.cjs");
@@ -69,7 +72,13 @@ test("Electron wrapper is thin, hardened, and does not duplicate backend access"
   assert.match(preload, /getWindowAppearance/);
   assert.match(preload, /getPrintAgentStatus/);
   assert.match(preload, /restartPrintAgent/);
-  assert.match(preload, /openPrintManager/);
+  assert.doesNotMatch(preload, /openPrintManager/);
+  assert.match(html, /desktopPrintStatusTitle/);
+  assert.match(html, /Reiniciar servidor/);
+  assert.doesNotMatch(html, /printCfgHotel|Imprimir teste|Reimprimir ultimo/);
+  assert.match(adapter, /isPrintServerComputer/);
+  assert.match(adapter, /Nenhum servidor de impressão será iniciado neste computador/);
+  assert.doesNotMatch(adapter, /openPrintManager/);
   assert.ok(packageJson.build.files.includes("window-chrome.cjs"));
 
   const combined = `${main}\n${preload}`;
