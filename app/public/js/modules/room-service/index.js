@@ -162,6 +162,7 @@ function renderStaticShell({ embedded = false } = {}) {
                     <span data-cart-count>0 itens</span>
                   </div>
                   <strong class="rs-cart-value" data-cart-total>${formatMoney(0, "BRL")}</strong>
+                  ${renderGuestAccountNotice()}
                   <button class="rs-primary-button" type="submit" data-submit-order disabled aria-disabled="true">
                     <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg>
                     <span data-submit-label>Finalizar Pedido</span>
@@ -971,6 +972,7 @@ function renderOrderReview(container, state, form, snapshot, data) {
         <input type="time" name="scheduled_time" value="${escapeHtml(scheduledTime)}" ${defaultMode === "scheduled" ? "required" : "disabled"}>
       </label>` : ""}
     </fieldset>
+    ${renderGuestAccountNotice()}
     <button class="rs-primary-button" type="submit">
       <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg>
       Enviar pedido
@@ -978,6 +980,13 @@ function renderOrderReview(container, state, form, snapshot, data) {
   form.dataset.reviewing = "true";
   review.hidden = false;
   review.querySelector("[name='preparation_mode']:checked")?.focus({ preventScroll: true });
+}
+
+function renderGuestAccountNotice() {
+  return `<aside class="rs-guest-account-notice" role="note">
+    <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"/><path d="M9 8h6M9 12h6"/></svg>
+    <p>O valor deste pedido será lançado na conta do hóspede no hotel. Para consultar os lançamentos, entre em contato com a recepção.</p>
+  </aside>`;
 }
 
 function renderPreparationOption(value, title, description, checked) {
@@ -1232,6 +1241,7 @@ export const internalsForTests = {
   splitProductDescription,
   clampDetailQuantity,
   renderProductOptions,
+  renderGuestAccountNotice,
   submitOrder,
   syncSubmitButton,
   updateServiceStatus,

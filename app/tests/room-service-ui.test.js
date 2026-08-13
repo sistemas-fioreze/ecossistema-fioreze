@@ -14,6 +14,7 @@ const {
   isScheduledTimeAllowed,
   renderStaticShell,
   renderProductOptions,
+  renderGuestAccountNotice,
   splitProductDescription,
   submitOrder,
   syncSubmitButton,
@@ -167,6 +168,17 @@ test("fluxo visual inclui revisao, preparo e acompanhamento recente sem exibir I
   assert.match(script, /Agendar entrega/);
   assert.match(script, /Pedido enviado com sucesso/);
   assert.doesNotMatch(script, /Recebemos seu pedido \$\{order\.public_id/);
+});
+
+test("pedido informa o lancamento na conta do hospede antes do envio", () => {
+  const shell = renderStaticShell();
+  const notice = renderGuestAccountNotice();
+  const script = fs.readFileSync(new URL("../public/js/modules/room-service/index.js", import.meta.url), "utf8");
+
+  assert.match(shell, /rs-guest-account-notice/);
+  assert.match(notice, /lançado na conta do hóspede no hotel/);
+  assert.match(notice, /entre em contato com a recepção/);
+  assert.match(script, /<\/fieldset>\s*\$\{renderGuestAccountNotice\(\)\}/);
 });
 
 test("agendamento visual fica limitado ao restante do mesmo dia", () => {

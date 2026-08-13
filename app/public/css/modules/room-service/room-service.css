@@ -658,6 +658,35 @@
   font-weight: 900;
 }
 
+.rs-guest-account-notice {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  color: #555e68;
+  background: color-mix(in srgb, var(--rs-primary) 7%, #fff);
+}
+
+.rs-guest-account-notice svg {
+  width: 20px;
+  height: 20px;
+  color: var(--rs-primary);
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.rs-guest-account-notice p {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
 .rs-primary-button {
   display: inline-flex;
   width: 100%;
