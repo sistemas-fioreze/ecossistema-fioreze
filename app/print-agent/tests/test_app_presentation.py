@@ -4,11 +4,14 @@ from pathlib import Path
 
 from fioreze_print_agent.app import (
     apply_rounded_window,
+    apply_rounded_window_when_ready,
+    client_window_handle,
     draw_rounded_rectangle,
     lower_widget,
     runtime_tone,
     should_hide_status_window,
     status_window_geometry,
+    window_ready_for_rounding,
 )
 
 
@@ -24,6 +27,32 @@ class FakeCanvas:
     def __init__(self):
         self.tk = FakeTk()
         self._w = ".rounded.background"
+
+
+class FakeRoot:
+    def __init__(self, width=410, height=708, viewable=True):
+        self.width = width
+        self.height = height
+        self.viewable = viewable
+        self.scheduled = []
+
+    def winfo_id(self):
+        return 4815
+
+    def update_idletasks(self):
+        return None
+
+    def winfo_viewable(self):
+        return self.viewable
+
+    def winfo_width(self):
+        return self.width
+
+    def winfo_height(self):
+        return self.height
+
+    def after(self, delay, callback):
+        self.scheduled.append((delay, callback))
 
 
 class ShapeCanvas:
@@ -59,15 +88,28 @@ class AppPresentationTests(unittest.TestCase):
         if os.name != "nt":
             self.assertFalse(apply_rounded_window(object()))
 
+    def test_rounding_targets_the_tk_client_window(self):
+        self.assertEqual(client_window_handle(FakeRoot()), 4815)
+
+    def test_rounding_waits_until_the_window_has_real_dimensions(self):
+        root = FakeRoot(width=1, height=1, viewable=False)
+
+        self.assertFalse(window_ready_for_rounding(root))
+        self.assertFalse(apply_rounded_window_when_ready(root, radius=20))
+        self.assertEqual(len(root.scheduled), 1)
+        self.assertEqual(root.scheduled[0][0], 40)
+
     def test_status_popup_hides_only_after_losing_application_focus(self):
         self.assertTrue(should_hide_status_window("status", True, False))
         self.assertFalse(should_hide_status_window("status", True, True))
+        self.assertFalse(should_hide_status_window("status", True, False, focus_armed=False))
         self.assertFalse(should_hide_status_window("setup", True, False))
 
     def test_status_popup_has_no_transparent_key_or_close_button(self):
         source = (Path(__file__).parents[1] / "fioreze_print_agent" / "app.py").read_text(encoding="utf-8")
         status_shell = source[source.index("    def _status_shell"):source.index("    def _shell", source.index("    def _status_shell"))]
         self.assertNotIn("WINDOW_TRANSPARENT_KEY", source)
+        self.assertNotIn("-transparentcolor", source)
         self.assertNotIn('text="\\u00d7"', status_shell)
         self.assertIn('fill=COLORS["surface"]', status_shell)
 
