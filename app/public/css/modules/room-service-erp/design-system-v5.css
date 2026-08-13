@@ -7105,3 +7105,16 @@ body[data-erp="room-service"] .erp-version-error {
     margin: 10px 14px 0;
   }
 }
+body[data-erp="room-service"] .erp-danger-button {
+  border-color: #e8b8b4 !important;
+  color: var(--rs-danger, #b42318) !important;
+}
+
+body[data-erp="room-service"] .erp-danger-button:hover:not(:disabled) {
+  background: #fff3f2 !important;
+  border-color: var(--rs-danger, #b42318) !important;
+}
+
+body[data-erp="room-service"] .erp-modal-actions-spacer {
+  flex: 1 1 auto;
+}

@@ -673,6 +673,23 @@ function createFixtureData() {
     orderItems: [],
     orderStatusHistory: [],
     printEvents: [],
+    printerTemplates: [
+      {
+        id: "print-template-muller-default",
+        hotel_id: "muller-fioreze",
+        module_key: "room-service",
+        template_key: "test-template",
+        name: "Comprovante de teste",
+        description: "Template ficticio.",
+        config_json: "{}",
+        is_default: 1,
+        status: "active",
+        created_at: "2026-07-12T00:00:00.000Z",
+        updated_at: "2026-07-12T00:00:00.000Z",
+      },
+    ],
+    printerDevices: [],
+    printerEnrollmentCodes: [],
   };
 }
 
@@ -1013,6 +1030,49 @@ class MockD1Database {
       if (!catalogItem) return null;
       const itemAvailability = this.findAvailability(itemId, hotelId);
       return { ...catalogItem, is_available: itemAvailability?.is_available ?? 1, availability_label: itemAvailability?.availability_label ?? null };
+    }
+
+    if (normalized.includes("from printer_devices") && normalized.includes("status in ('active', 'paused')")) {
+      const [hotelId, moduleKey] = params;
+      const device = this.data.printerDevices.find(
+        (entry) => entry.hotel_id === hotelId && entry.module_key === moduleKey && ["active", "paused"].includes(entry.status),
+      );
+      return device ? { id: device.id } : null;
+    }
+
+    if (normalized.includes("from printer_devices") && normalized.includes("where id = ? and hotel_id = ? and module_key = ?")) {
+      const [deviceId, hotelId, moduleKey] = params;
+      return this.data.printerDevices.find(
+        (entry) => entry.id === deviceId && entry.hotel_id === hotelId && entry.module_key === moduleKey,
+      ) || null;
+    }
+
+    if (normalized.includes("from printer_templates") && normalized.includes("where id = ?")) {
+      const [templateId, hotelId, moduleKey] = params;
+      const template = this.data.printerTemplates.find(
+        (entry) => entry.id === templateId && entry.hotel_id === hotelId && entry.module_key === moduleKey && entry.status === "active",
+      );
+      return template ? { id: template.id } : null;
+    }
+
+    if (normalized.includes("from printer_enrollment_codes pec") && normalized.includes("join hotels h")) {
+      const [codeHash, hotelId, moduleKey, now] = params;
+      const code = this.data.printerEnrollmentCodes.find(
+        (entry) => entry.code_hash === codeHash && entry.hotel_id === hotelId && entry.module_key === moduleKey && !entry.used_at && entry.expires_at > now,
+      );
+      if (!code) return null;
+      const hotel = this.data.hotels.find((entry) => entry.id === hotelId);
+      const branding = this.data.branding.find((entry) => entry.hotel_id === hotelId) || {};
+      const template = this.data.printerTemplates.find(
+        (entry) => entry.hotel_id === hotelId && entry.module_key === moduleKey && entry.is_default === 1 && entry.status === "active",
+      );
+      return {
+        ...code,
+        template_id: template?.id || null,
+        hotel_name: hotel?.name,
+        hotel_slug: hotel?.slug,
+        hotel_icon_url: branding.icon_url || branding.logo_url || null,
+      };
     }
 
     if (normalized.includes("select id") && normalized.includes("from media_assets") && normalized.includes("module_key = ? or module_key is null")) {
@@ -1453,6 +1513,33 @@ class MockD1Database {
 
   selectAll(sql, params) {
     const normalized = normalize(sql);
+
+    if (normalized.includes("from printer_templates") && normalized.includes("status = 'active'")) {
+      const [hotelId, moduleKey] = params;
+      return this.data.printerTemplates
+        .filter((entry) => entry.hotel_id === hotelId && entry.module_key === moduleKey && entry.status === "active")
+        .sort((a, b) => Number(b.is_default) - Number(a.is_default) || a.name.localeCompare(b.name));
+    }
+
+    if (normalized.includes("from printer_devices pd") && normalized.includes("left join printer_templates")) {
+      const [hotelId, moduleKey] = params;
+      return this.data.printerDevices
+        .filter((entry) => entry.hotel_id === hotelId && entry.module_key === moduleKey)
+        .map((entry) => ({
+          ...entry,
+          template_name: this.data.printerTemplates.find((template) => template.id === entry.template_id)?.name || null,
+        }))
+        .sort((a, b) => a.status.localeCompare(b.status) || a.name.localeCompare(b.name));
+    }
+
+    if (normalized.includes("select status, count(*) as total from print_events")) {
+      const [hotelId, moduleKey] = params;
+      return Object.entries(
+        this.data.printEvents
+          .filter((entry) => entry.hotel_id === hotelId && entry.module_key === moduleKey)
+          .reduce((totals, entry) => ({ ...totals, [entry.status]: (totals[entry.status] || 0) + 1 }), {}),
+      ).map(([status, total]) => ({ status, total }));
+    }
 
     if (normalized.includes("from spa_shared_services s")) {
       const activeOnly = normalized.includes("where s.status = 'active'");
@@ -2359,6 +2446,102 @@ class MockD1Database {
 
   execute(sql, params) {
     const normalized = normalize(sql);
+
+    if (normalized.startsWith("update printer_enrollment_codes") && normalized.includes("set expires_at = ?")) {
+      const [expiresAt, hotelId, moduleKey, now] = params;
+      let changes = 0;
+      this.data.printerEnrollmentCodes.forEach((entry) => {
+        if (entry.hotel_id === hotelId && entry.module_key === moduleKey && !entry.used_at && entry.expires_at > now) {
+          entry.expires_at = expiresAt;
+          changes += 1;
+        }
+      });
+      return d1Result(changes);
+    }
+
+    if (normalized.startsWith("insert into printer_enrollment_codes")) {
+      const [id, hotel_id, module_key, code_hash, expires_at, created_by_admin_user_id, created_by_erp_user_id, created_at, checkedHotelId, checkedModuleKey] = params;
+      if (this.data.printerDevices.some(
+        (entry) => entry.hotel_id === checkedHotelId && entry.module_key === checkedModuleKey && ["active", "paused"].includes(entry.status),
+      )) return d1Result(0);
+      this.data.printerEnrollmentCodes.push({
+        id,
+        hotel_id,
+        module_key,
+        code_hash,
+        expires_at,
+        created_by_admin_user_id,
+        created_by_erp_user_id,
+        used_by_device_id: null,
+        used_at: null,
+        created_at,
+      });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("insert into printer_devices") && normalized.includes("select ?")) {
+      const [id, name, token_hash, platform, app_version, printer_name, template_id, created_at, updated_at, last_seen_at, codeId, now] = params;
+      const code = this.data.printerEnrollmentCodes.find((entry) => entry.id === codeId && !entry.used_at && entry.expires_at > now);
+      if (!code) return d1Result(0);
+      if (this.data.printerDevices.some((entry) => entry.hotel_id === code.hotel_id && entry.module_key === code.module_key && ["active", "paused"].includes(entry.status))) {
+        return d1Result(0);
+      }
+      this.data.printerDevices.push({
+        id,
+        hotel_id: code.hotel_id,
+        module_key: code.module_key,
+        name,
+        token_hash,
+        platform,
+        app_version,
+        printer_name,
+        template_id,
+        status: "active",
+        created_at,
+        updated_at,
+        last_seen_at,
+        revoked_at: null,
+      });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update printer_enrollment_codes") && normalized.includes("used_by_device_id = ?")) {
+      const [deviceId, usedAt, codeId, now, expectedDeviceId, hotelId, moduleKey] = params;
+      const code = this.data.printerEnrollmentCodes.find((entry) => entry.id === codeId && !entry.used_at && entry.expires_at > now);
+      const device = this.data.printerDevices.find(
+        (entry) => entry.id === expectedDeviceId && entry.hotel_id === hotelId && entry.module_key === moduleKey && entry.status === "active",
+      );
+      if (!code || !device || device.id !== deviceId) return d1Result(0);
+      code.used_by_device_id = deviceId;
+      code.used_at = usedAt;
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update printer_devices set name = ?")) {
+      const [name, status, template_id, updated_at, statusCheck, revoked_at, deviceId, hotelId, moduleKey] = params;
+      const device = this.data.printerDevices.find(
+        (entry) => entry.id === deviceId && entry.hotel_id === hotelId && entry.module_key === moduleKey,
+      );
+      if (!device) return d1Result(0);
+      Object.assign(device, { name, status, template_id, updated_at, revoked_at: statusCheck === "revoked" ? revoked_at : null });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("delete from printer_devices")) {
+      const [deviceId, hotelId, moduleKey] = params;
+      const index = this.data.printerDevices.findIndex(
+        (entry) => entry.id === deviceId && entry.hotel_id === hotelId && entry.module_key === moduleKey && entry.status === "revoked",
+      );
+      if (index < 0) return d1Result(0);
+      this.data.printerDevices.splice(index, 1);
+      this.data.printerEnrollmentCodes.forEach((entry) => {
+        if (entry.used_by_device_id === deviceId) entry.used_by_device_id = null;
+      });
+      this.data.printEvents.forEach((entry) => {
+        if (entry.device_id === deviceId) entry.device_id = null;
+      });
+      return d1Result(1);
+    }
 
     if (normalized.startsWith("update spa_shared_profile")) {
       const [
@@ -3573,6 +3756,24 @@ class MockD1Database {
       return d1Result(1);
     }
 
+    if (normalized.startsWith("delete from catalog_items")) {
+      const [itemId, hotelId, moduleKey] = params;
+      const index = this.data.catalogItems.findIndex(
+        (entry) => entry.id === itemId && entry.hotel_id === hotelId && entry.module_key === moduleKey,
+      );
+      if (index < 0) return d1Result(0);
+      this.data.catalogItems.splice(index, 1);
+      this.data.availability = this.data.availability.filter(
+        (entry) => entry.catalog_item_id !== itemId || entry.hotel_id !== hotelId,
+      );
+      this.data.orderItems.forEach((entry) => {
+        if (entry.catalog_item_id === itemId && entry.hotel_id === hotelId && entry.module_key === moduleKey) {
+          entry.catalog_item_id = null;
+        }
+      });
+      return d1Result(1);
+    }
+
     if (normalized.startsWith("update admin_users") && normalized.includes("set display_name = ?")) {
       const [display_name, email, updated_at, id] = params;
       const user = this.data.adminUsers.find((entry) => entry.id === id);
@@ -4044,6 +4245,66 @@ class MockD1Database {
     }
 
     if (normalized.startsWith("insert into admin_audit_log")) {
+      if (normalized.includes(" from printer_enrollment_codes pec ")) {
+        const [id, actor_user_id, actor_erp_user_id, metadata_json, created_at, enrollmentId, hotelId, moduleKey] = params;
+        const enrollment = this.data.printerEnrollmentCodes.find(
+          (entry) => entry.id === enrollmentId && entry.hotel_id === hotelId && entry.module_key === moduleKey,
+        );
+        if (!enrollment) return d1Result(0);
+        this.data.adminAuditLog.push({
+          id,
+          hotel_id: enrollment.hotel_id,
+          module_key: enrollment.module_key,
+          actor_user_id,
+          actor_erp_user_id,
+          action: "room-service.printer.enrollment.created",
+          entity_type: "printer_enrollment_code",
+          entity_id: enrollment.id,
+          metadata_json,
+          created_at,
+        });
+        return d1Result(1);
+      }
+      if (normalized.includes(" from printer_devices pd ")) {
+        const [id, actor_user_id, actor_erp_user_id, metadata_json, created_at, deviceId, hotelId, moduleKey] = params;
+        const device = this.data.printerDevices.find(
+          (entry) => entry.id === deviceId && entry.hotel_id === hotelId && entry.module_key === moduleKey && entry.status === "revoked",
+        );
+        if (!device) return d1Result(0);
+        this.data.adminAuditLog.push({
+          id,
+          hotel_id: device.hotel_id,
+          module_key: device.module_key,
+          actor_user_id,
+          actor_erp_user_id,
+          action: "room-service.printer.device.deleted",
+          entity_type: "printer_device",
+          entity_id: device.id,
+          metadata_json,
+          created_at,
+        });
+        return d1Result(1);
+      }
+      if (normalized.includes(" from catalog_items ci ")) {
+        const [id, actor_user_id, actor_erp_user_id, metadata_json, created_at, itemId, hotelId, moduleKey] = params;
+        const item = this.data.catalogItems.find(
+          (entry) => entry.id === itemId && entry.hotel_id === hotelId && entry.module_key === moduleKey,
+        );
+        if (!item) return d1Result(0);
+        this.data.adminAuditLog.push({
+          id,
+          hotel_id: item.hotel_id,
+          module_key: item.module_key,
+          actor_user_id,
+          actor_erp_user_id,
+          action: "room-service.catalog_item.deleted",
+          entity_type: "catalog_item",
+          entity_id: item.id,
+          metadata_json,
+          created_at,
+        });
+        return d1Result(1);
+      }
       if (normalized.includes(" from orders o ")) {
         const [
           id,

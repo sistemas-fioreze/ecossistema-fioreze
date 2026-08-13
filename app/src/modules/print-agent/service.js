@@ -69,19 +69,31 @@ export async function enrollPrintAgent({ request, env }) {
        )
        SELECT ?, pec.hotel_id, pec.module_key, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?
          FROM printer_enrollment_codes pec
-        WHERE pec.id = ? AND pec.used_at IS NULL AND pec.expires_at > ?`,
+        WHERE pec.id = ? AND pec.used_at IS NULL AND pec.expires_at > ?
+          AND NOT EXISTS (
+            SELECT 1
+              FROM printer_devices pd
+             WHERE pd.hotel_id = pec.hotel_id
+               AND pd.module_key = pec.module_key
+               AND pd.status IN ('active', 'paused')
+          )`,
       [deviceId, name, tokenHash, platform, appVersion, printerName, code.template_id, now, now, now, code.id, now],
     ),
     statement(
       env,
       `UPDATE printer_enrollment_codes
           SET used_by_device_id = ?, used_at = ?
-        WHERE id = ? AND used_at IS NULL AND expires_at > ?`,
-      [deviceId, now, code.id, now],
+        WHERE id = ? AND used_at IS NULL AND expires_at > ?
+          AND EXISTS (
+            SELECT 1
+              FROM printer_devices pd
+             WHERE pd.id = ? AND pd.hotel_id = ? AND pd.module_key = ? AND pd.status = 'active'
+          )`,
+      [deviceId, now, code.id, now, deviceId, code.hotel_id, MODULE_KEY],
     ),
   ]);
   if (Number(results?.[0]?.meta?.changes || 0) !== 1 || Number(results?.[1]?.meta?.changes || 0) !== 1) {
-    throw conflict("Codigo de conexao ja utilizado.");
+    throw conflict("Esta unidade ja possui um servidor de impressao vinculado.");
   }
   return {
     device: { id: deviceId, hotel_id: code.hotel_id, name, status: "active", template_id: code.template_id },

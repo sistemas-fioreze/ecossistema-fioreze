@@ -195,6 +195,37 @@ test("editor rejeita imagem de outro hotel", async () => {
   assert.equal(env.__data.catalogItems.some((entry) => entry.name === "Item isolado"), false);
 });
 
+test("editor exclui item do cardapio e preserva o snapshot do pedido", async () => {
+  const { env, json } = createWorkerTestContext();
+  const cookie = await createSessionCookie(env);
+  env.__data.orderItems.push({
+    id: "order-item-history-demo",
+    order_id: "order-history-demo",
+    hotel_id: "muller-fioreze",
+    module_key: "room-service",
+    catalog_item_id: "muller-sandwich",
+    item_name: "Sanduiche Demo",
+    quantity: 2,
+    unit_price_cents: 2500,
+    line_total_cents: 5000,
+  });
+
+  const removed = await json(
+    "/api/v1/admin/room-service/catalog/items/muller-sandwich",
+    adminJson(cookie, "DELETE", { hotel_id: "muller-fioreze" }),
+  );
+  const historicalItem = env.__data.orderItems.find((entry) => entry.id === "order-item-history-demo");
+
+  assert.equal(removed.response.status, 200);
+  assert.equal(removed.body.data.deleted, true);
+  assert.equal(env.__data.catalogItems.some((entry) => entry.id === "muller-sandwich"), false);
+  assert.equal(env.__data.availability.some((entry) => entry.catalog_item_id === "muller-sandwich"), false);
+  assert.equal(historicalItem.catalog_item_id, null);
+  assert.equal(historicalItem.item_name, "Sanduiche Demo");
+  assert.equal(historicalItem.line_total_cents, 5000);
+  assert.ok(env.__data.adminAuditLog.some((entry) => entry.action === "room-service.catalog_item.deleted"));
+});
+
 test("usuario operacional troca avatar e senha com minimo de quatro caracteres", async () => {
   const { env, json } = createWorkerTestContext();
   const cookie = await createErpSessionCookie(env);
@@ -272,6 +303,9 @@ test("acabamento visual preserva dashboard legado e ativa recursos operacionais"
   assert.match(script, /function installPdvInterface\(\)/);
   assert.doesNotMatch(script, /classList\.add\("pdv-collapsed"\)/);
   assert.match(script, /renderCatalogImagePicker/);
+  assert.match(script, /deleteCatalogItemButton/);
+  assert.match(script, /data-delete-printer-device/);
+  assert.match(script, /can_create_enrollment/);
   assert.match(script, /renderOperationSettings/);
   assert.match(script, /renderRoomSettings/);
   assert.match(script, /byId\("dashDate", false\)\?\.addEventListener/);
