@@ -29,9 +29,6 @@ export const desktop = {
   restartPrintAgent() {
     return window.fiorezeDesktop?.restartPrintAgent?.() || Promise.resolve({ ok: false, action: "browser" });
   },
-  openPrintManager() {
-    return window.fiorezeDesktop?.openPrintManager?.() || Promise.resolve({ ok: false, action: "browser" });
-  },
   updateState() {
     return window.fiorezeDesktop?.getUpdateState?.() || Promise.resolve({ status: "unsupported" });
   },
@@ -92,15 +89,7 @@ export async function setupDesktopControls(root = document) {
     root.getElementById("desktopClose")?.addEventListener("click", () => desktop.close());
   }
   root.getElementById("desktopReload")?.addEventListener("click", () => desktop.reload());
-  root.getElementById("desktopPrintManager")?.addEventListener("click", async () => {
-    const button = root.getElementById("desktopPrintManager");
-    button?.setAttribute("aria-busy", "true");
-    try {
-      await desktop.openPrintManager();
-    } finally {
-      button?.removeAttribute("aria-busy");
-    }
-  });
+  installDesktopPrintStatus(root);
   syncDesktopPrintStatus(root);
   window.setInterval(() => syncDesktopPrintStatus(root), 10_000);
   installDesktopUpdater(root);
@@ -182,16 +171,111 @@ async function syncDesktopPrintStatus(root) {
   if (!button) return;
   try {
     const status = await desktop.printAgentStatus();
-    const state = status?.running ? "online" : status?.installed ? "offline" : "not-installed";
+    const configured = isPrintServerComputer(status);
+    const state = status?.running ? "online" : configured ? "offline" : "not-configured";
     button.dataset.state = state;
     button.title = status?.running
       ? `Impressao conectada: ${status.printer_name || "impressora configurada"}`
-      : status?.installed
-        ? "Abrir gerenciador de impressao"
-        : "Fioreze Suite ainda nao instalada";
+      : configured
+        ? "Consultar o servidor de impressao deste computador"
+        : "Consultar o status da impressao";
     const label = button.querySelector("span");
     if (label) label.textContent = status?.running ? "Impressao online" : "Impressao";
+    renderDesktopPrintStatus(root, status);
   } catch {
     button.dataset.state = "offline";
   }
+}
+
+function installDesktopPrintStatus(root) {
+  const modal = root.getElementById("printManagerModal");
+  const openButton = root.getElementById("desktopPrintManager");
+  const refreshButton = root.getElementById("desktopPrintRefresh");
+  const restartButton = root.getElementById("desktopPrintRestart");
+  if (!modal || !openButton) return;
+
+  const close = () => {
+    modal.classList.add("hidden");
+    openButton.focus();
+  };
+  const refresh = () => syncDesktopPrintStatus(root);
+
+  openButton.addEventListener("click", async () => {
+    modal.classList.remove("hidden");
+    openButton.setAttribute("aria-busy", "true");
+    try {
+      await refresh();
+    } finally {
+      openButton.removeAttribute("aria-busy");
+      modal.querySelector("[data-print-status-close]")?.focus();
+    }
+  });
+  modal.addEventListener("click", (event) => {
+    if (event.target === modal) close();
+  });
+  modal.querySelector("[data-print-status-close]")?.addEventListener("click", close);
+  refreshButton?.addEventListener("click", refresh);
+  restartButton?.addEventListener("click", async () => {
+    restartButton.disabled = true;
+    restartButton.setAttribute("aria-busy", "true");
+    try {
+      const result = await desktop.restartPrintAgent();
+      const message = root.getElementById("desktopPrintStatusMessage");
+      if (message) {
+        message.textContent = result?.ok
+          ? "Reinício solicitado ao servidor de impressão deste computador."
+          : result?.action === "not_configured"
+            ? "Este computador usa somente o ERP e não executa o servidor de impressão."
+            : "Não foi possível reiniciar o servidor de impressão.";
+      }
+      window.setTimeout(refresh, 1800);
+    } finally {
+      restartButton.removeAttribute("aria-busy");
+    }
+  });
+  root.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !modal.classList.contains("hidden")) close();
+  });
+}
+
+function renderDesktopPrintStatus(root, status = {}) {
+  const configured = isPrintServerComputer(status);
+  const running = Boolean(status?.running);
+  const pill = root.getElementById("desktopPrintStatusPill");
+  const message = root.getElementById("desktopPrintStatusMessage");
+  const restart = root.getElementById("desktopPrintRestart");
+  const values = {
+    desktopPrintRole: configured ? "Servidor de impressão" : "Somente ERP",
+    desktopPrintDevice: status?.device_name || "Este computador",
+    desktopPrintPrinter: configured ? status?.printer_name || "Não informada" : "Não configurada",
+    desktopPrintVersion: status?.app_version || "-",
+    desktopPrintUpdatedAt: formatDesktopTimestamp(status?.updated_at),
+  };
+  Object.entries(values).forEach(([id, value]) => {
+    const element = root.getElementById(id);
+    if (element) element.textContent = value;
+  });
+  if (pill) {
+    pill.className = `desktop-print-status-pill ${running ? "online" : configured ? "offline" : "erp-only"}`;
+    pill.textContent = running ? "Online" : configured ? "Sem resposta" : "Somente ERP";
+  }
+  if (message) {
+    message.textContent = running
+      ? status?.message || "Aguardando novos pedidos."
+      : configured
+        ? status?.message || "O servidor de impressão não respondeu recentemente."
+        : "Nenhum servidor de impressão será iniciado neste computador.";
+  }
+  if (restart) restart.disabled = !configured;
+}
+
+function isPrintServerComputer(status = {}) {
+  if (typeof status?.configured === "boolean") return status.configured;
+  return Boolean(status?.running || status?.device_id || status?.hotel_id);
+}
+
+function formatDesktopTimestamp(value) {
+  const timestamp = Date.parse(String(value || ""));
+  if (!Number.isFinite(timestamp)) return "Sem atividade recente";
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "medium" }).format(new Date(timestamp));
 }

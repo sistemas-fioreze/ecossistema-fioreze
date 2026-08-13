@@ -80,7 +80,6 @@ window.fiorezeDesktop = {
   getWindowAppearance,
   getPrintAgentStatus,
   restartPrintAgent,
-  openPrintManager,
   getUpdateState,
   checkForUpdates,
   downloadAndInstallUpdate,
@@ -106,10 +105,11 @@ necessaria.
 - Nao ha tentativa de simular Mica, Acrylic ou Fluent com APIs nativas ou CSS.
 
 O status e lido de `%LOCALAPPDATA%\Fioreze\PrintAgent\runtime-status.json`, que
-contem apenas dados operacionais sanitizados. Se o agente estiver parado, somente
-`%LOCALAPPDATA%\Fioreze\Suite\Fioreze-Suite.exe --tray` pode ser iniciado.
-Quando o gerenciador ja esta em execucao, o ERP grava apenas `show.request` para
-trazer a janela existente para frente, evitando agentes concorrentes.
+contem apenas dados operacionais sanitizados. A tela de impressao fica dentro do
+ERP e nunca inicia o agente apenas por ser aberta. O reinicio somente fica
+disponivel quando o computador possui uma configuracao valida em
+`%LOCALAPPDATA%\Fioreze\PrintAgent\config.json`; em computadores usados apenas
+para o ERP, a acao permanece desabilitada e nenhum segundo servidor e iniciado.
 
 ## Build Windows
 

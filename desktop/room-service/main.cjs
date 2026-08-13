@@ -3,7 +3,7 @@
 const { app, BrowserWindow, ipcMain, screen, shell } = require("electron");
 const { autoUpdater } = require("electron-updater");
 const path = require("node:path");
-const { openPrintManager, readErpConfiguration, readPrintAgentStatus, restartPrintAgent, suitePaths } = require("./runtime.cjs");
+const { readErpConfiguration, readPrintAgentStatus, restartPrintAgent, suitePaths } = require("./runtime.cjs");
 const {
   buildWindowChromeOptions,
   publicWindowChrome,
@@ -157,10 +157,6 @@ function registerWindowControls() {
   ipcMain.handle("fioreze:print-agent:restart", (event) => {
     assertTrustedSender(event);
     return restartPrintAgent();
-  });
-  ipcMain.handle("fioreze:print-agent:open", (event) => {
-    assertTrustedSender(event);
-    return openPrintManager();
   });
 }
 

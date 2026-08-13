@@ -15,7 +15,6 @@ contextBridge.exposeInMainWorld(
     getWindowAppearance: () => ipcRenderer.invoke("fioreze:window:appearance"),
     getPrintAgentStatus: () => ipcRenderer.invoke("fioreze:print-agent:status"),
     restartPrintAgent: () => ipcRenderer.invoke("fioreze:print-agent:restart"),
-    openPrintManager: () => ipcRenderer.invoke("fioreze:print-agent:open"),
     getUpdateState: () => ipcRenderer.invoke("fioreze:update:state"),
     checkForUpdates: () => ipcRenderer.invoke("fioreze:update:check"),
     downloadAndInstallUpdate: () => ipcRenderer.invoke("fioreze:update:download-install"),

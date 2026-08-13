@@ -48,7 +48,7 @@ test("unconfigured window keeps local controls and does not embed remote code", 
 test("preload exposes only the approved desktop bridge", () => {
   const preload = read("preload.cjs");
   assert.match(preload, /contextBridge\.exposeInMainWorld\(\s*"fiorezeDesktop"/);
-  for (const key of ["isElectron", "minimize", "toggleMaximize", "close", "reload", "capturePage", "getWindowState", "getWindowAppearance", "getPrintAgentStatus", "restartPrintAgent", "openPrintManager", "getUpdateState", "checkForUpdates", "downloadAndInstallUpdate", "deferUpdate", "onUpdateState", "platform", "version"]) {
+  for (const key of ["isElectron", "minimize", "toggleMaximize", "close", "reload", "capturePage", "getWindowState", "getWindowAppearance", "getPrintAgentStatus", "restartPrintAgent", "getUpdateState", "checkForUpdates", "downloadAndInstallUpdate", "deferUpdate", "onUpdateState", "platform", "version"]) {
     assert.match(preload, new RegExp(`${key}\\s*:`));
   }
   assert.doesNotMatch(preload, /fs|child_process|exec|spawn|token|password|secret/i);
@@ -68,10 +68,11 @@ test("local print integration exposes fixed actions instead of arbitrary executi
   const runtime = read("runtime.cjs");
   assert.match(main, /fioreze:print-agent:status/);
   assert.match(main, /fioreze:print-agent:restart/);
-  assert.match(main, /fioreze:print-agent:open/);
   assert.match(runtime, /Fioreze-Suite\.exe/);
-  assert.match(runtime, /show\.request/);
+  assert.match(runtime, /PrintAgent["'], ["']config\.json/);
+  assert.match(runtime, /not_configured/);
   assert.match(runtime, /shell:\s*false/);
+  assert.doesNotMatch(main, /fioreze:print-agent:open/);
   assert.doesNotMatch(runtime, /exec\(|execFile\(|shell:\s*true|cmd\.exe|powershell/i);
 });
 
