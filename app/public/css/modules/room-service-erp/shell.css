@@ -243,7 +243,7 @@ body[data-erp="room-service"] {
   position: fixed;
   inset: 0 0 auto;
   z-index: 100000;
-  height: 40px;
+  height: var(--erp-desktop-titlebar-height, 44px);
   display: flex;
   align-items: stretch;
   justify-content: space-between;
@@ -302,17 +302,17 @@ body[data-erp="room-service"] {
 }
 
 body[data-fioreze-desktop="electron"] {
-  padding-top: 40px;
+  padding-top: var(--erp-desktop-titlebar-height, 44px);
   box-sizing: border-box;
 }
 
 body[data-fioreze-desktop="electron"] .app-shell {
-  height: calc(100vh - 40px) !important;
+  height: calc(100dvh - var(--erp-desktop-titlebar-height, 44px)) !important;
   min-height: 0 !important;
 }
 
 body[data-fioreze-desktop="electron"] #loginOverlay {
-  top: 40px !important;
+  top: var(--erp-desktop-titlebar-height, 44px) !important;
 }
 
 body[data-fioreze-desktop="electron"] .rs-window-controls {
