@@ -222,15 +222,52 @@ def schedule_update_install(downloaded_file, current_pid=None, target=INSTALLED_
     return command
 
 
+def bootstrap_installed_suite(
+    executable=None,
+    installed_executable=INSTALLED_EXE,
+    frozen=None,
+    directory=UPDATE_DIRECTORY,
+    scheduler=schedule_update_install,
+):
+    current = Path(executable or sys.executable)
+    installed = Path(installed_executable)
+    is_frozen = getattr(sys, "frozen", False) if frozen is None else frozen
+    if not is_frozen:
+        return False
+    try:
+        if current.resolve() == installed.resolve():
+            return False
+    except OSError as error:
+        raise UpdateError("Nao foi possivel identificar a instalacao atual.") from error
+    if not current.is_file():
+        raise UpdateError("O instalador do Fioreze Suite nao foi encontrado.")
+    update_directory = Path(directory)
+    update_directory.mkdir(parents=True, exist_ok=True)
+    staged = update_directory / f"Fioreze-Suite-{APP_VERSION}-bootstrap.exe"
+    try:
+        shutil.copy2(current, staged)
+    except OSError as error:
+        raise UpdateError("Nao foi possivel preparar a atualizacao local.") from error
+    if current.stat().st_size != staged.stat().st_size or _file_sha256(current) != _file_sha256(staged):
+        staged.unlink(missing_ok=True)
+        raise UpdateError("A verificacao da atualizacao local falhou.")
+    scheduler(staged, target=installed)
+    return True
+
+
 def _verified_file(path, manifest):
     target = Path(path)
     if not target.is_file() or target.stat().st_size != manifest["size_bytes"]:
         return False
+    return _file_sha256(target) == manifest["sha256"]
+
+
+def _file_sha256(path):
     digest = hashlib.sha256()
-    with target.open("rb") as stream:
+    with Path(path).open("rb") as stream:
         while chunk := stream.read(DOWNLOAD_CHUNK_BYTES):
             digest.update(chunk)
-    return digest.hexdigest() == manifest["sha256"]
+    return digest.hexdigest()
 
 
 def _validate_response_url(response, expected_url):
@@ -254,6 +291,15 @@ while ((Get-Process -Id $CurrentPid -ErrorAction SilentlyContinue) -and (Get-Dat
   Start-Sleep -Milliseconds 350
 }
 if (Get-Process -Id $CurrentPid -ErrorAction SilentlyContinue) { exit 2 }
+$installedProcesses = Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -eq $Target }
+foreach ($process in $installedProcesses) {
+  Stop-Process -Id $process.ProcessId -Force -ErrorAction SilentlyContinue
+}
+$stopDeadline = (Get-Date).AddSeconds(20)
+while ((Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -eq $Target }) -and (Get-Date) -lt $stopDeadline) {
+  Start-Sleep -Milliseconds 250
+}
+if (Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -eq $Target }) { exit 3 }
 $targetDirectory = Split-Path -Parent $Target
 $next = "$Target.next"
 $backup = "$Target.previous"

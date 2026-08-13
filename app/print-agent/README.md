@@ -93,3 +93,8 @@ computador. Antes de substituir o executavel instalado, o agente valida nome,
 versao, limite de tamanho e SHA-256. A troca ocorre depois do encerramento do
 processo e reinicia o agente na bandeja; o token e a configuracao local nao
 entram no manifesto nem no pacote baixado.
+
+Para computadores ainda na versao anterior ao OTA, basta abrir uma vez o novo
+`Fioreze-Suite.exe`: o bootstrap preserva o arquivo baixado, substitui somente a
+copia instalada em `%LOCALAPPDATA%\Fioreze\Suite` e reinicia o agente. Depois
+desse primeiro salto, as atualizacoes seguintes usam o fluxo OTA normal.
