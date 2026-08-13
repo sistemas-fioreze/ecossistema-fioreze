@@ -185,7 +185,7 @@ def can_self_update(executable=None, installed_executable=INSTALLED_EXE, frozen=
         return False
 
 
-def schedule_update_install(downloaded_file, current_pid=None, target=INSTALLED_EXE, script_path=None, popen=subprocess.Popen):
+def schedule_update_install(downloaded_file, target=INSTALLED_EXE, script_path=None, popen=subprocess.Popen):
     source = Path(downloaded_file).resolve()
     destination = Path(target).resolve()
     if not source.is_file() or source.suffix.lower() != ".exe":
@@ -201,20 +201,22 @@ def schedule_update_install(downloaded_file, current_pid=None, target=INSTALLED_
         "-NonInteractive",
         "-ExecutionPolicy",
         "Bypass",
-        "-WindowStyle",
-        "Hidden",
         "-File",
         str(script),
-        "-CurrentPid",
-        str(current_pid or os.getpid()),
         "-Source",
         str(source),
         "-Target",
         str(destination),
     ]
-    kwargs = {"close_fds": True, "shell": False}
+    kwargs = {
+        "close_fds": True,
+        "shell": False,
+        "stdin": subprocess.DEVNULL,
+        "stdout": subprocess.DEVNULL,
+        "stderr": subprocess.DEVNULL,
+    }
     if os.name == "nt":
-        kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS
+        kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
     try:
         popen(command, **kwargs)
     except OSError as error:
@@ -281,40 +283,47 @@ def _validate_response_url(response, expected_url):
 
 def _powershell_update_script():
     return """param(
-  [Parameter(Mandatory=$true)][int]$CurrentPid,
   [Parameter(Mandatory=$true)][string]$Source,
   [Parameter(Mandatory=$true)][string]$Target
 )
 $ErrorActionPreference = 'Stop'
-$deadline = (Get-Date).AddSeconds(120)
-while ((Get-Process -Id $CurrentPid -ErrorAction SilentlyContinue) -and (Get-Date) -lt $deadline) {
-  Start-Sleep -Milliseconds 350
-}
-if (Get-Process -Id $CurrentPid -ErrorAction SilentlyContinue) { exit 2 }
-$installedProcesses = Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -eq $Target }
-foreach ($process in $installedProcesses) {
-  Stop-Process -Id $process.ProcessId -Force -ErrorAction SilentlyContinue
-}
-$stopDeadline = (Get-Date).AddSeconds(20)
-while ((Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -eq $Target }) -and (Get-Date) -lt $stopDeadline) {
-  Start-Sleep -Milliseconds 250
-}
-if (Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -eq $Target }) { exit 3 }
 $targetDirectory = Split-Path -Parent $Target
+$updateDirectory = Split-Path -Parent $Source
+$log = Join-Path $updateDirectory 'last-update.log'
 $next = "$Target.next"
 $backup = "$Target.previous"
-New-Item -ItemType Directory -Force -Path $targetDirectory | Out-Null
-Copy-Item -LiteralPath $Source -Destination $next -Force
-if (Test-Path -LiteralPath $backup) { Remove-Item -LiteralPath $backup -Force }
-if (Test-Path -LiteralPath $Target) { Move-Item -LiteralPath $Target -Destination $backup -Force }
+
+function Write-UpdateLog([string]$Message) {
+  "$(Get-Date -Format o) $Message" | Add-Content -LiteralPath $log -Encoding UTF8
+}
+
 try {
+  New-Item -ItemType Directory -Force -Path $targetDirectory | Out-Null
+  New-Item -ItemType Directory -Force -Path $updateDirectory | Out-Null
+  Write-UpdateLog 'started'
+  $installedProcesses = @(Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -eq $Target })
+  foreach ($process in $installedProcesses) {
+    Stop-Process -Id $process.ProcessId -Force -ErrorAction SilentlyContinue
+  }
+  $stopDeadline = (Get-Date).AddSeconds(20)
+  while (@(Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -eq $Target }).Count -gt 0 -and (Get-Date) -lt $stopDeadline) {
+    Start-Sleep -Milliseconds 250
+  }
+  if (@(Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -eq $Target }).Count -gt 0) {
+    throw 'O agente instalado nao encerrou dentro do limite seguro.'
+  }
+  Copy-Item -LiteralPath $Source -Destination $next -Force
+  if (Test-Path -LiteralPath $backup) { Remove-Item -LiteralPath $backup -Force }
+  if (Test-Path -LiteralPath $Target) { Move-Item -LiteralPath $Target -Destination $backup -Force }
   Move-Item -LiteralPath $next -Destination $Target -Force
   Start-Process -FilePath $Target -ArgumentList '--tray' -WindowStyle Hidden
   Remove-Item -LiteralPath $Source -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $backup -Force -ErrorAction SilentlyContinue
+  Write-UpdateLog 'completed'
 } catch {
   if (Test-Path -LiteralPath $backup) { Move-Item -LiteralPath $backup -Destination $Target -Force }
-  throw
+  Write-UpdateLog "failed $($_.Exception.GetType().Name)"
+  exit 4
 }
 Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue
 """

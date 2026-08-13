@@ -120,17 +120,23 @@ class UpdaterTests(unittest.TestCase):
             script = base / "apply.ps1"
             command = schedule_update_install(
                 source,
-                current_pid=1234,
                 target=base / "Fioreze-Suite.exe",
                 script_path=script,
                 popen=lambda args, **kwargs: calls.append((args, kwargs)),
             )
             self.assertIn("-NonInteractive", command)
-            self.assertIn("-CurrentPid", command)
-            self.assertIn("1234", command)
-            self.assertIn("-LiteralPath", script.read_text(encoding="utf-8"))
-            self.assertIn("ExecutablePath -eq $Target", script.read_text(encoding="utf-8"))
+            self.assertNotIn("-WindowStyle", command)
+            self.assertNotIn("-CurrentPid", command)
+            script_source = script.read_text(encoding="utf-8")
+            self.assertNotIn("Get-Process -Id", script_source)
+            self.assertIn("-LiteralPath", script_source)
+            self.assertIn("ExecutablePath -eq $Target", script_source)
+            self.assertLess(script_source.index("Stop-Process"), script_source.index("Copy-Item"))
+            self.assertIn("last-update.log", script_source)
             self.assertFalse(calls[0][1]["shell"])
+            self.assertEqual(calls[0][1]["stdin"], -3)
+            self.assertEqual(calls[0][1]["stdout"], -3)
+            self.assertEqual(calls[0][1]["stderr"], -3)
 
     def test_external_package_stages_itself_without_removing_the_original(self):
         scheduled = []
