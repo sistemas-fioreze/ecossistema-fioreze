@@ -32,6 +32,7 @@ export async function createRoomServiceOrder({ request, env, tenant }) {
   const preparation = validatePreparation({ request, env, tenant, payload });
   const notesEnabled = tenant.settings?.[`${MODULE_KEY}.order_notes_enabled`] !== false;
   const guestName = requireString(payload.guest_name, "guest_name", { max: 120 });
+  const guestPhone = optionalString(payload.guest_phone, "guest_phone", { max: 40 });
   const roomCode = requireString(payload.room_code, "room_code", { max: 24 });
   const notes = optionalString(payload.notes, "notes", { max: 500 });
   const orderNote = optionalString(payload.order_note, "order_note", { max: 500 });
@@ -120,6 +121,7 @@ export async function createRoomServiceOrder({ request, env, tenant }) {
   const orderPublicId = createPublicId("rs");
   const createdAt = nowIso();
   const currency = tenant.currency || "BRL";
+  const guestSource = origin === "admin_pdv" ? "admin_pdv" : "public-web";
 
   const statements = [
     statement(
@@ -148,6 +150,47 @@ export async function createRoomServiceOrder({ request, env, tenant }) {
         createdAt,
         preparation.mode,
         preparation.scheduled_for,
+      ],
+    ),
+    statement(
+      env,
+      `INSERT INTO room_service_guest_directory (
+         id, hotel_id, module_key, room_id, room_code, guest_name, phone,
+         source, status, first_seen_at, last_seen_at, last_order_id,
+         archived_at, archived_by_admin_user_id, archived_by_erp_user_id,
+         created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, NULL, NULL, NULL, ?, ?)
+       ON CONFLICT(hotel_id, module_key, room_code) DO UPDATE SET
+         room_id = excluded.room_id,
+         guest_name = excluded.guest_name,
+         phone = CASE
+           WHEN room_service_guest_directory.guest_name = excluded.guest_name
+             AND excluded.phone IS NULL
+             THEN room_service_guest_directory.phone
+           ELSE excluded.phone
+         END,
+         source = excluded.source,
+         status = 'active',
+         last_seen_at = excluded.last_seen_at,
+         last_order_id = excluded.last_order_id,
+         archived_at = NULL,
+         archived_by_admin_user_id = NULL,
+         archived_by_erp_user_id = NULL,
+         updated_at = excluded.updated_at`,
+      [
+        createPublicId("guest"),
+        tenant.hotel_id,
+        MODULE_KEY,
+        room.id,
+        room.code,
+        guestName,
+        guestPhone || null,
+        guestSource,
+        createdAt,
+        createdAt,
+        orderId,
+        createdAt,
+        createdAt,
       ],
     ),
     statement(

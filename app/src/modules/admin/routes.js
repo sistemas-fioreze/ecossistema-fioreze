@@ -43,6 +43,7 @@ import {
   getRoomServiceErpOrder,
   listRoomServiceErpCatalog,
   listRoomServiceErpGuests,
+  archiveRoomServiceErpGuest,
   listRoomServiceErpOrders,
   updateRoomServiceErpOrderStatus,
 } from "./room-service-erp.js";
@@ -593,6 +594,11 @@ export function registerAdminRoutes(router) {
   router.get("/api/v1/admin/room-service/guests", async ({ request, env, url }) => {
     const session = await getCurrentRoomServiceErpSession({ request, env });
     return ok(await listRoomServiceErpGuests({ env, session, url }));
+  });
+
+  router.delete("/api/v1/admin/room-service/guests/:id", async ({ request, env, params }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(await archiveRoomServiceErpGuest({ request, env, session, guestId: params.id }));
   });
 
   router.get("/api/v1/admin/room-service/billing", async ({ request, env, url }) => {

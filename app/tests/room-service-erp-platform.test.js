@@ -91,6 +91,64 @@ test("ERP Room Service cria pedido PDV com origem administrativa sem print_event
   assert.equal(env.__data.printEvents.length, 0);
 });
 
+test("pedido confirmado alimenta diretorio do hotel e encerramento preserva pedidos", async () => {
+  const { env, json } = createWorkerTestContext();
+  const cookie = await createSessionCookie(env);
+  const firstOrder = await json(
+    "/api/v1/admin/room-service/orders",
+    withCookie(cookie, adminJson("POST", {
+      hotel_id: "muller-fioreze",
+      guest_name: "Hospede Diretorio",
+      guest_phone: "(00) 90000-0000",
+      room_code: "D-101",
+      items: [{ catalog_item_id: "muller-sandwich", quantity: 1, unit_price_cents: 2500 }],
+    })),
+  );
+  assert.equal(firstOrder.response.status, 201);
+
+  const secondOrder = await json(
+    "/api/v1/admin/room-service/orders",
+    withCookie(cookie, adminJson("POST", {
+      hotel_id: "muller-fioreze",
+      guest_name: "Hospede Diretorio",
+      room_code: "D-101",
+      items: [{ catalog_item_id: "muller-sandwich", quantity: 1, unit_price_cents: 2500 }],
+    })),
+  );
+  assert.equal(secondOrder.response.status, 201);
+
+  const directory = await json("/api/v1/admin/room-service/guests?hotel_id=muller-fioreze", withCookie(cookie));
+  assert.equal(directory.response.status, 200);
+  assert.equal(directory.body.data.guests.length, 1);
+  assert.equal(directory.body.data.guests[0].guest_name, "Hospede Diretorio");
+  assert.equal(directory.body.data.guests[0].phone, "(00) 90000-0000");
+  assert.equal(directory.body.data.guests[0].last_order_id, secondOrder.body.data.id);
+
+  env.__data.roomServiceGuestDirectory.push({
+    ...env.__data.roomServiceGuestDirectory[0],
+    id: "guest-aurora",
+    hotel_id: "aurora-demo",
+    room_code: "A-201",
+    room_id: "room-aurora-201",
+    guest_name: "Hospede Aurora",
+  });
+  assert.ok(directory.body.data.guests.every((guest) => guest.hotel_id === "muller-fioreze"));
+
+  const guestId = directory.body.data.guests[0].id;
+  const archived = await json(
+    `/api/v1/admin/room-service/guests/${encodeURIComponent(guestId)}`,
+    withCookie(cookie, adminJson("DELETE", { hotel_id: "muller-fioreze" })),
+  );
+  assert.equal(archived.response.status, 200);
+  assert.equal(archived.body.data.archived, true);
+  assert.equal(env.__data.orders.length, 2);
+  assert.equal(env.__data.roomServiceGuestDirectory.find((guest) => guest.id === guestId).status, "archived");
+  assert.equal(env.__data.adminAuditLog.filter((event) => event.action === "room-service.guest.stay_ended").length, 1);
+
+  const afterArchive = await json("/api/v1/admin/room-service/guests?hotel_id=muller-fioreze", withCookie(cookie));
+  assert.deepEqual(afterArchive.body.data.guests, []);
+});
+
 test("ERP Room Service preserva isolamento para usuario de outro hotel", async () => {
   const { env, json } = createWorkerTestContext();
   const cookie = await createErpSessionCookie(env, "erp-user-aurora-1");

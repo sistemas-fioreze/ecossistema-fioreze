@@ -185,6 +185,39 @@
   display: none !important;
 }
 
+.rs-remember-guest {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 2px 0 14px;
+  color: #5f6670;
+  font-size: 0.76rem;
+}
+
+.rs-remember-guest label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.rs-remember-guest input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--rs-primary);
+}
+
+.rs-remember-guest button {
+  border: 0;
+  padding: 4px 0;
+  color: var(--rs-primary);
+  background: transparent;
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
 .rs-recent-orders {
   display: grid;
   gap: 10px;

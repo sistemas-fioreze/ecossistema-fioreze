@@ -672,6 +672,7 @@ function createFixtureData() {
     orders: [],
     orderItems: [],
     orderStatusHistory: [],
+    roomServiceGuestDirectory: [],
     printEvents: [],
     printerTemplates: [
       {
@@ -1096,6 +1097,13 @@ class MockD1Database {
     if (normalized.includes("from rooms") && normalized.includes("where id = ? and hotel_id = ?")) {
       const [roomId, hotelId] = params;
       return this.data.rooms.find((entry) => entry.id === roomId && entry.hotel_id === hotelId) || null;
+    }
+
+    if (normalized.includes("from room_service_guest_directory") && normalized.includes("where id = ?")) {
+      const [guestId, hotelId, moduleKey] = params;
+      return this.data.roomServiceGuestDirectory.find(
+        (entry) => entry.id === guestId && entry.hotel_id === hotelId && entry.module_key === moduleKey,
+      ) || null;
     }
 
     if (normalized.includes("from rooms")) {
@@ -1801,6 +1809,18 @@ class MockD1Database {
       return this.data.rooms
         .filter((room) => room.hotel_id === hotelId && room.status === "active")
         .sort((a, b) => a.code.localeCompare(b.code));
+    }
+
+    if (normalized.includes("from room_service_guest_directory gd") && normalized.includes("gd.status = 'active'")) {
+      const [hotelId, moduleKey] = params;
+      return this.data.roomServiceGuestDirectory
+        .filter((entry) => entry.hotel_id === hotelId && entry.module_key === moduleKey && entry.status === "active")
+        .map((entry) => {
+          const room = this.data.rooms.find((candidate) => candidate.id === entry.room_id && candidate.hotel_id === hotelId) || {};
+          const order = this.data.orders.find((candidate) => candidate.id === entry.last_order_id && candidate.hotel_id === hotelId) || {};
+          return { ...entry, room_label: room.label || null, room_type: room.room_type || null, last_order_public_id: order.public_id || null };
+        })
+        .sort((left, right) => left.guest_name.localeCompare(right.guest_name) || left.room_code.localeCompare(right.room_code));
     }
 
     if (normalized.includes("from catalogs c") && normalized.includes("join hotels h") && normalized.includes("c.status = 'active'")) {
@@ -2692,6 +2712,60 @@ class MockD1Database {
         preparation_mode: preparation_mode || "now",
         scheduled_for: scheduled_for || null,
       });
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("insert into room_service_guest_directory")) {
+      const [id, hotel_id, module_key, room_id, room_code, guest_name, phone, source, first_seen_at, last_seen_at, last_order_id, created_at, updated_at] = params;
+      const existing = this.data.roomServiceGuestDirectory.find(
+        (entry) => entry.hotel_id === hotel_id && entry.module_key === module_key && entry.room_code === room_code,
+      );
+      if (existing) {
+        const preservedPhone = existing.guest_name === guest_name && phone == null ? existing.phone : phone;
+        Object.assign(existing, {
+          room_id,
+          guest_name,
+          phone: preservedPhone,
+          source,
+          status: "active",
+          last_seen_at,
+          last_order_id,
+          archived_at: null,
+          archived_by_admin_user_id: null,
+          archived_by_erp_user_id: null,
+          updated_at,
+        });
+      } else {
+        this.data.roomServiceGuestDirectory.push({
+          id,
+          hotel_id,
+          module_key,
+          room_id,
+          room_code,
+          guest_name,
+          phone,
+          source,
+          status: "active",
+          first_seen_at,
+          last_seen_at,
+          last_order_id,
+          archived_at: null,
+          archived_by_admin_user_id: null,
+          archived_by_erp_user_id: null,
+          created_at,
+          updated_at,
+        });
+      }
+      return d1Result(1);
+    }
+
+    if (normalized.startsWith("update room_service_guest_directory")) {
+      const [archived_at, archived_by_admin_user_id, archived_by_erp_user_id, updated_at, guestId, hotelId, moduleKey] = params;
+      const guest = this.data.roomServiceGuestDirectory.find(
+        (entry) => entry.id === guestId && entry.hotel_id === hotelId && entry.module_key === moduleKey && entry.status === "active",
+      );
+      if (!guest) return d1Result(0);
+      Object.assign(guest, { status: "archived", archived_at, archived_by_admin_user_id, archived_by_erp_user_id, updated_at });
       return d1Result(1);
     }
 
@@ -4245,6 +4319,26 @@ class MockD1Database {
     }
 
     if (normalized.startsWith("insert into admin_audit_log")) {
+      if (normalized.includes(" from room_service_guest_directory gd ")) {
+        const [id, actor_user_id, actor_erp_user_id, created_at, guestId, hotelId, moduleKey, targetUpdatedAt] = params;
+        const guest = this.data.roomServiceGuestDirectory.find(
+          (entry) => entry.id === guestId && entry.hotel_id === hotelId && entry.module_key === moduleKey && entry.status === "archived" && entry.updated_at === targetUpdatedAt,
+        );
+        if (!guest) return d1Result(0);
+        this.data.adminAuditLog.push({
+          id,
+          hotel_id: hotelId,
+          module_key: moduleKey,
+          actor_user_id,
+          actor_erp_user_id,
+          action: "room-service.guest.stay_ended",
+          entity_type: "room_service_guest",
+          entity_id: guestId,
+          metadata_json: JSON.stringify({ room_code: guest.room_code }),
+          created_at,
+        });
+        return d1Result(1);
+      }
       if (normalized.includes(" from printer_enrollment_codes pec ")) {
         const [id, actor_user_id, actor_erp_user_id, metadata_json, created_at, enrollmentId, hotelId, moduleKey] = params;
         const enrollment = this.data.printerEnrollmentCodes.find(
