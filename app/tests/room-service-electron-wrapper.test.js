@@ -151,6 +151,13 @@ test("settings stays available outside the ERP sidebar", () => {
   assert.match(legacyApp, /function switchTab\(route, \{ allowHidden = false \} = \{\}\)/);
   assert.match(entrypoint, /desktop-adapter\.js\?v=20260814-4/);
   assert.match(entrypoint, /legacy-app\.js\?v=20260814-4/);
-  assert.match(html, /design-system-v5\.css\?v=20260814-4/);
+  assert.match(html, /design-system-v5\.css\?v=20260814-5/);
   assert.match(html, /app\.js\?v=20260814-4/);
+});
+
+test("collapsed ERP navigation keeps the active item on a centered square tile", () => {
+  const css = read("app/public/css/modules/room-service-erp/design-system-v5.css");
+
+  assert.match(css, /sidebar-collapsed #navBar \{[\s\S]*?align-items:\s*center/);
+  assert.match(css, /sidebar-collapsed \.side-nav-btn \{[\s\S]*?width:\s*44px !important;[\s\S]*?height:\s*44px !important;[\s\S]*?border-radius:\s*12px !important/);
 });

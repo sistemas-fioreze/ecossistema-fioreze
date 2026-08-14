@@ -7063,6 +7063,25 @@ body[data-fioreze-desktop="electron"][data-window-controls="native"] .rs-window-
   }
 }
 
+/* Collapsed navigation keeps every icon on one stable square tile. */
+body[data-erp="room-service"].sidebar-collapsed #navBar {
+  align-items: center;
+  padding-inline: 0;
+}
+
+body[data-erp="room-service"].sidebar-collapsed .side-nav-btn {
+  width: 44px !important;
+  min-width: 44px !important;
+  max-width: 44px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  flex: 0 0 44px !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  margin-inline: auto;
+  border-radius: 12px !important;
+}
+
 body[data-erp="room-service"] .erp-pdv-total-value .erp-pdv-order-count {
   margin: 0;
   padding: 0;
