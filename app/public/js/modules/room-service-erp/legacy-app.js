@@ -44,7 +44,7 @@ import {
 } from "./api.js";
 import { desktop } from "./desktop-adapter.js";
 import { buildInterfaceViewport } from "./interface-viewport.js";
-import { bindPdvCheckoutActions } from "./pdv-actions.js";
+import { bindPdvCheckoutActions, bindPdvDropTarget, bindPdvProductDrag } from "./pdv-actions.js";
 import { ERP_APP_VERSION } from "./static-config.js";
 import { applyBrandTokens } from "./theme.js";
 import { evaluateServiceStatus } from "../room-service/service-status.js";
@@ -272,6 +272,10 @@ function bindStaticActions() {
   });
   byId("topSearchResults", false)?.addEventListener("click", handleTopSearchClick);
   byId("pdvMenuSearch")?.addEventListener("input", renderMenu);
+  bindPdvDropTarget({
+    target: document.querySelector(".erp-pdv-cart-section"),
+    onProductDrop: addToCart,
+  });
   byId("roomNumber", false)?.addEventListener("input", renderPdvRoomOptions);
   byId("roomNumber", false)?.addEventListener("focus", openPdvRoomOptions);
   byId("roomNumber", false)?.addEventListener("click", openPdvRoomOptions);
@@ -432,7 +436,7 @@ function installPdvInterface() {
         <label class="erp-pdv-field"><span>Local de entrega</span><select id="consumptionLocation"><option value="Acomodação">Entregar na acomodação</option><option value="Recepção">Consumo na recepção</option></select></label>
         <label class="erp-pdv-field"><span>Observações do pedido</span><textarea id="orderObs" placeholder="Preferências ou informações importantes"></textarea></label>
       </section>
-      <section class="erp-pdv-cart-section">
+      <section class="erp-pdv-cart-section" aria-label="Itens da comanda. Solte aqui um item do cardapio para adiciona-lo.">
         <div class="erp-pdv-section-title"><span>2</span><div><strong>Itens da comanda</strong><small>Revise quantidades e valores</small></div></div>
         <div id="cartItems" class="erp-pdv-cart-list scrollable"></div>
       </section>
@@ -1724,6 +1728,10 @@ function renderMenu() {
   setText("pdvMenuSummary", query ? `${itemCount} resultado${itemCount === 1 ? "" : "s"}` : `${itemCount} ${itemCount === 1 ? "item" : "itens"} no cardápio`);
   byId("menuContent").innerHTML = categories.length ? categories.map(menuCategory).join("") : '<div class="erp-pdv-empty-search"><strong>Nenhum item encontrado</strong><span>Tente buscar por outro nome ou categoria.</span></div>';
   byId("menuContent").querySelectorAll("[data-product-id]").forEach((button) => button.addEventListener("click", () => addToCart(button.dataset.productId)));
+  byId("menuContent").querySelectorAll("[data-drag-product-id]").forEach((card) => bindPdvProductDrag({
+    element: card,
+    productId: card.dataset.dragProductId,
+  }));
 }
 
 function menuCategory(category) {
@@ -1739,7 +1747,7 @@ function menuCard(item) {
   const image = safeImage(item.image_url || item.media_url);
   const tag = disabled ? "Indisponivel" : displayBusinessText(item.tag || item.category_name, "Cardapio");
   const name = displayBusinessText(item.name, "Item do cardapio");
-  return `<article class="erp-pdv-card fade-in" aria-disabled="${disabled}"><span class="erp-pdv-thumb">${image ? `<img src="${escapeAttr(image)}" alt="${escapeAttr(name)}">` : imagePlaceholderIcon()}</span><div class="erp-pdv-card-copy"><span class="erp-item-tag">${escapeHtml(tag)}</span><h3>${escapeHtml(name)}</h3><p>${escapeHtml(displayBusinessText(item.description, "Sem descrição"))}</p></div><div class="erp-pdv-card-action"><strong class="erp-pdv-price">${money(item.price_cents, item.currency)}</strong><button type="button" data-product-id="${escapeAttr(item.id)}" ${disabled ? "disabled" : ""} class="erp-pdv-add" aria-label="${disabled ? "Item indisponível" : `Adicionar ${escapeAttr(name)}`}">${plusIcon()} <span>${disabled ? "Indisponível" : "Adicionar"}</span></button></div></article>`;
+  return `<article class="erp-pdv-card fade-in" aria-disabled="${disabled}" ${disabled ? "" : `draggable="true" data-drag-product-id="${escapeAttr(item.id)}"`}><span class="erp-pdv-thumb">${image ? `<img src="${escapeAttr(image)}" alt="${escapeAttr(name)}">` : imagePlaceholderIcon()}</span><div class="erp-pdv-card-copy"><span class="erp-item-tag">${escapeHtml(tag)}</span><h3>${escapeHtml(name)}</h3><p>${escapeHtml(displayBusinessText(item.description, "Sem descrição"))}</p></div><div class="erp-pdv-card-action"><strong class="erp-pdv-price">${money(item.price_cents, item.currency)}</strong><button type="button" data-product-id="${escapeAttr(item.id)}" ${disabled ? "disabled" : ""} class="erp-pdv-add" aria-label="${disabled ? "Item indisponível" : `Adicionar ${escapeAttr(name)}`}">${plusIcon()} <span>${disabled ? "Indisponível" : "Adicionar"}</span></button></div></article>`;
 }
 
 function addToCart(productId) {
