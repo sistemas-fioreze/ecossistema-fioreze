@@ -1021,7 +1021,7 @@ function renderAccountSettings() {
 
 function renderAppearanceSettings() {
   const branding = state.context?.branding || {};
-  return `<button type="button" class="erp-back" data-settings-view="home">${settingsIcon("back")} Configuracoes</button><section class="erp-settings-detail"><div><p class="erp-panel-title">Aparencia da unidade</p><p class="erp-v3-subtitle">Identidade visual aplicada ao ERP.</p></div><div class="erp-settings-grid"><article class="erp-panel"><span class="erp-stat-label">Cor primaria</span><div style="width:52px;height:52px;border-radius:8px;background:var(--brand-primary);margin-top:12px"></div></article><article class="erp-panel"><span class="erp-stat-label">Fonte</span><strong class="erp-stat-value" style="font-size:18px;font-family:${escapeAttr(branding.font_family || "system-ui")}">${escapeHtml(branding.font_family || "Fonte padrao")}</strong></article><article class="erp-panel erp-appearance-scale"><span class="erp-stat-label">Escala da interface</span><strong>${state.interfaceScale}%</strong><input id="settingsScaleRange" type="range" min="85" max="115" step="5" value="${state.interfaceScale}"></article></div></section>`;
+  return `<button type="button" class="erp-back" data-settings-view="home">${settingsIcon("back")} Configuracoes</button><section class="erp-settings-detail"><div><p class="erp-panel-title">Aparencia da unidade</p><p class="erp-v3-subtitle">Identidade visual aplicada ao ERP.</p></div><div class="erp-settings-grid"><article class="erp-panel"><span class="erp-stat-label">Cor primaria</span><div style="width:52px;height:52px;border-radius:8px;background:var(--brand-primary);margin-top:12px"></div></article><article class="erp-panel"><span class="erp-stat-label">Tipografia operacional</span><strong class="erp-stat-value erp-ui-font-name">Inter Variable</strong></article><article class="erp-panel erp-appearance-scale"><span class="erp-stat-label">Escala da interface</span><strong>${state.interfaceScale}%</strong><input id="settingsScaleRange" type="range" min="85" max="115" step="5" value="${state.interfaceScale}"></article></div></section>`;
 }
 
 function renderNotificationSettings() {
@@ -1464,7 +1464,7 @@ function applyBranding(branding = {}, hotel = {}) {
   applyBrandTokens(root, branding.primary_color, branding.secondary_color);
   if (isHexColor(branding.background_color)) root.style.setProperty("--canvas", branding.background_color);
   if (isHexColor(branding.text_color)) root.style.setProperty("--ink", branding.text_color);
-  if (branding.font_family) root.style.setProperty("--hotel-font", String(branding.font_family).slice(0, 160));
+  root.style.removeProperty("--hotel-font");
   root.style.setProperty("--header-logo-scale", String(normalizeLogoScale(branding.header_logo_scale)));
   syncErpFavicon(safeImage(branding.favicon_url) || reducedLogo || horizontalLogo);
   document.title = `${name} | ERP Room Service`;

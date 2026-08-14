@@ -3,12 +3,28 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; font-src 'self'">
     <title>Fioreze ERP</title>
     <style>
+      @font-face {
+        font-family: "Inter";
+        src: url("./fonts/inter/InterVariable.woff2") format("woff2");
+        font-style: normal;
+        font-weight: 100 900;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: "Inter";
+        src: url("./fonts/inter/InterVariable-Italic.woff2") format("woff2");
+        font-style: italic;
+        font-weight: 100 900;
+        font-display: swap;
+      }
+      :root { --font-ui: "Inter", Arial, sans-serif; }
       * { box-sizing: border-box; }
       html, body { width: 100%; height: 100%; margin: 0; }
-      body { font-family: "Segoe UI", Arial, sans-serif; color: #202124; background: #f7f8fa; }
+      body, button { font-family: var(--font-ui); letter-spacing: normal; }
+      body { color: #202124; background: #f7f8fa; font-size: 14px; font-weight: 400; line-height: 1.5; }
       header { height: 44px; display: flex; align-items: stretch; justify-content: space-between; background: #f7f8fa; color: #202124; border-bottom: 1px solid #e2e6eb; user-select: none; }
       header strong { display: flex; align-items: center; gap: 9px; padding: 0 14px; font-size: 12px; -webkit-app-region: drag; }
       header strong::before { content: "F"; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 7px; color: #fff; background: #41464d; font-size: 12px; }
@@ -19,8 +35,8 @@
       svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.5; }
       main { height: calc(100% - 44px); display: grid; place-items: center; padding: 32px; text-align: center; background: #fff; border-top-left-radius: 14px; }
       section { max-width: 460px; padding: 34px; background: #fff; border: 1px solid #e2e6ea; }
-      .mark { width: 54px; height: 54px; display: grid; place-items: center; margin: 0 auto 22px; border-radius: 12px; background: #41464d; color: #fff; font-size: 24px; font-weight: 800; }
-      h1 { margin: 0 0 10px; font-size: 24px; letter-spacing: 0; }
+      .mark { width: 54px; height: 54px; display: grid; place-items: center; margin: 0 auto 22px; border-radius: 12px; background: #41464d; color: #fff; font-size: 24px; font-weight: 600; }
+      h1 { margin: 0 0 10px; font-size: 24px; font-weight: 600; letter-spacing: normal; }
       p { margin: 0; color: #69717c; font-size: 14px; line-height: 1.6; }
       body[data-window-controls="native"] header { padding-right: 138px; }
       body[data-window-controls="native"] nav { display: none; }

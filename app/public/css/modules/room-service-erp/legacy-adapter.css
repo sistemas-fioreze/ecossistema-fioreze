@@ -7,8 +7,8 @@
 }
 
 body[data-erp="room-service"] {
-  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  letter-spacing: 0;
+  font-family: var(--font-ui);
+  letter-spacing: normal;
 }
 
 .legacy-login-error {
@@ -16,7 +16,7 @@ body[data-erp="room-service"] {
   margin: -6px 0 8px;
   color: #dc2626;
   font-size: 11px;
-  font-weight: 800;
+  font-weight:600;
 }
 
 .legacy-toast-region {
@@ -38,7 +38,7 @@ body[data-erp="room-service"] {
   color: #444746;
   box-shadow: 0 18px 48px rgba(32, 33, 36, 0.16);
   font-size: 12px;
-  font-weight: 800;
+  font-weight:600;
 }
 
 .legacy-status-chip {
@@ -49,8 +49,8 @@ body[data-erp="room-service"] {
   border-radius: 999px;
   background: #f4f1ef;
   color: #513b2d;
-  font-size: 9px;
-  font-weight: 900;
+  font-size:12px;
+  font-weight:600;
   text-transform: uppercase;
 }
 
@@ -133,20 +133,20 @@ body[data-erp="room-service"] {
 }
 
 .erp-printer-code small {
-  font-size: 10px;
+  font-size:12px;
   text-transform: uppercase;
-  font-weight: 900;
+  font-weight:600;
   color: #7b828b;
 }
 
 .erp-printer-code strong {
   font-size: 24px;
-  letter-spacing: 2px;
+  letter-spacing: normal;
   color: var(--accent);
 }
 
 .erp-printer-code span {
-  font-size: 10px;
+  font-size:12px;
   color: #7b828b;
 }
 .legacy-dashboard-empty,
@@ -154,7 +154,7 @@ body[data-erp="room-service"] {
   padding: 28px;
   color: #9ca3af;
   font-size: 11px;
-  font-weight: 800;
+  font-weight:600;
   text-align: center;
   text-transform: uppercase;
 }
@@ -218,7 +218,7 @@ body[data-erp="room-service"] {
 
 html,
 body {
-  font-family: var(--hotel-font, Inter, system-ui, sans-serif) !important;
+  font-family: var(--font-ui) !important;
 }
 
 .login-logo[hidden],
@@ -267,8 +267,8 @@ body {
 .erp-user-card-head small {
   margin-top: 3px;
   color: #8b919a;
-  font-size: 10px;
-  font-weight: 800;
+  font-size:12px;
+  font-weight:600;
   text-transform: uppercase;
 }
 
@@ -283,8 +283,8 @@ body {
   border-radius: 6px;
   background: color-mix(in srgb, var(--accent) 8%, white);
   color: var(--accent);
-  font-size: 9px;
-  font-weight: 900;
+  font-size:12px;
+  font-weight:600;
 }
 
 .erp-user-card-actions {
@@ -334,7 +334,7 @@ body {
   border-radius: 50% !important;
   background: #f4f1ef !important;
   color: var(--accent);
-  font-weight: 900;
+  font-weight:600;
 }
 
 #erpUserForm {
@@ -348,8 +348,8 @@ body {
   display: grid;
   gap: 7px;
   color: #747b84;
-  font-size: 10px;
-  font-weight: 900;
+  font-size:12px;
+  font-weight:600;
   text-transform: uppercase;
 }
 
@@ -360,7 +360,7 @@ body {
   border-radius: 8px !important;
   padding: 0 12px;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: none;
 }
 
@@ -385,7 +385,7 @@ body {
   padding: 8px 10px;
   color: var(--ink);
   font-size: 11px;
-  font-weight: 800;
+  font-weight:600;
   text-transform: none;
 }
 

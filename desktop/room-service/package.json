@@ -28,6 +28,7 @@
       "window-chrome.cjs",
       "updater.cjs",
       "unconfigured.html",
+      "fonts/inter/**/*",
       "package.json"
     ],
     "win": {

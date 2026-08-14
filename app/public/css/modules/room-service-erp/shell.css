@@ -3,7 +3,7 @@ body[data-erp="room-service"] {
   background: var(--rs-canvas);
   color: var(--rs-text);
   font-family: var(--rs-font-family);
-  letter-spacing: 0;
+  letter-spacing: normal;
 }
 
 .rs-erp [hidden] {
@@ -40,7 +40,7 @@ body[data-erp="room-service"] {
   border-radius: var(--rs-radius-sm);
   background: var(--rs-accent);
   color: #fff;
-  font-weight: 950;
+  font-weight: 600;
 }
 
 .rs-login-card .rs-login-mark {
@@ -51,10 +51,10 @@ body[data-erp="room-service"] {
   margin: 0;
   color: var(--rs-muted);
   font-size: 0.72rem;
-  font-weight: 900;
+  font-weight:600;
   text-align: center;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: normal;
 }
 
 .rs-login-card h1 {
@@ -69,7 +69,7 @@ body[data-erp="room-service"] {
   gap: 6px;
   color: var(--rs-muted);
   font-size: 0.78rem;
-  font-weight: 900;
+  font-weight:600;
 }
 
 .rs-login-card input,
@@ -96,7 +96,7 @@ body[data-erp="room-service"] {
   border: 0;
   border-radius: var(--rs-radius-sm);
   font: inherit;
-  font-weight: 900;
+  font-weight:600;
   cursor: pointer;
 }
 
@@ -118,7 +118,7 @@ body[data-erp="room-service"] {
   min-height: 20px;
   margin: 0;
   color: var(--rs-danger);
-  font-weight: 800;
+  font-weight:600;
 }
 
 .rs-shell {
@@ -160,7 +160,7 @@ body[data-erp="room-service"] {
 
 .rs-brand-copy small {
   color: var(--rs-muted);
-  font-weight: 800;
+  font-weight:600;
 }
 
 .rs-shell.is-compact .rs-brand-copy,
@@ -185,7 +185,7 @@ body[data-erp="room-service"] {
   background: transparent;
   color: var(--rs-muted);
   font: inherit;
-  font-weight: 900;
+  font-weight:600;
   cursor: pointer;
 }
 
@@ -262,8 +262,8 @@ body[data-erp="room-service"] {
   align-items: center;
   padding: 0 14px;
   font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0;
+  font-weight:600;
+  letter-spacing: normal;
   -webkit-app-region: drag;
 }
 
@@ -327,7 +327,7 @@ body[data-fioreze-desktop="electron"] .rs-window-controls {
   background: var(--rs-surface);
   color: var(--rs-text);
   font: inherit;
-  font-weight: 900;
+  font-weight:600;
   cursor: pointer;
 }
 
@@ -377,14 +377,14 @@ body[data-fioreze-desktop="electron"] .rs-window-controls {
   margin-left: auto;
   color: var(--rs-muted);
   font-size: 0.72rem;
-  font-weight: 900;
+  font-weight:600;
 }
 
 .rs-account {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-weight: 900;
+  font-weight:600;
 }
 
 .rs-account button {
@@ -453,7 +453,7 @@ body[data-fioreze-desktop="electron"] .rs-window-controls {
   border-radius: var(--rs-radius-sm);
   background: var(--rs-accent);
   color: #fff;
-  font-weight: 900;
+  font-weight:600;
 }
 
 /* Visual parity layer: mirrors the sanitized legacy ERP shell without reusing
@@ -533,7 +533,7 @@ body[data-erp="room-service"] textarea {
   background: #f7f5ef;
   color: #202124;
   font-size: 1rem;
-  font-weight: 900;
+  font-weight:600;
   text-align: center;
 }
 
@@ -634,8 +634,8 @@ body[data-erp="room-service"] textarea {
   padding: 0 14px;
   color: #68707a;
   font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 0;
+  font-weight:600;
+  letter-spacing: normal;
   transition: background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
 }
 
@@ -681,7 +681,7 @@ body[data-erp="room-service"] textarea {
   color: #513b2d;
   font-size: 0.7rem;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: normal;
 }
 
 .rs-main {
@@ -734,13 +734,13 @@ body[data-erp="room-service"] textarea {
 .rs-unit-picker {
   color: #9aa1ad;
   font-size: 0.68rem;
-  font-weight: 900;
+  font-weight:600;
   min-width: 245px;
 }
 
 .rs-unit-picker label {
   text-transform: uppercase;
-  letter-spacing: 0.28em;
+  letter-spacing: normal;
 }
 
 .rs-unit-picker select {
@@ -750,7 +750,7 @@ body[data-erp="room-service"] textarea {
   background: transparent !important;
   color: #202124;
   font-size: 1.05rem;
-  font-weight: 950;
+  font-weight: 600;
   line-height: 1.1;
   appearance: none;
 }
@@ -774,7 +774,7 @@ body[data-erp="room-service"] textarea {
   border-color: #eceff1;
   padding-left: 14px;
   font-size: 0.78rem;
-  font-weight: 800;
+  font-weight:600;
 }
 
 .rs-account {
@@ -862,8 +862,8 @@ body[data-erp="room-service"] textarea {
   margin: 0;
   color: #202124;
   font-size: 1.55rem;
-  font-weight: 950;
-  letter-spacing: 0;
+  font-weight: 600;
+  letter-spacing: normal;
 }
 
 .rs-dashboard-head p,
@@ -871,7 +871,7 @@ body[data-erp="room-service"] textarea {
   margin: 4px 0 0;
   color: #7d8590;
   font-size: 0.78rem;
-  font-weight: 800;
+  font-weight:600;
 }
 
 .rs-date-pill,
@@ -886,7 +886,7 @@ body[data-erp="room-service"] textarea {
   background: #fff;
   color: #513b2d;
   font-size: 0.75rem;
-  font-weight: 950;
+  font-weight: 600;
 }
 
 .rs-dashboard-columns {
@@ -909,20 +909,20 @@ body[data-erp="room-service"] textarea {
 
 .rs-panel h1 {
   font-size: 1.5rem;
-  font-weight: 900;
-  letter-spacing: 0;
+  font-weight:600;
+  letter-spacing: normal;
 }
 
 .rs-panel h2,
 .rs-panel h3 {
-  font-weight: 900;
+  font-weight:600;
 }
 
 .rs-kicker {
   color: #9aa1ad;
   font-size: 0.66rem;
-  font-weight: 900;
-  letter-spacing: 0.22em;
+  font-weight:600;
+  letter-spacing: normal;
 }
 
 .rs-primary-button,
@@ -932,7 +932,7 @@ body[data-erp="room-service"] textarea {
   background: #513b2d;
   font-size: 0.72rem;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: normal;
 }
 
 .rs-status-chip {

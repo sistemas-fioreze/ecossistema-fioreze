@@ -10,6 +10,10 @@ const required = [
   "public/admin/room-service/index.html",
   "public/admin/portais/index.html",
   "public/erp/room-service/index.html",
+  "public/css/modules/room-service-erp/typography.css",
+  "public/fonts/inter/InterVariable.woff2",
+  "public/fonts/inter/InterVariable-Italic.woff2",
+  "public/fonts/inter/LICENSE.txt",
   "public/js/modules/admin/shared/admin-api.js",
   "public/js/modules/admin/shared/admin-auth-view.js",
   "public/js/modules/admin/shared/admin-select-picker.js",
@@ -153,5 +157,5 @@ function countOccurrences(content, value) {
 }
 
 function isBinaryPath(relative) {
-  return /\.(png|jpg|jpeg|gif|webp|ico|pdf|zip)$/i.test(relative);
+  return /\.(png|jpg|jpeg|gif|webp|ico|pdf|zip|woff2)$/i.test(relative);
 }
