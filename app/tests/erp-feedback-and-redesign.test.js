@@ -90,6 +90,7 @@ test("captura de feedback fica privada para o Administrador Dev", async () => {
 test("ERP publica PDV em lista, busca tematizada, feedback e captura descartavel", () => {
   const html = fs.readFileSync("public/erp/room-service/index.html", "utf8");
   const css = fs.readFileSync("public/css/modules/room-service-erp/erp-redesign.css", "utf8");
+  const finalCss = fs.readFileSync("public/css/modules/room-service-erp/design-system-v5.css", "utf8");
   const app = fs.readFileSync("public/js/modules/room-service-erp/legacy-app.js", "utf8");
   const messages = fs.readFileSync("public/js/modules/admin/admin-messages.js", "utf8");
 
@@ -99,6 +100,8 @@ test("ERP publica PDV em lista, busca tematizada, feedback e captura descartavel
   assert.match(css, /\.erp-cart-line/);
   assert.match(css, /#vendasContainer\.pdv-collapsed \.pdv-panel/);
   assert.match(css, /\.pdv-collapse-btn[\s\S]*display: none !important/);
+  assert.match(finalCss, /\.pdv-menu-head[\s\S]*background: #fff !important;[\s\S]*backdrop-filter: none !important/);
+  assert.match(finalCss, /\.erp-pdv-cart-section\.is-drag-over/);
   assert.match(css, /\.top-search-item\.active/);
   assert.match(css, /var\(--accent\)/);
   assert.match(css, /\.quick-tile\.print/);
@@ -106,6 +109,8 @@ test("ERP publica PDV em lista, busca tematizada, feedback e captura descartavel
   assert.match(app, /Algum problema\?/);
   assert.match(app, /Nova comanda/);
   assert.match(app, /Itens da comanda/);
+  assert.match(app, /data-drag-product-id/);
+  assert.match(app, /bindPdvDropTarget\(\{/);
   assert.doesNotMatch(app, /classList\.add\("pdv-collapsed"\)/);
   assert.match(app, /getDisplayMedia/);
   assert.match(app, /desktop\.capturePage\(\)/);
