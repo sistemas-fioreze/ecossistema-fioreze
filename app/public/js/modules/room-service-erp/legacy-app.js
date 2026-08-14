@@ -1384,7 +1384,7 @@ function configureAuthorizedNavigation(permissions) {
   setNavigationVisibility("btnTabHospedes", canGuests);
   setNavigationVisibility("btnTabFaturamento", canBilling);
   setNavigationVisibility("btnTabCardapio", canCatalog);
-  setNavigationVisibility("btnTabAdmin", true);
+  setNavigationVisibility("btnTabAdmin", false);
   byId("accountConfigButton").classList.remove("hidden");
 }
 

@@ -128,9 +128,16 @@ test("order details use the horizontal Electron workspace and live printing stat
 test("settings stays available outside the ERP sidebar", () => {
   const config = read("app/public/js/modules/room-service-erp/static-config.js");
   const shell = read("app/public/js/modules/room-service-erp/shell.js");
+  const legacyApp = read("app/public/js/modules/room-service-erp/legacy-app.js");
+  const entrypoint = read("app/public/js/modules/room-service-erp/app.js");
+  const html = read("app/public/erp/room-service/index.html");
   const css = read("app/public/css/modules/room-service-erp/design-system-v5.css");
 
   assert.match(config, /key:\s*"settings"[\s\S]*sidebar:\s*false/);
   assert.match(shell, /NAV_ITEMS\.filter\(\(item\) => item\.sidebar !== false\)/);
   assert.match(css, /#btnTabAdmin \{[\s\S]*display:\s*none !important/);
+  assert.match(legacyApp, /setNavigationVisibility\("btnTabAdmin", false\)/);
+  assert.match(entrypoint, /legacy-app\.js\?v=20260814-2/);
+  assert.match(html, /design-system-v5\.css\?v=20260814-2/);
+  assert.match(html, /app\.js\?v=20260814-2/);
 });
