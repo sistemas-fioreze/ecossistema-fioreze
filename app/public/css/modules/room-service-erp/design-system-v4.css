@@ -77,10 +77,10 @@ body[data-erp="room-service"].erp-design-system-v4 {
   overflow: hidden;
   background: var(--erp-bg) !important;
   color: var(--erp-text) !important;
-  font-family: var(--hotel-font, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif) !important;
+  font-family: var(--font-ui) !important;
   font-size: var(--erp-font-md);
   line-height: 1.45;
-  letter-spacing: 0 !important;
+  letter-spacing: normal;
   text-rendering: optimizeLegibility;
 }
 
@@ -88,7 +88,7 @@ body[data-erp="room-service"].erp-design-system-v4 *,
 body[data-erp="room-service"].erp-design-system-v4 *::before,
 body[data-erp="room-service"].erp-design-system-v4 *::after {
   box-sizing: border-box;
-  letter-spacing: 0 !important;
+  letter-spacing: normal;
 }
 
 body[data-erp="room-service"].erp-design-system-v4 :focus-visible {
@@ -164,8 +164,8 @@ body[data-erp="room-service"] .erp-nav-group-label {
   display: block;
   margin: 18px 11px 6px;
   color: var(--erp-text-muted);
-  font-size: 9px;
-  font-weight: 800;
+  font-size:12px;
+  font-weight:600;
   line-height: 1;
   text-transform: uppercase;
   white-space: nowrap;
@@ -190,7 +190,7 @@ body[data-erp="room-service"] .side-nav-btn {
   background: transparent !important;
   color: var(--erp-text-secondary) !important;
   font-size: var(--erp-font-sm) !important;
-  font-weight: 650 !important;
+  font-weight: 600 !important;
   text-align: left;
   transition: color var(--motion-fast) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard), padding var(--motion-slow) var(--ease-enter), gap var(--motion-slow) var(--ease-enter) !important;
 }
@@ -216,7 +216,7 @@ body[data-erp="room-service"] .side-nav-btn:hover {
 body[data-erp="room-service"] .side-nav-btn.tab-active {
   background: var(--brand-primary-subtle) !important;
   color: var(--brand-primary-text) !important;
-  font-weight: 750 !important;
+  font-weight: 600 !important;
 }
 
 body[data-erp="room-service"] .side-nav-btn.tab-active::before {
@@ -271,7 +271,7 @@ body[data-erp="room-service"].sidebar-collapsed .side-nav-btn::after {
   background: #20262d;
   color: #fff;
   font-size: 11px;
-  font-weight: 650;
+  font-weight: 600;
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
@@ -350,11 +350,11 @@ body[data-erp="room-service"] .app-topbar h1 {
   max-width: 250px;
   color: var(--erp-text) !important;
   font-size: 14px !important;
-  font-weight: 750 !important;
+  font-weight: 600 !important;
 }
 
 body[data-erp="room-service"] .app-topbar h1 + * {
-  letter-spacing: 0 !important;
+  letter-spacing: normal;
 }
 
 body[data-erp="room-service"] .top-search {
@@ -526,8 +526,8 @@ body[data-erp="room-service"] .erp-v4-eyebrow,
 body[data-erp="room-service"] .admin-kicker {
   margin: 0 0 5px !important;
   color: var(--brand-primary-text) !important;
-  font-size: 10px !important;
-  font-weight: 800 !important;
+  font-size:12px !important;
+  font-weight:600 !important;
   line-height: 1.2;
   text-transform: uppercase;
 }
@@ -538,7 +538,7 @@ body[data-erp="room-service"] .erp-dashboard-header h2 {
   margin: 0 !important;
   color: var(--erp-text) !important;
   font-size: clamp(25px, 2.4vw, 34px) !important;
-  font-weight: 760 !important;
+  font-weight: 600 !important;
   line-height: 1.1;
   text-transform: none !important;
 }
@@ -549,7 +549,7 @@ body[data-erp="room-service"] .erp-dashboard-header p:last-child {
   margin: 7px 0 0;
   color: var(--erp-text-secondary) !important;
   font-size: var(--erp-font-sm) !important;
-  font-weight: 450 !important;
+  font-weight: 400 !important;
   text-transform: none !important;
 }
 
@@ -572,8 +572,8 @@ body[data-erp="room-service"] .erp-billing-filters label {
   padding: 0 11px;
   background: #fff;
   color: var(--erp-text-muted);
-  font-size: 10px;
-  font-weight: 700;
+  font-size:12px;
+  font-weight: 600;
 }
 
 body[data-erp="room-service"] .erp-v4-date-field input,
@@ -585,7 +585,7 @@ body[data-erp="room-service"] .erp-billing-filters input {
   box-shadow: none !important;
   color: var(--erp-text) !important;
   font-size: var(--erp-font-sm) !important;
-  font-weight: 650 !important;
+  font-weight: 600 !important;
 }
 
 /* Buttons, fields and status */
@@ -597,7 +597,7 @@ body[data-erp="room-service"] :is(.admin-primary-btn, .erp-pdv-submit, .order-ac
   background: var(--brand-primary) !important;
   color: var(--brand-on-primary) !important;
   font-size: var(--erp-font-xs) !important;
-  font-weight: 750 !important;
+  font-weight: 600 !important;
   text-transform: none !important;
   transition: background-color var(--motion-fast) var(--ease-standard), transform var(--motion-fast) var(--ease-standard) !important;
 }
@@ -619,7 +619,7 @@ body[data-erp="room-service"] :is(.admin-secondary-btn, .erp-v4-icon-text-button
   color: var(--erp-text-secondary) !important;
   box-shadow: none !important;
   font-size: var(--erp-font-xs) !important;
-  font-weight: 700 !important;
+  font-weight: 600 !important;
   text-transform: none !important;
   transition: border-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard) !important;
 }
@@ -675,8 +675,8 @@ body[data-erp="room-service"] .erp-chip {
   padding: 0 9px !important;
   background: var(--erp-surface-muted) !important;
   color: var(--erp-text-secondary) !important;
-  font-size: 9px !important;
-  font-weight: 750 !important;
+  font-size:12px !important;
+  font-weight: 600 !important;
   text-transform: none !important;
 }
 
@@ -745,8 +745,8 @@ body[data-erp="room-service"] .erp-stat-icon {
 body[data-erp="room-service"] .erp-dashboard-kpi small,
 body[data-erp="room-service"] .erp-stat-label {
   color: var(--erp-text-muted) !important;
-  font-size: 10px !important;
-  font-weight: 750 !important;
+  font-size:12px !important;
+  font-weight: 600 !important;
   text-transform: none !important;
 }
 
@@ -754,7 +754,7 @@ body[data-erp="room-service"] .erp-dashboard-kpi strong,
 body[data-erp="room-service"] .erp-stat-value {
   color: var(--erp-text) !important;
   font-size: clamp(21px, 1.7vw, 28px) !important;
-  font-weight: 760 !important;
+  font-weight: 600 !important;
   font-variant-numeric: tabular-nums;
   line-height: 1.08;
 }
@@ -762,8 +762,8 @@ body[data-erp="room-service"] .erp-stat-value {
 body[data-erp="room-service"] .erp-dashboard-kpi em,
 body[data-erp="room-service"] .erp-stat-meta {
   color: var(--erp-text-secondary) !important;
-  font-size: 10px !important;
-  font-weight: 450 !important;
+  font-size:12px !important;
+  font-weight: 400 !important;
 }
 
 body[data-erp="room-service"] .erp-dashboard-analytics,
@@ -787,7 +787,7 @@ body[data-erp="room-service"] .erp-dashboard-section-head {
 body[data-erp="room-service"] .erp-dashboard-section-head span,
 body[data-erp="room-service"] .erp-panel-meta {
   color: var(--erp-text-muted) !important;
-  font-size: 9px !important;
+  font-size:12px !important;
   text-transform: uppercase;
 }
 
@@ -795,7 +795,7 @@ body[data-erp="room-service"] .erp-dashboard-section-head h3,
 body[data-erp="room-service"] .erp-panel-title {
   color: var(--erp-text) !important;
   font-size: 14px !important;
-  font-weight: 720 !important;
+  font-weight: 600 !important;
   text-transform: none !important;
 }
 
@@ -845,14 +845,14 @@ body[data-erp="room-service"] .erp-v4-section-header h3 {
   margin: 0;
   color: var(--erp-text);
   font-size: 14px;
-  font-weight: 720;
+  font-weight: 600;
 }
 
 body[data-erp="room-service"] .erp-v4-section-header p,
 body[data-erp="room-service"] .erp-v4-section-hint {
   margin: 3px 0 0;
   color: var(--erp-text-muted);
-  font-size: 10px;
+  font-size:12px;
 }
 
 body[data-erp="room-service"] .erp-v4-order-list {
@@ -883,8 +883,8 @@ body[data-erp="room-service"] .order-mini-card:hover {
 
 body[data-erp="room-service"] .mini-card-label {
   color: var(--erp-text-muted) !important;
-  font-size: 9px !important;
-  font-weight: 700 !important;
+  font-size:12px !important;
+  font-weight: 600 !important;
   text-transform: none !important;
 }
 
@@ -892,7 +892,7 @@ body[data-erp="room-service"] .mini-card-title,
 body[data-erp="room-service"] .mini-card-value {
   color: var(--erp-text) !important;
   font-size: 12px !important;
-  font-weight: 700 !important;
+  font-weight: 600 !important;
   text-transform: none !important;
 }
 
@@ -901,7 +901,7 @@ body[data-erp="room-service"] .mini-card-meta {
   align-items: center;
   gap: 8px;
   color: var(--erp-text-secondary) !important;
-  font-size: 10px !important;
+  font-size:12px !important;
 }
 
 body[data-erp="room-service"] .erp-v4-guest-grid {
@@ -988,8 +988,8 @@ body[data-erp="room-service"] th {
   height: 44px;
   padding: 0 13px !important;
   color: var(--erp-text-secondary) !important;
-  font-size: 10px !important;
-  font-weight: 750 !important;
+  font-size:12px !important;
+  font-weight: 600 !important;
   text-align: left;
   text-transform: none !important;
 }
@@ -1039,7 +1039,7 @@ body[data-erp="room-service"] .erp-category-tab {
   background: transparent !important;
   color: var(--erp-text-secondary) !important;
   font-size: 11px !important;
-  font-weight: 650 !important;
+  font-weight: 600 !important;
 }
 
 body[data-erp="room-service"] .erp-category-tab:hover {
@@ -1121,13 +1121,13 @@ body[data-erp="room-service"] .erp-settings-link small {
 body[data-erp="room-service"] .erp-settings-link strong {
   color: var(--erp-text);
   font-size: 13px;
-  font-weight: 720;
+  font-weight: 600;
 }
 
 body[data-erp="room-service"] .erp-settings-link small {
   margin-top: 3px;
   color: var(--erp-text-secondary);
-  font-size: 10px;
+  font-size:12px;
 }
 
 body[data-erp="room-service"] .erp-settings-detail {
@@ -1195,7 +1195,7 @@ body[data-erp="room-service"] .pdv-menu-head {
 body[data-erp="room-service"] .erp-pdv-heading h2 {
   color: var(--erp-text) !important;
   font-size: 30px !important;
-  font-weight: 760 !important;
+  font-weight: 600 !important;
 }
 
 body[data-erp="room-service"] .erp-pdv-kicker {
@@ -1361,8 +1361,8 @@ body[data-erp="room-service"] .orb-loader {
 body[data-erp="room-service"] #loadingText {
   margin: 0;
   color: var(--erp-text-secondary) !important;
-  font-size: 10px !important;
-  font-weight: 700 !important;
+  font-size:12px !important;
+  font-weight: 600 !important;
   text-transform: none !important;
 }
 

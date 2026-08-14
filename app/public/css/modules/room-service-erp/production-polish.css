@@ -91,8 +91,8 @@
   display: block;
   margin-top: 3px;
   color: var(--muted);
-  font-size: 10px;
-  font-weight: 700;
+  font-size:12px;
+  font-weight: 600;
 }
 
 .erp-operation-dot.open {
@@ -114,8 +114,8 @@
   padding: 5px 7px !important;
   background: transparent !important;
   color: #737a84 !important;
-  font-size: 9px !important;
-  font-weight: 900 !important;
+  font-size:12px !important;
+  font-weight:600 !important;
 }
 
 .erp-store-quick-actions button.active {
@@ -130,15 +130,15 @@
   margin-top: 10px;
   background: transparent !important;
   color: var(--accent) !important;
-  font-size: 10px !important;
-  font-weight: 900 !important;
+  font-size:12px !important;
+  font-weight:600 !important;
 }
 
 .erp-store-quick-note {
   padding-top: 12px;
   color: var(--muted);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.5;
 }
 
@@ -157,8 +157,8 @@
   padding: 0 10px !important;
   background: transparent !important;
   color: #7a8088 !important;
-  font-size: 9px !important;
-  font-weight: 900 !important;
+  font-size:12px !important;
+  font-weight:600 !important;
 }
 
 .erp-schedule-layout button.active {
@@ -183,8 +183,8 @@
   flex-direction: column;
   gap: 6px;
   color: #6d747e;
-  font-size: 10px;
-  font-weight: 900;
+  font-size:12px;
+  font-weight:600;
 }
 
 .erp-common-hours input {
@@ -202,8 +202,8 @@
   background: #f4f5f6;
   border-radius: 8px;
   color: #6d747e;
-  font-size: 10px;
-  font-weight: 900;
+  font-size:12px;
+  font-weight:600;
 }
 
 .erp-pdv-card-top {
@@ -250,8 +250,8 @@
   background: color-mix(in srgb, var(--accent) 10%, white);
   border-radius: 999px;
   color: var(--accent);
-  font-size: 8px;
-  font-weight: 900;
+  font-size:12px;
+  font-weight:600;
   text-overflow: ellipsis;
   text-transform: uppercase;
   white-space: nowrap;
@@ -278,8 +278,8 @@
   flex-direction: column;
   gap: 5px;
   color: #8a919a;
-  font-size: 9px;
-  font-weight: 900;
+  font-size:12px;
+  font-weight:600;
   text-transform: uppercase;
 }
 
@@ -289,7 +289,7 @@
   border: 1px solid var(--line);
   border-radius: 8px !important;
   font-size: 11px;
-  font-weight: 800;
+  font-weight:600;
 }
 
 .erp-billing-overview {
@@ -329,8 +329,8 @@
 
 .erp-billing-bar small {
   color: #8a919a;
-  font-size: 8px;
-  font-weight: 900;
+  font-size:12px;
+  font-weight:600;
 }
 
 .erp-billing-table-panel {
@@ -357,7 +357,7 @@
   background: #f8f9fa;
   border-bottom: 1px solid var(--line);
   color: #7d8590;
-  font-size: 9px;
+  font-size:12px;
   text-align: left;
   text-transform: uppercase;
 }
@@ -387,8 +387,8 @@
 .erp-notification-settings small {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 10px;
-  font-weight: 700;
+  font-size:12px;
+  font-weight: 600;
 }
 
 .erp-notification-settings label {
@@ -398,8 +398,8 @@
   align-items: center;
   gap: 10px;
   color: #6d747e;
-  font-size: 10px;
-  font-weight: 900;
+  font-size:12px;
+  font-weight:600;
 }
 
 .erp-notification-settings input {
@@ -438,13 +438,13 @@
   display: block;
   margin-top: 2px;
   color: var(--muted);
-  font-size: 9px;
+  font-size:12px;
 }
 
 .erp-notification-row time {
   color: #9aa1ad;
-  font-size: 8px;
-  font-weight: 800;
+  font-size:12px;
+  font-weight:600;
 }
 
 .erp-notification-dot {
@@ -457,8 +457,8 @@
 .erp-search-empty {
   padding: 16px;
   color: #9aa1ad;
-  font-size: 10px;
-  font-weight: 900;
+  font-size:12px;
+  font-weight:600;
   text-align: center;
 }
 
@@ -536,7 +536,7 @@
   align-items: center;
   padding: 0 14px;
   font-size: 11px;
-  font-weight: 800;
+  font-weight:600;
   -webkit-app-region: drag;
 }
 .rs-desktop-titlebar .rs-window-controls {
@@ -603,13 +603,13 @@ body[data-fioreze-desktop="electron"] #loginOverlay { top: var(--erp-desktop-tit
 }
 .erp-local-agent small {
   color: #8a929d;
-  font-size: 9px;
-  font-weight: 900;
+  font-size:12px;
+  font-weight:600;
   text-transform: uppercase;
-  letter-spacing: .12em;
+  letter-spacing: normal;
 }
 .erp-local-agent strong { color: #202124; font-size: 14px; }
-.erp-local-agent span { color: #69717c; font-size: 11px; font-weight: 700; }
+.erp-local-agent span { color: #69717c; font-size: 11px; font-weight: 600; }
 @media (max-width: 720px) {
   .erp-local-agent { align-items: stretch; flex-direction: column; }
   .erp-local-agent .erp-v3-actions { justify-content: flex-start; }

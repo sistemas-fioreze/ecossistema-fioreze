@@ -1,0 +1,243 @@
+@font-face {
+  font-family: "Inter";
+  src: url("/fonts/inter/InterVariable.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Inter";
+  src: url("/fonts/inter/InterVariable-Italic.woff2") format("woff2");
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+:root {
+  --font-ui: "Inter", Arial, sans-serif;
+  --erp-font: var(--font-ui);
+  --rs-font-family: var(--font-ui);
+  --erp-type-body: 14px;
+  --erp-type-secondary: 13px;
+  --erp-type-meta: 12px;
+  --erp-type-card-title: 16px;
+  --erp-type-page-title: clamp(24px, 2vw, 28px);
+  --erp-weight-regular: 400;
+  --erp-weight-medium: 500;
+  --erp-weight-semibold: 600;
+}
+
+html,
+body[data-erp="room-service"] {
+  font-family: var(--font-ui) !important;
+  font-optical-sizing: auto;
+  font-synthesis: none;
+  font-size: var(--erp-type-body);
+  font-weight: var(--erp-weight-regular);
+  line-height: 1.5;
+  letter-spacing: normal;
+}
+
+body[data-erp="room-service"] *,
+body[data-erp="room-service"] *::before,
+body[data-erp="room-service"] *::after {
+  letter-spacing: normal;
+}
+
+body[data-erp="room-service"] :where(
+  button,
+  input,
+  textarea,
+  select,
+  option,
+  optgroup,
+  table,
+  dialog,
+  [role="dialog"],
+  [role="menu"],
+  [role="menuitem"],
+  [role="listbox"],
+  [role="option"],
+  [role="tooltip"],
+  [role="status"],
+  [role="alert"]
+) {
+  font-family: var(--font-ui) !important;
+  font-optical-sizing: auto;
+}
+
+body[data-erp="room-service"] :where(button, input, textarea, select, option) {
+  font-size: var(--erp-type-body) !important;
+  line-height: 1.45;
+}
+
+body[data-erp="room-service"] :where(button, [role="button"]) {
+  font-weight: var(--erp-weight-medium);
+}
+
+body[data-erp="room-service"] :where(strong, b, .font-bold, .font-black) {
+  font-weight: var(--erp-weight-semibold) !important;
+}
+
+body[data-erp="room-service"] :where(.font-semibold) {
+  font-weight: var(--erp-weight-semibold) !important;
+}
+
+body[data-erp="room-service"] :where(.font-medium) {
+  font-weight: var(--erp-weight-medium) !important;
+}
+
+body[data-erp="room-service"] :where(.text-\[9px\], .text-\[10px\], .text-\[11px\], .text-xs) {
+  font-size: var(--erp-type-meta) !important;
+  line-height: 1.4 !important;
+}
+
+body[data-erp="room-service"] :where(.text-\[12px\], .text-sm) {
+  font-size: var(--erp-type-secondary) !important;
+  line-height: 1.45 !important;
+}
+
+body[data-erp="room-service"] :where(
+  .side-nav-btn,
+  .side-text,
+  .top-action,
+  .top-session,
+  .admin-primary-btn,
+  .admin-secondary-btn,
+  .erp-back,
+  .erp-mode-button,
+  .erp-category-tab
+) {
+  font-size: var(--erp-type-body) !important;
+  font-weight: var(--erp-weight-medium) !important;
+  text-transform: none !important;
+}
+
+body[data-erp="room-service"] :where(
+  label,
+  small,
+  .erp-form label,
+  .login-field-label,
+  .field-label
+) {
+  font-size: var(--erp-type-secondary) !important;
+  font-weight: var(--erp-weight-medium);
+}
+
+body[data-erp="room-service"] small {
+  font-size: var(--erp-type-meta) !important;
+  font-weight: var(--erp-weight-regular);
+  line-height: 1.4;
+}
+
+body[data-erp="room-service"] :where(
+  h1,
+  .admin-title,
+  .erp-v3-title,
+  .page-title,
+  .settings-page-title
+) {
+  font-size: var(--erp-type-page-title) !important;
+  font-weight: var(--erp-weight-semibold) !important;
+  line-height: 1.18 !important;
+  text-transform: none !important;
+}
+
+body[data-erp="room-service"] :where(
+  h2,
+  h3,
+  .erp-panel-title,
+  .admin-card-title,
+  .card-title,
+  .modal-title,
+  .dialog-title
+) {
+  font-weight: var(--erp-weight-semibold) !important;
+  line-height: 1.3;
+  text-transform: none;
+}
+
+body[data-erp="room-service"] :where(
+  .erp-panel-title,
+  .admin-card-title,
+  .card-title
+) {
+  font-size: var(--erp-type-card-title) !important;
+}
+
+body[data-erp="room-service"] :where(
+  .erp-v3-subtitle,
+  .erp-list-button small,
+  .erp-operation-card small,
+  .erp-settings-link small,
+  .erp-product-body p,
+  .admin-kicker,
+  .erp-panel-meta,
+  .erp-stat-label
+) {
+  font-size: var(--erp-type-meta) !important;
+  font-weight: var(--erp-weight-regular) !important;
+  line-height: 1.45;
+}
+
+body[data-erp="room-service"] :where(
+  table,
+  .admin-table-wrap,
+  .history-table-wrap
+) {
+  font-size: var(--erp-type-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+body[data-erp="room-service"] :where(th, [role="columnheader"]) {
+  font-size: var(--erp-type-meta);
+  font-weight: var(--erp-weight-semibold);
+  line-height: 1.4;
+}
+
+body[data-erp="room-service"] :where(td, [role="cell"], [role="gridcell"]) {
+  font-size: var(--erp-type-secondary);
+  font-weight: var(--erp-weight-regular);
+  line-height: 1.45;
+}
+
+body[data-erp="room-service"] :where(
+  .erp-stat-value,
+  .erp-product-price,
+  .erp-donut-center,
+  .money,
+  .price,
+  .total,
+  .amount,
+  [data-numeric],
+  [data-money],
+  input[type="number"],
+  input[type="date"],
+  input[type="time"]
+) {
+  font-variant-numeric: tabular-nums;
+}
+
+body[data-erp="room-service"] :where(.erp-stat-value, .dashboard-metric-value) {
+  font-size: clamp(28px, 2.4vw, 36px);
+  font-weight: var(--erp-weight-semibold) !important;
+  line-height: 1.1;
+}
+
+body[data-erp="room-service"] .erp-ui-font-name {
+  display: block;
+  margin-top: 12px;
+  font-size: 16px;
+  font-weight: var(--erp-weight-semibold);
+}
+
+body[data-erp="room-service"] :where(.uppercase) {
+  letter-spacing: normal;
+}
+
+@media (max-width: 1366px) {
+  body[data-erp="room-service"] :where(.side-nav-btn, .side-text) {
+    font-size: 13px !important;
+  }
+}

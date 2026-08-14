@@ -93,9 +93,9 @@ body[data-erp="room-service"] .erp-stat-icon {
 .store-status-btn #hdrStoreStatus,
 .store-status-btn .store-mode-label {
   color: inherit !important;
-  font-size: 9px !important;
-  font-weight: 900 !important;
-  letter-spacing: 0 !important;
+  font-size:12px !important;
+  font-weight:600 !important;
+  letter-spacing: normal;
 }
 
 .account-popover {
@@ -132,8 +132,8 @@ body[data-erp="room-service"] .erp-stat-icon {
   background: var(--erp-subtle) !important;
   color: #424a54 !important;
   text-transform: none !important;
-  font-size: 10px !important;
-  letter-spacing: 0 !important;
+  font-size:12px !important;
+  letter-spacing: normal;
 }
 
 .quick-tile:hover,
@@ -191,15 +191,15 @@ body[data-erp="room-service"] .erp-stat-icon {
 .erp-dashboard-header h2 {
   margin: 2px 0 0;
   font-size: clamp(24px, 2.4vw, 36px);
-  font-weight: 850;
-  letter-spacing: 0;
+  font-weight: 600;
+  letter-spacing: normal;
 }
 
 .erp-dashboard-header p:last-child {
   margin-top: 5px;
   color: var(--erp-muted);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .erp-dashboard-date {
@@ -225,7 +225,7 @@ body[data-erp="room-service"] .erp-stat-icon {
   padding: 0 !important;
   box-shadow: none !important;
   font-size: 12px !important;
-  font-weight: 800 !important;
+  font-weight:600 !important;
 }
 
 .erp-dashboard-kpis {
@@ -270,24 +270,24 @@ body[data-erp="room-service"] .erp-stat-icon {
 .erp-dashboard-kpi small,
 .erp-dashboard-section-head span {
   color: #8a929c;
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 0.1em;
+  font-size:12px;
+  font-weight:600;
+  letter-spacing: normal;
   text-transform: uppercase;
 }
 
 .erp-dashboard-kpi strong {
   overflow-wrap: anywhere;
   font-size: clamp(20px, 2vw, 28px);
-  font-weight: 900;
+  font-weight:600;
   line-height: 1.1;
 }
 
 .erp-dashboard-kpi em {
   color: var(--erp-muted);
-  font-size: 10px;
+  font-size:12px;
   font-style: normal;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .erp-dashboard-analytics,
@@ -311,19 +311,19 @@ body[data-erp="room-service"] .erp-stat-icon {
 .erp-dashboard-section-head h3 {
   margin: 3px 0 0;
   font-size: 14px;
-  font-weight: 850;
+  font-weight: 600;
 }
 
 .erp-dashboard-section-head > strong {
   color: var(--accent);
   font-size: 20px;
-  font-weight: 900;
+  font-weight:600;
 }
 
 .erp-dashboard-section-head > small {
   color: var(--erp-muted);
-  font-size: 10px;
-  font-weight: 800;
+  font-size:12px;
+  font-weight:600;
 }
 
 .erp-dashboard-bars {
@@ -363,8 +363,8 @@ body[data-erp="room-service"] .erp-stat-icon {
 
 .erp-dashboard-bar small {
   color: var(--erp-muted);
-  font-size: 9px;
-  font-weight: 800;
+  font-size:12px;
+  font-weight:600;
 }
 
 .erp-dashboard-status-layout {
@@ -404,8 +404,8 @@ body[data-erp="room-service"] .erp-stat-icon {
 
 .erp-dashboard-donut small {
   color: var(--erp-muted);
-  font-size: 9px;
-  font-weight: 800;
+  font-size:12px;
+  font-weight:600;
 }
 
 .erp-dashboard-legend {
@@ -419,7 +419,7 @@ body[data-erp="room-service"] .erp-stat-icon {
   align-items: center;
   gap: 8px;
   font-size: 11px;
-  font-weight: 800;
+  font-weight:600;
 }
 
 .erp-dashboard-legend i {
@@ -480,8 +480,8 @@ body[data-erp="room-service"] .erp-stat-icon {
 
 .erp-dashboard-rank small {
   color: var(--erp-muted);
-  font-size: 10px;
-  font-weight: 900;
+  font-size:12px;
+  font-weight:600;
 }
 
 .erp-dashboard-order {
@@ -505,14 +505,14 @@ body[data-erp="room-service"] .erp-stat-icon {
 .erp-dashboard-order time,
 .erp-dashboard-order small {
   color: var(--erp-muted);
-  font-size: 9px;
-  font-weight: 800;
+  font-size:12px;
+  font-weight:600;
 }
 
 .erp-dashboard-order strong,
 .erp-dashboard-order b {
   font-size: 11px;
-  font-weight: 850;
+  font-weight: 600;
 }
 
 .erp-dashboard-order span {
@@ -532,9 +532,9 @@ body[data-erp="room-service"] .erp-stat-icon {
   padding: 4px 7px;
   background: #eef1f3;
   color: #68717c;
-  font-size: 8px;
+  font-size:12px;
   font-style: normal;
-  font-weight: 900;
+  font-weight:600;
   text-transform: uppercase;
 }
 
@@ -559,7 +559,7 @@ body[data-erp="room-service"] .erp-stat-icon {
   place-items: center;
   color: #8b929b;
   font-size: 11px;
-  font-weight: 800;
+  font-weight:600;
   text-align: center;
 }
 

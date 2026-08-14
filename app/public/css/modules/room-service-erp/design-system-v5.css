@@ -34,7 +34,8 @@
   --erp-info: #296b9d;
   --erp-info-soft: #edf5fb;
 
-  --erp-font: var(--hotel-font, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+  --font-ui: "Inter", Arial, sans-serif;
+  --erp-font: var(--font-ui);
   --erp-text-xs: 11px;
   --erp-text-sm: 12px;
   --erp-text-md: 14px;
@@ -91,7 +92,7 @@ body[data-erp="room-service"] {
   font-family: var(--erp-font) !important;
   font-size: var(--erp-text-md);
   line-height: 1.45;
-  letter-spacing: 0 !important;
+  letter-spacing: normal;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
@@ -105,7 +106,7 @@ body[data-erp="room-service"] *,
 body[data-erp="room-service"] *::before,
 body[data-erp="room-service"] *::after {
   box-sizing: border-box;
-  letter-spacing: 0 !important;
+  letter-spacing: normal;
 }
 
 body[data-erp="room-service"] button,
@@ -269,8 +270,8 @@ body[data-erp="room-service"] .erp-nav-group-label {
   display: block;
   margin: 18px 11px 7px;
   color: var(--erp-text-muted);
-  font-size: 9px;
-  font-weight: 800;
+  font-size:12px;
+  font-weight:600;
   line-height: 1;
   text-transform: uppercase;
   white-space: nowrap;
@@ -297,7 +298,7 @@ body[data-erp="room-service"] .side-nav-btn {
   color: var(--erp-text-soft) !important;
   box-shadow: none !important;
   font-size: var(--erp-text-sm) !important;
-  font-weight: 650 !important;
+  font-weight: 600 !important;
   text-align: left;
   text-transform: none !important;
   transition: color var(--erp-motion-fast) var(--erp-ease-standard), background-color var(--erp-motion-fast) var(--erp-ease-standard), gap var(--erp-motion-slow) var(--erp-ease-enter), padding var(--erp-motion-slow) var(--erp-ease-enter) !important;
@@ -325,7 +326,7 @@ body[data-erp="room-service"] .side-nav-btn.tab-active,
 body[data-erp="room-service"] .side-nav-btn[aria-current="page"] {
   background: var(--brand-primary-subtle) !important;
   color: var(--brand-primary-text) !important;
-  font-weight: 750 !important;
+  font-weight: 600 !important;
 }
 
 body[data-erp="room-service"] .side-nav-btn.tab-active::before,
@@ -372,8 +373,8 @@ body[data-erp="room-service"] .sidebar-version-btn {
   background: var(--erp-surface-soft) !important;
   color: var(--erp-text-soft) !important;
   box-shadow: none !important;
-  font-size: 10px;
-  font-weight: 800;
+  font-size:12px;
+  font-weight:600;
   text-transform: none;
 }
 
@@ -431,7 +432,7 @@ body[data-erp="room-service"].sidebar-collapsed .side-nav-btn::after {
   color: #fff;
   box-shadow: var(--erp-shadow-sm);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   opacity: 0;
   pointer-events: none;
   transform: translate(-5px, -50%);
@@ -625,8 +626,8 @@ body[data-erp="room-service"] .live-chip {
   background: var(--erp-surface) !important;
   color: var(--erp-text-soft) !important;
   box-shadow: none !important;
-  font-size: 10px !important;
-  font-weight: 800 !important;
+  font-size:12px !important;
+  font-weight:600 !important;
   text-transform: none !important;
 }
 
@@ -790,8 +791,8 @@ body[data-erp="room-service"] .login-store-badge {
   border-radius: var(--erp-radius-pill);
   background: var(--erp-surface-soft);
   color: var(--erp-text-soft);
-  font-size: 9px;
-  font-weight: 800;
+  font-size:12px;
+  font-weight:600;
 }
 
 body[data-erp="room-service"] .login-store-badge span {
@@ -820,7 +821,7 @@ body[data-erp="room-service"] .login-card input {
   color: var(--erp-text) !important;
   box-shadow: none !important;
   font-size: var(--erp-text-md) !important;
-  font-weight: 650 !important;
+  font-weight: 600 !important;
   text-align: left !important;
   outline: 0;
   transition: border-color var(--erp-motion-fast) var(--erp-ease-standard), box-shadow var(--erp-motion-fast) var(--erp-ease-standard);
@@ -828,7 +829,7 @@ body[data-erp="room-service"] .login-card input {
 
 body[data-erp="room-service"] .login-card input::placeholder {
   color: var(--erp-text-muted);
-  font-weight: 550;
+  font-weight: 500;
 }
 
 body[data-erp="room-service"] .login-card input:focus {
@@ -844,7 +845,7 @@ body[data-erp="room-service"] #loginNameBadge {
   background: var(--brand-primary-subtle) !important;
   color: var(--brand-primary-text) !important;
   font-size: var(--erp-text-sm) !important;
-  font-weight: 750 !important;
+  font-weight: 600 !important;
   text-align: left;
 }
 
@@ -864,7 +865,7 @@ body[data-erp="room-service"] #btnLogin {
   color: var(--brand-on-primary) !important;
   box-shadow: none !important;
   font-size: var(--erp-text-sm) !important;
-  font-weight: 750 !important;
+  font-weight: 600 !important;
   text-transform: none !important;
   transition: background-color var(--erp-motion-fast) var(--erp-ease-standard), transform var(--erp-motion-fast) var(--erp-ease-standard);
 }
@@ -876,8 +877,8 @@ body[data-erp="room-service"] #btnLogin:hover {
 body[data-erp="room-service"] .login-version-note {
   margin: 18px 0 0;
   color: var(--erp-text-faint);
-  font-size: 10px;
-  font-weight: 650;
+  font-size:12px;
+  font-weight: 600;
 }
 
 body[data-erp="room-service"] .login-loading-screen {
@@ -910,14 +911,14 @@ body[data-erp="room-service"] .login-loader-title {
   margin: 0;
   color: var(--erp-text);
   font-size: var(--erp-text-sm);
-  font-weight: 750;
+  font-weight: 600;
 }
 
 body[data-erp="room-service"] .login-loader-text {
   margin: 3px 0 0;
   color: var(--erp-text-muted);
   font-size: 11px;
-  font-weight: 550;
+  font-weight: 500;
 }
 
 body[data-erp="room-service"] .login-progress {
@@ -1002,7 +1003,7 @@ body[data-erp="room-service"] .print-save-btn {
   color: var(--brand-on-primary) !important;
   box-shadow: none !important;
   font-size: var(--erp-text-sm) !important;
-  font-weight: 750 !important;
+  font-weight: 600 !important;
   text-transform: none !important;
   transition: background-color var(--erp-motion-fast) var(--erp-ease-standard), border-color var(--erp-motion-fast) var(--erp-ease-standard), transform var(--erp-motion-fast) var(--erp-ease-standard);
 }
@@ -1033,7 +1034,7 @@ body[data-erp="room-service"] .erp-back {
   color: var(--erp-text-soft) !important;
   box-shadow: none !important;
   font-size: var(--erp-text-sm) !important;
-  font-weight: 700 !important;
+  font-weight: 600 !important;
   text-transform: none !important;
   transition: background-color var(--erp-motion-fast) var(--erp-ease-standard), border-color var(--erp-motion-fast) var(--erp-ease-standard), color var(--erp-motion-fast) var(--erp-ease-standard);
 }
@@ -1099,8 +1100,8 @@ body[data-erp="room-service"] .combo-field label,
 body[data-erp="room-service"] .erp-form label,
 body[data-erp="room-service"] .erp-form legend {
   color: var(--erp-text-muted) !important;
-  font-size: 10px !important;
-  font-weight: 750 !important;
+  font-size:12px !important;
+  font-weight: 600 !important;
   line-height: 1.2;
   text-transform: uppercase !important;
 }
@@ -1111,7 +1112,7 @@ body[data-erp="room-service"] .print-manager-title {
   margin: 0;
   color: var(--erp-text) !important;
   font-size: var(--erp-text-xl) !important;
-  font-weight: 780 !important;
+  font-weight: 600 !important;
   line-height: 1.2;
   text-transform: none !important;
 }
@@ -1122,7 +1123,7 @@ body[data-erp="room-service"] .admin-subtitle {
   margin: 5px 0 0;
   color: var(--erp-text-muted) !important;
   font-size: var(--erp-text-sm) !important;
-  font-weight: 550 !important;
+  font-weight: 500 !important;
   line-height: 1.45;
   text-transform: none !important;
 }
@@ -1186,7 +1187,7 @@ body[data-erp="room-service"] .admin-card-title,
 body[data-erp="room-service"] .dash-v2-panel-title {
   color: var(--erp-text) !important;
   font-size: var(--erp-text-md) !important;
-  font-weight: 750 !important;
+  font-weight: 600 !important;
   text-transform: none !important;
 }
 
@@ -1203,8 +1204,8 @@ body[data-erp="room-service"] .erp-item-tag {
   border-radius: var(--erp-radius-pill) !important;
   background: var(--erp-success-soft) !important;
   color: var(--erp-success) !important;
-  font-size: 9px !important;
-  font-weight: 750 !important;
+  font-size:12px !important;
+  font-weight: 600 !important;
   line-height: 1;
   text-transform: none !important;
 }
@@ -1265,7 +1266,7 @@ body[data-erp="room-service"] .dash-v2-title {
   margin: 0;
   color: var(--erp-text) !important;
   font-size: clamp(24px, 2vw, 32px) !important;
-  font-weight: 780 !important;
+  font-weight: 600 !important;
   line-height: 1.12;
   text-transform: none !important;
 }
@@ -1297,7 +1298,7 @@ body[data-erp="room-service"] .erp-stat-label,
 body[data-erp="room-service"] .erp-dashboard-kpi-label {
   color: var(--erp-text-muted) !important;
   font-size: var(--erp-text-xs) !important;
-  font-weight: 750 !important;
+  font-weight: 600 !important;
   text-transform: uppercase !important;
 }
 
@@ -1307,7 +1308,7 @@ body[data-erp="room-service"] .erp-dashboard-kpi-value {
   margin: 6px 0 2px;
   color: var(--erp-text) !important;
   font-size: clamp(24px, 2.2vw, 34px) !important;
-  font-weight: 780 !important;
+  font-weight: 600 !important;
   line-height: 1.05;
 }
 
@@ -1321,7 +1322,7 @@ body[data-erp="room-service"] .erp-stat-meta,
 body[data-erp="room-service"] .erp-dashboard-kpi-meta {
   color: var(--erp-text-muted) !important;
   font-size: 11px !important;
-  font-weight: 550 !important;
+  font-weight: 500 !important;
 }
 
 body[data-erp="room-service"] .dash-v2-main,
@@ -1388,8 +1389,8 @@ body[data-erp="room-service"] .erp-modern-bar i {
 body[data-erp="room-service"] .erp-dashboard-bar small,
 body[data-erp="room-service"] .erp-modern-bar small {
   color: var(--erp-text-muted);
-  font-size: 9px;
-  font-weight: 650;
+  font-size:12px;
+  font-weight: 600;
 }
 
 body[data-erp="room-service"] .erp-dashboard-donut,
@@ -1494,8 +1495,8 @@ body[data-erp="room-service"] .erp-page-header {
 body[data-erp="room-service"] .erp-page-eyebrow {
   margin: 0 0 5px;
   color: var(--erp-text-muted);
-  font-size: 10px;
-  font-weight: 750;
+  font-size:12px;
+  font-weight: 600;
   text-transform: uppercase;
 }
 
@@ -1503,7 +1504,7 @@ body[data-erp="room-service"] .erp-page-header h2 {
   margin: 0;
   color: var(--erp-text);
   font-size: var(--erp-text-xl);
-  font-weight: 780;
+  font-weight: 600;
   line-height: 1.15;
 }
 
@@ -1511,7 +1512,7 @@ body[data-erp="room-service"] .erp-page-header > div > p:last-child {
   margin: 5px 0 0;
   color: var(--erp-text-muted);
   font-size: var(--erp-text-sm);
-  font-weight: 550;
+  font-weight: 500;
 }
 
 body[data-erp="room-service"] .erp-page-actions {
@@ -1541,8 +1542,8 @@ body[data-erp="room-service"] .erp-search-field {
 
 body[data-erp="room-service"] .erp-date-field > span {
   color: var(--erp-text-muted);
-  font-size: 9px;
-  font-weight: 750;
+  font-size:12px;
+  font-weight: 600;
   text-transform: uppercase;
 }
 
@@ -1555,7 +1556,7 @@ body[data-erp="room-service"] .erp-search-field input {
   box-shadow: none !important;
   color: var(--erp-text) !important;
   font-size: var(--erp-text-sm);
-  font-weight: 650;
+  font-weight: 600;
 }
 
 body[data-erp="room-service"] .erp-search-field {
@@ -1572,7 +1573,7 @@ body[data-erp="room-service"] .erp-icon-text-button {
   justify-content: center;
   padding: 0 12px;
   font-size: var(--erp-text-sm);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 body[data-erp="room-service"] .erp-icon-text-button:hover {
@@ -1600,14 +1601,14 @@ body[data-erp="room-service"] .erp-section-header h3 {
   margin: 0;
   color: var(--erp-text);
   font-size: var(--erp-text-md);
-  font-weight: 740;
+  font-weight: 600;
 }
 
 body[data-erp="room-service"] .erp-section-header p,
 body[data-erp="room-service"] .erp-section-hint {
   margin: 3px 0 0;
   color: var(--erp-text-muted);
-  font-size: 10px;
+  font-size:12px;
   font-weight: 600;
 }
 
@@ -1684,8 +1685,8 @@ body[data-erp="room-service"] .order-mini-card:hover {
 body[data-erp="room-service"] .mini-card-label {
   margin: 0;
   color: var(--erp-text-muted) !important;
-  font-size: 9px !important;
-  font-weight: 750 !important;
+  font-size:12px !important;
+  font-weight: 600 !important;
   text-transform: uppercase !important;
 }
 
@@ -1694,7 +1695,7 @@ body[data-erp="room-service"] .mini-card-value {
   margin: 0;
   color: var(--erp-text) !important;
   font-size: var(--erp-text-md) !important;
-  font-weight: 720 !important;
+  font-weight: 600 !important;
   text-transform: none !important;
 }
 
@@ -1807,7 +1808,7 @@ body[data-erp="room-service"] .pdv-menu-head h2 {
   margin: 0;
   color: var(--erp-text) !important;
   font-size: var(--erp-text-xl) !important;
-  font-weight: 780 !important;
+  font-weight: 600 !important;
   text-transform: none !important;
 }
 
@@ -1854,7 +1855,7 @@ body[data-erp="room-service"] .erp-pdv-category > h2 {
   margin: 0;
   color: var(--erp-text) !important;
   font-size: var(--erp-text-md) !important;
-  font-weight: 760 !important;
+  font-weight: 600 !important;
   line-height: 1.3;
   text-transform: none !important;
 }
@@ -1868,8 +1869,8 @@ body[data-erp="room-service"] .erp-pdv-category > h2 svg {
 body[data-erp="room-service"] .erp-pdv-category > h2 small {
   margin-left: auto;
   color: var(--erp-text-muted);
-  font-size: 10px;
-  font-weight: 650;
+  font-size:12px;
+  font-weight: 600;
 }
 
 body[data-erp="room-service"] .erp-pdv-list {
@@ -1947,7 +1948,7 @@ body[data-erp="room-service"] .erp-pdv-card-copy h3 {
   overflow: hidden;
   color: var(--erp-text) !important;
   font-size: var(--erp-text-md) !important;
-  font-weight: 730 !important;
+  font-weight: 600 !important;
   line-height: 1.25;
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -1960,7 +1961,7 @@ body[data-erp="room-service"] .erp-pdv-card-copy p {
   overflow: hidden;
   color: var(--erp-text-muted) !important;
   font-size: 11px !important;
-  font-weight: 520 !important;
+  font-weight: 500 !important;
   line-height: 1.4;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -1987,7 +1988,7 @@ body[data-erp="room-service"] #menuContent .erp-pdv-card-action {
 body[data-erp="room-service"] .erp-pdv-price {
   color: var(--brand-primary-text) !important;
   font-size: var(--erp-text-md) !important;
-  font-weight: 780 !important;
+  font-weight: 600 !important;
   white-space: nowrap;
 }
 
@@ -2004,7 +2005,7 @@ body[data-erp="room-service"] .erp-pdv-add {
   color: var(--erp-text-soft) !important;
   box-shadow: none !important;
   font-size: 11px !important;
-  font-weight: 700 !important;
+  font-weight: 600 !important;
 }
 
 body[data-erp="room-service"] .erp-pdv-add:hover:not(:disabled) {
@@ -2040,7 +2041,7 @@ body[data-erp="room-service"] .pdv-panel > div:first-child {
 body[data-erp="room-service"] .pdv-panel h2 {
   color: var(--erp-text) !important;
   font-size: var(--erp-text-lg) !important;
-  font-weight: 780 !important;
+  font-weight: 600 !important;
   text-transform: none !important;
 }
 
@@ -2123,7 +2124,7 @@ body[data-erp="room-service"] .erp-cart-copy > strong {
   overflow: hidden;
   color: var(--erp-text);
   font-size: 12px;
-  font-weight: 720;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2132,7 +2133,7 @@ body[data-erp="room-service"] .erp-cart-copy > small {
   display: block;
   margin-top: 2px;
   color: var(--erp-text-muted);
-  font-size: 10px;
+  font-size:12px;
 }
 
 body[data-erp="room-service"] .erp-cart-stepper {
@@ -2155,7 +2156,7 @@ body[data-erp="room-service"] .erp-cart-stepper button {
   border-radius: var(--erp-radius-sm) !important;
   background: transparent !important;
   color: var(--brand-primary-text) !important;
-  font-weight: 800;
+  font-weight:600;
 }
 
 body[data-erp="room-service"] .pdv-panel > div:last-child {
@@ -2167,7 +2168,7 @@ body[data-erp="room-service"] .pdv-panel > div:last-child {
 body[data-erp="room-service"] #cartTotal {
   color: var(--brand-primary-text) !important;
   font-size: var(--erp-text-xl) !important;
-  font-weight: 790 !important;
+  font-weight: 600 !important;
 }
 
 body[data-erp="room-service"] .pdv-panel > div:last-child > button:last-child {
@@ -2178,7 +2179,7 @@ body[data-erp="room-service"] .pdv-panel > div:last-child > button:last-child {
   color: var(--brand-on-primary) !important;
   box-shadow: none !important;
   font-size: var(--erp-text-sm) !important;
-  font-weight: 760 !important;
+  font-weight: 600 !important;
   text-transform: none !important;
 }
 
@@ -2192,8 +2193,8 @@ body[data-erp="room-service"] .guest-letter-section {
 
 body[data-erp="room-service"] .guest-letter-title {
   color: var(--erp-text-muted);
-  font-size: 10px;
-  font-weight: 750;
+  font-size:12px;
+  font-weight: 600;
   text-transform: uppercase;
 }
 
@@ -2223,8 +2224,8 @@ body[data-erp="room-service"] .mini-room-badge {
   border-radius: var(--erp-radius-pill);
   background: var(--brand-primary-subtle);
   color: var(--brand-primary-text);
-  font-size: 10px;
-  font-weight: 750;
+  font-size:12px;
+  font-weight: 600;
 }
 
 /* Billing */
@@ -2299,8 +2300,8 @@ body[data-erp="room-service"] #faturamentoContainer td {
 
 body[data-erp="room-service"] #faturamentoContainer th {
   color: var(--erp-text-muted) !important;
-  font-size: 10px;
-  font-weight: 750;
+  font-size:12px;
+  font-weight: 600;
   text-transform: uppercase;
 }
 
@@ -2353,7 +2354,7 @@ body[data-erp="room-service"] .erp-category-tab {
   background: var(--erp-surface) !important;
   color: var(--erp-text-soft) !important;
   font-size: 11px !important;
-  font-weight: 680 !important;
+  font-weight: 600 !important;
   white-space: nowrap;
 }
 
@@ -2421,7 +2422,7 @@ body[data-erp="room-service"] .erp-product-body > strong {
   overflow: hidden;
   color: var(--erp-text);
   font-size: var(--erp-text-md);
-  font-weight: 730;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2450,7 +2451,7 @@ body[data-erp="room-service"] .erp-product-footer {
 body[data-erp="room-service"] .erp-product-price {
   color: var(--brand-primary-text);
   font-size: var(--erp-text-md);
-  font-weight: 780;
+  font-weight: 600;
 }
 
 /* Settings */
@@ -2498,15 +2499,15 @@ body[data-erp="room-service"] .erp-settings-link strong {
   display: block;
   color: var(--erp-text);
   font-size: var(--erp-text-sm);
-  font-weight: 730;
+  font-weight: 600;
 }
 
 body[data-erp="room-service"] .erp-settings-link small {
   display: block;
   margin-top: 3px;
   color: var(--erp-text-muted);
-  font-size: 10px;
-  font-weight: 550;
+  font-size:12px;
+  font-weight: 500;
   line-height: 1.35;
 }
 
@@ -2533,7 +2534,7 @@ body[data-erp="room-service"] .erp-mode-button {
   background: transparent !important;
   color: var(--erp-text-muted) !important;
   font-size: 11px !important;
-  font-weight: 700 !important;
+  font-weight: 600 !important;
 }
 
 body[data-erp="room-service"] .erp-mode-button.active {
@@ -2597,15 +2598,15 @@ body[data-erp="room-service"] .erp-order-preferences strong {
   display: block;
   color: var(--erp-text);
   font-size: var(--erp-text-sm);
-  font-weight: 720;
+  font-weight: 600;
 }
 
 body[data-erp="room-service"] .erp-order-preferences small {
   display: block;
   margin-top: 4px;
   color: var(--erp-text-muted);
-  font-size: 10px;
-  font-weight: 550;
+  font-size:12px;
+  font-weight: 500;
 }
 
 body[data-erp="room-service"] .erp-order-preferences > button {
@@ -2810,7 +2811,7 @@ body[data-erp="room-service"] .erp-user-permission-grid label {
   background: var(--erp-surface);
   color: var(--erp-text-soft);
   font-size: var(--erp-text-sm);
-  font-weight: 650;
+  font-weight: 600;
 }
 
 body[data-erp="room-service"] .print-manager-grid {
@@ -2861,8 +2862,8 @@ body[data-erp="room-service"] .print-field {
 
 body[data-erp="room-service"] .print-field label {
   color: var(--erp-text-muted);
-  font-size: 9px;
-  font-weight: 750;
+  font-size:12px;
+  font-weight: 600;
   text-transform: uppercase;
 }
 
@@ -3071,13 +3072,13 @@ body[data-erp="room-service"] .rs-desktop-workspace .erp-feedback-trigger:hover 
 }
 
 body[data-erp="room-service"] .rs-desktop-app-name {
-  font-weight: 800;
+  font-weight:600;
 }
 
 body[data-erp="room-service"] .rs-desktop-app-section {
   color: #8a929d;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 body[data-erp="room-service"] .rs-desktop-tools {
@@ -3098,7 +3099,7 @@ body[data-erp="room-service"] .rs-desktop-tool {
   background: #fff !important;
   color: #59616c !important;
   font-size: 11px !important;
-  font-weight: 800 !important;
+  font-weight:600 !important;
 }
 
 body[data-erp="room-service"] .rs-desktop-tool:hover {
@@ -3624,7 +3625,7 @@ body[data-erp="room-service"] .premium-pop {
     color: var(--brand-on-primary) !important;
     box-shadow: var(--erp-shadow-sm) !important;
     font-size: var(--erp-text-sm);
-    font-weight: 750;
+    font-weight: 600;
   }
 
   body[data-erp="room-service"] .erp-pdv-mobile-jump svg {
@@ -3643,7 +3644,7 @@ body[data-erp="room-service"] .premium-pop {
     background: transparent !important;
     color: var(--brand-primary-text) !important;
     font-size: var(--erp-text-xs);
-    font-weight: 700;
+    font-weight: 600;
   }
 
   body[data-erp="room-service"] .erp-pdv-customer,
@@ -3797,7 +3798,7 @@ body[data-erp="room-service"] .desktop-print-status-pill {
   background: var(--erp-surface-soft);
   color: var(--erp-text-soft);
   font-size: var(--erp-text-xs);
-  font-weight: 750;
+  font-weight: 600;
   white-space: nowrap;
 }
 
@@ -3844,14 +3845,14 @@ body[data-erp="room-service"] .desktop-print-status-grid span {
   margin-bottom: 5px;
   color: var(--erp-text-muted);
   font-size: var(--erp-text-xs);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 body[data-erp="room-service"] .desktop-print-status-grid b {
   overflow: hidden;
   color: var(--erp-text);
   font-size: var(--erp-text-sm);
-  font-weight: 750;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -4264,7 +4265,7 @@ body[data-erp="room-service"] .erp-schedule-layout button {
   background: transparent !important;
   color: var(--erp-text-muted) !important;
   font-size: var(--erp-text-xs) !important;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 body[data-erp="room-service"] .erp-schedule-layout button.active {
@@ -4343,7 +4344,7 @@ body[data-erp="room-service"] .erp-item-tag {
   background: transparent !important;
   color: var(--erp-text-muted) !important;
   font-size: 11px !important;
-  font-weight: 650 !important;
+  font-weight: 600 !important;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -4547,7 +4548,7 @@ body[data-erp="room-service"] .erp-pdv-kicker,
 body[data-erp="room-service"] .erp-pdv-order-count,
 body[data-erp="room-service"] .store-mode-label {
   font-size: var(--erp-text-xs) !important;
-  letter-spacing: 0 !important;
+  letter-spacing: normal;
 }
 
 body[data-erp="room-service"] .top-search-box kbd,
@@ -4570,7 +4571,7 @@ body[data-erp="room-service"] .erp-pdv-total-row > span,
 body[data-erp="room-service"] .erp-pdv-clear,
 body[data-erp="room-service"] .erp-pdv-submit {
   font-size: 11px !important;
-  letter-spacing: 0 !important;
+  letter-spacing: normal;
 }
 
 body[data-erp="room-service"] .erp-page-header > div > p:last-child,
@@ -4612,7 +4613,7 @@ body[data-erp="room-service"] #histContainer .erp-date-field > span,
 body[data-erp="room-service"] #histContainer .erp-section-header p,
 body[data-erp="room-service"] #hospedesContainer .erp-section-header p {
   font-size: 11px !important;
-  letter-spacing: 0 !important;
+  letter-spacing: normal;
 }
 
 /* Structural polish: content owns the viewport instead of inheriting legacy widths. */
@@ -4946,7 +4947,7 @@ body[data-erp="room-service"] .erp-settings-breadcrumb button {
   border: 0 !important;
   background: transparent !important;
   color: var(--brand-primary-text) !important;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 body[data-erp="room-service"] .erp-account-settings {
@@ -5166,7 +5167,7 @@ body[data-erp="room-service"] .erp-feedback-attached {
   background: rgba(255, 255, 255, .92);
   color: var(--erp-success);
   font-size: var(--erp-text-xs);
-  font-weight: 750;
+  font-weight: 600;
 }
 
 body[data-erp="room-service"] .erp-feedback-status {
@@ -5449,7 +5450,7 @@ body[data-erp="room-service"] :is(
   background: transparent !important;
   color: var(--erp-text) !important;
   font-size: var(--erp-text-sm) !important;
-  font-weight: 700 !important;
+  font-weight: 600 !important;
   text-align: left !important;
 }
 
@@ -5491,7 +5492,7 @@ body[data-erp="room-service"] .side-brand-logo {
 
 body[data-erp="room-service"] .erp-nav-group-label {
   margin-block: 16px 7px;
-  font-size: 10px !important;
+  font-size:12px !important;
 }
 
 body[data-erp="room-service"] .side-nav-btn.tab-active,
@@ -5603,7 +5604,7 @@ body[data-erp="room-service"] .erp-pdv-catalog-meta {
 body[data-erp="room-service"] .erp-pdv-catalog-meta > span {
   color: var(--erp-text-soft) !important;
   font-size: var(--erp-text-sm) !important;
-  font-weight: 700 !important;
+  font-weight: 600 !important;
 }
 
 body[data-erp="room-service"] #menuContent.erp-pdv-content {
@@ -5625,7 +5626,7 @@ body[data-erp="room-service"] .erp-pdv-category > h2 {
   padding: 0 !important;
   color: var(--erp-text) !important;
   font-size: var(--erp-text-md) !important;
-  font-weight: 760 !important;
+  font-weight: 600 !important;
 }
 
 body[data-erp="room-service"] .erp-pdv-category > h2 svg {
@@ -5641,7 +5642,7 @@ body[data-erp="room-service"] .erp-pdv-category > h2 small {
   background: var(--erp-surface-soft);
   color: var(--erp-text-muted) !important;
   font-size: 11px !important;
-  font-weight: 700 !important;
+  font-weight: 600 !important;
 }
 
 body[data-erp="room-service"] .erp-pdv-list {
@@ -5681,7 +5682,7 @@ body[data-erp="room-service"] #menuContent .erp-pdv-card-copy > span {
   margin-bottom: 4px;
   overflow: hidden;
   color: var(--erp-text-muted) !important;
-  font-size: 10px !important;
+  font-size:12px !important;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -5721,7 +5722,7 @@ body[data-erp="room-service"] #menuContent .erp-pdv-card-action {
 body[data-erp="room-service"] .erp-pdv-price {
   color: var(--erp-text) !important;
   font-size: 15px !important;
-  font-weight: 780 !important;
+  font-weight: 600 !important;
 }
 
 body[data-erp="room-service"] .erp-pdv-add {
@@ -5781,7 +5782,7 @@ body[data-erp="room-service"] .erp-pdv-section-title > span {
   height: 19px;
   background: var(--brand-primary-soft) !important;
   color: var(--brand-primary-text) !important;
-  font-size: 10px !important;
+  font-size:12px !important;
 }
 
 body[data-erp="room-service"] .erp-pdv-section-title strong {
@@ -5808,7 +5809,7 @@ body[data-erp="room-service"] .erp-pdv-field > span {
 body[data-erp="room-service"] .pdv-panel .erp-pdv-field :is(input, select, textarea) {
   height: 42px;
   font-size: var(--erp-text-sm) !important;
-  font-weight: 620;
+  font-weight: 600;
 }
 
 body[data-erp="room-service"] .pdv-panel .erp-pdv-field textarea {
@@ -5984,8 +5985,8 @@ body[data-erp="room-service"] .erp-login-form header > p {
   margin: 0 0 10px;
   color: var(--brand-primary-text);
   font-size: 11px;
-  font-weight: 800;
-  letter-spacing: .12em;
+  font-weight:600;
+  letter-spacing: normal;
   text-transform: uppercase;
 }
 
@@ -5993,9 +5994,9 @@ body[data-erp="room-service"] .erp-login-brand h1 {
   margin: 0;
   color: var(--erp-text);
   font-size: clamp(30px, 3vw, 43px);
-  font-weight: 780;
+  font-weight: 600;
   line-height: 1.03;
-  letter-spacing: 0;
+  letter-spacing: normal;
 }
 
 body[data-erp="room-service"] .erp-login-brand > span,
@@ -6018,8 +6019,8 @@ body[data-erp="room-service"] .erp-login-form header h2 {
   margin: 0;
   color: var(--erp-text);
   font-size: 24px;
-  font-weight: 780;
-  letter-spacing: 0;
+  font-weight: 600;
+  letter-spacing: normal;
 }
 
 body[data-erp="room-service"] .erp-login-form header > span {
@@ -6046,8 +6047,8 @@ body[data-erp="room-service"] .login-store-badge {
 body[data-erp="room-service"] .login-store-badge strong {
   color: currentColor;
   font-size: 11px;
-  font-weight: 750;
-  letter-spacing: 0;
+  font-weight: 600;
+  letter-spacing: normal;
 }
 
 body[data-erp="room-service"] .login-store-badge.is-open {
@@ -6088,7 +6089,7 @@ body[data-erp="room-service"] .erp-login-field {
   gap: 6px;
   color: var(--erp-text-muted);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.2;
 }
 
@@ -6116,7 +6117,7 @@ body[data-erp="room-service"] #loginNameBadge {
 
 body[data-erp="room-service"] #loginCode.login-resolved {
   color: var(--erp-text) !important;
-  font-weight: 750 !important;
+  font-weight: 600 !important;
 }
 
 body[data-erp="room-service"] #btnLogin {
@@ -6127,7 +6128,7 @@ body[data-erp="room-service"] #btnLogin {
   margin: 1px 0 0 !important;
   border-radius: var(--erp-control-radius) !important;
   font-size: 14px !important;
-  font-weight: 750 !important;
+  font-weight: 600 !important;
 }
 
 body[data-erp="room-service"] .erp-login-form .legacy-login-error {
@@ -6160,7 +6161,7 @@ body[data-erp="room-service"] .app-topbar > div:first-child h1 {
 
 body[data-erp="room-service"] .app-topbar > div:first-child p,
 body[data-erp="room-service"] .top-session p:first-child {
-  font-size: 10px !important;
+  font-size:12px !important;
 }
 
 body[data-erp="room-service"] .top-session p:last-child,
@@ -6189,7 +6190,7 @@ body[data-erp="room-service"] .side-brand-logo {
 
 body[data-erp="room-service"] .erp-nav-group-label {
   margin-block: 12px 5px !important;
-  font-size: 10px !important;
+  font-size:12px !important;
 }
 
 body[data-erp="room-service"] .side-nav-btn {
@@ -6222,7 +6223,7 @@ body[data-erp="room-service"] .store-status-btn::before {
 
 body[data-erp="room-service"] .store-status-btn #hdrStoreStatus {
   font-size: 11px !important;
-  font-weight: 800 !important;
+  font-weight:600 !important;
 }
 
 body[data-erp="room-service"] .store-status-btn .store-mode-label {
@@ -6230,8 +6231,8 @@ body[data-erp="room-service"] .store-status-btn .store-mode-label {
   padding: 0 !important;
   border: 0 !important;
   color: var(--erp-text-muted) !important;
-  font-size: 10px !important;
-  font-weight: 650 !important;
+  font-size:12px !important;
+  font-weight: 600 !important;
   text-transform: none !important;
   opacity: 1 !important;
 }
@@ -6292,7 +6293,7 @@ body[data-erp="room-service"] :is(.sound-control, .scale-control) {
 
 body[data-erp="room-service"] :is(.sound-control-head, .scale-control-head) {
   font-size: 11px !important;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 body[data-erp="room-service"] :is(.sound-control-head, .scale-control-head) b {
@@ -6385,9 +6386,9 @@ body[data-erp="room-service"] .top-search-group + .top-search-group {
 body[data-erp="room-service"] .top-search-group > p {
   margin: 3px 8px 4px;
   color: var(--erp-text-muted);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: .08em;
+  font-size:12px;
+  font-weight:600;
+  letter-spacing: normal;
   text-transform: uppercase;
 }
 
@@ -6418,7 +6419,7 @@ body[data-erp="room-service"] .top-search-item[aria-selected="true"] {
 
 body[data-erp="room-service"] .top-search-title {
   font-size: 13px !important;
-  font-weight: 720 !important;
+  font-weight: 600 !important;
 }
 
 body[data-erp="room-service"] .top-search-meta {
@@ -6490,7 +6491,7 @@ body[data-erp="room-service"] .erp-pdv-catalog-meta {
 body[data-erp="room-service"] .erp-pdv-catalog-meta > span {
   color: var(--erp-text-muted) !important;
   font-size: 13px !important;
-  font-weight: 650 !important;
+  font-weight: 600 !important;
 }
 
 body[data-erp="room-service"] #menuContent.erp-pdv-content {
@@ -6501,7 +6502,7 @@ body[data-erp="room-service"] .erp-pdv-category > h2 {
   min-height: 24px;
   gap: 7px;
   font-size: 14px !important;
-  font-weight: 760 !important;
+  font-weight: 600 !important;
 }
 
 body[data-erp="room-service"] .erp-pdv-category > h2 svg {
@@ -6566,7 +6567,7 @@ body[data-erp="room-service"] #menuContent .erp-pdv-card-action {
 body[data-erp="room-service"] .erp-pdv-price {
   color: var(--erp-text) !important;
   font-size: 15px !important;
-  font-weight: 760 !important;
+  font-weight: 600 !important;
 }
 
 body[data-erp="room-service"] .erp-pdv-add {
@@ -6637,7 +6638,7 @@ body[data-erp="room-service"] .erp-pdv-field-grid {
 body[data-erp="room-service"] .erp-pdv-field > span {
   color: var(--erp-text-soft) !important;
   font-size: 12px !important;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 body[data-erp="room-service"] .pdv-panel .erp-pdv-field :is(input, select, textarea) {
@@ -6706,8 +6707,8 @@ body[data-erp="room-service"] .erp-room-option-group + .erp-room-option-group {
 body[data-erp="room-service"] .erp-room-option-group > p {
   margin: 3px 7px 4px;
   color: var(--erp-text-muted);
-  font-size: 10px;
-  font-weight: 800;
+  font-size:12px;
+  font-weight:600;
   text-transform: uppercase;
 }
 
@@ -6817,7 +6818,7 @@ body[data-erp="room-service"] .erp-profile-avatar {
   height: 76px;
   border-radius: var(--erp-radius-lg);
   font-size: 22px;
-  font-weight: 780;
+  font-weight: 600;
 }
 
 body[data-erp="room-service"] .erp-avatar-form {
@@ -6849,7 +6850,7 @@ body[data-erp="room-service"] .erp-remove-avatar {
   background: transparent !important;
   color: var(--erp-danger) !important;
   font-size: 12px !important;
-  font-weight: 700 !important;
+  font-weight: 600 !important;
 }
 
 body[data-erp="room-service"] .erp-password-form {
@@ -7089,7 +7090,7 @@ body[data-erp="room-service"] .erp-pdv-total-value .erp-pdv-order-count {
   background: transparent;
   color: var(--erp-text-muted);
   font-size: 11px !important;
-  font-weight: 700;
+  font-weight: 600;
   white-space: nowrap;
 }
 
@@ -7163,7 +7164,7 @@ body[data-erp="room-service"] .erp-version-title {
 body[data-erp="room-service"] .erp-version-title > strong {
   color: var(--erp-text);
   font-size: var(--erp-text-md);
-  font-weight: 760;
+  font-weight: 600;
 }
 
 body[data-erp="room-service"] .erp-version-badge {
@@ -7173,7 +7174,7 @@ body[data-erp="room-service"] .erp-version-badge {
   background: var(--erp-surface-soft);
   color: var(--erp-text-muted);
   font-size: var(--erp-text-xs);
-  font-weight: 720;
+  font-weight: 600;
   line-height: 1.2;
   text-align: center;
 }
@@ -7193,8 +7194,8 @@ body[data-erp="room-service"] .erp-version-current {
   margin: 22px 0 4px;
   color: var(--erp-text);
   font-size: 28px;
-  font-weight: 780;
-  letter-spacing: 0;
+  font-weight: 600;
+  letter-spacing: normal;
 }
 
 body[data-erp="room-service"] .erp-version-copy > small,
@@ -7322,7 +7323,7 @@ body[data-erp="room-service"] .order-detail-date {
   margin: 0;
   color: var(--erp-text-muted);
   font-size: 11px !important;
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1.35;
 }
 
@@ -7330,7 +7331,7 @@ body[data-erp="room-service"] #orderDetailTitle {
   margin: 0 0 3px;
   color: var(--erp-text);
   font-size: 22px !important;
-  font-weight: 780;
+  font-weight: 600;
   line-height: 1.15;
 }
 
@@ -7343,7 +7344,7 @@ body[data-erp="room-service"] .order-detail-status {
   background: #eef2f6;
   color: #475569;
   font-size: 12px;
-  font-weight: 760;
+  font-weight: 600;
 }
 
 body[data-erp="room-service"] .order-detail-status[data-status="sent"] { background: #fff6d8; color: #8b6513; }
@@ -7410,14 +7411,14 @@ body[data-erp="room-service"] .order-detail-note > span {
   margin: 0 0 3px;
   color: var(--erp-text-muted);
   font-size: 11px !important;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 body[data-erp="room-service"] .order-detail-facts dd {
   margin: 0;
   color: var(--erp-text);
   font-size: 13px !important;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
@@ -7441,13 +7442,13 @@ body[data-erp="room-service"] .order-detail-section header h3 {
   margin: 0;
   color: var(--erp-text);
   font-size: 14px !important;
-  font-weight: 760;
+  font-weight: 600;
 }
 
 body[data-erp="room-service"] .order-detail-items-section > header > strong {
   color: var(--erp-text-muted);
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 body[data-erp="room-service"] .order-detail-items {
@@ -7463,10 +7464,10 @@ body[data-erp="room-service"] .order-detail-item {
 }
 
 body[data-erp="room-service"] .order-detail-item + .order-detail-item { border-top: 1px solid var(--erp-line); }
-body[data-erp="room-service"] .order-detail-item h4 { margin: 0; color: var(--erp-text); font-size: 14px !important; font-weight: 720; line-height: 1.35; }
+body[data-erp="room-service"] .order-detail-item h4 { margin: 0; color: var(--erp-text); font-size: 14px !important; font-weight: 600; line-height: 1.35; }
 body[data-erp="room-service"] .order-detail-item span { display: block; margin-top: 3px; color: var(--erp-text-muted); font-size: 12px; line-height: 1.4; }
 body[data-erp="room-service"] .order-detail-item p { margin: 4px 0 0; color: var(--erp-text-muted); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
-body[data-erp="room-service"] .order-detail-item > b { color: var(--erp-text); font-size: 14px; font-weight: 760; white-space: nowrap; }
+body[data-erp="room-service"] .order-detail-item > b { color: var(--erp-text); font-size: 14px; font-weight: 600; white-space: nowrap; }
 
 body[data-erp="room-service"] .order-detail-note {
   margin-top: 14px;
@@ -7480,9 +7481,9 @@ body[data-erp="room-service"] .order-detail-note p { margin: 0; color: #66531e; 
 body[data-erp="room-service"] .order-detail-total-card dl { margin: 0; padding: 0 0 16px; }
 body[data-erp="room-service"] .order-detail-total-card dl > div { display: flex; justify-content: space-between; gap: 14px; padding: 6px 0; }
 body[data-erp="room-service"] .order-detail-total-card dt { color: var(--erp-text-muted); font-size: 12px; }
-body[data-erp="room-service"] .order-detail-total-card dd { margin: 0; color: var(--erp-text); font-size: 12px; font-weight: 700; text-align: right; overflow-wrap: anywhere; }
+body[data-erp="room-service"] .order-detail-total-card dd { margin: 0; color: var(--erp-text); font-size: 12px; font-weight: 600; text-align: right; overflow-wrap: anywhere; }
 body[data-erp="room-service"] .order-detail-total-card .order-detail-total { margin-top: 5px; padding-top: 11px; border-top: 1px solid var(--erp-line); align-items: baseline; }
-body[data-erp="room-service"] .order-detail-total-card .order-detail-total dd { color: var(--erp-text); font-size: 20px; font-weight: 800; }
+body[data-erp="room-service"] .order-detail-total-card .order-detail-total dd { color: var(--erp-text); font-size: 20px; font-weight:600; }
 
 body[data-erp="room-service"] .order-detail-agent-status {
   display: inline-flex;
@@ -7490,7 +7491,7 @@ body[data-erp="room-service"] .order-detail-agent-status {
   gap: 7px;
   color: var(--erp-text-muted);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   white-space: nowrap;
 }
 body[data-erp="room-service"] .order-detail-agent-status::before {
@@ -7509,15 +7510,15 @@ body[data-erp="room-service"] .order-detail-print-summary p { margin: 3px 0 0; c
 body[data-erp="room-service"] .order-detail-print-meta { margin: 0; padding: 0 0 11px; }
 body[data-erp="room-service"] .order-detail-print-meta > div { display: grid; grid-template-columns: minmax(92px, .36fr) minmax(0, 1fr); gap: 12px; padding: 6px 0; }
 body[data-erp="room-service"] .order-detail-print-meta dt { color: var(--erp-text-muted); font-size: 11px; }
-body[data-erp="room-service"] .order-detail-print-meta dd { margin: 0; color: var(--erp-text); font-size: 11px; font-weight: 650; overflow-wrap: anywhere; }
+body[data-erp="room-service"] .order-detail-print-meta dd { margin: 0; color: var(--erp-text); font-size: 11px; font-weight: 600; overflow-wrap: anywhere; }
 body[data-erp="room-service"] .order-detail-print-events { border-top: 1px solid var(--erp-line); }
 body[data-erp="room-service"] .order-detail-print-events > div { display: flex; gap: 9px; padding: 9px 0; }
 body[data-erp="room-service"] .order-detail-print-events > div + div { border-top: 1px solid var(--erp-line); }
 body[data-erp="room-service"] .order-detail-print-events i { width: 7px; height: 7px; margin-top: 5px; flex: 0 0 7px; border-radius: 50%; background: #94a3b8; }
 body[data-erp="room-service"] .order-detail-print-events span { min-width: 0; display: flex; flex-direction: column; }
 body[data-erp="room-service"] .order-detail-print-events strong { color: var(--erp-text); font-size: 11px; }
-body[data-erp="room-service"] .order-detail-print-events small { color: var(--erp-text-muted); font-size: 10px; }
-body[data-erp="room-service"] .order-detail-print-events em { margin-top: 3px; color: #a13535; font-size: 10px; font-style: normal; overflow-wrap: anywhere; }
+body[data-erp="room-service"] .order-detail-print-events small { color: var(--erp-text-muted); font-size:12px; }
+body[data-erp="room-service"] .order-detail-print-events em { margin-top: 3px; color: #a13535; font-size:12px; font-style: normal; overflow-wrap: anywhere; }
 body[data-erp="room-service"] .order-detail-print-empty { margin: 0 !important; padding: 11px 0 !important; }
 
 body[data-erp="room-service"] .order-detail-history-section { flex: 1 0 auto; }
@@ -7527,8 +7528,8 @@ body[data-erp="room-service"] .order-detail-history li i { width: 8px; height: 8
 body[data-erp="room-service"] .order-detail-history li:first-child i { background: var(--brand-primary); box-shadow: 0 0 0 4px var(--brand-primary-soft); }
 body[data-erp="room-service"] .order-detail-history li div { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 9px; }
 body[data-erp="room-service"] .order-detail-history strong { color: var(--erp-text); font-size: 11px; }
-body[data-erp="room-service"] .order-detail-history span { color: var(--erp-text-muted); font-size: 10px; text-align: right; }
-body[data-erp="room-service"] .order-detail-history p { grid-column: 1 / -1; margin: 0; color: var(--erp-text-muted); font-size: 10px; line-height: 1.4; }
+body[data-erp="room-service"] .order-detail-history span { color: var(--erp-text-muted); font-size:12px; text-align: right; }
+body[data-erp="room-service"] .order-detail-history p { grid-column: 1 / -1; margin: 0; color: var(--erp-text-muted); font-size:12px; line-height: 1.4; }
 body[data-erp="room-service"] .order-detail-empty { padding: 18px 0; color: var(--erp-text-muted); font-size: 12px; text-align: center; }
 
 body[data-erp="room-service"] #orderDetailCard .order-detail-actions {
@@ -7545,7 +7546,7 @@ body[data-erp="room-service"] #orderDetailCard .order-detail-actions {
   backdrop-filter: none !important;
 }
 body[data-erp="room-service"] #orderDetailCard .legacy-status-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
-body[data-erp="room-service"] #orderDetailCard :is(.order-action-primary, .order-action-secondary) { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 14px; border-radius: 9px; font-size: 12px; font-weight: 720; }
+body[data-erp="room-service"] #orderDetailCard :is(.order-action-primary, .order-action-secondary) { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 14px; border-radius: 9px; font-size: 12px; font-weight: 600; }
 body[data-erp="room-service"] #orderDetailCard :is(.order-action-primary, .order-action-secondary) svg { width: 14px; height: 14px; }
 body[data-erp="room-service"] #orderDetailCard .order-action-danger { border-color: #e6b8b8; background: #fff8f8; color: #a13535; }
 body[data-erp="room-service"] #orderDetailCard .order-action-danger:hover { border-color: #c96969; background: #fff1f1; }
@@ -7567,7 +7568,7 @@ body[data-erp="room-service"] .order-status-dialog-icon { width: 42px; height: 4
 body[data-erp="room-service"] .order-status-dialog-icon svg { width: 20px; height: 20px; }
 body[data-erp="room-service"] .order-status-dialog h3 { margin: 0; color: var(--erp-text); font-size: 18px; }
 body[data-erp="room-service"] .order-status-dialog p { margin: 7px 0 16px; color: var(--erp-text-muted); font-size: 12px; line-height: 1.5; }
-body[data-erp="room-service"] .order-status-dialog label { display: grid; gap: 7px; color: var(--erp-text); font-size: 11px; font-weight: 700; }
+body[data-erp="room-service"] .order-status-dialog label { display: grid; gap: 7px; color: var(--erp-text); font-size: 11px; font-weight: 600; }
 body[data-erp="room-service"] .order-status-dialog textarea { width: 100%; resize: vertical; }
 body[data-erp="room-service"] .order-status-dialog-card > div { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 
