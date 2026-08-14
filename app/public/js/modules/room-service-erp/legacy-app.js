@@ -499,7 +499,6 @@ function installVisualSystem() {
     const groups = [
       ["btnTabDashboard", "Operacao"],
       ["btnTabHospedes", "Gestao"],
-      ["btnTabAdmin", "Sistema"],
     ];
     for (const [buttonId, label] of groups) {
       const button = byId(buttonId, false);
@@ -1190,7 +1189,7 @@ function restrictedSettings() {
 function openSettingsView(view) {
   state.settingsView = view;
   byId("accountPopover")?.classList.add("hidden");
-  switchTab("admin");
+  switchTab("admin", { allowHidden: true });
   renderAdmin();
   byId("adminContainer")?.scrollTo({ top: 0, left: 0 });
   if (view === "printing" && desktop.isElectron) void refreshLocalPrintAgentStatus();
@@ -1579,8 +1578,8 @@ function handlePdvRoomKeydown(event) {
   }
 }
 
-function switchTab(route) {
-  if (!ROUTES[route] || byId(ROUTES[route].button).classList.contains("hidden")) {
+function switchTab(route, { allowHidden = false } = {}) {
+  if (!ROUTES[route] || (!allowHidden && byId(ROUTES[route].button).classList.contains("hidden"))) {
     route = Object.keys(ROUTES).find((key) => !byId(ROUTES[key].button).classList.contains("hidden")) || "dashboard";
   }
   state.route = route;
