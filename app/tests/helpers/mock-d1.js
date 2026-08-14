@@ -89,6 +89,12 @@ function createAssetsBinding() {
         });
       }
 
+      if (pathname.startsWith("/fonts/") && pathname.endsWith(".woff2")) {
+        return new Response(new Uint8Array([0x77, 0x4f, 0x46, 0x32]), {
+          headers: { "content-type": "font/woff2" },
+        });
+      }
+
       return new Response(`<html><body>${pathname}</body></html>`, {
         headers: { "content-type": "text/html; charset=utf-8" },
       });
