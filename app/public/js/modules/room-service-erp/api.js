@@ -48,6 +48,13 @@ export function updateOrderStatus(orderId, body) {
   });
 }
 
+export function reprintOrder(orderId) {
+  return adminApi(`/api/v1/admin/room-service/orders/${encodeURIComponent(orderId)}/print`, {
+    method: "POST",
+    body: {},
+  });
+}
+
 export function createPdvOrder(body, idempotencyKey) {
   return adminApi("/api/v1/admin/room-service/orders", {
     method: "POST",

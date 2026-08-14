@@ -95,3 +95,20 @@ test("ERP printing settings can copy an enrollment code and control the local ag
   assert.match(app, /restartLocalPrintAgent/);
   assert.match(app, /Reiniciar servidor/);
 });
+
+test("order details use the horizontal Electron workspace and live printing state", () => {
+  const app = read("app/public/js/modules/room-service-erp/legacy-app.js");
+  const api = read("app/public/js/modules/room-service-erp/api.js");
+  const css = read("app/public/css/modules/room-service-erp/design-system-v5.css");
+
+  assert.match(app, /installOrderDetailsInterface/);
+  assert.match(app, /order-detail-layout/);
+  assert.match(app, /renderOrderPrinting/);
+  assert.match(app, /data-order-reprint/);
+  assert.match(app, /orderStatusDialog/);
+  assert.doesNotMatch(app, /Impressao indisponivel/);
+  assert.doesNotMatch(app, /window\.prompt\("Informe o motivo do cancelamento/);
+  assert.match(api, /orders\/\$\{encodeURIComponent\(orderId\)\}\/print/);
+  assert.match(css, /grid-template-columns:\s*minmax\(0, 1\.45fr\) minmax\(330px, \.85fr\)/);
+  assert.match(css, /body\[data-fioreze-desktop="electron"\].*#orderDetailCard\.order-detail-dialog/s);
+});

@@ -14,6 +14,7 @@ import { ERP_SETTINGS_PERMISSION } from "./erp-operations.js";
 
 const MODULE_KEY = "room-service";
 const PRINTING_SETTING_KEY = "room-service.printing_enabled";
+const ORDERS_WRITE_PERMISSION = "room-service.orders.write";
 const ENROLLMENT_TTL_MS = 15 * 60 * 1000;
 const DEVICE_STATUSES = new Set(["active", "paused", "revoked"]);
 
@@ -61,6 +62,148 @@ export async function getRoomServicePrinting({ request, env, session, url }) {
     can_create_enrollment: devices.every((device) => device.status === "revoked"),
     summary: Object.fromEntries(summary.map((entry) => [entry.status, Number(entry.total || 0)])),
   };
+}
+
+export async function getRoomServiceOrderPrintingState({ env, hotelId, now = new Date().toISOString() }) {
+  const [setting, template, device] = await Promise.all([
+    first(
+      env,
+      `SELECT setting_value
+         FROM hotel_settings
+        WHERE hotel_id = ? AND setting_key = ?
+        LIMIT 1`,
+      [hotelId, PRINTING_SETTING_KEY],
+    ),
+    first(
+      env,
+      `SELECT id, name
+         FROM printer_templates
+        WHERE hotel_id = ? AND module_key = ?
+          AND status = 'active' AND is_default = 1
+        LIMIT 1`,
+      [hotelId, MODULE_KEY],
+    ),
+    first(
+      env,
+      `SELECT id, name, status, printer_name, last_seen_at
+         FROM printer_devices
+        WHERE hotel_id = ? AND module_key = ?
+          AND status IN ('active', 'paused')
+        ORDER BY CASE status WHEN 'active' THEN 0 ELSE 1 END, updated_at DESC
+        LIMIT 1`,
+      [hotelId, MODULE_KEY],
+    ),
+  ]);
+  const globalEnabled = String(env.IMPRESSION_ENABLED || "false").toLowerCase() === "true";
+  const unitEnabled = parseBoolean(setting?.setting_value);
+  const effectiveEnabled = globalEnabled && unitEnabled;
+  const deviceStatus = device ? deviceConnectionStatus(device, Date.parse(now)) : "not_configured";
+  const configured = Boolean(effectiveEnabled && template && device);
+
+  return {
+    enabled: effectiveEnabled,
+    global_enabled: globalEnabled,
+    unit_enabled: unitEnabled,
+    configured,
+    can_reprint: configured,
+    template: template ? { id: template.id, name: template.name } : null,
+    device: device
+      ? {
+          id: device.id,
+          name: device.name,
+          printer_name: device.printer_name || null,
+          status: device.status,
+          connection_status: deviceStatus,
+          last_seen_at: device.last_seen_at || null,
+        }
+      : null,
+    message: printingStateMessage({ globalEnabled, unitEnabled, template, device, deviceStatus }),
+  };
+}
+
+export async function queueRoomServiceOrderReprint({ request, env, session, orderId }) {
+  requirePermission(session, ORDERS_WRITE_PERMISSION);
+  assertAdminMutationAllowed({ request });
+  if (!session.hotel_ids.length) throw notFoundError("Pedido nao encontrado.");
+
+  const placeholders = session.hotel_ids.map(() => "?").join(", ");
+  const order = await first(
+    env,
+    `SELECT id, public_id, hotel_id, module_key
+       FROM orders
+      WHERE id = ? AND module_key = ?
+        AND hotel_id IN (${placeholders})
+      LIMIT 1`,
+    [orderId, MODULE_KEY, ...session.hotel_ids],
+  );
+  if (!order) throw notFoundError("Pedido nao encontrado.");
+
+  const now = requestNow({ request, env });
+  const printing = await getRoomServiceOrderPrintingState({ env, hotelId: order.hotel_id, now });
+  if (!printing.can_reprint) {
+    throw conflict(printing.message, {
+      printing_enabled: printing.enabled,
+      printing_configured: printing.configured,
+    });
+  }
+
+  const eventId = createPublicId("print");
+  const actor = erpActorIds(session);
+  const requestKey = `reprint:${eventId}`;
+  const auditId = createPublicId("audit");
+  const results = await batch(env, [
+    statement(
+      env,
+      `INSERT INTO print_events (
+         id, hotel_id, module_key, order_id, printer_id, status,
+         attempts, last_error, requested_at, printed_at, created_at, updated_at,
+         device_id, template_id, request_key, job_kind
+       ) VALUES (?, ?, ?, ?, NULL, 'queued', 0, NULL, ?, NULL, ?, ?, NULL, ?, ?, 'reprint')`,
+      [eventId, order.hotel_id, MODULE_KEY, order.id, now, now, now, printing.template.id, requestKey],
+    ),
+    statement(
+      env,
+      `INSERT INTO admin_audit_log (
+         id, hotel_id, module_key, actor_user_id, actor_erp_user_id,
+         action, entity_type, entity_id, metadata_json, created_at
+       ) VALUES (?, ?, ?, ?, ?, 'room-service.order.reprint_queued',
+                 'print_event', ?, ?, ?)`,
+      [
+        auditId,
+        order.hotel_id,
+        MODULE_KEY,
+        actor.adminUserId,
+        actor.erpUserId,
+        eventId,
+        JSON.stringify({ order_id: order.id, public_id: order.public_id, template_id: printing.template.id }),
+        now,
+      ],
+    ),
+  ]);
+  if (Number(results?.[0]?.meta?.changes || 0) !== 1 || Number(results?.[1]?.meta?.changes || 0) !== 1) {
+    throw new Error("A fila de impressao nao confirmou o pedido e a auditoria.");
+  }
+
+  return {
+    event: {
+      id: eventId,
+      order_id: order.id,
+      status: "queued",
+      job_kind: "reprint",
+      requested_at: now,
+    },
+    printing,
+  };
+}
+
+function printingStateMessage({ globalEnabled, unitEnabled, template, device, deviceStatus }) {
+  if (!globalEnabled) return "A impressao esta desativada para este ambiente.";
+  if (!unitEnabled) return "A impressao automatica esta desativada nesta unidade.";
+  if (!template) return "Selecione um modelo de comprovante nas configuracoes de impressao.";
+  if (!device) return "Conecte o computador responsavel pela impressao desta unidade.";
+  if (device.status === "paused") return "O agente esta pausado. A impressao ficara na fila.";
+  if (deviceStatus !== "online") return "O agente esta offline. A impressao ficara na fila ate a reconexao.";
+  return "Agente online e pronto para imprimir.";
 }
 
 function deviceConnectionStatus(device, now) {

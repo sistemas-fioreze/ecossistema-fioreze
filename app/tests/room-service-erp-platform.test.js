@@ -161,6 +161,74 @@ test("ERP Room Service preserva isolamento para usuario de outro hotel", async (
   assert.equal(denied.response.status, 401);
 });
 
+test("detalhe do pedido reflete o agente configurado e enfileira reimpressao auditada", async () => {
+  const { env, json } = createWorkerTestContext({ IMPRESSION_ENABLED: "true" });
+  const cookie = await createSessionCookie(env);
+  env.__data.settings.push({
+    hotel_id: "muller-fioreze",
+    setting_key: "room-service.printing_enabled",
+    setting_value: "true",
+    value_type: "boolean",
+    is_public: 0,
+  });
+  env.__data.printerDevices.push({
+    id: "printer-muller-online",
+    hotel_id: "muller-fioreze",
+    module_key: "room-service",
+    name: "Computador da copa",
+    platform: "windows",
+    app_version: "1.5.0",
+    printer_name: "Impressora termica",
+    template_id: "print-template-muller-default",
+    status: "active",
+    created_at: "2026-08-14T12:00:00.000Z",
+    updated_at: "2026-08-14T12:00:00.000Z",
+    last_seen_at: "2099-08-14T12:00:00.000Z",
+    revoked_at: null,
+  });
+  env.__data.orders.push(order("order-muller-print", "muller-fioreze", "received", 2500));
+
+  const before = await json("/api/v1/admin/room-service/orders/order-muller-print", withCookie(cookie));
+  assert.equal(before.response.status, 200);
+  assert.equal(before.body.data.order.printing.enabled, true);
+  assert.equal(before.body.data.order.printing.configured, true);
+  assert.equal(before.body.data.order.printing.can_reprint, true);
+  assert.equal(before.body.data.order.printing.device.connection_status, "online");
+
+  const queued = await json(
+    "/api/v1/admin/room-service/orders/order-muller-print/print",
+    withCookie(cookie, adminJson("POST", {})),
+  );
+  assert.equal(queued.response.status, 201);
+  assert.equal(queued.body.data.event.status, "queued");
+  assert.equal(queued.body.data.event.job_kind, "reprint");
+  assert.equal(env.__data.printEvents.length, 1);
+  assert.equal(env.__data.printEvents[0].order_id, "order-muller-print");
+  assert.equal(env.__data.printEvents[0].job_kind, "reprint");
+  assert.equal(env.__data.adminAuditLog.filter((entry) => entry.action === "room-service.order.reprint_queued").length, 1);
+  assert.equal(env.__data.orders[0].status, "received");
+  assert.equal(env.__data.orderStatusHistory.length, 0);
+
+  const after = await json("/api/v1/admin/room-service/orders/order-muller-print", withCookie(cookie));
+  assert.equal(after.body.data.order.printing.event_count, 1);
+  assert.equal(after.body.data.order.printing.latest_event.status, "queued");
+});
+
+test("reimpressao bloqueada nao cria evento nem auditoria", async () => {
+  const { env, json } = createWorkerTestContext({ IMPRESSION_ENABLED: "false" });
+  const cookie = await createSessionCookie(env);
+  env.__data.orders.push(order("order-muller-no-print", "muller-fioreze", "received", 2500));
+
+  const queued = await json(
+    "/api/v1/admin/room-service/orders/order-muller-no-print/print",
+    withCookie(cookie, adminJson("POST", {})),
+  );
+
+  assert.equal(queued.response.status, 409);
+  assert.equal(env.__data.printEvents.length, 0);
+  assert.equal(env.__data.adminAuditLog.filter((entry) => entry.action === "room-service.order.reprint_queued").length, 0);
+});
+
 function order(id, hotelId, status, totalCents) {
   return {
     id,

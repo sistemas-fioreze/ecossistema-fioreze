@@ -10,6 +10,7 @@ import { assertAdminMutationAllowed, requireAdminHotelAccess, requirePermission 
 import { ERP_CATALOG_MANAGE_PERMISSION, listRoomServiceCatalogCategories } from "./erp-catalog.js";
 import { ERP_SETTINGS_PERMISSION, loadRoomServiceOperationState } from "./erp-operations.js";
 import { erpActorIds } from "../../services/erp-auth.js";
+import { getRoomServiceOrderPrintingState } from "./erp-printing.js";
 
 const MODULE_KEY = "room-service";
 const READ_PERMISSION = "room-service.orders.read";
@@ -43,10 +44,11 @@ export async function getRoomServiceErpContext({ env, session, url }) {
   requireAnyPermission(session, ERP_PERMISSIONS);
   const hotelId = resolveRequestedHotel(session, url);
   const hotel = requireSessionHotel(session, hotelId);
-  const [branding, operation, rooms] = await Promise.all([
+  const [branding, operation, rooms, printing] = await Promise.all([
     loadBranding(env, hotelId),
     loadRoomServiceOperationState({ env, hotelId, timezone: hotel.timezone }),
     listRooms(env, hotelId),
+    getRoomServiceOrderPrintingState({ env, hotelId }),
   ]);
 
   return {
@@ -69,10 +71,7 @@ export async function getRoomServiceErpContext({ env, session, url }) {
       can_manage_catalog: hasAnyPermission(session, [ERP_CATALOG_MANAGE_PERMISSION]),
       can_manage_settings: hasAnyPermission(session, [ERP_SETTINGS_PERMISSION]),
     },
-    printing: {
-      enabled: false,
-      message: "Impressao desativada neste ambiente.",
-    },
+    printing,
     storage_policy: {
       local_storage: ["theme", "scale", "compact", "preferredHotelId", "route"],
       prohibited: ["orders", "guests", "passwords", "tokens", "personal_data"],
@@ -271,9 +270,9 @@ export async function getRoomServiceErpBilling({ env, session, url }) {
       average_ticket_cents: billable.length ? Math.round(totalCents / billable.length) : 0,
     },
     exports: {
-      csv_ready: false,
+      csv_ready: true,
       xlsx_ready: false,
-      message: "Exportacoes serao implementadas sem CDN e respeitando permissoes financeiras.",
+      message: "A exportacao CSV esta disponivel no ERP. O formato XLSX permanece fora deste escopo.",
     },
   };
 }

@@ -5,6 +5,7 @@ import { requestNow } from "../../core/time.js";
 import { optionalString, readJson, requireString } from "../../core/validation.js";
 import { assertAdminMutationAllowed, requireAdminHotelAccess, requirePermission } from "../../services/admin-auth.js";
 import { erpActorIds } from "../../services/erp-auth.js";
+import { getRoomServiceOrderPrintingState } from "./erp-printing.js";
 
 const MODULE_KEY = "room-service";
 const READ_PERMISSION = "room-service.orders.read";
@@ -363,7 +364,8 @@ async function loadOrderDetail(env, orderId, hotelIds) {
 
   const printEvents = await all(
     env,
-    `SELECT id, status, attempts, last_error, requested_at, printed_at, created_at
+    `SELECT id, status, attempts, last_error, requested_at, printed_at,
+            created_at, updated_at, completed_at, job_kind, device_id, template_id
        FROM print_events
       WHERE order_id = ?
         AND hotel_id = ?
@@ -371,9 +373,10 @@ async function loadOrderDetail(env, orderId, hotelIds) {
       ORDER BY created_at, id`,
     [order.id, order.hotel_id, MODULE_KEY],
   );
+  const printing = await getRoomServiceOrderPrintingState({ env, hotelId: order.hotel_id });
 
   return {
-    order: formatOrderDetail(order, items, history, printEvents),
+    order: formatOrderDetail(order, items, history, printEvents, printing),
   };
 }
 
@@ -400,7 +403,7 @@ function formatOrderListRow(row) {
   };
 }
 
-function formatOrderDetail(order, items, history, printEvents) {
+function formatOrderDetail(order, items, history, printEvents, printing) {
   return {
     ...formatOrderListRow({ ...order, item_count: items.length }),
     locale: order.locale,
@@ -428,9 +431,9 @@ function formatOrderDetail(order, items, history, printEvents) {
       created_at: entry.created_at,
     })),
     printing: {
-      enabled: false,
-      message: "Impressao desativada neste ambiente.",
+      ...printing,
       event_count: printEvents.length,
+      latest_event: printEvents.at(-1) || null,
       events: printEvents,
     },
   };
