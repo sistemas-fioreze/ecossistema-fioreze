@@ -120,4 +120,17 @@ test("order details use the horizontal Electron workspace and live printing stat
   assert.match(css, /\.order-detail-primary,[\s\S]*\.order-detail-secondary \{[\s\S]*overflow:\s*visible/);
   assert.match(css, /\.order-action-danger \{[\s\S]*background:\s*#fff8f8/);
   assert.match(css, /body\[data-fioreze-desktop="electron"\].*#orderDetailCard\.order-detail-dialog/s);
+  assert.match(css, /body\[data-fioreze-desktop="electron"\]\[data-erp="room-service"\] #orderDetailCard\.order-detail-dialog \{[\s\S]*width:\s*min\(1120px, calc\(100% - 64px\)\)/);
+  assert.match(css, /height:\s*min\(610px, calc\(100% - 56px\)\)/);
+  assert.match(css, /body\[data-fioreze-desktop="electron"\]\[data-erp="room-service"\] #orderModal \{[\s\S]*padding:\s*28px 32px/);
+});
+
+test("settings stays available outside the ERP sidebar", () => {
+  const config = read("app/public/js/modules/room-service-erp/static-config.js");
+  const shell = read("app/public/js/modules/room-service-erp/shell.js");
+  const css = read("app/public/css/modules/room-service-erp/design-system-v5.css");
+
+  assert.match(config, /key:\s*"settings"[\s\S]*sidebar:\s*false/);
+  assert.match(shell, /NAV_ITEMS\.filter\(\(item\) => item\.sidebar !== false\)/);
+  assert.match(css, /#btnTabAdmin \{[\s\S]*display:\s*none !important/);
 });

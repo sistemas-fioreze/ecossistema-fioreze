@@ -43,6 +43,7 @@ export const NAV_ITEMS = [
     label: "Configuracoes",
     permission: "room-service.orders.read",
     description: "Preferencias locais e status operacional.",
+    sidebar: false,
   },
 ];
 
