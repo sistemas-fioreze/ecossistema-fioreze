@@ -699,10 +699,8 @@ function installOrderDetailsInterface() {
   card.innerHTML = `
     <header class="order-detail-header">
       <div class="order-detail-heading">
-        <span class="order-detail-heading-icon" aria-hidden="true">${clipboardIcon()}</span>
         <div class="min-w-0">
-          <p class="order-detail-kicker">Pedido <strong id="detPublicId">-</strong></p>
-          <h2 id="orderDetailTitle">Detalhes do pedido</h2>
+          <h2 id="orderDetailTitle">Pedido</h2>
           <p id="detDate" class="order-detail-date"></p>
         </div>
       </div>
@@ -714,38 +712,38 @@ function installOrderDetailsInterface() {
     <input type="hidden" id="detLinha">
     <div class="order-detail-layout">
       <section class="order-detail-primary" aria-label="Itens e observacoes do pedido">
-        <div class="order-detail-summary-grid">
-          <article><span>Acomodacao</span><strong id="detRoom">-</strong></article>
-          <article><span>Hospede</span><strong id="detGuest">Nao informado</strong></article>
-          <article><span>Entrega</span><strong id="detLocal">Acomodacao</strong></article>
-          <article><span>Preparo</span><strong id="detPreparation">Imediato</strong></article>
-        </div>
+        <dl class="order-detail-facts">
+          <div><dt>Acomodação</dt><dd id="detRoom">-</dd></div>
+          <div><dt>Hóspede</dt><dd id="detGuest">Não informado</dd></div>
+          <div><dt>Local de entrega</dt><dd id="detLocal">Acomodação</dd></div>
+          <div><dt>Preparo</dt><dd id="detPreparation">Imediato</dd></div>
+        </dl>
         <article class="order-detail-section order-detail-items-section">
-          <header><div><span>Comanda</span><h3>Itens do pedido</h3></div><strong id="detItemCount">0 itens</strong></header>
+          <header><h3>Itens do pedido</h3><strong id="detItemCount">0 itens</strong></header>
           <div id="detItems" class="order-detail-items"></div>
         </article>
         <article id="detObsBox" class="order-detail-note hidden">
-          <span>Observacao do pedido</span>
+          <span>Observação do pedido</span>
           <p id="detObs"></p>
         </article>
       </section>
       <aside class="order-detail-secondary">
         <article class="order-detail-section order-detail-total-card">
-          <header><div><span>Resumo</span><h3>Atendimento</h3></div></header>
+          <header><h3>Atendimento</h3></header>
           <dl>
             <div><dt>Origem</dt><dd id="detStaff">Portal</dd></div>
-            <div><dt>Contato</dt><dd id="detContact">Nao informado</dd></div>
+            <div><dt>Contato</dt><dd id="detContact">Não informado</dd></div>
             <div class="order-detail-total"><dt>Total do pedido</dt><dd id="detTotal">R$ 0,00</dd></div>
           </dl>
         </article>
         <article class="order-detail-section order-detail-printing" data-printing-state="disabled">
-          <header><div><span>Impressao</span><h3 id="detPrintState">Verificando configuracao</h3></div><i id="detPrintIndicator" aria-hidden="true"></i></header>
-          <p id="detPrintMessage"></p>
-          <div id="detPrintMeta" class="order-detail-print-meta"></div>
+          <header><h3>Impressão automática</h3><span id="detPrintAgentStatus" class="order-detail-agent-status">Verificando</span></header>
+          <div class="order-detail-print-summary"><strong id="detPrintState">Nenhum comprovante emitido</strong><p id="detPrintMessage"></p></div>
+          <dl id="detPrintMeta" class="order-detail-print-meta"></dl>
           <div id="detPrintEvents" class="order-detail-print-events"></div>
         </article>
         <article class="order-detail-section order-detail-history-section">
-          <header><div><span>Movimentacao</span><h3>Historico do pedido</h3></div></header>
+          <header><h3>Histórico do pedido</h3></header>
           <ol id="detHistory" class="order-detail-history"></ol>
         </article>
       </aside>
@@ -1663,7 +1661,7 @@ function renderDashboardV3() {
 
   const recent = state.dashboard?.recent_orders || orders.slice(0, 8);
   byId("dashLastOrders").innerHTML = recent.length
-    ? recent.map((order) => `<button type="button" class="erp-list-button" data-order-id="${escapeAttr(order.id)}"><span><strong>${escapeHtml(order.public_id || "Pedido")}</strong><small>${escapeHtml(order.room_code || "Sem acomodacao")} · ${statusLabel(order.status)}</small></span><b>${money(order.total_cents)}</b></button>`).join("")
+    ? recent.map((order) => `<button type="button" class="erp-list-button" data-order-id="${escapeAttr(order.id)}"><span><strong>${escapeHtml(orderDisplayLabel(order))}</strong><small>${escapeHtml(order.room_code || "Sem acomodacao")} · ${statusLabel(order.status)}</small></span><b>${money(order.total_cents)}</b></button>`).join("")
     : '<div class="legacy-dashboard-empty">Nenhum pedido encontrado.</div>';
   bindOrderButtons(byId("dashLastOrders"));
 
@@ -1725,7 +1723,7 @@ function renderDashboard() {
   const recent = orders.slice(0, 8);
   setText("dashLastOrdersMeta", `${recent.length} ${recent.length === 1 ? "pedido" : "pedidos"}`);
   byId("dashLastOrders").innerHTML = recent.length
-    ? recent.map((order) => `<button type="button" class="erp-dashboard-order" data-order-id="${escapeAttr(order.id)}"><time>${escapeHtml(formatDate(order.created_at, { hour: "2-digit", minute: "2-digit" }))}</time><span><strong>${escapeHtml(order.public_id || "Pedido")}</strong><small>${escapeHtml(order.room_code || "Sem acomodacao")}</small></span><em data-status="${escapeAttr(order.status)}">${escapeHtml(statusLabel(order.status))}</em><b>${money(order.total_cents, order.currency)}</b></button>`).join("")
+    ? recent.map((order) => `<button type="button" class="erp-dashboard-order" data-order-id="${escapeAttr(order.id)}"><time>${escapeHtml(formatDate(order.created_at, { hour: "2-digit", minute: "2-digit" }))}</time><span><strong>${escapeHtml(orderDisplayLabel(order))}</strong><small>${escapeHtml(order.room_code || "Sem acomodacao")}</small></span><em data-status="${escapeAttr(order.status)}">${escapeHtml(statusLabel(order.status))}</em><b>${money(order.total_cents, order.currency)}</b></button>`).join("")
     : '<div class="erp-dashboard-empty">Nenhum pedido neste dia.</div>';
   bindOrderButtons(byId("dashLastOrders"));
 
@@ -1747,7 +1745,7 @@ function orderMiniCard(order) {
   const time = formatDate(order.created_at, { hour: "2-digit", minute: "2-digit" });
   return `<article class="order-mini-card">
     <div><p class="mini-card-label">Hora</p><p class="mini-card-value text-sm">${escapeHtml(time)}</p></div>
-    <div class="min-w-0"><p class="mini-card-title truncate">${escapeHtml(order.guest_name || order.public_id || "Pedido")}</p><p class="mini-card-meta mt-2"><span>Apto ${escapeHtml(order.room_code || "-")}</span><span class="legacy-status-chip" data-status="${escapeAttr(order.status)}">${escapeHtml(statusLabel(order.status))}</span></p></div>
+    <div class="min-w-0"><p class="mini-card-title truncate">${escapeHtml(order.guest_name || orderDisplayLabel(order))}</p><p class="mini-card-meta mt-2"><span>${escapeHtml(orderDisplayLabel(order))} · Apto ${escapeHtml(order.room_code || "-")}</span><span class="legacy-status-chip" data-status="${escapeAttr(order.status)}">${escapeHtml(statusLabel(order.status))}</span></p></div>
     <div><p class="mini-card-label">Total</p><p class="mini-card-value">${money(order.total_cents)}</p></div>
     <div class="mini-card-actions justify-end"><button type="button" data-order-id="${escapeAttr(order.id)}" class="mini-card-action"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>Ver</button></div>
   </article>`;
@@ -1762,8 +1760,8 @@ async function openOrder(orderId) {
     const preparation = order.preparation_mode === "scheduled" && order.scheduled_for
       ? `Agendado para ${formatDate(order.scheduled_for, { hour: "2-digit", minute: "2-digit" })}`
       : "Preparo imediato";
-    setText("detPublicId", order.public_id || "Pedido");
-    setText("detDate", formatDate(order.created_at));
+    setText("orderDetailTitle", orderDisplayLabel(order));
+    setText("detDate", formatOrderDate(order.created_at));
     setText("detLinha", order.id);
     setText("detRoom", order.delivery?.room_code || order.room_code || "-");
     setText("detGuest", displayBusinessText(order.guest_name, "Nao informado"));
@@ -1774,15 +1772,14 @@ async function openOrder(orderId) {
     setText("detTotal", money(order.total_cents, order.currency));
     const status = byId("detStatus");
     status.dataset.status = order.status;
-    status.textContent = statusLabel(order.status);
+    status.textContent = `Status do pedido: ${statusLabel(order.status)}`;
     const items = order.items || [];
     const quantity = items.reduce((total, item) => total + Number(item.quantity || 0), 0);
     setText("detItemCount", `${quantity} ${quantity === 1 ? "item" : "itens"}`);
     byId("detItems").innerHTML = items.length
       ? items.map((item) => `<article class="order-detail-item">
-          <strong>${Number(item.quantity || 0)}x</strong>
-          <div><h4>${escapeHtml(displayBusinessText(item.name || item.name_snapshot, "Item"))}</h4>${formatOrderItemOptions(item.selected_options)}</div>
-          <span><small>${money(item.unit_price_cents, order.currency)} cada</small><b>${money(item.line_total_cents, order.currency)}</b></span>
+          <div><h4>${escapeHtml(displayBusinessText(item.name || item.name_snapshot, "Item"))}</h4><span>${Number(item.quantity || 0)} × ${money(item.unit_price_cents, order.currency)}</span>${formatOrderItemOptions(item.selected_options)}</div>
+          <b>${money(item.line_total_cents, order.currency)}</b>
         </article>`).join("")
       : '<div class="order-detail-empty">Este pedido nao possui itens.</div>';
     const notes = order.delivery?.observation || "";
@@ -1804,13 +1801,11 @@ function renderStatusActions(order) {
   const next = NEXT_STATUS[order.status];
   const buttons = [];
   const canWrite = (state.session?.permissions || []).includes("room-service.orders.write");
-  if (canWrite && next) buttons.push(`<button type="button" class="order-action-primary" data-status-target="${next}">Avancar para ${escapeHtml(statusLabel(next))}</button>`);
-  if (canWrite && !["delivered", "cancelled"].includes(order.status)) buttons.push('<button type="button" class="order-action-secondary order-action-danger" data-status-target="cancelled">Cancelar pedido</button>');
   if (canWrite && order.printing?.can_reprint) {
     buttons.push(`<button type="button" class="order-action-secondary order-action-print" data-order-reprint>${printIcon()} Imprimir novamente</button>`);
-  } else {
-    buttons.push(`<button type="button" class="order-action-secondary legacy-print-disabled" disabled title="${escapeAttr(order.printing?.message || "Impressao nao configurada")}">${printIcon()} Impressao nao configurada</button>`);
   }
+  if (canWrite && !["delivered", "cancelled"].includes(order.status)) buttons.push('<button type="button" class="order-action-secondary order-action-danger" data-status-target="cancelled">Cancelar pedido</button>');
+  if (canWrite && next) buttons.push(`<button type="button" class="order-action-primary" data-status-target="${next}">${escapeHtml(orderStatusActionLabel(next))}</button>`);
   target.innerHTML = `<div class="legacy-status-actions">${buttons.join("")}</div>`;
   target.querySelectorAll("[data-status-target]").forEach((button) => button.addEventListener("click", () => changeOrderStatus(order, button.dataset.statusTarget)));
   target.querySelector("[data-order-reprint]")?.addEventListener("click", (event) => queueOrderReprint(order, event.currentTarget));
@@ -1819,7 +1814,7 @@ function renderStatusActions(order) {
 async function changeOrderStatus(order, targetStatus) {
   state.pendingStatusAction = { order, targetStatus };
   const cancelled = targetStatus === "cancelled";
-  setText("orderStatusDialogTitle", cancelled ? "Cancelar pedido" : `Avancar para ${statusLabel(targetStatus)}`);
+  setText("orderStatusDialogTitle", cancelled ? "Cancelar pedido" : orderStatusActionLabel(targetStatus));
   setText("orderStatusDialogText", cancelled
     ? "O pedido sera cancelado e permanecera registrado no historico."
     : `Confirme a alteracao do pedido para ${statusLabel(targetStatus)}.`);
@@ -1891,10 +1886,13 @@ function renderOrderPrinting(printing) {
   section.dataset.printingState = stateKey;
   setText("detPrintState", printStateTitle(printing, latest));
   setText("detPrintMessage", printing.message || "Configuracao de impressao nao encontrada.");
+  const agentStatus = byId("detPrintAgentStatus");
+  agentStatus.dataset.status = stateKey;
+  agentStatus.textContent = printAgentStatusLabel(printing, connection);
   byId("detPrintMeta").innerHTML = [
-    printing.device?.name ? `<span><b>Computador</b>${escapeHtml(printing.device.name)}</span>` : "",
-    printing.device?.printer_name ? `<span><b>Impressora</b>${escapeHtml(printing.device.printer_name)}</span>` : "",
-    printing.template?.name ? `<span><b>Modelo</b>${escapeHtml(printing.template.name)}</span>` : "",
+    printing.device?.name ? `<div><dt>Computador</dt><dd>${escapeHtml(printing.device.name)}</dd></div>` : "",
+    printing.device?.printer_name ? `<div><dt>Impressora</dt><dd>${escapeHtml(printing.device.printer_name)}</dd></div>` : "",
+    printing.template?.name ? `<div><dt>Modelo do comprovante</dt><dd>${escapeHtml(printing.template.name)}</dd></div>` : "",
   ].filter(Boolean).join("");
   const events = (printing.events || []).slice(-3).reverse();
   byId("detPrintEvents").innerHTML = events.length
@@ -1903,13 +1901,21 @@ function renderOrderPrinting(printing) {
 }
 
 function printStateTitle(printing, latest) {
-  if (latest?.status === "printed") return "Comprovante impresso";
-  if (latest?.status === "printing") return "Impressao em andamento";
-  if (latest?.status === "queued") return "Aguardando o agente";
-  if (latest?.status === "failed") return "Falha na ultima tentativa";
-  if (!printing.enabled) return "Impressao desativada";
-  if (!printing.configured) return "Configuracao incompleta";
-  return printing.device?.connection_status === "online" ? "Agente online" : "Agente offline";
+  if (latest?.status === "printed") return "Último comprovante impresso";
+  if (latest?.status === "printing") return "Comprovante em impressão";
+  if (latest?.status === "queued") return "Comprovante aguardando impressão";
+  if (latest?.status === "failed") return "Falha no último comprovante";
+  if (!printing.enabled) return "Impressão desativada para esta unidade";
+  if (!printing.configured) return "Impressão ainda não configurada";
+  return "Nenhum comprovante emitido";
+}
+
+function printAgentStatusLabel(printing, connection) {
+  if (!printing.enabled) return "Desativada";
+  if (!printing.configured) return "Não configurado";
+  if (connection === "online") return "Agente online";
+  if (connection === "paused") return "Agente pausado";
+  return "Agente offline";
 }
 
 function printEventLabel(status, jobKind) {
@@ -2132,7 +2138,7 @@ function renderBilling() {
   renderBars(byId("histTopItems"), Object.entries(countBy(orders, (order) => statusLabel(order.status))));
   renderBars(byId("histLegendLocal"), Object.entries(countBy(orders, (order) => (order.delivery_location || order.room_code) ? "Acomodacao" : "Outro")));
   byId("histTableBody").innerHTML = orders.length
-    ? orders.map((order) => `<tr><td>${escapeHtml(formatDate(order.created_at))}</td><td>${escapeHtml(order.public_id || "-")}</td><td>${escapeHtml(order.room_code || "-")}</td><td><span class="legacy-status-chip" data-status="${escapeAttr(order.status)}">${escapeHtml(statusLabel(order.status))}</span></td><td><strong>${money(order.total_cents, order.currency)}</strong></td><td><button type="button" data-order-id="${escapeAttr(order.id)}" class="mini-card-action">Ver</button></td></tr>`).join("")
+    ? orders.map((order) => `<tr><td>${escapeHtml(formatDate(order.created_at))}</td><td>${escapeHtml(orderDisplayLabel(order))}</td><td>${escapeHtml(order.room_code || "-")}</td><td><span class="legacy-status-chip" data-status="${escapeAttr(order.status)}">${escapeHtml(statusLabel(order.status))}</span></td><td><strong>${money(order.total_cents, order.currency)}</strong></td><td><button type="button" data-order-id="${escapeAttr(order.id)}" class="mini-card-action">Ver</button></td></tr>`).join("")
     : '<tr><td colspan="6"><div class="legacy-dashboard-empty">Nenhum pedido no periodo.</div></td></tr>';
   bindOrderButtons(byId("histTableBody"));
 }
@@ -2146,7 +2152,7 @@ function exportBillingCsv() {
   });
   const lines = [
     ["Data e hora", "Pedido", "Acomodacao", "Status", "Total"],
-    ...orders.map((order) => [formatDate(order.created_at), order.public_id || "", order.room_code || "", statusLabel(order.status), (Number(order.total_cents || 0) / 100).toFixed(2).replace(".", ",")]),
+    ...orders.map((order) => [formatDate(order.created_at), orderDisplayLabel(order), order.room_code || "", statusLabel(order.status), (Number(order.total_cents || 0) / 100).toFixed(2).replace(".", ",")]),
   ];
   const csv = lines.map((line) => line.map(csvCell).join(";")).join("\r\n");
   const link = document.createElement("a");
@@ -2880,7 +2886,7 @@ async function pollNewOrders() {
       id: crypto.randomUUID(),
       orderId: order.id,
       title: "Novo pedido",
-      detail: `${order.public_id || "Pedido"} - ${order.room_code || "Sem acomodacao"}`,
+      detail: `${orderDisplayLabel(order)} - ${order.room_code || "Sem acomodacao"}`,
       createdAt: order.created_at,
     })));
     state.notifications = state.notifications.slice(0, 20);
@@ -3198,8 +3204,31 @@ function formatDate(value, options = {}) {
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: options.hour ? undefined : "short", timeStyle: options.hour ? undefined : "short", ...options }).format(new Date(value));
 }
 
+function formatOrderDate(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  const datePart = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", year: "numeric" })
+    .format(date)
+    .replaceAll(".", "");
+  const timePart = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(date);
+  return `${datePart} · ${timePart}`;
+}
+
+function orderDisplayLabel(order) {
+  const displayNumber = Number(order?.display_number || 0);
+  if (displayNumber > 0) return `Pedido #${displayNumber}`;
+  const legacyNumber = String(order?.public_id || "").match(/(?:^|[-_])(\d{1,8})$/)?.[1];
+  return legacyNumber ? `Pedido #${legacyNumber}` : "Pedido";
+}
+
 function statusLabel(status) {
   return STATUS_LABELS[status] || status || "-";
+}
+
+function orderStatusActionLabel(status) {
+  if (status === "printed") return "Marcar como impresso";
+  if (status === "delivered") return "Marcar como entregue";
+  return `Atualizar para ${statusLabel(status)}`;
 }
 
 function originLabel(origin) {

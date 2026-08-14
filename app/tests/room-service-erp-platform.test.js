@@ -65,6 +65,27 @@ test("ERP Room Service dashboard e faturamento usam pedidos do hotel autorizado"
   assert.equal(billing.body.data.summary.revenue_cents, 900);
 });
 
+test("pedidos recebem numero humano sequencial isolado por unidade", async () => {
+  const { env, json } = createWorkerTestContext();
+  const cookie = await createSessionCookie(env);
+  env.__data.orders.push(
+    { ...order("order-muller-first", "muller-fioreze", "received", 2500), created_at: "2026-07-12T12:00:00.000Z" },
+    { ...order("order-muller-second", "muller-fioreze", "delivered", 900), created_at: "2026-07-12T13:00:00.000Z" },
+    { ...order("order-aurora-first", "aurora-demo", "delivered", 1900), created_at: "2026-07-12T12:30:00.000Z" },
+  );
+
+  const list = await json("/api/v1/admin/room-service/orders?hotel_id=muller-fioreze", withCookie(cookie));
+  const detail = await json("/api/v1/admin/room-service/orders/order-muller-second", withCookie(cookie));
+  const aurora = await json("/api/v1/admin/room-service/orders/order-aurora-first", withCookie(cookie));
+
+  assert.equal(list.response.status, 200);
+  assert.deepEqual(list.body.data.orders.map((entry) => entry.display_number), [2, 1]);
+  assert.equal(detail.response.status, 200);
+  assert.equal(detail.body.data.order.display_number, 2);
+  assert.equal(aurora.response.status, 200);
+  assert.equal(aurora.body.data.order.display_number, 1);
+});
+
 test("ERP Room Service cria pedido PDV com origem administrativa sem print_event", async () => {
   const { env, json } = createWorkerTestContext();
   const cookie = await createSessionCookie(env);

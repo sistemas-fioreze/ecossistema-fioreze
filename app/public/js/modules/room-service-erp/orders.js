@@ -45,7 +45,7 @@ export async function fetchOrderDetail(orderId) {
 function orderCard(order, selectedId) {
   return `
     <button class="rs-order-card" type="button" data-order-id="${escapeAttr(order.id)}" aria-current="${order.id === selectedId}">
-      <span class="rs-order-row"><strong>${escapeHtml(order.public_id)}</strong><span class="rs-status-chip">${statusLabel(order.status)}</span></span>
+      <span class="rs-order-row"><strong>${escapeHtml(orderDisplayLabel(order))}</strong><span class="rs-status-chip">${statusLabel(order.status)}</span></span>
       <span class="rs-order-row"><span>${escapeHtml(order.room_code || "Sem acomodacao")}</span><span>${formatMoney(order.total_cents, order.currency)}</span></span>
       <small class="rs-muted">${escapeHtml(formatDate(order.created_at, order.timezone))} - ${Number(order.item_count || 0)} item(ns)</small>
     </button>
@@ -55,7 +55,7 @@ function orderCard(order, selectedId) {
 function renderOrderDetail(order) {
   return `
     <p class="rs-kicker">Detalhes</p>
-    <h2>${escapeHtml(order.public_id)}</h2>
+    <h2>${escapeHtml(orderDisplayLabel(order))}</h2>
     <div class="rs-detail-grid">
       ${detail("Status", statusLabel(order.status))}
       ${detail("Hotel", order.hotel_name)}
@@ -79,6 +79,13 @@ function detail(label, value) {
 
 function statusLabel(status) {
   return STATUS_LABELS[status] || status || "-";
+}
+
+function orderDisplayLabel(order) {
+  const displayNumber = Number(order?.display_number || 0);
+  if (displayNumber > 0) return `Pedido #${displayNumber}`;
+  const legacyNumber = String(order?.public_id || "").match(/(?:^|[-_])(\d{1,8})$/)?.[1];
+  return legacyNumber ? `Pedido #${legacyNumber}` : "Pedido";
 }
 
 function escapeHtml(value) {
