@@ -7155,7 +7155,7 @@ body[data-erp="room-service"] .erp-modal-actions-spacer {
 }
 
 /* Order workspace: horizontal detail dialog shared by browser and Electron. */
-body[data-erp="room-service"] #btnTabAdmin {
+#btnTabAdmin {
   display: none !important;
 }
 
