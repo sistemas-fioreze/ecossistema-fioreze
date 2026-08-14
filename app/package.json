@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Plataforma digital unificada da Familia Fioreze em Cloudflare Workers, Static Assets e D1.",
   "scripts": {
+    "icons:build": "node scripts/build-erp-icons.js",
     "dev": "wrangler dev",
     "test": "node --test \"tests/**/*.test.js\"",
     "test:print-agent": "cd print-agent && PYTHONPATH=. python3 -m unittest discover -s tests -v",
@@ -28,6 +29,7 @@
     "wrangler": "^4.0.0"
   },
   "dependencies": {
+    "lucide": "1.27.0",
     "qrcode-generator": "^2.0.4",
     "xss": "^1.0.15"
   }

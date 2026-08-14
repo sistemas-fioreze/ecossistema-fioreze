@@ -1,3 +1,5 @@
+import { iconMarkup } from "./icon-system.js";
+
 export const desktop = {
   get isElectron() {
     return Boolean(window.fiorezeDesktop?.isElectron);
@@ -176,7 +178,7 @@ function renderUpdateState(modal, state = {}) {
 }
 
 function updateIcon() {
-  return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 19h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  return iconMarkup("download");
 }
 
 async function syncDesktopPrintStatus(root) {

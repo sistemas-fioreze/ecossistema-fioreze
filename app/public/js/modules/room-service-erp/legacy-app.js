@@ -45,6 +45,7 @@ import {
   uploadOwnAvatar,
 } from "./api.js";
 import { desktop } from "./desktop-adapter.js";
+import { iconMarkup } from "./icon-system.js";
 import { buildInterfaceViewport } from "./interface-viewport.js";
 import { bindPdvCheckoutActions, bindPdvDropTarget, bindPdvProductDrag } from "./pdv-actions.js";
 import { ERP_APP_VERSION } from "./static-config.js";
@@ -421,7 +422,7 @@ function installPdvInterface() {
           <p>Escolha os itens e conclua a comanda ao lado.</p>
         </div>
         <label class="pdv-menu-search" aria-label="Buscar no cardápio">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-width="2" d="M21 21l-4.35-4.35m1.35-5.15a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"/></svg>
+          <i data-lucide="search" aria-hidden="true"></i>
           <input id="pdvMenuSearch" type="search" placeholder="Buscar no cardápio" autocomplete="off">
         </label>
       </header>
@@ -434,7 +435,7 @@ function installPdvInterface() {
       <section class="erp-pdv-customer">
         <div class="erp-pdv-section-title"><span>1</span><div><strong>Entrega</strong><small>Informe quem receberá o pedido</small></div></div>
         <div class="erp-pdv-field-grid">
-          <label class="erp-pdv-field erp-pdv-room"><span>Acomodação</span><div id="roomCombobox" class="erp-room-combobox"><input id="roomNumber" placeholder="Buscar acomodação" aria-label="Acomodação" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="roomOptions" autocomplete="off"><button id="roomComboboxToggle" type="button" aria-label="Mostrar acomodações" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-width="2" d="m7 10 5 5 5-5"/></svg></button><div id="roomOptions" class="erp-room-options hidden" role="listbox" aria-label="Acomodações da unidade"></div></div></label>
+          <label class="erp-pdv-field erp-pdv-room"><span>Acomodação</span><div id="roomCombobox" class="erp-room-combobox"><input id="roomNumber" placeholder="Buscar acomodação" aria-label="Acomodação" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="roomOptions" autocomplete="off"><button id="roomComboboxToggle" type="button" aria-label="Mostrar acomodações" tabindex="-1"><i data-lucide="chevron-down" aria-hidden="true"></i></button><div id="roomOptions" class="erp-room-options hidden" role="listbox" aria-label="Acomodações da unidade"></div></div></label>
           <label class="erp-pdv-field"><span>Hóspede</span><input id="guestName" placeholder="Nome do hóspede" autocomplete="off"></label>
         </div>
         <label class="erp-pdv-field"><span>Local de entrega</span><select id="consumptionLocation"><option value="Acomodação">Entregar na acomodação</option><option value="Recepção">Consumo na recepção</option></select></label>
@@ -530,7 +531,7 @@ function installVisualSystem() {
     close.type = "button";
     close.className = "erp-sidebar-close";
     close.setAttribute("aria-label", "Fechar menu de navegacao");
-    close.innerHTML = '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-width="2" d="M6 6l12 12M18 6L6 18"/></svg>';
+    close.innerHTML = '<i data-lucide="x" aria-hidden="true"></i>';
     document.querySelector(".side-brand")?.append(close);
   }
 
@@ -538,7 +539,7 @@ function installVisualSystem() {
   if (sessionButton && !sessionButton.querySelector(".top-session-icon")) {
     const icon = document.createElement("span");
     icon.className = "top-session-icon";
-    icon.innerHTML = '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" stroke-width="2"/><path stroke-width="2" d="M5 21a7 7 0 0114 0"/></svg>';
+    icon.innerHTML = '<i data-lucide="user-round" aria-hidden="true"></i>';
     sessionButton.prepend(icon);
   }
 }
@@ -677,7 +678,7 @@ function installSettingsInterface() {
 
 function installOperationalModals() {
   const wrapper = document.createElement("div");
-  wrapper.innerHTML = `<div id="catalogItemModal" class="erp-modal hidden"><div class="erp-modal-card" role="dialog" aria-modal="true"><header class="erp-modal-head"><div><p class="admin-kicker">Cardapio</p><h2 id="catalogItemModalTitle">Novo item</h2></div><button type="button" class="erp-modal-close" data-close-erp-modal aria-label="Fechar">x</button></header><form id="catalogItemForm" class="erp-form"><input id="catalogItemId" type="hidden"><div class="erp-form-grid"><label>Nome<input id="catalogItemName" required maxlength="160"></label><label>Categoria<select id="catalogItemCategory" required></select></label><label>Preco (R$)<input id="catalogItemPrice" required inputmode="decimal" placeholder="0,00"></label><label>Tag do item<input id="catalogItemTag" maxlength="60" placeholder="Ex: Recomendado"></label><label>Ordem<input id="catalogItemSort" type="number" min="0" max="100000" value="100"></label><label>Status<select id="catalogItemStatus"><option value="active">Ativo</option><option value="inactive">Inativo</option><option value="archived">Arquivado</option></select></label><label>Disponibilidade<select id="catalogItemAvailable"><option value="true">Disponivel</option><option value="false">Indisponivel</option></select></label></div><label>Descricao<textarea id="catalogItemDescription" rows="3" maxlength="1000"></textarea></label><label>Mensagem de indisponibilidade<input id="catalogItemAvailabilityLabel" maxlength="120" placeholder="Ex: Indisponivel hoje"></label><input id="catalogItemMediaId" type="hidden"><div><p class="erp-panel-title">Imagem do prato</p><p class="erp-v3-subtitle">Escolha uma imagem da biblioteca ou envie uma nova.</p></div><div id="catalogImagePicker" class="erp-image-picker"></div><div class="erp-upload-row"><input id="catalogMediaFile" type="file" accept="image/jpeg,image/png,image/webp,image/avif"><button id="catalogUploadButton" type="button" class="admin-secondary-btn">Enviar imagem</button></div><p id="catalogItemFormError" class="legacy-login-error" role="alert"></p><div class="erp-v3-actions erp-modal-actions"><button id="deleteCatalogItemButton" type="button" class="admin-secondary-btn erp-danger-button" hidden>Excluir item</button><span class="erp-modal-actions-spacer"></span><button type="button" class="admin-secondary-btn" data-close-erp-modal>Cancelar</button><button type="submit" class="admin-primary-btn">Salvar item</button></div></form></div></div><div id="catalogCategoryModal" class="erp-modal hidden"><div class="erp-modal-card" role="dialog" aria-modal="true"><header class="erp-modal-head"><div><p class="admin-kicker">Cardapio</p><h2>Nova categoria</h2></div><button type="button" class="erp-modal-close" data-close-erp-modal aria-label="Fechar">x</button></header><form id="catalogCategoryForm" class="erp-form"><label>Nome<input id="catalogCategoryName" required maxlength="120"></label><label>Descricao<textarea id="catalogCategoryDescription" rows="3" maxlength="500"></textarea></label><label>Ordem<input id="catalogCategorySort" type="number" min="0" max="100000" value="100"></label><p id="catalogCategoryFormError" class="legacy-login-error" role="alert"></p><div class="erp-v3-actions"><button type="button" class="admin-secondary-btn" data-close-erp-modal>Cancelar</button><button type="submit" class="admin-primary-btn">Criar categoria</button></div></form></div></div><div id="roomModal" class="erp-modal hidden"><div class="erp-modal-card" role="dialog" aria-modal="true"><header class="erp-modal-head"><div><p class="admin-kicker">Acomodacoes</p><h2 id="roomModalTitle">Nova acomodacao</h2></div><button type="button" class="erp-modal-close" data-close-erp-modal aria-label="Fechar">x</button></header><form id="roomForm" class="erp-form"><input id="roomId" type="hidden"><div class="erp-form-grid"><label>Codigo<input id="roomCode" required maxlength="24" placeholder="Ex: 101"></label><label>Nome de exibicao<input id="roomLabel" maxlength="120" placeholder="Ex: Suite Jardim"></label><label>Tipo<input id="roomType" maxlength="80" placeholder="Ex: Suite"></label><label>Ordem<input id="roomSort" type="number" min="0" max="100000" value="100"></label><label>Status<select id="roomStatus"><option value="active">Ativa</option><option value="inactive">Inativa</option><option value="archived">Arquivada</option></select></label></div><p id="roomFormError" class="legacy-login-error" role="alert"></p><div class="erp-v3-actions"><button type="button" class="admin-secondary-btn" data-close-erp-modal>Cancelar</button><button type="submit" class="admin-primary-btn">Salvar acomodacao</button></div></form></div></div>`;
+  wrapper.innerHTML = `<div id="catalogItemModal" class="erp-modal hidden"><div class="erp-modal-card" role="dialog" aria-modal="true"><header class="erp-modal-head"><div><p class="admin-kicker">Cardapio</p><h2 id="catalogItemModalTitle">Novo item</h2></div><button type="button" class="erp-modal-close" data-close-erp-modal aria-label="Fechar"><i data-lucide="x" aria-hidden="true"></i></button></header><form id="catalogItemForm" class="erp-form"><input id="catalogItemId" type="hidden"><div class="erp-form-grid"><label>Nome<input id="catalogItemName" required maxlength="160"></label><label>Categoria<select id="catalogItemCategory" required></select></label><label>Preco (R$)<input id="catalogItemPrice" required inputmode="decimal" placeholder="0,00"></label><label>Tag do item<input id="catalogItemTag" maxlength="60" placeholder="Ex: Recomendado"></label><label>Ordem<input id="catalogItemSort" type="number" min="0" max="100000" value="100"></label><label>Status<select id="catalogItemStatus"><option value="active">Ativo</option><option value="inactive">Inativo</option><option value="archived">Arquivado</option></select></label><label>Disponibilidade<select id="catalogItemAvailable"><option value="true">Disponivel</option><option value="false">Indisponivel</option></select></label></div><label>Descricao<textarea id="catalogItemDescription" rows="3" maxlength="1000"></textarea></label><label>Mensagem de indisponibilidade<input id="catalogItemAvailabilityLabel" maxlength="120" placeholder="Ex: Indisponivel hoje"></label><input id="catalogItemMediaId" type="hidden"><div><p class="erp-panel-title">Imagem do prato</p><p class="erp-v3-subtitle">Escolha uma imagem da biblioteca ou envie uma nova.</p></div><div id="catalogImagePicker" class="erp-image-picker"></div><div class="erp-upload-row"><input id="catalogMediaFile" type="file" accept="image/jpeg,image/png,image/webp,image/avif"><button id="catalogUploadButton" type="button" class="admin-secondary-btn">Enviar imagem</button></div><p id="catalogItemFormError" class="legacy-login-error" role="alert"></p><div class="erp-v3-actions erp-modal-actions"><button id="deleteCatalogItemButton" type="button" class="admin-secondary-btn erp-danger-button" hidden>Excluir item</button><span class="erp-modal-actions-spacer"></span><button type="button" class="admin-secondary-btn" data-close-erp-modal>Cancelar</button><button type="submit" class="admin-primary-btn">Salvar item</button></div></form></div></div><div id="catalogCategoryModal" class="erp-modal hidden"><div class="erp-modal-card" role="dialog" aria-modal="true"><header class="erp-modal-head"><div><p class="admin-kicker">Cardapio</p><h2>Nova categoria</h2></div><button type="button" class="erp-modal-close" data-close-erp-modal aria-label="Fechar"><i data-lucide="x" aria-hidden="true"></i></button></header><form id="catalogCategoryForm" class="erp-form"><label>Nome<input id="catalogCategoryName" required maxlength="120"></label><label>Descricao<textarea id="catalogCategoryDescription" rows="3" maxlength="500"></textarea></label><label>Ordem<input id="catalogCategorySort" type="number" min="0" max="100000" value="100"></label><p id="catalogCategoryFormError" class="legacy-login-error" role="alert"></p><div class="erp-v3-actions"><button type="button" class="admin-secondary-btn" data-close-erp-modal>Cancelar</button><button type="submit" class="admin-primary-btn">Criar categoria</button></div></form></div></div><div id="roomModal" class="erp-modal hidden"><div class="erp-modal-card" role="dialog" aria-modal="true"><header class="erp-modal-head"><div><p class="admin-kicker">Acomodacoes</p><h2 id="roomModalTitle">Nova acomodacao</h2></div><button type="button" class="erp-modal-close" data-close-erp-modal aria-label="Fechar"><i data-lucide="x" aria-hidden="true"></i></button></header><form id="roomForm" class="erp-form"><input id="roomId" type="hidden"><div class="erp-form-grid"><label>Codigo<input id="roomCode" required maxlength="24" placeholder="Ex: 101"></label><label>Nome de exibicao<input id="roomLabel" maxlength="120" placeholder="Ex: Suite Jardim"></label><label>Tipo<input id="roomType" maxlength="80" placeholder="Ex: Suite"></label><label>Ordem<input id="roomSort" type="number" min="0" max="100000" value="100"></label><label>Status<select id="roomStatus"><option value="active">Ativa</option><option value="inactive">Inativa</option><option value="archived">Arquivada</option></select></label></div><p id="roomFormError" class="legacy-login-error" role="alert"></p><div class="erp-v3-actions"><button type="button" class="admin-secondary-btn" data-close-erp-modal>Cancelar</button><button type="submit" class="admin-primary-btn">Salvar acomodacao</button></div></form></div></div>`;
   document.body.append(...wrapper.children);
   byId("catalogImagePicker").addEventListener("click", (event) => {
     const button = event.target.closest("[data-media-id]");
@@ -783,7 +784,7 @@ function installFeedbackInterface() {
   modal.id = "erpFeedbackModal";
   modal.className = "erp-modal hidden";
   modal.innerHTML = `<div class="erp-modal-card erp-feedback-card" role="dialog" aria-modal="true" aria-labelledby="erpFeedbackTitle">
-    <header class="erp-modal-head"><div><p class="admin-kicker">Suporte</p><h2 id="erpFeedbackTitle">Conte o que aconteceu</h2><p>O relato será enviado ao Administrador Dev.</p></div><button type="button" class="erp-modal-close" data-close-feedback aria-label="Fechar">×</button></header>
+    <header class="erp-modal-head"><div><p class="admin-kicker">Suporte</p><h2 id="erpFeedbackTitle">Conte o que aconteceu</h2><p>O relato será enviado ao Administrador Dev.</p></div><button type="button" class="erp-modal-close" data-close-feedback aria-label="Fechar"><i data-lucide="x" aria-hidden="true"></i></button></header>
     <form id="erpFeedbackForm" class="erp-feedback-form">
       <label>Descrição do problema<textarea id="erpFeedbackDescription" name="description" rows="5" minlength="10" maxlength="3000" required placeholder="Descreva o que você estava fazendo e o resultado esperado."></textarea></label>
       <div id="erpFeedbackPreview" class="erp-feedback-preview is-empty"><div class="erp-feedback-empty-state"><span>${feedbackImageIcon()}</span><p>Nenhuma captura anexada.</p></div><img hidden alt="Captura de tela do ERP"><p class="erp-feedback-attached" hidden>Captura anexada</p></div>
@@ -1746,7 +1747,7 @@ function orderMiniCard(order) {
     <div><p class="mini-card-label">Hora</p><p class="mini-card-value text-sm">${escapeHtml(time)}</p></div>
     <div class="min-w-0"><p class="mini-card-title truncate">${escapeHtml(order.guest_name || orderDisplayLabel(order))}</p><p class="mini-card-meta mt-2"><span>${escapeHtml(orderDisplayLabel(order))} · Apto ${escapeHtml(order.room_code || "-")}</span><span class="legacy-status-chip" data-status="${escapeAttr(order.status)}">${escapeHtml(statusLabel(order.status))}</span></p></div>
     <div><p class="mini-card-label">Total</p><p class="mini-card-value">${money(order.total_cents)}</p></div>
-    <div class="mini-card-actions justify-end"><button type="button" data-order-id="${escapeAttr(order.id)}" class="mini-card-action"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>Ver</button></div>
+    <div class="mini-card-actions justify-end"><button type="button" data-order-id="${escapeAttr(order.id)}" class="mini-card-action"><i data-lucide="eye" class="w-4 h-4" aria-hidden="true"></i>Ver</button></div>
   </article>`;
 }
 
@@ -2240,7 +2241,7 @@ function installUserModal() {
   const modal = document.createElement("div");
   modal.id = "erpUserModal";
   modal.className = "erp-user-modal hidden";
-  modal.innerHTML = `<div class="erp-user-modal-card" role="dialog" aria-modal="true" aria-labelledby="erpUserModalTitle"><div class="erp-user-modal-head"><div><p class="admin-kicker">Equipe da unidade</p><h2 id="erpUserModalTitle" class="admin-title">Novo usuario</h2></div><button id="erpUserModalClose" type="button" class="erp-user-modal-close" aria-label="Fechar">x</button></div><form id="erpUserForm"><input id="erpUserId" type="hidden"><label>Nome<input id="erpUserName" required minlength="2" maxlength="120" autocomplete="off"></label><label>Senha <small id="erpUserPasswordHint">Minimo de 4 caracteres</small><input id="erpUserPassword" type="password" minlength="4" maxlength="300" autocomplete="new-password"></label><label>Status<select id="erpUserStatus"><option value="active">Ativo</option><option value="disabled">Desativado</option></select></label><fieldset><legend>Modulos permitidos</legend><div id="erpUserPermissionGrid" class="erp-user-permission-grid"></div></fieldset><p id="erpUserFormError" class="legacy-login-error" role="alert"></p><div class="erp-user-modal-actions"><button id="erpUserModalCancel" type="button" class="admin-secondary-btn">Cancelar</button><button type="submit" class="admin-primary-btn">Salvar usuario</button></div></form></div>`;
+  modal.innerHTML = `<div class="erp-user-modal-card" role="dialog" aria-modal="true" aria-labelledby="erpUserModalTitle"><div class="erp-user-modal-head"><div><p class="admin-kicker">Equipe da unidade</p><h2 id="erpUserModalTitle" class="admin-title">Novo usuario</h2></div><button id="erpUserModalClose" type="button" class="erp-user-modal-close" aria-label="Fechar"><i data-lucide="x" aria-hidden="true"></i></button></div><form id="erpUserForm"><input id="erpUserId" type="hidden"><label>Nome<input id="erpUserName" required minlength="2" maxlength="120" autocomplete="off"></label><label>Senha <small id="erpUserPasswordHint">Minimo de 4 caracteres</small><input id="erpUserPassword" type="password" minlength="4" maxlength="300" autocomplete="new-password"></label><label>Status<select id="erpUserStatus"><option value="active">Ativo</option><option value="disabled">Desativado</option></select></label><fieldset><legend>Modulos permitidos</legend><div id="erpUserPermissionGrid" class="erp-user-permission-grid"></div></fieldset><p id="erpUserFormError" class="legacy-login-error" role="alert"></p><div class="erp-user-modal-actions"><button id="erpUserModalCancel" type="button" class="admin-secondary-btn">Cancelar</button><button type="submit" class="admin-primary-btn">Salvar usuario</button></div></form></div>`;
   document.body.append(modal);
 }
 
@@ -2942,17 +2943,17 @@ function searchSuggestionGroup(kind) {
 }
 
 function searchSuggestionIcon(kind) {
-  if (kind === "order") return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-width="2" d="M7 3h10v18l-5-3-5 3V3Z"/></svg>';
-  if (kind === "catalog") return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-width="2" d="M4 6h16M4 12h16M4 18h10"/></svg>';
-  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-width="2" d="m9 18 6-6-6-6"/></svg>';
+  if (kind === "order") return iconMarkup("bookmark");
+  if (kind === "catalog") return iconMarkup("list");
+  return iconMarkup("chevron-right");
 }
 
 function feedbackIcon() {
-  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-width="2" d="M12 9v4m0 4h.01M10.3 4.2 2.8 17.1A2 2 0 0 0 4.5 20h15a2 2 0 0 0 1.7-2.9L13.7 4.2a2 2 0 0 0-3.4 0Z"/></svg>';
+  return iconMarkup("triangle-alert");
 }
 
 function feedbackImageIcon() {
-  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" stroke-width="2"/><path d="m3 16 5-5 4 4 2-2 7 7" stroke-width="2"/><circle cx="15.5" cy="8.5" r="1.5"/></svg>';
+  return iconMarkup("image");
 }
 
 function buildSearchSuggestions() {
@@ -3269,71 +3270,71 @@ function escapeAttr(value) {
 }
 
 function categoryIcon() {
-  return '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>';
+  return iconMarkup("list", "w-5 h-5");
 }
 
 function dashboardIcon(type) {
-  const paths = {
-    orders: '<path d="M7 3h10v4H7zM5 5H3v16h18V5h-2M8 12h8M8 16h5"/>',
-    revenue: '<path d="M12 2v20M17 6H9.5a3.5 3.5 0 000 7H15a3.5 3.5 0 010 7H6"/>',
-    ticket: '<path d="M3 7a2 2 0 002-2h14v4a2 2 0 000 4v4H5a2 2 0 00-2-2V7zM12 7v10"/>',
-    activity: '<path d="M3 12h4l2-7 4 14 2-7h6"/>',
-    notes: '<path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/>',
-    calendar: '<path d="M5 5h14v15H5zM8 3v4M16 3v4M5 10h14"/>',
-    refresh: '<path d="M20 7v5h-5M4 17v-5h5M6.1 8a7 7 0 0111.2-2L20 12M4 12l2.7 6a7 7 0 0011.2-2"/>',
-    search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
+  const icons = {
+    orders: "clipboard-list",
+    revenue: "circle-dollar-sign",
+    ticket: "ticket",
+    activity: "activity",
+    notes: "notebook-text",
+    calendar: "calendar-days",
+    refresh: "refresh-cw",
+    search: "search",
   };
-  return `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">${paths[type] || paths.orders}</svg>`;
+  return iconMarkup(icons[type] || icons.orders);
 }
 
 function settingsIcon(type) {
-  const paths = {
-    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
-    rooms: '<path d="M3 20V5h18v15M3 14h18M7 9h3M14 9h3"/>',
-    users: '<path d="M16 20v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 10a4 4 0 100-8 4 4 0 000 8zM22 20v-2a4 4 0 00-3-3.87M16 2.13a4 4 0 010 7.75"/>',
-    account: '<circle cx="12" cy="8" r="4"/><path d="M4 22a8 8 0 0116 0"/>',
-    palette: '<path d="M12 3a9 9 0 100 18h1.5a2 2 0 001.5-3.3 2 2 0 011.5-3.3H18A3 3 0 0021 11a8 8 0 00-9-8z"/><circle cx="7.5" cy="11" r=".5"/><circle cx="10" cy="7" r=".5"/><circle cx="15" cy="7" r=".5"/>',
-    bell: '<path d="M18 8a6 6 0 00-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',
-    printer: '<path d="M6 9V3h12v6M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v7H6z"/>',
-    version: '<path d="M12 3a9 9 0 109 9"/><path d="M12 7v5l3 2M8 3h4v4"/>',
-    desktop: '<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>',
-    suite: '<path d="M4 7h16v12H4zM8 7V4h8v3M4 11h16M9 15h6"/>',
-    refresh: '<path d="M20 7v5h-5M4 17v-5h5M6.1 8a7 7 0 0111.2-2L20 12M4 12l2.7 6a7 7 0 0011.2-2"/>',
-    copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2"/>',
-    chevron: '<path d="M9 6l6 6-6 6"/>',
-    back: '<path d="M19 12H5M12 19l-7-7 7-7"/>',
+  const icons = {
+    clock: "clock-3",
+    rooms: "bed-double",
+    users: "users",
+    account: "user-round",
+    palette: "palette",
+    bell: "bell",
+    printer: "printer",
+    version: "history",
+    desktop: "monitor",
+    suite: "package",
+    refresh: "refresh-cw",
+    copy: "copy",
+    chevron: "chevron-right",
+    back: "arrow-left",
   };
-  return `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">${paths[type] || paths.chevron}</svg>`;
+  return iconMarkup(icons[type] || icons.chevron);
 }
 
 function imagePlaceholderIcon() {
-  return '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M3 17l5-5 4 4 3-3 6 6"/></svg>';
+  return iconMarkup("image");
 }
 
 function plusIcon() {
-  return '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M12 4v16m8-8H4"/></svg>';
+  return iconMarkup("plus", "w-3 h-3");
 }
 
 function cartIcon() {
-  return '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13H17"/></svg>';
+  return iconMarkup("shopping-cart", "w-4 h-4");
 }
 
 function clipboardIcon() {
-  return '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12h14V7a2 2 0 00-2-2h-2M9 5a3 3 0 006 0M9 5a3 3 0 016 0M8 11h8M8 15h5"/></svg>';
+  return iconMarkup("clipboard-list");
 }
 
 function closeIcon() {
-  return '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M6 6l12 12M18 6L6 18"/></svg>';
+  return iconMarkup("x");
 }
 
 function printIcon() {
-  return '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M6 9V3h12v6M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v7H6z"/></svg>';
+  return iconMarkup("printer");
 }
 
 function trashIcon() {
-  return '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>';
+  return iconMarkup("trash-2", "w-4 h-4");
 }
 
 function checkIcon() {
-  return '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M5 12l4 4L19 6"/></svg>';
+  return iconMarkup("check", "w-4 h-4");
 }

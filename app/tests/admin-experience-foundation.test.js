@@ -346,13 +346,14 @@ test("ERP Room Service oficial nao usa CDN, webhook legado ou Postimg", () => {
   assert.doesNotMatch(`${html}\n${app}\n${adapter}`, /https:\/\/|cdn|postimg|script\.google|WEBHOOK|Sheets/i);
 });
 
-test("ERP Room Service preserva shell visual, SVGs, abas e dashboard do legado sanitizado", () => {
+test("ERP Room Service preserva shell visual, icones Lucide, abas e dashboard", () => {
   const html = fs.readFileSync("public/erp/room-service/index.html", "utf8");
   const tailwindCss = fs.readFileSync("public/css/modules/room-service-erp/legacy-tailwind.css", "utf8");
   const polishCss = fs.readFileSync("public/css/modules/room-service-erp/production-polish.css", "utf8");
-  const svgCount = (html.match(/<svg\b/g) || []).length;
+  const lucideIconCount = (html.match(/data-lucide=/g) || []).length;
 
-  assert.ok(svgCount >= 40, `esperava ao menos 40 SVGs locais, recebeu ${svgCount}`);
+  assert.ok(lucideIconCount >= 40, `esperava ao menos 40 icones Lucide, recebeu ${lucideIconCount}`);
+  assert.doesNotMatch(html, /<svg\b/i);
   for (const id of [
     "btnTabDashboard",
     "btnTabVendas",

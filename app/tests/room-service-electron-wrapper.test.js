@@ -149,10 +149,12 @@ test("settings stays available outside the ERP sidebar", () => {
   assert.doesNotMatch(legacyApp, /\["btnTabAdmin", "Sistema"\]/);
   assert.match(legacyApp, /switchTab\("admin", \{ allowHidden: true \}\)/);
   assert.match(legacyApp, /function switchTab\(route, \{ allowHidden = false \} = \{\}\)/);
-  assert.match(entrypoint, /desktop-adapter\.js\?v=20260814-4/);
-  assert.match(entrypoint, /legacy-app\.js\?v=20260814-4/);
-  assert.match(html, /design-system-v5\.css\?v=20260814-5/);
-  assert.match(html, /app\.js\?v=20260814-4/);
+  assert.match(entrypoint, /desktop-adapter\.js\?v=20260814-6/);
+  assert.match(entrypoint, /icon-system\.js\?v=20260814-6/);
+  assert.match(entrypoint, /legacy-app\.js\?v=20260814-6/);
+  assert.match(html, /design-system-v5\.css\?v=20260814-6/);
+  assert.match(html, /lucide-erp\.min\.js\?v=1\.27\.0/);
+  assert.match(html, /app\.js\?v=20260814-6/);
 });
 
 test("collapsed ERP navigation keeps the active item on a centered square tile", () => {
