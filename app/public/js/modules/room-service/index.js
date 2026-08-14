@@ -3,6 +3,7 @@ import { escapeHtml } from "../../core/errors.js";
 import { createCartStore, createOrderAttemptKey } from "./cart.js";
 import { filterCatalog, flattenCatalog, formatMoney, getCatalogItemMap, normalizeText } from "./catalog.js";
 import { describeServiceStatus, evaluateServiceStatus } from "./service-status.js";
+import { clearGuestProfile, readGuestProfile, writeGuestProfile } from "./guest-profile.js";
 import { applyBranding, sanitizePublicAssetUrl } from "../../core/theme.js";
 import {
   bindCatalogMediaViewer,
@@ -38,6 +39,7 @@ export async function render(container, context) {
     activeCategory: "all",
     status: null,
     orderAttemptKey: null,
+    rememberedGuest: null,
     isSubmitting: false,
     cartOpen: false,
     statusTimer: null,
@@ -91,6 +93,7 @@ export async function render(container, context) {
     state.statusTimer = window.setInterval(() => updateServiceStatus(container, state), 60000);
     renderCatalog(container, state);
     renderRoomOptions(container, state);
+    restoreGuestProfile(container, state);
     renderCart(container, state);
     await refreshRecentOrders(container, state);
     state.recentStatusTimer = window.setInterval(() => refreshRecentOrders(container, state), 30000);
@@ -148,6 +151,13 @@ function renderStaticShell({ embedded = false } = {}) {
                     <option value="Recepção">Consumo na Recepção</option>
                   </select>
                 </label>
+                <div class="rs-remember-guest">
+                  <label>
+                    <input type="checkbox" name="remember_guest" checked>
+                    <span>Lembrar meus dados neste dispositivo</span>
+                  </label>
+                  <button type="button" data-forget-guest hidden>Esquecer dados salvos</button>
+                </div>
 
                 <h2 class="rs-order-title">
                   <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M16 11V7a4 4 0 0 0-8 0v4M5 9h14l1 12H4Z"/></svg>
@@ -285,6 +295,11 @@ function bindStaticActions(container, state) {
 
     if (event.target.closest("[data-review-back]")) {
       closeOrderReview(container);
+      return;
+    }
+
+    if (event.target.closest("[data-forget-guest]")) {
+      forgetGuestProfile(container, state);
       return;
     }
 
@@ -896,6 +911,7 @@ async function submitOrder(container, state, form) {
       `/api/v1/public/hotels/${encodeURIComponent(state.slug)}/room-service/orders`,
       {
         guest_name: guestName,
+        guest_phone: String(data.get("guest_phone") || "").trim(),
         room_code: roomCode,
         notes: buildNotes(data, { notesEnabled: orderNotesEnabled(state) }),
         order_note: orderNotesEnabled(state) ? String(data.get("notes") || "").trim() : "",
@@ -916,9 +932,15 @@ async function submitOrder(container, state, form) {
       { idempotencyKey: state.orderAttemptKey },
     );
     rememberRecentOrder(state, order, trackingKey);
+    persistGuestProfile(container, state, {
+      guest_name: guestName,
+      guest_phone: String(data.get("guest_phone") || "").trim(),
+      room_code: roomCode,
+    });
     state.cart.clear();
     state.orderAttemptKey = null;
     form.reset();
+    restoreGuestProfile(container, state);
     closeOrderReview(container);
     renderCart(container, state);
     toggleCart(container, state, false);
@@ -933,6 +955,47 @@ async function submitOrder(container, state, form) {
     container.querySelector("[data-submit-overlay]").hidden = true;
     updateServiceStatus(container, state);
   }
+}
+
+function restoreGuestProfile(container, state) {
+  const profile = readGuestProfile({ hotelId: state.bootstrap.hotel_id });
+  state.rememberedGuest = profile;
+  const form = container.querySelector("[data-order-form]");
+  if (!form) return;
+  const forgetButton = form.querySelector("[data-forget-guest]");
+  if (!profile) {
+    if (forgetButton) forgetButton.hidden = true;
+    return;
+  }
+  form.elements.guest_name.value = profile.guest_name;
+  form.elements.guest_phone.value = profile.guest_phone;
+  if (state.rooms.some((room) => String(room.code) === profile.room_code)) {
+    form.elements.room_code.value = profile.room_code;
+  }
+  form.elements.remember_guest.checked = true;
+  if (forgetButton) forgetButton.hidden = false;
+}
+
+function persistGuestProfile(container, state, profile) {
+  const form = container.querySelector("[data-order-form]");
+  if (!form?.elements.remember_guest?.checked) {
+    clearGuestProfile({ hotelId: state.bootstrap.hotel_id });
+    state.rememberedGuest = null;
+    return;
+  }
+  state.rememberedGuest = writeGuestProfile({ hotelId: state.bootstrap.hotel_id, profile });
+}
+
+function forgetGuestProfile(container, state) {
+  clearGuestProfile({ hotelId: state.bootstrap.hotel_id });
+  state.rememberedGuest = null;
+  const form = container.querySelector("[data-order-form]");
+  if (!form) return;
+  form.elements.guest_name.value = "";
+  form.elements.guest_phone.value = "";
+  form.elements.room_code.value = "";
+  form.elements.remember_guest.checked = false;
+  form.querySelector("[data-forget-guest]").hidden = true;
 }
 
 function renderOrderReview(container, state, form, snapshot, data) {

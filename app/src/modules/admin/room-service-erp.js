@@ -1,5 +1,6 @@
-import { all, first } from "../../core/database.js";
+import { all, batch, first, statement } from "../../core/database.js";
 import { badRequest, notFoundError } from "../../core/errors.js";
+import { createPublicId } from "../../core/identifiers.js";
 import { requestNow } from "../../core/time.js";
 import { readJson } from "../../core/validation.js";
 import { createRoomServiceOrder } from "../room-service/orders.js";
@@ -8,6 +9,7 @@ import { listAdminOrders, getAdminOrder, updateAdminOrderStatus } from "./orders
 import { assertAdminMutationAllowed, requireAdminHotelAccess, requirePermission } from "../../services/admin-auth.js";
 import { ERP_CATALOG_MANAGE_PERMISSION, listRoomServiceCatalogCategories } from "./erp-catalog.js";
 import { ERP_SETTINGS_PERMISSION, loadRoomServiceOperationState } from "./erp-operations.js";
+import { erpActorIds } from "../../services/erp-auth.js";
 
 const MODULE_KEY = "room-service";
 const READ_PERMISSION = "room-service.orders.read";
@@ -171,14 +173,80 @@ export async function listRoomServiceErpCatalog({ env, session, url }) {
 export async function listRoomServiceErpGuests({ env, session, url }) {
   requireAnyPermission(session, [GUESTS_PERMISSION, READ_PERMISSION]);
   const hotelId = resolveRequestedHotel(session, url);
+  const [rooms, guests] = await Promise.all([
+    listRooms(env, hotelId),
+    all(
+      env,
+      `SELECT gd.id, gd.hotel_id, gd.module_key, gd.room_id, gd.room_code,
+              gd.guest_name, gd.phone, gd.source, gd.status, gd.first_seen_at,
+              gd.last_seen_at, gd.last_order_id, r.label AS room_label,
+              r.room_type, o.public_id AS last_order_public_id
+         FROM room_service_guest_directory gd
+         LEFT JOIN rooms r ON r.id = gd.room_id AND r.hotel_id = gd.hotel_id
+         LEFT JOIN orders o ON o.id = gd.last_order_id AND o.hotel_id = gd.hotel_id
+        WHERE gd.hotel_id = ?
+          AND gd.module_key = ?
+          AND gd.status = 'active'
+        ORDER BY gd.guest_name COLLATE NOCASE, gd.room_code`,
+      [hotelId, MODULE_KEY],
+    ),
+  ]);
   return {
     hotel_id: hotelId,
     module_key: MODULE_KEY,
-    rooms: await listRooms(env, hotelId),
-    guests: [],
+    rooms,
+    guests,
     pms_connected: false,
-    message: "Integracao PMS ainda nao conectada. Nenhum hospede real e carregado nesta fase.",
+    directory_ready: true,
+    message: "Diretorio atualizado automaticamente pelos pedidos confirmados do Room Service.",
   };
+}
+
+export async function archiveRoomServiceErpGuest({ request, env, session, guestId }) {
+  requirePermission(session, WRITE_PERMISSION);
+  assertAdminMutationAllowed({ request });
+  const payload = await readJson(request);
+  const hotelId = String(payload.hotel_id || "").trim();
+  if (!hotelId) throw badRequest("hotel_id obrigatorio.");
+  requireAdminHotelAccess(session, hotelId);
+  const createdAt = requestNow({ request, env });
+  const { adminUserId, erpUserId } = erpActorIds(session);
+  const results = await batch(env, [
+    statement(
+      env,
+      `UPDATE room_service_guest_directory
+          SET status = 'archived', archived_at = ?,
+              archived_by_admin_user_id = ?, archived_by_erp_user_id = ?,
+              updated_at = ?
+        WHERE id = ? AND hotel_id = ? AND module_key = ? AND status = 'active'`,
+      [createdAt, adminUserId, erpUserId, createdAt, guestId, hotelId, MODULE_KEY],
+    ),
+    statement(
+      env,
+      `INSERT INTO admin_audit_log (
+         id, hotel_id, module_key, actor_user_id, actor_erp_user_id,
+         action, entity_type, entity_id, metadata_json, created_at
+       )
+       SELECT ?, gd.hotel_id, gd.module_key, ?, ?,
+              'room-service.guest.stay_ended', 'room_service_guest', gd.id,
+              json_object('room_code', gd.room_code), ?
+         FROM room_service_guest_directory gd
+        WHERE gd.id = ? AND gd.hotel_id = ? AND gd.module_key = ?
+          AND gd.status = 'archived' AND gd.updated_at = ?`,
+      [createPublicId("audit"), adminUserId, erpUserId, createdAt, guestId, hotelId, MODULE_KEY, createdAt],
+    ),
+  ]);
+  if (Number(results?.[0]?.meta?.changes || 0) !== 1) {
+    const existing = await first(
+      env,
+      `SELECT id, status FROM room_service_guest_directory
+        WHERE id = ? AND hotel_id = ? AND module_key = ? LIMIT 1`,
+      [guestId, hotelId, MODULE_KEY],
+    );
+    if (existing?.status === "archived") return { guest_id: guestId, archived: true, idempotent: true };
+    throw notFoundError("Hospede nao encontrado neste hotel.");
+  }
+  return { guest_id: guestId, archived: true, idempotent: false };
 }
 
 export async function getRoomServiceErpBilling({ env, session, url }) {

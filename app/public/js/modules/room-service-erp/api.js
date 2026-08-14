@@ -72,6 +72,13 @@ export function getGuests({ hotelId } = {}) {
   return adminApi(`/api/v1/admin/room-service/guests?${hotelParams(hotelId)}`);
 }
 
+export function archiveGuest(guestId, { hotelId } = {}) {
+  return adminApi(`/api/v1/admin/room-service/guests/${encodeURIComponent(guestId)}`, {
+    method: "DELETE",
+    body: { hotel_id: hotelId },
+  });
+}
+
 export function getBilling({ hotelId } = {}) {
   return adminApi(`/api/v1/admin/room-service/billing?${hotelParams(hotelId)}`);
 }

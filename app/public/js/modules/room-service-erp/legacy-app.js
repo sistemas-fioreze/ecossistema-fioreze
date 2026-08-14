@@ -1,4 +1,5 @@
 import {
+  archiveGuest,
   changeOwnErpPassword,
   createCatalogCategory,
   createCatalogItem,
@@ -1840,15 +1841,41 @@ async function submitPdvOrder() {
 
 function renderGuests() {
   const query = normalize(byId("guestSearchInput")?.value || byId("topSearchInput")?.value || "");
-  const rooms = (state.guests?.rooms || []).filter((room) => !query || normalize(room.code).includes(query));
-  setText("guestDirectoryMeta", `${rooms.length} ${rooms.length === 1 ? "acomodacao" : "acomodacoes"}`);
-  byId("guestTableBody").innerHTML = rooms.length
-    ? `<section class="guest-letter-section"><div class="guest-letter-title">Acomodacoes</div><div class="guest-letter-grid">${rooms.map(roomCard).join("")}</div></section>`
-    : '<div class="loose-list-empty">Nenhuma acomodacao encontrada.</div>';
+  const guests = (state.guests?.guests || []).filter((guest) => !query || [guest.guest_name, guest.room_code, guest.phone]
+    .some((value) => normalize(value || "").includes(query)));
+  const occupiedRooms = new Set((state.guests?.guests || []).map((guest) => String(guest.room_code)));
+  const rooms = (state.guests?.rooms || []).filter((room) => !occupiedRooms.has(String(room.code)) && (!query || normalize(room.code).includes(query)));
+  setText("guestDirectoryMeta", `${guests.length} ${guests.length === 1 ? "hospede" : "hospedes"} · ${rooms.length} ${rooms.length === 1 ? "acomodacao livre" : "acomodacoes livres"}`);
+  byId("guestTableBody").innerHTML = guests.length || rooms.length
+    ? `${guests.length ? `<section class="guest-letter-section"><div class="guest-letter-title">Hospedes recentes</div><div class="guest-letter-grid">${guests.map(guestDirectoryCard).join("")}</div></section>` : ""}
+       ${rooms.length ? `<section class="guest-letter-section"><div class="guest-letter-title">Acomodacoes livres</div><div class="guest-letter-grid">${rooms.map(roomCard).join("")}</div></section>` : ""}`
+    : '<div class="loose-list-empty">Nenhum hospede ou acomodacao encontrado.</div>';
   byId("guestTableBody").querySelectorAll("[data-room-code]").forEach((button) => button.addEventListener("click", () => {
     byId("roomNumber").value = button.dataset.roomCode;
+    if (button.dataset.guestName) byId("guestName").value = button.dataset.guestName;
     switchTab("vendas");
   }));
+  byId("guestTableBody").querySelectorAll("[data-archive-guest]").forEach((button) => button.addEventListener("click", () => archiveGuestStay(button)));
+}
+
+function guestDirectoryCard(guest) {
+  const phone = String(guest.phone || "").trim();
+  const canArchive = Boolean(state.context?.permissions?.can_write_orders);
+  return `<article class="guest-mini-card"><div class="mini-card-top"><div><p class="mini-card-label">Hospede</p><p class="text-[11px] font-black text-gray-500 uppercase">Ultima atividade ${escapeHtml(formatDate(guest.last_seen_at))}</p></div><div class="mini-room-badge">Apto ${escapeHtml(guest.room_code)}</div></div><div><p class="mini-card-title">${escapeHtml(guest.guest_name)}</p><p class="text-[11px] font-bold text-gray-500 mt-2">${phone ? escapeHtml(phone) : "Contato nao informado"}</p></div><div class="mini-card-actions"><button type="button" data-room-code="${escapeAttr(guest.room_code)}" data-guest-name="${escapeAttr(guest.guest_name)}" class="mini-card-action orange">${cartIcon()} Novo pedido</button>${canArchive ? `<button type="button" data-archive-guest="${escapeAttr(guest.id)}" class="mini-card-action">Encerrar estadia</button>` : ""}</div></article>`;
+}
+
+async function archiveGuestStay(button) {
+  if (!window.confirm("Encerrar esta estadia no diretorio? Os pedidos continuarao preservados.")) return;
+  button.disabled = true;
+  try {
+    await archiveGuest(button.dataset.archiveGuest, { hotelId: state.hotelId });
+    state.guests = await getGuests({ hotelId: state.hotelId });
+    renderGuests();
+    notify("Estadia encerrada no diretorio.");
+  } catch (error) {
+    notify(error.message || "Nao foi possivel encerrar a estadia.");
+    button.disabled = false;
+  }
 }
 
 function roomCard(room) {
