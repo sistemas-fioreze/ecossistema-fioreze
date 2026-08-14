@@ -38,6 +38,11 @@ test("ERP Room Service exposes desktop controls only through the adapter", () =>
   assert.match(css, /#printManagerModal\.desktop-print-status-modal:not\(\.hidden\)\s*\{[\s\S]*?display:\s*flex\s*!important/);
   assert.match(html, /rs-desktop-titlebar/);
   assert.match(html, /desktopPrintManager/);
+  assert.match(html, /id="desktopWorkspace" class="rs-desktop-workspace"/);
+  assert.match(html, /id="desktopPrintManager" class="rs-desktop-tool rs-desktop-print-tool"/);
+  const printButton = html.match(/<button id="desktopPrintManager"[\s\S]*?<\/button>/)?.[0] || "";
+  assert.ok(printButton);
+  assert.doesNotMatch(printButton, /<span>/);
   assert.match(html, /desktopReload/);
   assert.doesNotMatch(html, /rs-desktop-app-mark/);
   assert.match(css, /-webkit-app-region:\s*drag/);
@@ -78,6 +83,10 @@ test("Electron wrapper is thin, hardened, and does not duplicate backend access"
   assert.match(html, /Reiniciar servidor/);
   assert.doesNotMatch(html, /printCfgHotel|Imprimir teste|Reimprimir ultimo/);
   assert.match(adapter, /isPrintServerComputer/);
+  assert.match(adapter, /installDesktopWorkspace\(root\)/);
+  assert.match(adapter, /if \(search\) workspace\.append\(search\)/);
+  assert.match(adapter, /if \(feedback\) workspace\.append\(feedback\)/);
+  assert.doesNotMatch(adapter, /label\.textContent = status\?\.running \? "Impressao online"/);
   assert.match(adapter, /Nenhum servidor de impressão será iniciado neste computador/);
   assert.doesNotMatch(adapter, /openPrintManager/);
   assert.ok(packageJson.build.files.includes("window-chrome.cjs"));
@@ -140,7 +149,8 @@ test("settings stays available outside the ERP sidebar", () => {
   assert.doesNotMatch(legacyApp, /\["btnTabAdmin", "Sistema"\]/);
   assert.match(legacyApp, /switchTab\("admin", \{ allowHidden: true \}\)/);
   assert.match(legacyApp, /function switchTab\(route, \{ allowHidden = false \} = \{\}\)/);
-  assert.match(entrypoint, /legacy-app\.js\?v=20260814-3/);
-  assert.match(html, /design-system-v5\.css\?v=20260814-3/);
-  assert.match(html, /app\.js\?v=20260814-3/);
+  assert.match(entrypoint, /desktop-adapter\.js\?v=20260814-4/);
+  assert.match(entrypoint, /legacy-app\.js\?v=20260814-4/);
+  assert.match(html, /design-system-v5\.css\?v=20260814-4/);
+  assert.match(html, /app\.js\?v=20260814-4/);
 });
