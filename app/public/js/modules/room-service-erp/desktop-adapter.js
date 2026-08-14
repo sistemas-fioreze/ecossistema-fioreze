@@ -70,6 +70,7 @@ export async function setupDesktopControls(root = document) {
   const customWindowControls = root.querySelector(".rs-window-controls");
   if (customWindowControls) customWindowControls.hidden = controlMode === "native";
   root.getElementById("desktopTitlebar")?.removeAttribute("hidden");
+  installDesktopWorkspace(root);
   const syncViewportInsets = async () => {
     const state = await desktop.windowState().catch(() => ({ workAreaBottomInset: 0 }));
     const bottomInset = Math.max(0, Math.min(96, Number(state?.workAreaBottomInset) || 0));
@@ -96,6 +97,15 @@ export async function setupDesktopControls(root = document) {
   syncDesktopPrintStatus(root);
   window.setInterval(() => syncDesktopPrintStatus(root), 10_000);
   installDesktopUpdater(root);
+}
+
+function installDesktopWorkspace(root) {
+  const workspace = root.getElementById("desktopWorkspace");
+  const search = root.getElementById("topSearchWrap");
+  const feedback = root.getElementById("erpFeedbackButton");
+  if (!workspace) return;
+  if (search) workspace.append(search);
+  if (feedback) workspace.append(feedback);
 }
 
 async function installDesktopUpdater(root) {
@@ -182,8 +192,6 @@ async function syncDesktopPrintStatus(root) {
       : configured
         ? "Consultar o servidor de impressao deste computador"
         : "Consultar o status da impressao";
-    const label = button.querySelector("span");
-    if (label) label.textContent = status?.running ? "Impressao online" : "Impressao";
     renderDesktopPrintStatus(root, status);
   } catch {
     button.dataset.state = "offline";
