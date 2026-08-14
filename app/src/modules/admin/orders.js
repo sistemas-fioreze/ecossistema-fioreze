@@ -76,6 +76,16 @@ export async function listAdminOrders({ env, session, url, permissionKey = READ_
             h.timezone, o.module_key, o.origin, o.room_code, o.guest_name,
             o.currency, o.subtotal_cents, o.total_cents, o.status,
             o.preparation_mode, o.scheduled_for, o.created_at, o.updated_at,
+            (
+              SELECT COUNT(*)
+                FROM orders sequence
+               WHERE sequence.hotel_id = o.hotel_id
+                 AND sequence.module_key = o.module_key
+                 AND (
+                   sequence.created_at < o.created_at
+                   OR (sequence.created_at = o.created_at AND sequence.id <= o.id)
+                 )
+            ) AS display_number,
             COUNT(oi.id) AS item_count
        FROM orders o
        JOIN hotels h ON h.id = o.hotel_id
@@ -327,7 +337,17 @@ async function loadOrderDetail(env, orderId, hotelIds) {
             h.timezone, h.locale, o.module_key, o.origin, o.room_code,
             o.guest_name, o.notes, o.currency, o.subtotal_cents,
             o.discount_cents, o.total_cents, o.status, o.created_at,
-            o.updated_at, o.cancelled_at, o.preparation_mode, o.scheduled_for
+            o.updated_at, o.cancelled_at, o.preparation_mode, o.scheduled_for,
+            (
+              SELECT COUNT(*)
+                FROM orders sequence
+               WHERE sequence.hotel_id = o.hotel_id
+                 AND sequence.module_key = o.module_key
+                 AND (
+                   sequence.created_at < o.created_at
+                   OR (sequence.created_at = o.created_at AND sequence.id <= o.id)
+                 )
+            ) AS display_number
        FROM orders o
        JOIN hotels h ON h.id = o.hotel_id
       WHERE o.id = ?
@@ -384,6 +404,7 @@ function formatOrderListRow(row) {
   return {
     id: row.id,
     public_id: row.public_id,
+    display_number: Number(row.display_number || 0) || null,
     hotel_id: row.hotel_id,
     hotel_name: row.hotel_name,
     timezone: row.timezone,

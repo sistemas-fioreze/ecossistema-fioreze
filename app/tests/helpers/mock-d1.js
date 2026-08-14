@@ -1361,6 +1361,7 @@ class MockD1Database {
         hotel_name: hotel?.name,
         timezone: hotel?.timezone,
         locale: hotel?.locale,
+        display_number: orderDisplayNumber(this.data.orders, order),
       };
     }
 
@@ -2170,6 +2171,7 @@ class MockD1Database {
             ...order,
             hotel_name: hotel?.name,
             timezone: hotel?.timezone,
+            display_number: orderDisplayNumber(this.data.orders, order),
             item_count: this.data.orderItems.filter((item) => item.order_id === order.id).length,
           };
         })
@@ -4695,6 +4697,13 @@ class MockD1Database {
     }
     this.data.orderStatusHistory.push(entry);
   }
+}
+
+function orderDisplayNumber(orders, selected) {
+  return orders
+    .filter((order) => order.hotel_id === selected.hotel_id && order.module_key === selected.module_key)
+    .sort((left, right) => left.created_at.localeCompare(right.created_at) || left.id.localeCompare(right.id))
+    .findIndex((order) => order.id === selected.id) + 1;
 }
 
 class MockD1Statement {

@@ -103,12 +103,21 @@ test("order details use the horizontal Electron workspace and live printing stat
 
   assert.match(app, /installOrderDetailsInterface/);
   assert.match(app, /order-detail-layout/);
+  assert.match(app, /order-detail-facts/);
+  assert.match(app, /orderDisplayLabel/);
+  assert.match(app, /Pedido #\$\{displayNumber\}/);
   assert.match(app, /renderOrderPrinting/);
+  assert.match(app, /detPrintAgentStatus/);
+  assert.match(app, /Marcar como entregue/);
   assert.match(app, /data-order-reprint/);
   assert.match(app, /orderStatusDialog/);
+  assert.doesNotMatch(app, /id="detPublicId"/);
   assert.doesNotMatch(app, /Impressao indisponivel/);
   assert.doesNotMatch(app, /window\.prompt\("Informe o motivo do cancelamento/);
   assert.match(api, /orders\/\$\{encodeURIComponent\(orderId\)\}\/print/);
-  assert.match(css, /grid-template-columns:\s*minmax\(0, 1\.45fr\) minmax\(330px, \.85fr\)/);
+  assert.match(css, /grid-template-columns:\s*minmax\(0, 1\.32fr\) minmax\(340px, \.82fr\)/);
+  assert.match(css, /\.order-detail-layout \{[\s\S]*overflow-y:\s*auto/);
+  assert.match(css, /\.order-detail-primary,[\s\S]*\.order-detail-secondary \{[\s\S]*overflow:\s*visible/);
+  assert.match(css, /\.order-action-danger \{[\s\S]*background:\s*#fff8f8/);
   assert.match(css, /body\[data-fioreze-desktop="electron"\].*#orderDetailCard\.order-detail-dialog/s);
 });
