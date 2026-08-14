@@ -23,7 +23,7 @@ export function createShell({ session, preferences, onNavigate, onHotelChange, o
 
   function renderNav() {
     const permissions = new Set(session?.permissions || []);
-    els.nav.innerHTML = NAV_ITEMS.map((item) => {
+    els.nav.innerHTML = NAV_ITEMS.filter((item) => item.sidebar !== false).map((item) => {
       if (!permissions.has(item.permission)) return "";
       return `<button type="button" data-route="${item.key}" aria-current="${item.key === activeRoute ? "page" : "false"}"><span class="rs-nav-icon" aria-hidden="true">${navIcon(item.key)}</span><span>${item.label}</span></button>`;
     }).join("");

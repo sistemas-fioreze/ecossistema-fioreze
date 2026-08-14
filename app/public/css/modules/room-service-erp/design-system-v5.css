@@ -7155,7 +7155,14 @@ body[data-erp="room-service"] .erp-modal-actions-spacer {
 }
 
 /* Order workspace: horizontal detail dialog shared by browser and Electron. */
+body[data-erp="room-service"] #btnTabAdmin {
+  display: none !important;
+}
+
 body[data-erp="room-service"] #orderModal {
+  box-sizing: border-box;
+  align-items: center !important;
+  justify-content: center !important;
   padding: clamp(24px, 3vw, 42px) !important;
   background: rgba(15, 23, 42, .38) !important;
   backdrop-filter: blur(9px) !important;
@@ -7178,8 +7185,14 @@ body[data-erp="room-service"] #orderDetailCard.order-detail-dialog {
 }
 
 body[data-fioreze-desktop="electron"][data-erp="room-service"] #orderDetailCard.order-detail-dialog {
-  width: min(1200px, calc(100vw - 56px)) !important;
-  height: min(700px, calc(100dvh - 64px)) !important;
+  width: min(1120px, calc(100% - 64px)) !important;
+  min-width: min(960px, calc(100% - 64px));
+  height: min(610px, calc(100% - 56px)) !important;
+  max-height: calc(100% - 56px) !important;
+}
+
+body[data-fioreze-desktop="electron"][data-erp="room-service"] #orderModal {
+  padding: 28px 32px !important;
 }
 
 body[data-erp="room-service"] .order-detail-header {
