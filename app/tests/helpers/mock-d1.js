@@ -1038,7 +1038,15 @@ class MockD1Database {
       const device = this.data.printerDevices.find(
         (entry) => entry.hotel_id === hotelId && entry.module_key === moduleKey && ["active", "paused"].includes(entry.status),
       );
-      return device ? { id: device.id } : null;
+      return device ? { ...device } : null;
+    }
+
+    if (normalized.includes("from printer_templates") && normalized.includes("is_default = 1")) {
+      const [hotelId, moduleKey] = params;
+      const template = this.data.printerTemplates.find(
+        (entry) => entry.hotel_id === hotelId && entry.module_key === moduleKey && entry.status === "active" && entry.is_default === 1,
+      );
+      return template ? { id: template.id, name: template.name } : null;
     }
 
     if (normalized.includes("from printer_devices") && normalized.includes("where id = ? and hotel_id = ? and module_key = ?")) {
@@ -2466,6 +2474,36 @@ class MockD1Database {
 
   execute(sql, params) {
     const normalized = normalize(sql);
+
+    if (normalized.startsWith("insert into print_events")) {
+      const [id, hotel_id, module_key, order_id, requested_at, created_at, updated_at, template_id, request_key] = params;
+      if (this.data.printEvents.some((entry) => entry.id === id || (request_key && entry.request_key === request_key))) {
+        throw new Error("UNIQUE constraint failed: print_events.request_key");
+      }
+      this.data.printEvents.push({
+        id,
+        hotel_id,
+        module_key,
+        order_id,
+        printer_id: null,
+        status: "queued",
+        attempts: 0,
+        last_error: null,
+        requested_at,
+        printed_at: null,
+        created_at,
+        updated_at,
+        device_id: null,
+        template_id,
+        request_key,
+        claim_token_hash: null,
+        claimed_at: null,
+        claim_expires_at: null,
+        completed_at: null,
+        job_kind: "reprint",
+      });
+      return d1Result(1);
+    }
 
     if (normalized.startsWith("update printer_enrollment_codes") && normalized.includes("set expires_at = ?")) {
       const [expiresAt, hotelId, moduleKey, now] = params;
@@ -4319,6 +4357,24 @@ class MockD1Database {
     }
 
     if (normalized.startsWith("insert into admin_audit_log")) {
+      if (normalized.includes("'room-service.order.reprint_queued'")) {
+        const [id, hotel_id, module_key, actor_user_id, actor_erp_user_id, entity_id, metadata_json, created_at] = params;
+        const printEvent = this.data.printEvents.find((entry) => entry.id === entity_id && entry.hotel_id === hotel_id && entry.module_key === module_key);
+        if (!printEvent) return d1Result(0);
+        this.data.adminAuditLog.push({
+          id,
+          hotel_id,
+          module_key,
+          actor_user_id,
+          actor_erp_user_id,
+          action: "room-service.order.reprint_queued",
+          entity_type: "print_event",
+          entity_id,
+          metadata_json,
+          created_at,
+        });
+        return d1Result(1);
+      }
       if (normalized.includes(" from room_service_guest_directory gd ")) {
         const [id, actor_user_id, actor_erp_user_id, created_at, guestId, hotelId, moduleKey, targetUpdatedAt] = params;
         const guest = this.data.roomServiceGuestDirectory.find(

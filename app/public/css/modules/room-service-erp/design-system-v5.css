@@ -7153,3 +7153,351 @@ body[data-erp="room-service"] .erp-danger-button:hover:not(:disabled) {
 body[data-erp="room-service"] .erp-modal-actions-spacer {
   flex: 1 1 auto;
 }
+
+/* Order workspace: horizontal detail dialog shared by browser and Electron. */
+body[data-erp="room-service"] #orderModal {
+  padding: clamp(18px, 3vw, 42px) !important;
+  background: rgba(15, 23, 42, .38) !important;
+  backdrop-filter: blur(9px) !important;
+}
+
+body[data-erp="room-service"] #orderDetailCard.order-detail-dialog {
+  position: relative;
+  width: min(1180px, calc(100vw - 48px)) !important;
+  height: min(720px, calc(100dvh - 48px)) !important;
+  max-height: calc(100dvh - 48px) !important;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  padding: 0 !important;
+  overflow: hidden !important;
+  border: 1px solid var(--erp-line) !important;
+  border-radius: 20px !important;
+  background: var(--erp-surface) !important;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, .24) !important;
+  color: var(--erp-text);
+}
+
+body[data-fioreze-desktop="electron"][data-erp="room-service"] #orderDetailCard.order-detail-dialog {
+  width: min(1200px, calc(100vw - 64px)) !important;
+  height: min(690px, calc(100dvh - 78px)) !important;
+}
+
+body[data-erp="room-service"] .order-detail-header {
+  min-height: 86px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--erp-line);
+  background: var(--erp-surface);
+}
+
+body[data-erp="room-service"] .order-detail-heading,
+body[data-erp="room-service"] .order-detail-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+body[data-erp="room-service"] .order-detail-heading-icon {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-text);
+}
+
+body[data-erp="room-service"] .order-detail-heading-icon svg {
+  width: 21px;
+  height: 21px;
+}
+
+body[data-erp="room-service"] .order-detail-kicker,
+body[data-erp="room-service"] .order-detail-date {
+  margin: 0;
+  color: var(--erp-text-muted);
+  font-size: 11px !important;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+body[data-erp="room-service"] .order-detail-kicker strong {
+  color: var(--brand-primary-text);
+  font-weight: 760;
+}
+
+body[data-erp="room-service"] #orderDetailTitle {
+  margin: 2px 0;
+  color: var(--erp-text);
+  font-size: 22px !important;
+  font-weight: 780;
+  line-height: 1.15;
+}
+
+body[data-erp="room-service"] .order-detail-status {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 11px;
+  border-radius: 999px;
+  background: #eef2f6;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 760;
+}
+
+body[data-erp="room-service"] .order-detail-status[data-status="sent"] { background: #fff6d8; color: #8b6513; }
+body[data-erp="room-service"] .order-detail-status[data-status="printed"] { background: #e8f1ff; color: #245a9a; }
+body[data-erp="room-service"] .order-detail-status[data-status="delivered"] { background: #e8f7ef; color: #137a47; }
+body[data-erp="room-service"] .order-detail-status[data-status="cancelled"] { background: #fff0ef; color: #a13535; }
+
+body[data-erp="room-service"] .order-detail-close {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--erp-text-muted);
+  cursor: pointer;
+}
+
+body[data-erp="room-service"] .order-detail-close:hover { background: var(--erp-surface-soft); color: var(--erp-text); }
+body[data-erp="room-service"] .order-detail-close svg { width: 19px; height: 19px; }
+
+body[data-erp="room-service"] .order-detail-layout {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(330px, .85fr);
+  overflow: hidden;
+}
+
+body[data-erp="room-service"] .order-detail-primary,
+body[data-erp="room-service"] .order-detail-secondary {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+body[data-erp="room-service"] .order-detail-primary {
+  padding: 20px 22px 24px;
+}
+
+body[data-erp="room-service"] .order-detail-secondary {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  border-left: 1px solid var(--erp-line);
+  background: #f8fafc;
+}
+
+body[data-erp="room-service"] .order-detail-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  margin-bottom: 14px;
+}
+
+body[data-erp="room-service"] .order-detail-summary-grid article {
+  min-width: 0;
+  padding: 13px 14px;
+  border: 1px solid var(--erp-line);
+  border-radius: 12px;
+  background: var(--erp-surface);
+}
+
+body[data-erp="room-service"] .order-detail-summary-grid span,
+body[data-erp="room-service"] .order-detail-section header span,
+body[data-erp="room-service"] .order-detail-note > span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--erp-text-muted);
+  font-size: 10px !important;
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+body[data-erp="room-service"] .order-detail-summary-grid strong {
+  display: block;
+  overflow: hidden;
+  color: var(--erp-text);
+  font-size: 13px;
+  font-weight: 730;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body[data-erp="room-service"] .order-detail-section {
+  border: 1px solid var(--erp-line);
+  border-radius: 14px;
+  background: var(--erp-surface);
+}
+
+body[data-erp="room-service"] .order-detail-section > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 15px 12px;
+}
+
+body[data-erp="room-service"] .order-detail-section header h3 {
+  margin: 0;
+  color: var(--erp-text);
+  font-size: 14px !important;
+  font-weight: 760;
+}
+
+body[data-erp="room-service"] .order-detail-items-section > header > strong {
+  color: var(--erp-text-muted);
+  font-size: 11px;
+}
+
+body[data-erp="room-service"] .order-detail-items {
+  border-top: 1px solid var(--erp-line);
+}
+
+body[data-erp="room-service"] .order-detail-item {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  padding: 12px 15px;
+}
+
+body[data-erp="room-service"] .order-detail-item + .order-detail-item { border-top: 1px solid var(--erp-line); }
+body[data-erp="room-service"] .order-detail-item > strong {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-text);
+  font-size: 12px;
+}
+body[data-erp="room-service"] .order-detail-item h4 { margin: 0; color: var(--erp-text); font-size: 13px !important; font-weight: 720; }
+body[data-erp="room-service"] .order-detail-item p { margin: 3px 0 0; color: var(--erp-text-muted); font-size: 11px; line-height: 1.4; }
+body[data-erp="room-service"] .order-detail-item > span { display: flex; align-items: flex-end; flex-direction: column; gap: 2px; text-align: right; }
+body[data-erp="room-service"] .order-detail-item small { color: var(--erp-text-muted); font-size: 10px; }
+body[data-erp="room-service"] .order-detail-item b { color: var(--erp-text); font-size: 13px; }
+
+body[data-erp="room-service"] .order-detail-note {
+  margin-top: 14px;
+  padding: 14px 15px;
+  border: 1px solid #ead9a2;
+  border-radius: 14px;
+  background: #fffaf0;
+}
+body[data-erp="room-service"] .order-detail-note p { margin: 0; color: #66531e; font-size: 12px; line-height: 1.5; }
+
+body[data-erp="room-service"] .order-detail-total-card dl { margin: 0; padding: 0 15px 14px; }
+body[data-erp="room-service"] .order-detail-total-card dl > div { display: flex; justify-content: space-between; gap: 14px; padding: 8px 0; }
+body[data-erp="room-service"] .order-detail-total-card dt { color: var(--erp-text-muted); font-size: 11px; }
+body[data-erp="room-service"] .order-detail-total-card dd { margin: 0; color: var(--erp-text); font-size: 11px; font-weight: 700; text-align: right; }
+body[data-erp="room-service"] .order-detail-total-card .order-detail-total { margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--erp-line); align-items: baseline; }
+body[data-erp="room-service"] .order-detail-total-card .order-detail-total dd { color: var(--brand-primary-text); font-size: 23px; font-weight: 800; }
+
+body[data-erp="room-service"] .order-detail-printing > header i {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 9px;
+  border-radius: 999px;
+  background: #94a3b8;
+  box-shadow: 0 0 0 4px #eef2f6;
+}
+body[data-erp="room-service"] .order-detail-printing[data-printing-state="online"] > header i { background: #1da565; box-shadow: 0 0 0 4px #e8f7ef; }
+body[data-erp="room-service"] .order-detail-printing[data-printing-state="queued"] > header i { background: #d3a929; box-shadow: 0 0 0 4px #fff6d8; }
+body[data-erp="room-service"] .order-detail-printing > p { margin: 0; padding: 0 15px 12px; color: var(--erp-text-muted); font-size: 11px; line-height: 1.45; }
+body[data-erp="room-service"] .order-detail-print-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; padding: 0 15px 12px; }
+body[data-erp="room-service"] .order-detail-print-meta span { min-width: 0; padding: 8px 9px; border-radius: 9px; background: var(--erp-surface-soft); color: var(--erp-text); font-size: 10px; overflow-wrap: anywhere; }
+body[data-erp="room-service"] .order-detail-print-meta b { display: block; margin-bottom: 2px; color: var(--erp-text-muted); font-size: 9px; text-transform: uppercase; }
+body[data-erp="room-service"] .order-detail-print-events { border-top: 1px solid var(--erp-line); }
+body[data-erp="room-service"] .order-detail-print-events > div { display: flex; gap: 9px; padding: 9px 15px; }
+body[data-erp="room-service"] .order-detail-print-events > div + div { border-top: 1px solid var(--erp-line); }
+body[data-erp="room-service"] .order-detail-print-events i { width: 7px; height: 7px; margin-top: 5px; flex: 0 0 7px; border-radius: 50%; background: #94a3b8; }
+body[data-erp="room-service"] .order-detail-print-events span { min-width: 0; display: flex; flex-direction: column; }
+body[data-erp="room-service"] .order-detail-print-events strong { color: var(--erp-text); font-size: 10px; }
+body[data-erp="room-service"] .order-detail-print-events small { color: var(--erp-text-muted); font-size: 9px; }
+body[data-erp="room-service"] .order-detail-print-events em { margin-top: 3px; color: #a13535; font-size: 9px; font-style: normal; overflow-wrap: anywhere; }
+body[data-erp="room-service"] .order-detail-print-empty { margin: 0 !important; padding: 11px 15px !important; }
+
+body[data-erp="room-service"] .order-detail-history-section { flex: 1 0 auto; }
+body[data-erp="room-service"] .order-detail-history { margin: 0; padding: 0 15px 13px; list-style: none; }
+body[data-erp="room-service"] .order-detail-history li { position: relative; display: flex; gap: 10px; padding: 7px 0; }
+body[data-erp="room-service"] .order-detail-history li i { width: 8px; height: 8px; margin-top: 4px; flex: 0 0 8px; border-radius: 50%; background: #cbd5e1; }
+body[data-erp="room-service"] .order-detail-history li:first-child i { background: var(--brand-primary); box-shadow: 0 0 0 4px var(--brand-primary-soft); }
+body[data-erp="room-service"] .order-detail-history li div { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 9px; }
+body[data-erp="room-service"] .order-detail-history strong { color: var(--erp-text); font-size: 10px; }
+body[data-erp="room-service"] .order-detail-history span { color: var(--erp-text-muted); font-size: 9px; text-align: right; }
+body[data-erp="room-service"] .order-detail-history p { grid-column: 1 / -1; margin: 0; color: var(--erp-text-muted); font-size: 9px; line-height: 1.4; }
+body[data-erp="room-service"] .order-detail-empty { padding: 18px; color: var(--erp-text-muted); font-size: 11px; text-align: center; }
+
+body[data-erp="room-service"] #orderDetailCard .order-detail-actions {
+  position: static !important;
+  bottom: auto !important;
+  min-height: 70px;
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-end;
+  margin: 0 !important;
+  padding: 13px 22px !important;
+  border-top: 1px solid var(--erp-line);
+  background: var(--erp-surface) !important;
+  backdrop-filter: none !important;
+}
+body[data-erp="room-service"] #orderDetailCard .legacy-status-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+body[data-erp="room-service"] #orderDetailCard :is(.order-action-primary, .order-action-secondary) { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 14px; border-radius: 10px; font-size: 12px; font-weight: 720; }
+body[data-erp="room-service"] #orderDetailCard :is(.order-action-primary, .order-action-secondary) svg { width: 16px; height: 16px; }
+body[data-erp="room-service"] #orderDetailCard .order-action-danger { color: #a13535; }
+body[data-erp="room-service"] #orderDetailCard .order-action-print { order: -1; }
+
+body[data-erp="room-service"] .order-status-dialog {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  border-radius: inherit;
+  background: rgba(15, 23, 42, .42);
+  backdrop-filter: blur(5px);
+}
+body[data-erp="room-service"] .order-status-dialog.hidden { display: none; }
+body[data-erp="room-service"] .order-status-dialog-card { width: min(410px, 100%); padding: 24px; border: 1px solid var(--erp-line); border-radius: 16px; background: var(--erp-surface); box-shadow: 0 22px 54px rgba(15, 23, 42, .25); }
+body[data-erp="room-service"] .order-status-dialog-icon { width: 42px; height: 42px; display: grid; place-items: center; margin-bottom: 14px; border-radius: 12px; background: var(--brand-primary-soft); color: var(--brand-primary-text); }
+body[data-erp="room-service"] .order-status-dialog-icon svg { width: 20px; height: 20px; }
+body[data-erp="room-service"] .order-status-dialog h3 { margin: 0; color: var(--erp-text); font-size: 18px; }
+body[data-erp="room-service"] .order-status-dialog p { margin: 7px 0 16px; color: var(--erp-text-muted); font-size: 12px; line-height: 1.5; }
+body[data-erp="room-service"] .order-status-dialog label { display: grid; gap: 7px; color: var(--erp-text); font-size: 11px; font-weight: 700; }
+body[data-erp="room-service"] .order-status-dialog textarea { width: 100%; resize: vertical; }
+body[data-erp="room-service"] .order-status-dialog-card > div { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+
+@media (max-width: 940px) {
+  body[data-erp="room-service"] #orderDetailCard.order-detail-dialog { height: calc(100dvh - 24px) !important; width: calc(100vw - 24px) !important; max-height: calc(100dvh - 24px) !important; }
+  body[data-erp="room-service"] .order-detail-layout { display: block; overflow-y: auto; }
+  body[data-erp="room-service"] .order-detail-primary,
+  body[data-erp="room-service"] .order-detail-secondary { overflow: visible; }
+  body[data-erp="room-service"] .order-detail-secondary { border-top: 1px solid var(--erp-line); border-left: 0; }
+  body[data-erp="room-service"] .order-detail-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  body[data-erp="room-service"] #orderDetailCard .order-detail-actions { padding: 11px 14px !important; }
+}
+
+@media (max-width: 580px) {
+  body[data-erp="room-service"] #orderModal { padding: 0 !important; }
+  body[data-erp="room-service"] #orderDetailCard.order-detail-dialog { width: 100vw !important; height: 100dvh !important; max-height: 100dvh !important; border-radius: 0 !important; }
+  body[data-erp="room-service"] .order-detail-header { padding: 14px; }
+  body[data-erp="room-service"] .order-detail-primary,
+  body[data-erp="room-service"] .order-detail-secondary { padding: 14px; }
+  body[data-erp="room-service"] .order-detail-summary-grid { grid-template-columns: 1fr 1fr; }
+  body[data-erp="room-service"] #orderDetailCard .legacy-status-actions { width: 100%; }
+  body[data-erp="room-service"] #orderDetailCard :is(.order-action-primary, .order-action-secondary) { flex: 1 1 145px; }
+}

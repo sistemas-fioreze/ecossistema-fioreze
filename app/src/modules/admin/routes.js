@@ -94,6 +94,7 @@ import {
   createPrinterEnrollment,
   deletePrinterDevice,
   getRoomServicePrinting,
+  queueRoomServiceOrderReprint,
   updatePrinterDevice,
   updateRoomServicePrinting,
 } from "./erp-printing.js";
@@ -589,6 +590,11 @@ export function registerAdminRoutes(router) {
   router.post("/api/v1/admin/room-service/orders/:id/status", async ({ request, env, params }) => {
     const session = await getCurrentRoomServiceErpSession({ request, env });
     return ok(await updateRoomServiceErpOrderStatus({ request, env, session, orderId: params.id }));
+  });
+
+  router.post("/api/v1/admin/room-service/orders/:id/print", async ({ request, env, params }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(await queueRoomServiceOrderReprint({ request, env, session, orderId: params.id }), { status: 201 });
   });
 
   router.get("/api/v1/admin/room-service/guests", async ({ request, env, url }) => {

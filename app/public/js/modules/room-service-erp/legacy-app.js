@@ -30,6 +30,7 @@ import {
   login,
   logout,
   resetErpUserPassword,
+  reprintOrder,
   setOperationMode,
   submitErpFeedback,
   updateCatalogItem,
@@ -108,6 +109,7 @@ const state = {
   feedbackScreenshot: null,
   feedbackPreviewUrl: "",
   applicationVersions: createInitialApplicationVersions(),
+  pendingStatusAction: null,
 };
 
 const ERP_KEYBOARD_SHORTCUTS = Object.freeze({
@@ -186,6 +188,7 @@ function prepareStaticInterface() {
   installSettingsInterface();
   installUserModal();
   installOperationalModals();
+  installOrderDetailsInterface();
   installFeedbackInterface();
   installVisualSystem();
 
@@ -616,6 +619,11 @@ function handleGlobalKeyboardShortcut(event) {
 }
 
 function closeTopmostErpLayer() {
+  const orderStatusDialog = byId("orderStatusDialog", false);
+  if (orderStatusDialog && !orderStatusDialog.classList.contains("hidden")) {
+    closeOrderStatusDialog();
+    return true;
+  }
   const visibleModal = [...document.querySelectorAll(".erp-modal:not(.hidden), .erp-user-modal:not(.hidden), #orderModal:not(.hidden)")].at(-1);
   if (visibleModal) {
     visibleModal.classList.add("hidden");
@@ -679,6 +687,86 @@ function installOperationalModals() {
     renderCatalogImagePicker();
   });
   byId("catalogUploadButton").addEventListener("click", uploadCatalogImage);
+}
+
+function installOrderDetailsInterface() {
+  const card = byId("orderDetailCard", false);
+  if (!card) return;
+  card.className = "order-detail-card order-detail-dialog";
+  card.setAttribute("role", "dialog");
+  card.setAttribute("aria-modal", "true");
+  card.setAttribute("aria-labelledby", "orderDetailTitle");
+  card.innerHTML = `
+    <header class="order-detail-header">
+      <div class="order-detail-heading">
+        <span class="order-detail-heading-icon" aria-hidden="true">${clipboardIcon()}</span>
+        <div class="min-w-0">
+          <p class="order-detail-kicker">Pedido <strong id="detPublicId">-</strong></p>
+          <h2 id="orderDetailTitle">Detalhes do pedido</h2>
+          <p id="detDate" class="order-detail-date"></p>
+        </div>
+      </div>
+      <div class="order-detail-header-actions">
+        <span id="detStatus" class="order-detail-status" data-status="sent">Enviado</span>
+        <button type="button" class="order-detail-close" title="Fechar" aria-label="Fechar detalhes">${closeIcon()}</button>
+      </div>
+    </header>
+    <input type="hidden" id="detLinha">
+    <div class="order-detail-layout">
+      <section class="order-detail-primary" aria-label="Itens e observacoes do pedido">
+        <div class="order-detail-summary-grid">
+          <article><span>Acomodacao</span><strong id="detRoom">-</strong></article>
+          <article><span>Hospede</span><strong id="detGuest">Nao informado</strong></article>
+          <article><span>Entrega</span><strong id="detLocal">Acomodacao</strong></article>
+          <article><span>Preparo</span><strong id="detPreparation">Imediato</strong></article>
+        </div>
+        <article class="order-detail-section order-detail-items-section">
+          <header><div><span>Comanda</span><h3>Itens do pedido</h3></div><strong id="detItemCount">0 itens</strong></header>
+          <div id="detItems" class="order-detail-items"></div>
+        </article>
+        <article id="detObsBox" class="order-detail-note hidden">
+          <span>Observacao do pedido</span>
+          <p id="detObs"></p>
+        </article>
+      </section>
+      <aside class="order-detail-secondary">
+        <article class="order-detail-section order-detail-total-card">
+          <header><div><span>Resumo</span><h3>Atendimento</h3></div></header>
+          <dl>
+            <div><dt>Origem</dt><dd id="detStaff">Portal</dd></div>
+            <div><dt>Contato</dt><dd id="detContact">Nao informado</dd></div>
+            <div class="order-detail-total"><dt>Total do pedido</dt><dd id="detTotal">R$ 0,00</dd></div>
+          </dl>
+        </article>
+        <article class="order-detail-section order-detail-printing" data-printing-state="disabled">
+          <header><div><span>Impressao</span><h3 id="detPrintState">Verificando configuracao</h3></div><i id="detPrintIndicator" aria-hidden="true"></i></header>
+          <p id="detPrintMessage"></p>
+          <div id="detPrintMeta" class="order-detail-print-meta"></div>
+          <div id="detPrintEvents" class="order-detail-print-events"></div>
+        </article>
+        <article class="order-detail-section order-detail-history-section">
+          <header><div><span>Movimentacao</span><h3>Historico do pedido</h3></div></header>
+          <ol id="detHistory" class="order-detail-history"></ol>
+        </article>
+      </aside>
+    </div>
+    <footer class="order-detail-actions"></footer>
+    <div id="orderStatusDialog" class="order-status-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="orderStatusDialogTitle">
+      <form id="orderStatusDialogForm" class="order-status-dialog-card">
+        <span class="order-status-dialog-icon" aria-hidden="true">${clipboardIcon()}</span>
+        <h3 id="orderStatusDialogTitle">Confirmar alteracao</h3>
+        <p id="orderStatusDialogText"></p>
+        <label id="orderStatusNoteField" class="hidden">Motivo do cancelamento<textarea id="orderStatusNote" rows="3" maxlength="500" placeholder="Informe o motivo do cancelamento"></textarea></label>
+        <p id="orderStatusDialogError" class="legacy-login-error" role="alert"></p>
+        <div><button type="button" class="order-action-secondary" data-order-status-cancel>Voltar</button><button type="submit" class="order-action-primary">Confirmar</button></div>
+      </form>
+    </div>`;
+
+  byId("orderStatusDialog", false)?.addEventListener("click", (event) => {
+    if (event.target === event.currentTarget) closeOrderStatusDialog(false);
+  });
+  byId("orderStatusDialogForm", false)?.addEventListener("submit", submitOrderStatusDialog);
+  card.querySelector("[data-order-status-cancel]")?.addEventListener("click", () => closeOrderStatusDialog(false));
 }
 
 function installFeedbackInterface() {
@@ -1674,17 +1762,34 @@ async function openOrder(orderId) {
     const preparation = order.preparation_mode === "scheduled" && order.scheduled_for
       ? `Agendado para ${formatDate(order.scheduled_for, { hour: "2-digit", minute: "2-digit" })}`
       : "Preparo imediato";
-    setText("detDate", `${order.public_id || "Pedido"} - ${formatDate(order.created_at)} · ${preparation}`);
+    setText("detPublicId", order.public_id || "Pedido");
+    setText("detDate", formatDate(order.created_at));
     setText("detLinha", order.id);
     setText("detRoom", order.delivery?.room_code || order.room_code || "-");
     setText("detGuest", displayBusinessText(order.guest_name, "Nao informado"));
-    setText("detLocal", order.delivery?.location || "Acomodacao");
+    setText("detLocal", displayBusinessText(order.delivery?.location, "Acomodacao"));
+    setText("detContact", displayBusinessText(order.delivery?.contact, "Nao informado"));
+    setText("detPreparation", preparation);
     setText("detStaff", order.origin === "admin_pdv" ? "ERP" : "Portal");
     setText("detTotal", money(order.total_cents, order.currency));
-    byId("detItems").innerHTML = (order.items || []).map((item) => `<li class="flex justify-between gap-3"><span>${Number(item.quantity || 0)}x ${escapeHtml(displayBusinessText(item.name || item.name_snapshot, "Item"))}${item.selected_options?.note ? `<small class="block text-slate-500 mt-1">Observação: ${escapeHtml(item.selected_options.note)}</small>` : ""}</span><strong>${money(item.line_total_cents, order.currency)}</strong></li>`).join("") || "<li>Sem itens.</li>";
-    const notes = order.notes || "";
+    const status = byId("detStatus");
+    status.dataset.status = order.status;
+    status.textContent = statusLabel(order.status);
+    const items = order.items || [];
+    const quantity = items.reduce((total, item) => total + Number(item.quantity || 0), 0);
+    setText("detItemCount", `${quantity} ${quantity === 1 ? "item" : "itens"}`);
+    byId("detItems").innerHTML = items.length
+      ? items.map((item) => `<article class="order-detail-item">
+          <strong>${Number(item.quantity || 0)}x</strong>
+          <div><h4>${escapeHtml(displayBusinessText(item.name || item.name_snapshot, "Item"))}</h4>${formatOrderItemOptions(item.selected_options)}</div>
+          <span><small>${money(item.unit_price_cents, order.currency)} cada</small><b>${money(item.line_total_cents, order.currency)}</b></span>
+        </article>`).join("")
+      : '<div class="order-detail-empty">Este pedido nao possui itens.</div>';
+    const notes = order.delivery?.observation || "";
     byId("detObsBox").classList.toggle("hidden", !notes);
     setText("detObs", notes);
+    renderOrderHistory(order.history || []);
+    renderOrderPrinting(order.printing || {});
     renderStatusActions(order);
     byId("orderModal").classList.remove("hidden");
   } catch (error) {
@@ -1698,25 +1803,127 @@ function renderStatusActions(order) {
   const target = document.querySelector(".order-detail-actions");
   const next = NEXT_STATUS[order.status];
   const buttons = [];
-  if (next) buttons.push(`<button type="button" class="order-action-primary" data-status-target="${next}">Avancar para ${escapeHtml(statusLabel(next))}</button>`);
-  if (!["delivered", "cancelled"].includes(order.status)) buttons.push('<button type="button" class="order-action-secondary" data-status-target="cancelled">Cancelar pedido</button>');
-  buttons.push('<button type="button" class="order-action-secondary legacy-print-disabled" disabled>Impressao indisponivel</button>');
+  const canWrite = (state.session?.permissions || []).includes("room-service.orders.write");
+  if (canWrite && next) buttons.push(`<button type="button" class="order-action-primary" data-status-target="${next}">Avancar para ${escapeHtml(statusLabel(next))}</button>`);
+  if (canWrite && !["delivered", "cancelled"].includes(order.status)) buttons.push('<button type="button" class="order-action-secondary order-action-danger" data-status-target="cancelled">Cancelar pedido</button>');
+  if (canWrite && order.printing?.can_reprint) {
+    buttons.push(`<button type="button" class="order-action-secondary order-action-print" data-order-reprint>${printIcon()} Imprimir novamente</button>`);
+  } else {
+    buttons.push(`<button type="button" class="order-action-secondary legacy-print-disabled" disabled title="${escapeAttr(order.printing?.message || "Impressao nao configurada")}">${printIcon()} Impressao nao configurada</button>`);
+  }
   target.innerHTML = `<div class="legacy-status-actions">${buttons.join("")}</div>`;
   target.querySelectorAll("[data-status-target]").forEach((button) => button.addEventListener("click", () => changeOrderStatus(order, button.dataset.statusTarget)));
+  target.querySelector("[data-order-reprint]")?.addEventListener("click", (event) => queueOrderReprint(order, event.currentTarget));
 }
 
 async function changeOrderStatus(order, targetStatus) {
-  const note = targetStatus === "cancelled" ? window.prompt("Informe o motivo do cancelamento:") : "";
-  if (targetStatus === "cancelled" && !note?.trim()) return;
-  if (!window.confirm(`Confirmar alteracao para ${statusLabel(targetStatus)}?`)) return;
+  state.pendingStatusAction = { order, targetStatus };
+  const cancelled = targetStatus === "cancelled";
+  setText("orderStatusDialogTitle", cancelled ? "Cancelar pedido" : `Avancar para ${statusLabel(targetStatus)}`);
+  setText("orderStatusDialogText", cancelled
+    ? "O pedido sera cancelado e permanecera registrado no historico."
+    : `Confirme a alteracao do pedido para ${statusLabel(targetStatus)}.`);
+  byId("orderStatusNoteField").classList.toggle("hidden", !cancelled);
+  byId("orderStatusNote").value = "";
+  setText("orderStatusDialogError", "");
+  byId("orderStatusDialog").classList.remove("hidden");
+  if (cancelled) byId("orderStatusNote").focus();
+}
+
+async function submitOrderStatusDialog(event) {
+  event.preventDefault();
+  const action = state.pendingStatusAction;
+  if (!action) return closeOrderStatusDialog();
+  const note = action.targetStatus === "cancelled" ? byId("orderStatusNote").value.trim() : "";
+  if (action.targetStatus === "cancelled" && !note) {
+    setText("orderStatusDialogError", "Informe o motivo do cancelamento.");
+    byId("orderStatusNote").focus();
+    return;
+  }
+  const submit = event.currentTarget.querySelector('[type="submit"]');
+  submit.disabled = true;
   try {
-    await updateOrderStatus(order.id, { status: targetStatus, note: note?.trim() || "" });
+    await updateOrderStatus(action.order.id, { status: action.targetStatus, note });
+    const orderId = action.order.id;
+    const targetStatus = action.targetStatus;
+    closeOrderStatusDialog();
     notify(`Pedido atualizado para ${statusLabel(targetStatus)}.`);
     await refreshAll();
+    await openOrder(orderId);
+  } catch (error) {
+    setText("orderStatusDialogError", error.message || "Nao foi possivel atualizar o pedido.");
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+function closeOrderStatusDialog() {
+  byId("orderStatusDialog", false)?.classList.add("hidden");
+  state.pendingStatusAction = null;
+}
+
+async function queueOrderReprint(order, button) {
+  button.disabled = true;
+  button.setAttribute("aria-busy", "true");
+  try {
+    await reprintOrder(order.id);
+    notify("Pedido adicionado a fila de impressao.");
     await openOrder(order.id);
   } catch (error) {
-    notify(error.message || "Nao foi possivel atualizar o pedido.");
+    notify(error.message || "Nao foi possivel adicionar o pedido a fila de impressao.");
+  } finally {
+    button.disabled = false;
+    button.removeAttribute("aria-busy");
   }
+}
+
+function renderOrderHistory(history) {
+  byId("detHistory").innerHTML = history.length
+    ? [...history].reverse().map((entry) => `<li data-status="${escapeAttr(entry.status)}"><i aria-hidden="true"></i><div><strong>${escapeHtml(statusLabel(entry.status))}</strong><span>${escapeHtml(formatDate(entry.created_at))}</span>${entry.note ? `<p>${escapeHtml(entry.note)}</p>` : ""}</div></li>`).join("")
+    : '<li class="order-detail-empty">Nenhuma movimentacao registrada.</li>';
+}
+
+function renderOrderPrinting(printing) {
+  const section = document.querySelector(".order-detail-printing");
+  const latest = printing.latest_event;
+  const connection = printing.device?.connection_status || "not_configured";
+  const stateKey = !printing.enabled ? "disabled" : !printing.configured ? "unconfigured" : connection === "online" ? "online" : "queued";
+  section.dataset.printingState = stateKey;
+  setText("detPrintState", printStateTitle(printing, latest));
+  setText("detPrintMessage", printing.message || "Configuracao de impressao nao encontrada.");
+  byId("detPrintMeta").innerHTML = [
+    printing.device?.name ? `<span><b>Computador</b>${escapeHtml(printing.device.name)}</span>` : "",
+    printing.device?.printer_name ? `<span><b>Impressora</b>${escapeHtml(printing.device.printer_name)}</span>` : "",
+    printing.template?.name ? `<span><b>Modelo</b>${escapeHtml(printing.template.name)}</span>` : "",
+  ].filter(Boolean).join("");
+  const events = (printing.events || []).slice(-3).reverse();
+  byId("detPrintEvents").innerHTML = events.length
+    ? events.map((entry) => `<div data-print-status="${escapeAttr(entry.status)}"><i aria-hidden="true"></i><span><strong>${escapeHtml(printEventLabel(entry.status, entry.job_kind))}</strong><small>${escapeHtml(formatDate(entry.requested_at || entry.created_at))}${Number(entry.attempts || 0) ? ` · ${Number(entry.attempts)} tentativa${Number(entry.attempts) === 1 ? "" : "s"}` : ""}</small>${entry.last_error ? `<em>${escapeHtml(entry.last_error)}</em>` : ""}</span></div>`).join("")
+    : '<p class="order-detail-print-empty">Nenhuma impressao solicitada para este pedido.</p>';
+}
+
+function printStateTitle(printing, latest) {
+  if (latest?.status === "printed") return "Comprovante impresso";
+  if (latest?.status === "printing") return "Impressao em andamento";
+  if (latest?.status === "queued") return "Aguardando o agente";
+  if (latest?.status === "failed") return "Falha na ultima tentativa";
+  if (!printing.enabled) return "Impressao desativada";
+  if (!printing.configured) return "Configuracao incompleta";
+  return printing.device?.connection_status === "online" ? "Agente online" : "Agente offline";
+}
+
+function printEventLabel(status, jobKind) {
+  const labels = { queued: "Na fila", printing: "Imprimindo", printed: "Impresso", failed: "Falhou", cancelled: "Cancelado", disabled: "Desativado" };
+  const kind = jobKind === "reprint" ? "Reimpressao" : "Impressao";
+  return `${kind}: ${labels[status] || status}`;
+}
+
+function formatOrderItemOptions(options) {
+  if (!options || typeof options !== "object") return "";
+  const details = Object.entries(options)
+    .filter(([, value]) => value != null && String(value).trim())
+    .map(([key, value]) => `${key === "note" ? "Observacao" : displayBusinessText(key.replaceAll("_", " "), key)}: ${String(value)}`);
+  return details.length ? `<p>${details.map(escapeHtml).join(" · ")}</p>` : "";
 }
 
 function renderMenu() {
@@ -1893,7 +2100,8 @@ function renderBillingLegacy() {
   bindOrderButtons(byId("histTableBody"));
   renderBars(byId("histLegendLocal"), Object.entries(countBy(state.orders, (order) => order.delivery_location || "Acomodacao")));
   renderBars(byId("histTopItems"), Object.entries(countBy(state.orders, (order) => statusLabel(order.status))));
-  byId("histQuickStats").innerHTML = `<p>${state.orders.length} pedidos no periodo</p><p>${money(summary.revenue_cents || 0)} faturados</p><p>Impressao desativada</p>`;
+  const printingSummary = state.context?.printing?.message || "Configuracao de impressao nao consultada";
+  byId("histQuickStats").innerHTML = `<p>${state.orders.length} pedidos no periodo</p><p>${money(summary.revenue_cents || 0)} faturados</p><p>${escapeHtml(printingSummary)}</p>`;
 }
 
 function renderBilling() {
@@ -3080,6 +3288,18 @@ function plusIcon() {
 
 function cartIcon() {
   return '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13H17"/></svg>';
+}
+
+function clipboardIcon() {
+  return '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12h14V7a2 2 0 00-2-2h-2M9 5a3 3 0 006 0M9 5a3 3 0 016 0M8 11h8M8 15h5"/></svg>';
+}
+
+function closeIcon() {
+  return '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M6 6l12 12M18 6L6 18"/></svg>';
+}
+
+function printIcon() {
+  return '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M6 9V3h12v6M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v7H6z"/></svg>';
 }
 
 function trashIcon() {
