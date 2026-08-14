@@ -137,7 +137,10 @@ test("settings stays available outside the ERP sidebar", () => {
   assert.match(shell, /NAV_ITEMS\.filter\(\(item\) => item\.sidebar !== false\)/);
   assert.match(css, /#btnTabAdmin \{[\s\S]*display:\s*none !important/);
   assert.match(legacyApp, /setNavigationVisibility\("btnTabAdmin", false\)/);
-  assert.match(entrypoint, /legacy-app\.js\?v=20260814-2/);
-  assert.match(html, /design-system-v5\.css\?v=20260814-2/);
-  assert.match(html, /app\.js\?v=20260814-2/);
+  assert.doesNotMatch(legacyApp, /\["btnTabAdmin", "Sistema"\]/);
+  assert.match(legacyApp, /switchTab\("admin", \{ allowHidden: true \}\)/);
+  assert.match(legacyApp, /function switchTab\(route, \{ allowHidden = false \} = \{\}\)/);
+  assert.match(entrypoint, /legacy-app\.js\?v=20260814-3/);
+  assert.match(html, /design-system-v5\.css\?v=20260814-3/);
+  assert.match(html, /app\.js\?v=20260814-3/);
 });
