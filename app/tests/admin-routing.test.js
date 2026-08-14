@@ -186,6 +186,7 @@ test("assets administrativos carregam fora do roteamento estatico de shells", as
     ["/css/modules/admin/admin.css", /text\/css/],
     ["/css/modules/admin/admin-erp-aligned.css", /text\/css/],
     ["/css/modules/room-service-erp/shell.css", /text\/css/],
+    ["/fonts/inter/InterVariable.woff2", /font\/woff2/],
   ];
 
   for (const [path, contentType] of assets) {

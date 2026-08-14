@@ -149,6 +149,7 @@ function isDirectAsset(pathname) {
   return (
     pathname.startsWith("/css/") ||
     pathname.startsWith("/js/") ||
+    pathname.startsWith("/fonts/") ||
     pathname.startsWith("/assets/") ||
     pathname === "/favicon.ico"
   );
