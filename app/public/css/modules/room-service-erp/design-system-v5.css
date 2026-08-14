@@ -335,10 +335,10 @@ body[data-erp="room-service"] .side-nav-btn[aria-current="page"]::before {
 }
 
 body[data-erp="room-service"] .side-nav-btn svg {
-  width: 19px !important;
-  height: 19px !important;
+  width: 20px !important;
+  height: 20px !important;
   color: currentColor;
-  stroke-width: 1.8 !important;
+  stroke-width: 1.9 !important;
 }
 
 body[data-erp="room-service"] .side-text,
@@ -7586,4 +7586,29 @@ body[data-erp="room-service"] .order-status-dialog-card > div { display: flex; j
   body[data-erp="room-service"] .order-detail-facts { grid-template-columns: 1fr; }
   body[data-erp="room-service"] #orderDetailCard .legacy-status-actions { width: 100%; }
   body[data-erp="room-service"] #orderDetailCard :is(.order-action-primary, .order-action-secondary) { flex: 1 1 145px; }
+}
+/* Lucide is the single icon language used by the ERP. */
+.lucide {
+  display: block;
+  flex: 0 0 auto;
+  stroke-width: 1.9 !important;
+}
+
+body[data-erp="room-service"] svg.lucide {
+  stroke-width: 1.9 !important;
+}
+
+.erp-nav-icon {
+  align-items: center;
+  display: inline-flex;
+  flex: 0 0 24px;
+  height: 24px;
+  justify-content: center;
+  width: 24px;
+}
+
+.erp-nav-icon > .lucide {
+  height: 20px !important;
+  stroke-width: 1.9;
+  width: 20px !important;
 }
