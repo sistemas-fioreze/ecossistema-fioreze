@@ -72,6 +72,40 @@ body[data-erp="room-service"] :where(button, input, textarea, select, option) {
   line-height: 1.45;
 }
 
+/* Keep the shared type scale above legacy component-specific declarations. */
+body[data-erp="room-service"] #loginOverlay :is(input, textarea, select),
+body[data-erp="room-service"] #appShell :is(input, textarea, select),
+body[data-erp="room-service"] :is([id$="Overlay"], [id$="Modal"]) :is(input, textarea, select),
+body[data-erp="room-service"] [role="dialog"] :is(input, textarea, select) {
+  font-size: var(--erp-type-body) !important;
+  font-weight: var(--erp-weight-regular) !important;
+}
+
+body[data-erp="room-service"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+body[data-erp="room-service"] textarea,
+body[data-erp="room-service"] select {
+  font-size: var(--erp-type-body) !important;
+  font-weight: var(--erp-weight-regular) !important;
+}
+
+body[data-erp="room-service"] :is(
+  .side-nav-btn,
+  .top-action,
+  .top-session,
+  .admin-primary-btn,
+  .admin-secondary-btn,
+  .erp-back,
+  .erp-mode-button,
+  .erp-category-tab
+) {
+  font-size: var(--erp-type-body) !important;
+  font-weight: var(--erp-weight-medium) !important;
+}
+
+body[data-erp="room-service"] .side-nav-btn:is(.tab-active, [aria-current="page"]) {
+  font-weight: var(--erp-weight-medium) !important;
+}
+
 body[data-erp="room-service"] :where(button, [role="button"]) {
   font-weight: var(--erp-weight-medium);
 }
@@ -179,6 +213,20 @@ body[data-erp="room-service"] :where(
   font-size: var(--erp-type-meta) !important;
   font-weight: var(--erp-weight-regular) !important;
   line-height: 1.45;
+}
+
+body[data-erp="room-service"] :is(
+  .erp-v3-subtitle,
+  .erp-list-button small,
+  .erp-operation-card small,
+  .erp-settings-link small,
+  .erp-product-body p,
+  .admin-kicker,
+  .erp-panel-meta,
+  .erp-stat-label
+) {
+  font-size: var(--erp-type-meta) !important;
+  font-weight: var(--erp-weight-regular) !important;
 }
 
 body[data-erp="room-service"] :where(

@@ -36,7 +36,7 @@ test("ERP serves the official Inter variable fonts locally", () => {
   assert.match(typography, /url\("\/fonts\/inter\/InterVariable-Italic\.woff2"\)/);
   assert.match(typography, /font-weight:\s*100 900/);
   assert.match(typography, /font-display:\s*swap/);
-  assert.match(html, /typography\.css\?v=20260814-1/);
+  assert.match(html, /typography\.css\?v=20260814-2/);
   assert.ok(html.indexOf("typography.css") > html.indexOf("design-system-v5.css"));
 });
 
@@ -70,6 +70,7 @@ test("ERP typography keeps readable weights, metadata, and tabular numbers", () 
   assert.match(typography, /--erp-weight-medium:\s*500/);
   assert.match(typography, /--erp-weight-semibold:\s*600/);
   assert.match(typography, /font-variant-numeric:\s*tabular-nums/);
+  assert.match(typography, /#appShell :is\(input, textarea, select\)/);
   assert.match(typography, /\.side-nav-btn/);
   assert.match(typography, /table/);
   assert.match(typography, /\[role="tooltip"\]/);
