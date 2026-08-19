@@ -1,0 +1,187 @@
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-downloads-settings-card {
+  appearance: none;
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-downloads-settings-card .admin-settings-icon svg,
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-download-package-icon svg,
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-download-primary svg,
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-downloads-close svg {
+  width: 20px;
+  height: 20px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-downloads-dialog {
+  width: min(760px, calc(100vw - 32px));
+  max-height: min(720px, calc(100dvh - 32px));
+  margin: auto;
+  border: 0;
+  border-radius: 18px;
+  padding: 0;
+  background: transparent;
+  color: var(--workspace-ink, #202428);
+  box-shadow: 0 28px 80px rgba(32, 36, 40, 0.22);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-downloads-dialog::backdrop {
+  background: rgba(24, 28, 32, 0.34);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-downloads-shell {
+  overflow: hidden;
+  border: 1px solid var(--workspace-line, #dfe2e4);
+  border-radius: 18px;
+  background: var(--workspace-surface, #fff);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-downloads-shell > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 24px 26px 20px;
+  border-bottom: 1px solid var(--workspace-line, #dfe2e4);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-downloads-shell > header p {
+  margin: 0 0 5px;
+  color: var(--workspace-faint, #90969c);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-downloads-shell > header h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  line-height: 1.2;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-downloads-shell > header span {
+  display: block;
+  margin-top: 6px;
+  color: var(--workspace-muted, #697077);
+  font-size: 0.82rem;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-downloads-close {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  flex: 0 0 38px;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  padding: 0;
+  background: transparent;
+  color: var(--workspace-muted, #697077);
+  cursor: pointer;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-downloads-close:hover {
+  background: var(--workspace-soft, #eef0f1);
+  color: var(--workspace-ink, #202428);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-downloads-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding: 22px 26px 26px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-download-package {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border: 1px solid var(--workspace-line, #dfe2e4);
+  border-radius: 12px;
+  padding: 20px;
+  background: #fff;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-download-package-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--workspace-soft, #eef0f1);
+  color: var(--admin-primary, #3d4349);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-download-package-copy {
+  min-height: 76px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-download-package-copy strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.98rem;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-download-package-copy p {
+  margin: 0;
+  color: var(--workspace-muted, #697077);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-download-package-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: auto;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-download-primary,
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-download-secondary {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 9px;
+  padding: 9px 12px;
+  font-size: 0.78rem;
+  font-weight: 760;
+  text-align: center;
+  text-decoration: none;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-download-primary {
+  background: var(--admin-primary, #3d4349);
+  color: #fff;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-download-primary:hover {
+  background: var(--admin-primary-hover, #292e33);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-download-secondary {
+  border: 1px solid var(--workspace-line, #dfe2e4);
+  background: #fff;
+  color: var(--workspace-muted, #697077);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-download-secondary:hover {
+  border-color: var(--workspace-line-strong, #cbd0d3);
+  background: var(--workspace-soft, #eef0f1);
+  color: var(--workspace-ink, #202428);
+}
+
+@media (max-width: 720px) {
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-downloads-grid {
+    grid-template-columns: 1fr;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-downloads-shell > header,
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-downloads-grid {
+    padding-inline: 18px;
+  }
+}

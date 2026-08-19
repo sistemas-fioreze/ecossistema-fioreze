@@ -1,8 +1,11 @@
+import { installAdminDownloads } from "./admin-downloads.js";
+
 const installedRoots = new WeakSet();
 
 export function installAdminSelectPicker(root = document) {
   if (!root?.addEventListener || installedRoots.has(root)) return;
   installedRoots.add(root);
+  installAdminDownloads(root);
   root.addEventListener("pointerdown", tryOpenAdminSelectPicker, true);
 }
 
