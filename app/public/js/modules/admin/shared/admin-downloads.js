@@ -20,7 +20,6 @@ const PACKAGES = [
 ];
 
 let installed = false;
-let observer = null;
 
 export function installAdminDownloads(root = document) {
   if (installed || !root?.querySelector) return;
@@ -31,7 +30,7 @@ export function installAdminDownloads(root = document) {
 
   const settingsGrid = root.getElementById?.("settingsGrid");
   if (settingsGrid) {
-    observer = new MutationObserver(() => ensureSettingsCard(root));
+    const observer = new MutationObserver(() => ensureSettingsCard(root));
     observer.observe(settingsGrid, { childList: true });
   }
 }
