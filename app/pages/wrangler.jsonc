@@ -1,4 +1,3 @@
-// Published together with the Worker by the shared Cloudflare CI/CD workflow.
 {
   "$schema": "../node_modules/wrangler/config-schema.json",
   "name": "fioreze-portais-pages-dev",
