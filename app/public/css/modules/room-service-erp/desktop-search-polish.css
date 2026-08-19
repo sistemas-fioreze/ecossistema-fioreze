@@ -1,0 +1,226 @@
+/*
+ * Fioreze ERP desktop search polish
+ *
+ * Loaded only by the Electron adapter. Keeps the browser ERP untouched while
+ * making the global search and its results panel read as one desktop control.
+ */
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search {
+  width: clamp(320px, 32vw, 450px) !important;
+  min-width: 280px !important;
+  max-width: 450px !important;
+  z-index: 100010 !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-box {
+  height: 40px !important;
+  min-height: 40px !important;
+  gap: 9px !important;
+  padding: 0 11px 0 12px !important;
+  overflow: hidden !important;
+  border: 1px solid #d9dee5 !important;
+  border-radius: 10px !important;
+  background: #ffffff !important;
+  color: #687586 !important;
+  box-shadow: none !important;
+  transition: border-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-box:hover {
+  border-color: #cbd2da !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-box:focus-within {
+  border-color: #aeb8c4 !important;
+  background: #ffffff !important;
+  box-shadow: 0 0 0 3px rgba(82, 94, 108, 0.09) !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-box > svg {
+  width: 17px !important;
+  height: 17px !important;
+  min-width: 17px !important;
+  color: #687586 !important;
+  stroke-width: 1.8 !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-box input {
+  height: 38px !important;
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+  color: #28313b !important;
+  font-size: 13px !important;
+  font-weight: 520 !important;
+  line-height: 1 !important;
+  text-align: left !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-box input::placeholder {
+  color: #8a95a3 !important;
+  opacity: 1 !important;
+  font-weight: 500 !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-box kbd {
+  min-width: 0 !important;
+  margin-left: auto !important;
+  padding: 3px 6px !important;
+  border: 1px solid #e0e4e8 !important;
+  border-radius: 6px !important;
+  background: #f2f4f6 !important;
+  color: #788391 !important;
+  box-shadow: none !important;
+  font-family: inherit !important;
+  font-size: 10px !important;
+  font-weight: 650 !important;
+  line-height: 1.05 !important;
+  letter-spacing: 0 !important;
+  white-space: nowrap !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search:has(.top-search-results:not(.hidden)) .top-search-box {
+  border-radius: 10px !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-results {
+  top: calc(100% + 7px) !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: none !important;
+  max-height: min(360px, calc(100dvh - 74px)) !important;
+  padding: 6px !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  border: 1px solid #dfe3e8 !important;
+  border-radius: 11px !important;
+  background: #ffffff !important;
+  box-shadow: 0 16px 40px rgba(25, 32, 40, 0.12) !important;
+  scrollbar-width: thin;
+  scrollbar-color: #c9d0d8 transparent;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-results::-webkit-scrollbar {
+  width: 6px !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-results::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-results::-webkit-scrollbar-thumb {
+  border: 1px solid transparent !important;
+  border-radius: 999px !important;
+  background: #c9d0d8 !important;
+  background-clip: padding-box !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-item {
+  width: 100% !important;
+  min-height: 46px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  margin: 0 !important;
+  padding: 8px 9px !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  background: #ffffff !important;
+  color: #28313b !important;
+  box-shadow: none !important;
+  text-align: left !important;
+  transition: background-color 120ms ease, color 120ms ease !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-item:hover,
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-item.active {
+  background: #f3f5f7 !important;
+  color: #202830 !important;
+  transform: none !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-item svg {
+  width: 17px !important;
+  height: 17px !important;
+  min-width: 17px !important;
+  color: #667382 !important;
+  stroke-width: 1.8 !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-title {
+  display: block !important;
+  color: #28313b !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+  line-height: 1.25 !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-meta {
+  display: block !important;
+  margin-top: 2px !important;
+  color: #7d8896 !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  line-height: 1.2 !important;
+}
+
+.dark body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-box,
+.dark body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-results,
+.dark body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-item {
+  border-color: #3a4048 !important;
+  background: #211e1b !important;
+}
+
+.dark body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-box:focus-within {
+  border-color: #65707c !important;
+  box-shadow: 0 0 0 3px rgba(164, 177, 191, 0.1) !important;
+}
+
+.dark body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-box input,
+.dark body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-title {
+  color: #f0f2f4 !important;
+}
+
+.dark body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-box input::placeholder,
+.dark body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-meta,
+.dark body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-box > svg,
+.dark body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-item svg {
+  color: #a6afb9 !important;
+}
+
+.dark body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-box kbd {
+  border-color: #3b4149 !important;
+  background: #2b2825 !important;
+  color: #aeb6c0 !important;
+}
+
+.dark body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-item:hover,
+.dark body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-item.active {
+  background: #2b2926 !important;
+  color: #ffffff !important;
+}
+
+@media (max-width: 1120px) {
+  body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search {
+    width: clamp(280px, 30vw, 390px) !important;
+    min-width: 250px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search {
+    width: min(100%, 360px) !important;
+    min-width: 0 !important;
+  }
+
+  body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-box kbd {
+    display: none !important;
+  }
+}
