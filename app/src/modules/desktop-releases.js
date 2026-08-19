@@ -70,7 +70,7 @@ async function resolveDesktopRelease(env) {
   const manifestObject = await env.MEDIA_BUCKET.get(`${RELEASE_PREFIX}latest.yml`);
   if (!manifestObject?.body) return null;
 
-  const manifest = await manifestObject.text();
+  const manifest = await new Response(manifestObject.body).text();
   const version = manifest.match(/^version:\s*["']?([^\s"']+)["']?\s*$/m)?.[1] || "";
   if (!DESKTOP_VERSION_PATTERN.test(version)) return null;
 
