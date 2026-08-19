@@ -18,18 +18,16 @@ test("ERP download center exposes the current Windows installer from the updater
   await env.MEDIA_BUCKET.put("desktop/erp/releases/Fioreze-ERP-Setup-1.2.0.exe", new Uint8Array([0x4d, 0x5a, 0x01]));
   await env.MEDIA_BUCKET.put("desktop/erp/releases/Fioreze-ERP-Setup-1.2.0.exe.blockmap", new Uint8Array([0x01, 0x02]));
 
-  for (const path of ["/downloads/erp", "/downloads/erp/"]) {
-    const page = await fetch(path);
-    assert.equal(page.status, 200);
-    assert.match(page.headers.get("content-type"), /text\/html/);
-    assert.equal(page.headers.get("cache-control"), "no-store");
-    const html = await page.text();
-    assert.match(html, /Fioreze ERP/);
-    assert.match(html, /Versao 1\.2\.0/);
-    assert.match(html, /\/downloads\/erp\/installer/);
-    assert.match(html, /Fioreze-ERP-Setup-1\.2\.0\.exe/);
-    assert.match(html, /Fioreze-ERP-Setup-1\.2\.0\.exe\.blockmap/);
-  }
+  const page = await fetch("/downloads/erp/download");
+  assert.equal(page.status, 200);
+  assert.match(page.headers.get("content-type"), /text\/html/);
+  assert.equal(page.headers.get("cache-control"), "no-store");
+  const html = await page.text();
+  assert.match(html, /Fioreze ERP/);
+  assert.match(html, /Versao 1\.2\.0/);
+  assert.match(html, /\/downloads\/erp\/installer/);
+  assert.match(html, /Fioreze-ERP-Setup-1\.2\.0\.exe/);
+  assert.match(html, /Fioreze-ERP-Setup-1\.2\.0\.exe\.blockmap/);
 
   const installer = await fetch("/downloads/erp/installer");
   assert.equal(installer.status, 200);
@@ -44,7 +42,7 @@ test("ERP download center exposes the current Windows installer from the updater
 
 test("ERP download center reports an unavailable release without exposing storage internals", async () => {
   const { fetch } = createWorkerTestContext();
-  const response = await fetch("/downloads/erp/");
+  const response = await fetch("/downloads/erp/download");
   assert.equal(response.status, 503);
   assert.match(response.headers.get("content-type"), /text\/html/);
   assert.doesNotMatch(await response.text(), /desktop\/erp\/releases/);
