@@ -29,8 +29,11 @@ export function installAdminDownloads(root = document) {
   ensureDialog(root);
   ensureSettingsCard(root);
 
-  observer = new MutationObserver(() => ensureSettingsCard(root));
-  observer.observe(root.documentElement || root, { childList: true, subtree: true });
+  const settingsGrid = root.getElementById?.("settingsGrid");
+  if (settingsGrid) {
+    observer = new MutationObserver(() => ensureSettingsCard(root));
+    observer.observe(settingsGrid, { childList: true });
+  }
 }
 
 function ensureStylesheet(root) {
