@@ -40,9 +40,13 @@ export async function serveLatestDesktopInstaller({ env, head = false }) {
 }
 
 export async function serveDesktopRelease({ env, params, head = false }) {
+  const filename = String(params.file || "");
+  if (filename === "download") return serveDesktopDownloadCenter({ env, head });
+  if (filename === "installer") return serveLatestDesktopInstaller({ env, head });
+
   return serveRelease({
     env,
-    filename: String(params.file || ""),
+    filename,
     head,
     prefix: RELEASE_PREFIX,
     pattern: RELEASE_FILE_PATTERN,
