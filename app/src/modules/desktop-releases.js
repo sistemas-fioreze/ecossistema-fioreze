@@ -54,10 +54,47 @@ export async function serveDesktopRelease({ env, params, head = false }) {
   });
 }
 
-export async function servePrintAgentRelease({ env, params, head = false }) {
+export async function servePrintAgentDownloadCenter({ env, head = false }) {
+  const release = await resolvePrintAgentRelease(env);
+  if (!release) return suiteDownloadCenterUnavailable({ head });
+
+  const installerObject = await env.MEDIA_BUCKET.head(`${PRINT_AGENT_RELEASE_PREFIX}${release.filename}`);
+  if (!installerObject) return suiteDownloadCenterUnavailable({ head });
+
+  const html = renderPrintAgentDownloadCenter({
+    release,
+    installerSize: installerObject.size,
+  });
+  const headers = new Headers({
+    "content-type": "text/html; charset=utf-8",
+    "cache-control": "no-store",
+    "x-content-type-options": "nosniff",
+    "x-robots-tag": "noindex, nofollow",
+  });
+  return new Response(head ? null : html, { status: 200, headers });
+}
+
+export async function serveLatestPrintAgentInstaller({ env, head = false }) {
+  const release = await resolvePrintAgentRelease(env);
+  if (!release) return releaseNotFound();
   return serveRelease({
     env,
-    filename: String(params.file || ""),
+    filename: release.filename,
+    head,
+    prefix: PRINT_AGENT_RELEASE_PREFIX,
+    pattern: PRINT_AGENT_RELEASE_FILE_PATTERN,
+    manifest: "latest.json",
+  });
+}
+
+export async function servePrintAgentRelease({ env, params, head = false }) {
+  const filename = String(params.file || "");
+  if (filename === "download") return servePrintAgentDownloadCenter({ env, head });
+  if (filename === "installer") return serveLatestPrintAgentInstaller({ env, head });
+
+  return serveRelease({
+    env,
+    filename,
     head,
     prefix: PRINT_AGENT_RELEASE_PREFIX,
     pattern: PRINT_AGENT_RELEASE_FILE_PATTERN,
@@ -83,6 +120,26 @@ async function resolveDesktopRelease(env) {
     filename,
     blockmap: `${filename}.blockmap`,
   };
+}
+
+async function resolvePrintAgentRelease(env) {
+  if (!env?.MEDIA_BUCKET) return null;
+  const manifestObject = await env.MEDIA_BUCKET.get(`${PRINT_AGENT_RELEASE_PREFIX}latest.json`);
+  if (!manifestObject?.body) return null;
+
+  let manifest;
+  try {
+    manifest = JSON.parse(await new Response(manifestObject.body).text());
+  } catch {
+    return null;
+  }
+
+  const version = String(manifest?.version || "").trim();
+  const filename = String(manifest?.file || `Fioreze-Suite-${version}.exe`).trim();
+  if (!DESKTOP_VERSION_PATTERN.test(version)) return null;
+  if (!PRINT_AGENT_RELEASE_FILE_PATTERN.test(filename) || !filename.endsWith(".exe")) return null;
+
+  return { version, filename };
 }
 
 async function serveRelease({ env, filename, head, prefix, pattern, manifest }) {
@@ -159,8 +216,65 @@ function renderDesktopDownloadCenter({ release, installerSize, hasBlockmap }) {
 </html>`;
 }
 
+function renderPrintAgentDownloadCenter({ release, installerSize }) {
+  const version = escapeHtml(release.version);
+  const filename = escapeHtml(release.filename);
+  const encodedFilename = encodeURIComponent(release.filename);
+  const size = installerSize == null ? "" : ` · ${escapeHtml(formatBytes(installerSize))}`;
+
+  return `<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Fioreze Suite · Downloads</title>
+  <style>
+    :root{font-family:Inter,"Segoe UI",Arial,sans-serif;color:#1d232b;background:#f7f8fa;color-scheme:light}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:32px;background:linear-gradient(180deg,#f7f8fa 0%,#eef1f4 100%)}
+    main{width:min(620px,100%);background:#fff;border:1px solid #e1e5e9;border-radius:24px;padding:34px;box-shadow:0 24px 70px rgba(20,27,34,.09)}
+    .brand{display:flex;align-items:center;gap:12px;margin-bottom:28px}.mark{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:#1d232b;color:#fff;font-weight:800}.brand b{font-size:16px}.brand span{display:block;color:#87909d;font-size:12px;margin-top:2px}
+    .badge{display:inline-flex;align-items:center;border:1px solid #d7dde3;background:#f7f8fa;border-radius:999px;padding:6px 10px;color:#586270;font-size:12px;font-weight:700}
+    h1{font-size:30px;line-height:1.1;margin:16px 0 10px;letter-spacing:-.03em}p{color:#67717e;line-height:1.55;margin:0 0 24px}.download{display:flex;align-items:center;justify-content:center;width:100%;min-height:52px;border-radius:13px;background:#1d232b;color:#fff;text-decoration:none;font-weight:750;font-size:14px}.download:hover{background:#343c46}
+    .meta{margin-top:12px;text-align:center;color:#87909d;font-size:12px}.advanced{margin-top:28px;padding-top:22px;border-top:1px solid #e7eaee}.advanced strong{display:block;font-size:12px;margin-bottom:10px;color:#586270}.links{display:flex;flex-direction:column;gap:8px}.links a{color:#586270;font-size:12px;text-decoration:none;overflow-wrap:anywhere}.links a:hover{text-decoration:underline}.note{margin-top:22px;padding:13px 14px;background:#f5f6f7;border-radius:12px;color:#67717e;font-size:12px;line-height:1.45}
+  </style>
+</head>
+<body>
+  <main>
+    <div class="brand"><div class="mark">F</div><div><b>Fioreze Suite</b><span>Central de downloads</span></div></div>
+    <span class="badge">Versao ${version}</span>
+    <h1>Instalador para Windows</h1>
+    <p>Baixe a versão mais recente do Fioreze Suite. Este endereço acompanha automaticamente o release publicado para o serviço de impressão e atualizações.</p>
+    <a class="download" href="/downloads/print-agent/installer">Baixar Fioreze Suite</a>
+    <div class="meta">${filename}${size}</div>
+    <div class="advanced">
+      <strong>Arquivos do release</strong>
+      <div class="links">
+        <a href="/downloads/print-agent/${encodedFilename}">${filename}</a>
+        <a href="/downloads/print-agent/latest.json">latest.json</a>
+      </div>
+    </div>
+    <div class="note">Este link usa o mesmo canal de distribuição do Fioreze Suite. Quando uma nova versão for publicada, o endereço continuará apontando para o instalador atual.</div>
+  </main>
+</body>
+</html>`;
+}
+
 function downloadCenterUnavailable({ head = false } = {}) {
   const body = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Fioreze ERP · Downloads</title></head><body style="font-family:Inter,Segoe UI,Arial,sans-serif;background:#f7f8fa;color:#1d232b;padding:48px"><main style="max-width:620px;margin:auto;background:#fff;border:1px solid #e1e5e9;border-radius:20px;padding:32px"><h1 style="margin-top:0">Fioreze ERP</h1><p>O instalador mais recente não está disponível neste momento.</p></main></body></html>`;
+  return new Response(head ? null : body, {
+    status: 503,
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff",
+      "x-robots-tag": "noindex, nofollow",
+    },
+  });
+}
+
+function suiteDownloadCenterUnavailable({ head = false } = {}) {
+  const body = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Fioreze Suite · Downloads</title></head><body style="font-family:Inter,Segoe UI,Arial,sans-serif;background:#f7f8fa;color:#1d232b;padding:48px"><main style="max-width:620px;margin:auto;background:#fff;border:1px solid #e1e5e9;border-radius:20px;padding:32px"><h1 style="margin-top:0">Fioreze Suite</h1><p>O instalador mais recente não está disponível neste momento.</p></main></body></html>`;
   return new Response(head ? null : body, {
     status: 503,
     headers: {
