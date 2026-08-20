@@ -32,33 +32,33 @@ function createUpdateController({
     return state;
   };
 
-  updater.on("checking-for-update", () => publish({ status: "checking", message: "Verificando atualizacoes..." }));
-  updater.on("update-not-available", () => publish({ status: "current", availableVersion: null, message: "O ERP esta atualizado." }));
+  updater.on("checking-for-update", () => publish({ status: "checking", message: "Verificando atualizações..." }));
+  updater.on("update-not-available", () => publish({ status: "current", availableVersion: null, message: "O ERP está atualizado." }));
   updater.on("update-available", (info) => {
     const availableVersion = cleanVersion(info?.version);
     if (isDeferred(reminderFile, availableVersion, fileSystem, clock)) {
-      publish({ status: "deferred", availableVersion, message: "Atualizacao adiada temporariamente." });
+      publish({ status: "deferred", availableVersion, message: "Atualização adiada temporariamente." });
       return;
     }
     publish({
       status: "available",
       availableVersion,
       releaseNotes: cleanReleaseNotes(info?.releaseNotes),
-      message: `Versao ${availableVersion} disponivel.`,
+      message: `Versão ${availableVersion} disponível.`,
     });
   });
   updater.on("download-progress", (progress) => publish({
     status: "downloading",
     progress: Math.max(0, Math.min(100, Math.round(Number(progress?.percent) || 0))),
-    message: "Baixando atualizacao...",
+    message: "Baixando atualização...",
   }));
   updater.on("update-downloaded", () => {
-    publish({ status: "ready", progress: 100, message: "Atualizacao pronta para instalar." });
+    publish({ status: "ready", progress: 100, message: "Atualização pronta para instalar." });
     if (installWhenReady) scheduleInstall(() => updater.quitAndInstall(false, true));
   });
   updater.on("error", () => publish({
     status: "error",
-    message: "Nao foi possivel verificar ou baixar a atualizacao agora.",
+    message: "Não foi possível verificar ou baixar a atualização agora.",
   }));
 
   ipcMain.handle("fioreze:update:state", (event) => {
@@ -67,7 +67,7 @@ function createUpdateController({
   });
   ipcMain.handle("fioreze:update:check", async (event) => {
     assertTrustedSender(event);
-    if (!app.isPackaged) return publish({ status: "development", message: "Atualizacoes nativas estao desativadas no modo local." });
+    if (!app.isPackaged) return publish({ status: "development", message: "Atualizações nativas estão desativadas no modo local." });
     await updater.checkForUpdates();
     return state;
   });
@@ -83,7 +83,7 @@ function createUpdateController({
     assertTrustedSender(event);
     const availableVersion = cleanVersion(state.availableVersion);
     if (availableVersion) writeReminder(reminderFile, availableVersion, fileSystem, clock);
-    return publish({ status: "deferred", message: "Vamos lembrar voce novamente amanha." });
+    return publish({ status: "deferred", message: "Vamos lembrar você novamente amanhã." });
   });
 
   return {
