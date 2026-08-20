@@ -1,4 +1,4 @@
-const STYLESHEET_HREF = "/css/modules/room-service-erp/desktop-billing-filters.css?v=20260819-1";
+const STYLESHEET_HREF = "/css/modules/room-service-erp/desktop-billing-filters.css?v=20260819-2";
 
 export function setupDesktopBillingFilters(root = document) {
   if (!window.fiorezeDesktop?.isElectron) return;
@@ -25,10 +25,14 @@ function enhanceDateField(root, input, labelText) {
   caption.className = "erp-billing-filter-label";
   caption.textContent = labelText;
 
+  const icon = root.createElement("span");
+  icon.className = "erp-billing-date-leading-icon";
+  icon.innerHTML = '<i data-lucide="calendar-days" aria-hidden="true"></i>';
+
   label.classList.add("erp-billing-date-field");
   input.classList.add("erp-billing-date-input");
   input.setAttribute("aria-label", `${labelText} do período`);
-  label.replaceChildren(caption, input);
+  label.replaceChildren(caption, icon, input);
 }
 
 function ensureStyles(root) {
