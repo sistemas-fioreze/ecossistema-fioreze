@@ -8,7 +8,12 @@ export function setupDesktopTitlebarPolish(root = document) {
 
   let syncFrame = 0;
   const syncWindowState = async () => {
-    const state = await window.fiorezeDesktop?.getWindowState?.().catch?.(() => null);
+    let state = null;
+    try {
+      state = await window.fiorezeDesktop?.getWindowState?.();
+    } catch {
+      state = null;
+    }
     const maximized = Boolean(state?.maximized);
     document.body.dataset.windowMaximized = maximized ? "true" : "false";
     document.documentElement.dataset.windowMaximized = maximized ? "true" : "false";
