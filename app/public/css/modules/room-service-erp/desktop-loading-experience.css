@@ -1,0 +1,203 @@
+body[data-erp="room-service"][data-fioreze-desktop="electron"] #loginOverlay {
+  background: #f7f8fa !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] #loginOverlay .login-card.is-loading {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2 !important;
+  width: 100vw !important;
+  max-width: none !important;
+  min-height: 100vh !important;
+  height: 100vh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #f7f8fa !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .desktop-loading-screen {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 20 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 32px !important;
+  border-radius: 0 !important;
+  background: #f7f8fa !important;
+  opacity: 1 !important;
+  transform: none !important;
+  transition: opacity 160ms ease !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .desktop-loading-screen.hidden {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .desktop-loading-experience {
+  width: min(360px, calc(100vw - 64px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  transform: translateY(-4vh);
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .desktop-loading-brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 9px;
+  color: #202830;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .desktop-loading-brand-mark {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  border-radius: 50%;
+  background: #c2a94b;
+  box-shadow: 0 0 0 4px rgba(194, 169, 75, 0.12);
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .desktop-loading-hotel {
+  min-height: 18px;
+  margin: 0 0 30px;
+  color: #7a8490;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .desktop-loading-title {
+  margin: 0;
+  color: #1f2730;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .desktop-loading-subtitle {
+  margin: 7px 0 0;
+  color: #7a8490;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .desktop-loading-progress {
+  position: relative;
+  width: 220px;
+  height: 3px;
+  margin: 26px 0 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e1e5ea;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .desktop-loading-progress span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 42%;
+  border-radius: inherit;
+  background: #c2a94b;
+  animation: desktopLoadingProgress 1.25s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .desktop-loading-status {
+  min-height: 18px;
+  margin: 0;
+  color: #606b77;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .desktop-loading-bridge {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .desktop-loading-slow {
+  margin: 18px 0 0;
+  color: #7a8490;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .desktop-loading-retry {
+  min-width: 132px;
+  height: 36px;
+  margin-top: 12px;
+  padding: 0 16px !important;
+  border: 1px solid #d9dee4 !important;
+  border-radius: 9px !important;
+  background: #ffffff !important;
+  color: #303a45 !important;
+  box-shadow: none !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .desktop-loading-retry:hover {
+  border-color: #c8ced5 !important;
+  background: #f1f3f5 !important;
+  transform: none !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .desktop-loading-retry:disabled {
+  opacity: 0.6;
+  cursor: wait !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .desktop-loading-slow.hidden,
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .desktop-loading-retry.hidden {
+  display: none !important;
+}
+
+@keyframes desktopLoadingProgress {
+  0% {
+    transform: translateX(-115%);
+  }
+  55% {
+    transform: translateX(85%);
+  }
+  100% {
+    transform: translateX(245%);
+  }
+}
+
+@media (max-width: 680px) {
+  body[data-erp="room-service"][data-fioreze-desktop="electron"] .desktop-loading-screen {
+    padding: 24px !important;
+  }
+
+  body[data-erp="room-service"][data-fioreze-desktop="electron"] .desktop-loading-experience {
+    width: min(320px, calc(100vw - 48px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-erp="room-service"][data-fioreze-desktop="electron"] .desktop-loading-progress span {
+    width: 62%;
+    animation: none;
+  }
+}
