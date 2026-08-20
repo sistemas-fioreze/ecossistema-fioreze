@@ -45,6 +45,7 @@ import {
   uploadOwnAvatar,
 } from "./api.js";
 import { desktop } from "./desktop-adapter.js";
+import { setupHelpCenter } from "./help.js?v=20260820-4";
 import { iconMarkup } from "./icon-system.js";
 import { buildInterfaceViewport } from "./interface-viewport.js";
 import { bindPdvCheckoutActions, bindPdvDropTarget, bindPdvProductDrag } from "./pdv-actions.js";
@@ -132,6 +133,12 @@ toastRegion.setAttribute("aria-live", "polite");
 document.body.append(toastRegion);
 
 prepareStaticInterface();
+const helpCenter = setupHelpCenter({
+  getRoute: () => state.route,
+  getPermissions: () => state.session?.permissions || [],
+  isElectron: () => desktop.isElectron,
+  isMaster: () => Boolean(state.session?.erp_master),
+});
 bindStaticActions();
 boot();
 
@@ -619,6 +626,7 @@ function handleGlobalKeyboardShortcut(event) {
 }
 
 function closeTopmostErpLayer() {
+  if (helpCenter.closeIfOpen()) return true;
   const orderStatusDialog = byId("orderStatusDialog", false);
   if (orderStatusDialog && !orderStatusDialog.classList.contains("hidden")) {
     closeOrderStatusDialog();

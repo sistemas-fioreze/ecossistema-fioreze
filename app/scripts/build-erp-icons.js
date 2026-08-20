@@ -4,9 +4,11 @@ const iconNames = [
   "Activity",
   "ArrowLeft",
   "ArrowRight",
+  "BadgeDollarSign",
   "BedDouble",
   "Bell",
   "BookOpen",
+  "BookOpenCheck",
   "Bookmark",
   "CalendarDays",
   "Check",
@@ -48,8 +50,11 @@ const iconNames = [
   "Printer",
   "ReceiptText",
   "RefreshCw",
+  "Rocket",
+  "ScanSearch",
   "Search",
   "Settings",
+  "Settings2",
   "ShoppingCart",
   "SlidersHorizontal",
   "Square",
@@ -61,6 +66,8 @@ const iconNames = [
   "Users",
   "Volume2",
   "X",
+  "ZoomIn",
+  "House",
 ];
 
 const imports = ["createIcons", ...iconNames].join(", ");
