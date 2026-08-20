@@ -17,10 +17,8 @@ export function setupDesktopLoadingExperience(root = document) {
 
   const bridge = root.getElementById("loginLoadingText");
   const visibleStatus = root.getElementById("desktopLoadingStatus");
-  const hotel = root.getElementById("desktopLoadingHotel");
   const slowNotice = root.getElementById("desktopLoadingSlow");
   const retry = root.getElementById("desktopLoadingRetry");
-  const unitHeading = root.querySelector(".app-topbar h1");
 
   let slowTimer = 0;
   let retryTimer = 0;
@@ -28,12 +26,6 @@ export function setupDesktopLoadingExperience(root = document) {
   const syncMessage = () => {
     if (!bridge || !visibleStatus) return;
     visibleStatus.textContent = friendlyStatus(bridge.textContent);
-  };
-
-  const syncHotel = () => {
-    if (!hotel) return;
-    const name = unitHeading?.textContent?.trim();
-    hotel.textContent = name || "Hotéis Fioreze";
   };
 
   const clearTimers = () => {
@@ -60,7 +52,6 @@ export function setupDesktopLoadingExperience(root = document) {
   };
 
   bridge && new MutationObserver(syncMessage).observe(bridge, { childList: true, characterData: true, subtree: true });
-  unitHeading && new MutationObserver(syncHotel).observe(unitHeading, { childList: true, characterData: true, subtree: true });
   new MutationObserver(resetWaitState).observe(screen, { attributes: true, attributeFilter: ["class"] });
 
   retry?.addEventListener("click", async () => {
@@ -78,7 +69,6 @@ export function setupDesktopLoadingExperience(root = document) {
   });
 
   syncMessage();
-  syncHotel();
   resetWaitState();
 }
 
@@ -88,11 +78,6 @@ function buildExperience(root, initialMessage) {
   experience.setAttribute("role", "status");
   experience.setAttribute("aria-live", "polite");
   experience.innerHTML = `
-    <div class="desktop-loading-brand" aria-hidden="true">
-      <span class="desktop-loading-brand-mark"></span>
-      <span>Fioreze ERP</span>
-    </div>
-    <p class="desktop-loading-hotel" id="desktopLoadingHotel">Hotéis Fioreze</p>
     <h2 class="desktop-loading-title" id="loginLoadingTitle">Preparando seu ambiente</h2>
     <p class="desktop-loading-subtitle">Estamos deixando tudo pronto para você.</p>
     <div class="desktop-loading-progress" aria-hidden="true"><span></span></div>
