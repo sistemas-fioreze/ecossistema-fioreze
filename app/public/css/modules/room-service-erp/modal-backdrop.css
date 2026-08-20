@@ -156,9 +156,273 @@ body[data-erp="room-service"] .erp-catalog-item-media .erp-image-picker {
   min-height: 0;
   max-height: none;
   flex: 1 1 auto;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 10px;
   align-content: start;
+  padding: 2px 6px 8px 2px;
   overflow-y: auto;
   scrollbar-gutter: stable;
+}
+
+body[data-erp="room-service"] .erp-catalog-media-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+body[data-erp="room-service"] .erp-catalog-media-search {
+  min-width: 0;
+  height: 40px;
+  display: flex !important;
+  flex: 1 1 auto;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 9px !important;
+  padding: 0 12px;
+  border: 1px solid var(--erp-line);
+  border-radius: var(--erp-radius-md);
+  background: var(--erp-surface);
+  color: var(--erp-text-muted);
+}
+
+body[data-erp="room-service"] .erp-catalog-media-search:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 72%, white);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+body[data-erp="room-service"] .erp-catalog-media-search svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+}
+
+body[data-erp="room-service"] #catalogImageSearch {
+  min-width: 0;
+  height: 100%;
+  flex: 1 1 auto;
+  padding: 0 !important;
+  border: 0 !important;
+  border-width: 0 !important;
+  border-radius: 0 !important;
+  outline: 0 !important;
+  appearance: none;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+body[data-erp="room-service"] .erp-catalog-media-summary {
+  flex: 0 0 auto;
+  color: var(--erp-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+body[data-erp="room-service"] .erp-image-option {
+  position: relative;
+  min-width: 0;
+  min-height: 150px;
+  aspect-ratio: auto;
+  display: grid;
+  grid-template-rows: 104px auto;
+  gap: 7px;
+  padding: 6px !important;
+  overflow: hidden;
+  text-align: left;
+  border: 1px solid var(--erp-line) !important;
+  border-radius: var(--erp-radius-md) !important;
+  background: var(--erp-surface) !important;
+  box-shadow: none !important;
+}
+
+body[data-erp="room-service"] .erp-image-option:hover {
+  border-color: color-mix(in srgb, var(--accent) 44%, var(--erp-line)) !important;
+  background: var(--erp-surface-soft) !important;
+}
+
+body[data-erp="room-service"] .erp-image-option.selected {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 14%, transparent) !important;
+}
+
+body[data-erp="room-service"] .erp-image-option-preview {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: calc(var(--erp-radius-md) - 3px);
+  background: #f4f5f6;
+}
+
+body[data-erp="room-service"] .erp-image-option-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 0;
+}
+
+body[data-erp="room-service"] .erp-image-option-empty {
+  color: var(--erp-text-muted);
+}
+
+body[data-erp="room-service"] .erp-image-option-empty svg {
+  width: 24px;
+  height: 24px;
+}
+
+body[data-erp="room-service"] .erp-image-option-copy {
+  min-width: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 7px;
+}
+
+body[data-erp="room-service"] .erp-image-option-label {
+  min-width: 0;
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--erp-text);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.25;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+body[data-erp="room-service"] .erp-image-option-state {
+  display: none;
+  flex: 0 0 auto;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+body[data-erp="room-service"] .erp-image-option.selected .erp-image-option-state {
+  display: inline;
+}
+
+body[data-erp="room-service"] .erp-image-picker-empty {
+  grid-column: 1 / -1;
+  margin: 18px 0;
+  color: var(--erp-text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+body[data-erp="room-service"] .erp-upload-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 9px;
+}
+
+body[data-erp="room-service"] .erp-visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+body[data-erp="room-service"] .erp-file-picker-button {
+  height: 40px;
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  justify-content: center;
+  gap: 8px !important;
+  padding: 0 12px;
+  border: 1px solid var(--erp-line);
+  border-radius: var(--erp-radius-md);
+  background: var(--erp-surface);
+  color: var(--erp-text);
+  cursor: pointer;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  white-space: nowrap;
+}
+
+body[data-erp="room-service"] .erp-file-picker-button:hover {
+  border-color: color-mix(in srgb, var(--accent) 44%, var(--erp-line));
+  background: var(--erp-surface-soft);
+}
+
+body[data-erp="room-service"] .erp-file-picker-button svg {
+  width: 17px;
+  height: 17px;
+}
+
+body[data-erp="room-service"] .erp-file-picker-name {
+  min-width: 0;
+  align-self: center;
+  overflow: hidden;
+  color: var(--erp-text-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Popup close controls stay as unframed Lucide icons across the ERP. */
+body[data-erp="room-service"] :is(
+  .erp-modal,
+  .erp-user-modal,
+  .erp-help-overlay,
+  .desktop-update-modal,
+  #changelogModal,
+  #helpOverlay,
+  #orderModal,
+  #printManagerModal,
+  #printLogModal,
+  #welcomeOverlay,
+  #passwordChangeOverlay,
+  #userCreateModal,
+  #permissionModal,
+  #userLogModal,
+  #storeControlModal,
+  #cardapioModal,
+  #comboBuilderModal
+) button:has(:is([data-lucide="x"], svg.lucide-x)) {
+  width: 36px !important;
+  height: 36px !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  flex: 0 0 auto !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  outline-offset: 3px;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--erp-text-muted) !important;
+}
+
+body[data-erp="room-service"] :is(
+  .erp-modal,
+  .erp-user-modal,
+  .erp-help-overlay,
+  .desktop-update-modal,
+  #changelogModal,
+  #helpOverlay,
+  #orderModal,
+  #printManagerModal,
+  #printLogModal,
+  #welcomeOverlay,
+  #passwordChangeOverlay,
+  #userCreateModal,
+  #permissionModal,
+  #userLogModal,
+  #storeControlModal,
+  #cardapioModal,
+  #comboBuilderModal
+) button:has(:is([data-lucide="x"], svg.lucide-x)):hover {
+  background: transparent !important;
+  color: var(--erp-text) !important;
 }
 
 body[data-erp="room-service"] .erp-catalog-item-form > .erp-modal-actions {
@@ -269,5 +533,15 @@ body[data-fioreze-desktop="electron"][data-erp="room-service"]:has(
   body[data-erp="room-service"] .erp-catalog-item-media .erp-image-picker {
     max-height: 240px;
     flex: none;
+    grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  }
+
+  body[data-erp="room-service"] .erp-upload-row {
+    grid-template-columns: 1fr auto;
+  }
+
+  body[data-erp="room-service"] .erp-file-picker-name {
+    grid-column: 1 / -1;
+    grid-row: 2;
   }
 }

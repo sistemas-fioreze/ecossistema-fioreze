@@ -10,7 +10,7 @@ test("ERP popups share a blurred full-window backdrop", () => {
   const html = read("public/erp/room-service/index.html");
   const css = read("public/css/modules/room-service-erp/modal-backdrop.css");
 
-  assert.match(html, /modal-backdrop\.css\?v=20260820-2/);
+  assert.match(html, /modal-backdrop\.css\?v=20260820-3/);
   assert.match(css, /--erp-modal-backdrop-blur:\s*9px/);
   assert.match(css, /-webkit-backdrop-filter:\s*blur\(var\(--erp-modal-backdrop-blur\)\) saturate\(\.9\)/);
   assert.match(css, /backdrop-filter:\s*blur\(var\(--erp-modal-backdrop-blur\)\) saturate\(\.9\)/);
@@ -59,4 +59,36 @@ test("catalog item editor separates fields, media and actions in its landscape s
   assert.match(script, /class="erp-catalog-item-layout"/);
   assert.match(script, /class="erp-catalog-item-fields"/);
   assert.match(script, /class="erp-catalog-item-media"/);
+});
+
+test("catalog image picker provides searchable, named and uncropped media choices", () => {
+  const script = read("public/js/modules/room-service-erp/legacy-app.js");
+  const css = read("public/css/modules/room-service-erp/modal-backdrop.css");
+
+  assert.match(script, /id="catalogImageSearch" type="search" placeholder="Buscar na biblioteca"/);
+  assert.match(script, /id="catalogImageSummary"/);
+  assert.match(script, /function catalogMediaLabel\(asset\)/);
+  assert.match(script, /role="option" aria-selected=/);
+  assert.match(script, /byId\("catalogImageSearch"\)\.addEventListener\("input", renderCatalogImagePicker\)/);
+  assert.match(css, /grid-template-columns:\s*repeat\(auto-fill, minmax\(132px, 1fr\)\)/);
+  assert.match(css, /\.erp-image-option-preview img\s*\{[\s\S]*?object-fit:\s*contain/);
+  assert.match(css, /#catalogImageSearch\s*\{[\s\S]*?border:\s*0 !important;[\s\S]*?background:\s*transparent !important;[\s\S]*?box-shadow:\s*none !important/);
+});
+
+test("catalog image upload uses a styled file control instead of the native field", () => {
+  const script = read("public/js/modules/room-service-erp/legacy-app.js");
+  const css = read("public/css/modules/room-service-erp/modal-backdrop.css");
+
+  assert.match(script, /id="catalogMediaFile" class="erp-visually-hidden"/);
+  assert.match(script, /class="erp-file-picker-button" for="catalogMediaFile"/);
+  assert.match(script, /id="catalogMediaFileName"/);
+  assert.match(css, /\.erp-visually-hidden\s*\{/);
+  assert.match(css, /\.erp-file-picker-button\s*\{/);
+});
+
+test("popup close buttons are unframed Lucide controls", () => {
+  const css = read("public/css/modules/room-service-erp/modal-backdrop.css");
+
+  assert.match(css, /button:has\(:is\(\[data-lucide="x"\], svg\.lucide-x\)\)\s*\{[\s\S]*?border:\s*0 !important;[\s\S]*?background:\s*transparent !important;[\s\S]*?box-shadow:\s*none !important/);
+  assert.match(css, /button:has\(:is\(\[data-lucide="x"\], svg\.lucide-x\)\):hover\s*\{[\s\S]*?background:\s*transparent !important/);
 });
