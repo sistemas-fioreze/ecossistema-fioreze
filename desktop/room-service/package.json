@@ -1,6 +1,6 @@
 {
   "name": "@fioreze/room-service-desktop",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": true,
   "description": "Fioreze ERP para Windows com integracao segura ao gerenciador de impressao.",
   "main": "main.cjs",

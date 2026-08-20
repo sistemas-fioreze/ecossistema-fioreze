@@ -1745,7 +1745,7 @@ function orderMiniCard(order) {
   const time = formatDate(order.created_at, { hour: "2-digit", minute: "2-digit" });
   return `<article class="order-mini-card">
     <div><p class="mini-card-label">Hora</p><p class="mini-card-value text-sm">${escapeHtml(time)}</p></div>
-    <div class="min-w-0"><p class="mini-card-title truncate">${escapeHtml(order.guest_name || orderDisplayLabel(order))}</p><p class="mini-card-meta mt-2"><span>${escapeHtml(orderDisplayLabel(order))} · Apto ${escapeHtml(order.room_code || "-")}</span><span class="legacy-status-chip" data-status="${escapeAttr(order.status)}">${escapeHtml(statusLabel(order.status))}</span></p></div>
+    <div class="min-w-0"><p class="mini-card-title truncate">${escapeHtml(displayGuestName(order.guest_name))}</p><p class="mini-card-meta"><span>${escapeHtml(orderDisplayLabel(order))} · Apto ${escapeHtml(order.room_code || "-")}</span><span class="legacy-status-chip" data-status="${escapeAttr(order.status)}">${escapeHtml(statusLabel(order.status))}</span></p></div>
     <div><p class="mini-card-label">Total</p><p class="mini-card-value">${money(order.total_cents)}</p></div>
     <div class="mini-card-actions justify-end"><button type="button" data-order-id="${escapeAttr(order.id)}" class="mini-card-action"><i data-lucide="eye" class="w-4 h-4" aria-hidden="true"></i>Ver</button></div>
   </article>`;
@@ -1764,7 +1764,7 @@ async function openOrder(orderId) {
     setText("detDate", formatOrderDate(order.created_at));
     setText("detLinha", order.id);
     setText("detRoom", order.delivery?.room_code || order.room_code || "-");
-    setText("detGuest", displayBusinessText(order.guest_name, "Nao informado"));
+    setText("detGuest", displayGuestName(order.guest_name));
     setText("detLocal", displayBusinessText(order.delivery?.location, "Acomodacao"));
     setText("detContact", displayBusinessText(order.delivery?.contact, "Nao informado"));
     setText("detPreparation", preparation);
@@ -1961,7 +1961,8 @@ function menuCard(item) {
   const image = safeImage(item.image_url || item.media_url);
   const tag = disabled ? "Indisponivel" : displayBusinessText(item.tag || item.category_name, "Cardapio");
   const name = displayBusinessText(item.name, "Item do cardapio");
-  return `<article class="erp-pdv-card fade-in" aria-disabled="${disabled}" ${disabled ? "" : `draggable="true" data-drag-product-id="${escapeAttr(item.id)}"`}><span class="erp-pdv-thumb">${image ? `<img src="${escapeAttr(image)}" alt="${escapeAttr(name)}">` : imagePlaceholderIcon()}</span><div class="erp-pdv-card-copy"><span class="erp-item-tag">${escapeHtml(tag)}</span><h3>${escapeHtml(name)}</h3><p>${escapeHtml(displayBusinessText(item.description, "Sem descrição"))}</p></div><div class="erp-pdv-card-action"><strong class="erp-pdv-price">${money(item.price_cents, item.currency)}</strong><button type="button" data-product-id="${escapeAttr(item.id)}" ${disabled ? "disabled" : ""} class="erp-pdv-add" aria-label="${disabled ? "Item indisponível" : `Adicionar ${escapeAttr(name)}`}">${plusIcon()} <span>${disabled ? "Indisponível" : "Adicionar"}</span></button></div></article>`;
+  const description = displayBusinessText(item.description, "Sem descrição");
+  return `<article class="erp-pdv-card fade-in" aria-disabled="${disabled}" ${disabled ? "" : `draggable="true" data-drag-product-id="${escapeAttr(item.id)}"`}><span class="erp-pdv-thumb">${image ? `<img src="${escapeAttr(image)}" alt="${escapeAttr(name)}">` : imagePlaceholderIcon()}</span><div class="erp-pdv-card-copy"><span class="erp-item-tag">${escapeHtml(tag)}</span><h3>${escapeHtml(name)}</h3><p title="${escapeAttr(description)}">${escapeHtml(description)}</p></div><div class="erp-pdv-card-action"><strong class="erp-pdv-price">${money(item.price_cents, item.currency)}</strong><button type="button" data-product-id="${escapeAttr(item.id)}" ${disabled ? "disabled" : ""} class="erp-pdv-add" aria-label="${disabled ? "Item indisponível" : `Adicionar ${escapeAttr(name)}`}">${plusIcon()} <span>${disabled ? "Indisponível" : "Adicionar"}</span></button></div></article>`;
 }
 
 function addToCart(productId) {
@@ -2074,7 +2075,9 @@ function renderGuests() {
 function guestDirectoryCard(guest) {
   const phone = String(guest.phone || "").trim();
   const canArchive = Boolean(state.context?.permissions?.can_write_orders);
-  return `<article class="guest-mini-card"><div class="mini-card-top"><div><p class="mini-card-label">Hospede</p><p class="text-[11px] font-black text-gray-500 uppercase">Ultima atividade ${escapeHtml(formatDate(guest.last_seen_at))}</p></div><div class="mini-room-badge">Apto ${escapeHtml(guest.room_code)}</div></div><div><p class="mini-card-title">${escapeHtml(guest.guest_name)}</p><p class="text-[11px] font-bold text-gray-500 mt-2">${phone ? escapeHtml(phone) : "Contato nao informado"}</p></div><div class="mini-card-actions"><button type="button" data-room-code="${escapeAttr(guest.room_code)}" data-guest-name="${escapeAttr(guest.guest_name)}" class="mini-card-action orange">${cartIcon()} Novo pedido</button>${canArchive ? `<button type="button" data-archive-guest="${escapeAttr(guest.id)}" class="mini-card-action">Encerrar estadia</button>` : ""}</div></article>`;
+  const guestName = displayGuestName(guest.guest_name);
+  const reusableGuestName = displayGuestName(guest.guest_name, "");
+  return `<article class="guest-mini-card"><div class="mini-card-top"><div><p class="mini-card-label">Hospede</p><p class="text-[11px] font-black text-gray-500 uppercase">Ultima atividade ${escapeHtml(formatDate(guest.last_seen_at))}</p></div><div class="mini-room-badge">Apto ${escapeHtml(guest.room_code)}</div></div><div><p class="mini-card-title">${escapeHtml(guestName)}</p><p class="text-[11px] font-bold text-gray-500 mt-2">${phone ? escapeHtml(phone) : "Contato nao informado"}</p></div><div class="mini-card-actions"><button type="button" data-room-code="${escapeAttr(guest.room_code)}" data-guest-name="${escapeAttr(reusableGuestName)}" class="mini-card-action orange">${cartIcon()} Novo pedido</button>${canArchive ? `<button type="button" data-archive-guest="${escapeAttr(guest.id)}" class="mini-card-action">Encerrar estadia</button>` : ""}</div></article>`;
 }
 
 async function archiveGuestStay(button) {
@@ -2102,7 +2105,7 @@ function renderBillingLegacy() {
   setText("histKpiTicket", money(summary.average_ticket_cents || 0));
   setText("histKpiObs", state.orders.filter((order) => order.notes).length);
   setText("histTableMeta", `${state.orders.length} pedidos`);
-  byId("histTableBody").innerHTML = state.orders.map((order) => `<tr><td class="p-4">${escapeHtml(formatDate(order.created_at))}</td><td class="p-4">${escapeHtml(order.room_code || "-")}</td><td class="p-4">${escapeHtml(order.guest_name || "-")}</td><td class="p-4">${money(order.total_cents, order.currency)}</td><td class="p-4 text-center"><button type="button" data-order-id="${escapeAttr(order.id)}" class="mini-card-action">Ver</button></td></tr>`).join("");
+  byId("histTableBody").innerHTML = state.orders.map((order) => `<tr><td class="p-4">${escapeHtml(formatDate(order.created_at))}</td><td class="p-4">${escapeHtml(order.room_code || "-")}</td><td class="p-4">${escapeHtml(displayGuestName(order.guest_name))}</td><td class="p-4">${money(order.total_cents, order.currency)}</td><td class="p-4 text-center"><button type="button" data-order-id="${escapeAttr(order.id)}" class="mini-card-action">Ver</button></td></tr>`).join("");
   bindOrderButtons(byId("histTableBody"));
   renderBars(byId("histLegendLocal"), Object.entries(countBy(state.orders, (order) => order.delivery_location || "Acomodacao")));
   renderBars(byId("histTopItems"), Object.entries(countBy(state.orders, (order) => statusLabel(order.status))));
@@ -3155,6 +3158,12 @@ function displayBusinessText(value, fallback = "") {
     .replace(/^[\s.,;:-]+|[\s.,;:-]+$/g, "")
     .trim();
   return cleaned || fallback;
+}
+
+function displayGuestName(value, fallback = "Hóspede não informado") {
+  const cleaned = displayBusinessText(value);
+  const letters = cleaned.replace(/[^\p{L}]/gu, "");
+  return letters.length >= 2 ? cleaned : fallback;
 }
 
 function localDateKey(value) {
