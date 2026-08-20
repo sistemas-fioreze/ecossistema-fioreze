@@ -10,7 +10,7 @@ export function renderPos({ outlet, hotel, catalog, erpContext, onOrderCreated }
     <section class="rs-panel">
       <p class="rs-kicker">PDV Direto</p>
       <h1>Pedido manual pela equipe</h1>
-      <p class="rs-muted">Pedidos criados aqui usam a mesma tabela orders, origem admin_pdv e impressao desativada.</p>
+      <p class="rs-muted">Pedidos criados aqui usam a mesma tabela orders, origem admin_pdv e impressão desativada.</p>
     </section>
     <section class="rs-pos-layout">
       <div class="rs-panel">
@@ -21,10 +21,10 @@ export function renderPos({ outlet, hotel, catalog, erpContext, onOrderCreated }
       </div>
       <form id="pdvOrderForm" class="rs-panel rs-pdv-form">
         <h2>Carrinho</h2>
-        <div id="pdvCart" class="rs-cart-lines"><div class="rs-empty">Selecione produtos do catalogo.</div></div>
-        <label><span>Hospede</span><input name="guest_name" required maxlength="120"></label>
-        <label><span>Acomodacao</span>${roomSelect(erpContext?.rooms || [])}</label>
-        <label><span>Observacao</span><textarea name="notes" maxlength="500"></textarea></label>
+        <div id="pdvCart" class="rs-cart-lines"><div class="rs-empty">Selecione produtos do catálogo.</div></div>
+        <label><span>Hóspede</span><input name="guest_name" required maxlength="120"></label>
+        <label><span>Acomodação</span>${roomSelect(erpContext?.rooms || [])}</label>
+        <label><span>Observação</span><textarea name="notes" maxlength="500"></textarea></label>
         <button class="rs-primary-button" type="submit">Criar pedido PDV</button>
         <p id="pdvMessage" class="rs-muted" role="status" aria-live="polite"></p>
       </form>
@@ -71,10 +71,10 @@ export function renderPos({ outlet, hotel, catalog, erpContext, onOrderCreated }
       cart.clear();
       event.currentTarget.reset();
       renderCart(cartEl, cart);
-      messageEl.textContent = "Pedido criado sem acionar impressao.";
+      messageEl.textContent = "Pedido criado sem acionar impressão.";
       await onOrderCreated?.();
     } catch (error) {
-      messageEl.textContent = error.message || "Nao foi possivel criar o pedido.";
+      messageEl.textContent = error.message || "Não foi possível criar o pedido.";
     }
   });
 }
@@ -85,7 +85,7 @@ function productCard(item) {
       <span class="rs-muted">${escapeHtml(item.category_name)}</span>
       <strong>${escapeHtml(item.name)}</strong>
       <span>${formatMoney(item.price_cents, item.currency)}</span>
-      <small>${item.available === false ? escapeHtml(item.availability_label || "Indisponivel") : "Adicionar ao carrinho"}</small>
+      <small>${item.available === false ? escapeHtml(item.availability_label || "Indisponível") : "Adicionar ao carrinho"}</small>
     </button>
   `;
 }
@@ -108,7 +108,7 @@ function renderCart(target, cart) {
             `<div class="rs-detail-row"><span>${quantity}x ${escapeHtml(item.name)}</span><strong>${formatMoney(item.price_cents * quantity, item.currency)}</strong></div>`,
         )
         .join("")
-    : '<div class="rs-empty">Selecione produtos do catalogo.</div>';
+    : '<div class="rs-empty">Selecione produtos do catálogo.</div>';
 }
 
 function formatMoney(cents, currency = "BRL") {
