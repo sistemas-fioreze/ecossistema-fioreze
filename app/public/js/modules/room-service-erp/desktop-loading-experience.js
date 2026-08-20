@@ -1,4 +1,4 @@
-const STYLESHEET_HREF = "/css/modules/room-service-erp/desktop-loading-experience.css?v=20260819-1";
+const STYLESHEET_HREF = "/css/modules/room-service-erp/desktop-loading-experience.css?v=20260819-2";
 const SLOW_NOTICE_DELAY = 7000;
 const RETRY_DELAY = 12000;
 
