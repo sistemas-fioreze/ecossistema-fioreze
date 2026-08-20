@@ -48,37 +48,6 @@ body[data-erp="room-service"][data-fioreze-desktop="electron"] .desktop-loading-
   transform: translateY(-4vh);
 }
 
-body[data-erp="room-service"][data-fioreze-desktop="electron"] .desktop-loading-brand {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-bottom: 9px;
-  color: #202830;
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: -0.01em;
-}
-
-body[data-erp="room-service"][data-fioreze-desktop="electron"] .desktop-loading-brand-mark {
-  width: 8px;
-  height: 8px;
-  flex: 0 0 8px;
-  border-radius: 50%;
-  background: #c2a94b;
-  box-shadow: 0 0 0 4px rgba(194, 169, 75, 0.12);
-}
-
-body[data-erp="room-service"][data-fioreze-desktop="electron"] .desktop-loading-hotel {
-  min-height: 18px;
-  margin: 0 0 30px;
-  color: #7a8490;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1.45;
-}
-
 body[data-erp="room-service"][data-fioreze-desktop="electron"] .desktop-loading-title {
   margin: 0;
   color: #1f2730;
