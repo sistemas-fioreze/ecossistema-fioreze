@@ -15,13 +15,14 @@ test("Electron billing toolbar is wired without changing the browser ERP", () =>
   assert.match(css, /data-fioreze-desktop="electron"/);
 });
 
-test("Electron billing dates and actions share a compact desktop control height", () => {
-  assert.match(css, /\.erp-billing-date-input[\s\S]*height:\s*40px !important/);
-  assert.match(css, /\.erp-billing-date-input[\s\S]*width:\s*142px !important/);
-  assert.match(css, /\.erp-billing-date-input[\s\S]*border-radius:\s*8px !important/);
-  assert.match(css, /\.erp-billing-toolbar-action[\s\S]*height:\s*40px !important/);
-  assert.match(css, /border-color:\s*#c2a94b !important/);
+test("Electron billing date selectors follow the compact reference style", () => {
+  assert.match(moduleSource, /data-lucide="calendar-days"/);
+  assert.match(css, /\.erp-billing-date-field[\s\S]*width:\s*184px[\s\S]*height:\s*44px/);
+  assert.match(css, /\.erp-billing-date-field[\s\S]*border-radius:\s*10px !important/);
+  assert.match(css, /\.erp-billing-date-leading-icon[\s\S]*color:\s*#c2a94b/);
+  assert.match(css, /\.erp-billing-date-input[\s\S]*background:\s*transparent !important/);
   assert.match(css, /::-webkit-calendar-picker-indicator/);
+  assert.match(css, /\.erp-billing-toolbar-action[\s\S]*height:\s*44px !important/);
 });
 
 test("Electron billing polish respects ERP stylesheet guardrails", () => {
