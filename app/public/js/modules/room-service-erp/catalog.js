@@ -2,8 +2,8 @@ export function renderCatalog({ outlet, catalog }) {
   const categories = catalog?.categories || [];
   outlet.innerHTML = `
     <section class="rs-panel">
-      <p class="rs-kicker">Editor de Cardapio</p>
-      <h1>Catalogo Room Service</h1>
+      <p class="rs-kicker">Editor de Cardápio</p>
+      <h1>Catálogo Room Service</h1>
       <p class="rs-muted">Categorias, produtos, disponibilidade e imagens lidos do ecossistema.</p>
     </section>
     <section class="rs-panel">
@@ -36,7 +36,7 @@ function itemRow(item) {
     <div class="rs-detail-row">
       <span>
         <strong>${escapeHtml(item.name)}</strong>
-        <small class="rs-muted">${item.available ? "Disponivel" : escapeHtml(item.availability_label || "Indisponivel")}</small>
+        <small class="rs-muted">${item.available ? "Disponível" : escapeHtml(item.availability_label || "Indisponível")}</small>
       </span>
       <strong>${formatMoney(item.price_cents, item.currency)}</strong>
     </div>
