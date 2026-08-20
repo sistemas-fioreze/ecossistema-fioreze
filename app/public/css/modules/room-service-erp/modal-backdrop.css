@@ -1,0 +1,90 @@
+:root {
+  --erp-modal-backdrop-color: rgba(23, 29, 37, .4);
+  --erp-modal-backdrop-blur: 9px;
+}
+
+body[data-erp="room-service"] :is(
+  .erp-modal,
+  .erp-user-modal,
+  .erp-help-overlay,
+  .desktop-update-modal,
+  #confirmModal,
+  #customModal,
+  #changelogModal,
+  #helpOverlay,
+  #orderModal,
+  #printManagerModal,
+  #printLogModal,
+  #welcomeOverlay,
+  #passwordChangeOverlay,
+  #userCreateModal,
+  #permissionModal,
+  #userLogModal,
+  #storeControlModal,
+  #cardapioModal,
+  #comboBuilderModal
+) {
+  box-sizing: border-box;
+  background: var(--erp-modal-backdrop-color) !important;
+  -webkit-backdrop-filter: blur(var(--erp-modal-backdrop-blur)) saturate(.9) !important;
+  backdrop-filter: blur(var(--erp-modal-backdrop-blur)) saturate(.9) !important;
+}
+
+body[data-fioreze-desktop="electron"][data-erp="room-service"] :is(
+  .erp-modal,
+  .erp-user-modal,
+  .erp-help-overlay,
+  .desktop-update-modal,
+  #confirmModal,
+  #customModal,
+  #changelogModal,
+  #helpOverlay,
+  #orderModal,
+  #printManagerModal,
+  #printLogModal,
+  #welcomeOverlay,
+  #passwordChangeOverlay,
+  #userCreateModal,
+  #permissionModal,
+  #userLogModal,
+  #storeControlModal,
+  #cardapioModal,
+  #comboBuilderModal
+) {
+  inset: 0 !important;
+  padding-top: calc(var(--erp-desktop-titlebar-height, 44px) + 18px) !important;
+  padding-bottom: 18px !important;
+}
+
+body[data-fioreze-desktop="electron"][data-erp="room-service"]:has(
+  :is(
+    .erp-modal,
+    .erp-user-modal,
+    .erp-help-overlay,
+    .desktop-update-modal,
+    #confirmModal,
+    #customModal,
+    #changelogModal,
+    #helpOverlay,
+    #orderModal,
+    #printManagerModal,
+    #printLogModal,
+    #welcomeOverlay,
+    #passwordChangeOverlay,
+    #userCreateModal,
+    #permissionModal,
+    #userLogModal,
+    #storeControlModal,
+    #cardapioModal,
+    #comboBuilderModal
+  ):not(.hidden):not([hidden])
+) .rs-desktop-titlebar {
+  z-index: 200 !important;
+  pointer-events: none;
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    --erp-modal-backdrop-color: rgba(23, 29, 37, .58);
+  }
+}
