@@ -49,6 +49,7 @@ import { setupHelpCenter } from "./help.js?v=20260820-5";
 import { iconMarkup } from "./icon-system.js";
 import { buildInterfaceViewport } from "./interface-viewport.js";
 import { bindPdvCheckoutActions, bindPdvDropTarget, bindPdvProductDrag } from "./pdv-actions.js";
+import { getErpSearchContext } from "./search-context.js?v=20260820-1";
 import { ERP_APP_VERSION } from "./static-config.js";
 import { applyBrandTokens } from "./theme.js";
 import { evaluateServiceStatus } from "../room-service/service-status.js";
@@ -85,6 +86,7 @@ const state = {
   guests: null,
   billing: null,
   route: "dashboard",
+  searchQueries: Object.fromEntries(Object.keys(ROUTES).map((route) => [route, ""])),
   cart: new Map(),
   selectedOrderId: null,
   loginHotels: [],
@@ -276,14 +278,13 @@ function bindStaticActions() {
   updateNotificationBadge(0);
 
   const topSearch = byId("topSearchInput", false);
-  topSearch?.addEventListener("input", renderTopSearchResults);
-  topSearch?.addEventListener("focus", renderTopSearchResults);
+  topSearch?.addEventListener("input", handleTopSearchInput);
+  topSearch?.addEventListener("focus", handleTopSearchFocus);
   topSearch?.addEventListener("keydown", handleTopSearchKeydown);
   byId("topSearchWrap", false)?.addEventListener("click", (event) => {
     if (!event.target.closest("#topSearchResults")) topSearch?.focus();
   });
   byId("topSearchResults", false)?.addEventListener("click", handleTopSearchClick);
-  byId("pdvMenuSearch")?.addEventListener("input", renderMenu);
   bindPdvDropTarget({
     target: document.querySelector(".erp-pdv-cart-section"),
     onProductDrop: addToCart,
@@ -294,8 +295,6 @@ function bindStaticActions() {
   byId("roomNumber", false)?.addEventListener("keydown", handlePdvRoomKeydown);
   byId("roomOptions", false)?.addEventListener("click", handlePdvRoomSelection);
   byId("roomComboboxToggle", false)?.addEventListener("click", togglePdvRoomOptions);
-  byId("guestSearchInput")?.addEventListener("input", renderGuests);
-  byId("menuAdminSearch")?.addEventListener("input", renderCatalog);
   byId("dashDate", false)?.addEventListener("change", renderDashboard);
   byId("histDate", false)?.addEventListener("change", renderOrders);
   byId("histFrom", false)?.addEventListener("change", renderBilling);
@@ -428,10 +427,6 @@ function installPdvInterface() {
           <h2>Pedido direto</h2>
           <p>Escolha os itens e conclua a comanda ao lado.</p>
         </div>
-        <label class="pdv-menu-search" aria-label="Buscar no cardápio">
-          <i data-lucide="search" aria-hidden="true"></i>
-          <input id="pdvMenuSearch" type="search" placeholder="Buscar no cardápio" autocomplete="off">
-        </label>
       </header>
       <div class="erp-pdv-catalog-meta"><span id="pdvMenuSummary">Cardápio</span></div>
       <div id="menuContent" class="erp-pdv-content"></div>
@@ -488,7 +483,6 @@ function installGuestsInterface() {
     <header class="erp-page-header">
       <div><p class="erp-page-eyebrow">Relacionamento</p><h2>Hospedes</h2><p>Acomodacoes atendidas e atividade recente.</p></div>
       <div class="erp-page-actions">
-        <label class="erp-search-field">${dashboardIcon("search")}<input id="guestSearchInput" type="search" placeholder="Buscar hospede ou acomodacao" autocomplete="off"></label>
         <button id="guestsRefreshButton" type="button" class="erp-icon-text-button">${dashboardIcon("refresh")}<span>Atualizar</span></button>
       </div>
     </header>
@@ -677,7 +671,7 @@ function installBillingInterface() {
 }
 
 function installCatalogInterface() {
-  byId("cardapioContainer").innerHTML = `<div class="erp-v3-shell erp-catalog-page"><header class="erp-v3-header"><div><p class="admin-kicker">Room Service</p><h2 class="erp-v3-title">Editor de cardapio</h2><p id="menuAdminSummary" class="erp-v3-subtitle">0 itens</p></div><div class="erp-v3-actions"><button id="newCatalogCategoryButton" type="button" class="admin-secondary-btn">Nova categoria</button><button id="newCatalogItemButton" type="button" class="admin-primary-btn">Novo item</button></div></header><div class="erp-catalog-toolbar"><label class="erp-catalog-search"><span class="sr-only">Buscar no cardapio</span><input id="menuAdminSearch" class="erp-search" type="search" placeholder="Buscar prato, descricao ou categoria" autocomplete="off"></label><div class="erp-category-scroller"><button type="button" class="erp-category-scroll" data-category-scroll="-1" aria-label="Categorias anteriores">${settingsIcon("back")}</button><div id="catalogCategoryTabs" class="erp-category-tabs"></div><button type="button" class="erp-category-scroll next" data-category-scroll="1" aria-label="Proximas categorias">${settingsIcon("chevron")}</button></div></div><div id="menuCategoryBoard" class="erp-catalog-grid"></div></div>`;
+  byId("cardapioContainer").innerHTML = `<div class="erp-v3-shell erp-catalog-page"><header class="erp-v3-header"><div><p class="admin-kicker">Room Service</p><h2 class="erp-v3-title">Editor de cardapio</h2><p id="menuAdminSummary" class="erp-v3-subtitle">0 itens</p></div><div class="erp-v3-actions"><button id="newCatalogCategoryButton" type="button" class="admin-secondary-btn">Nova categoria</button><button id="newCatalogItemButton" type="button" class="admin-primary-btn">Novo item</button></div></header><div class="erp-catalog-toolbar"><div class="erp-category-scroller"><button type="button" class="erp-category-scroll" data-category-scroll="-1" aria-label="Categorias anteriores">${settingsIcon("back")}</button><div id="catalogCategoryTabs" class="erp-category-tabs"></div><button type="button" class="erp-category-scroll next" data-category-scroll="1" aria-label="Proximas categorias">${settingsIcon("chevron")}</button></div></div><div id="menuCategoryBoard" class="erp-catalog-grid"></div></div>`;
 }
 
 function installSettingsInterface() {
@@ -1591,6 +1585,7 @@ function switchTab(route, { allowHidden = false } = {}) {
   if (!ROUTES[route] || (!allowHidden && byId(ROUTES[route].button).classList.contains("hidden"))) {
     route = Object.keys(ROUTES).find((key) => !byId(ROUTES[key].button).classList.contains("hidden")) || "dashboard";
   }
+  saveCurrentSearchQuery();
   state.route = route;
   document.body.dataset.erpRoute = route;
   for (const [key, config] of Object.entries(ROUTES)) {
@@ -1606,6 +1601,7 @@ function switchTab(route, { allowHidden = false } = {}) {
   if (window.matchMedia("(max-width: 1100px)").matches) {
     document.body.classList.remove("sidebar-open");
   }
+  syncContextualSearch(route);
   renderActiveRoute();
 }
 
@@ -1621,7 +1617,7 @@ function renderActiveRoute() {
 
 function renderDashboardV3() {
   const summary = state.dashboard?.summary || {};
-  const orders = filteredOrders(byId("topSearchInput")?.value);
+  const orders = filteredOrders("");
   const completed = orders.filter((order) => order.status === "delivered");
   const revenue = summary.revenue_cents ?? completed.reduce((total, order) => total + Number(order.total_cents || 0), 0);
   const origins = countBy(orders, (order) => order.origin || "portal");
@@ -1739,7 +1735,7 @@ function renderDashboard() {
 }
 
 function renderOrders() {
-  const query = byId("topSearchInput")?.value;
+  const query = currentSearchQuery();
   const orders = filteredOrders(query);
   setText("simpleHistMeta", `${orders.length} pedidos`);
   const target = byId("simpleHistTableBody");
@@ -1941,7 +1937,7 @@ function formatOrderItemOptions(options) {
 }
 
 function renderMenu() {
-  const query = normalize(byId("pdvMenuSearch")?.value || byId("topSearchInput")?.value || "");
+  const query = normalize(currentSearchQuery());
   const categories = (state.catalog?.categories || []).map((category) => ({
     ...category,
     items: (category.items || []).map((item) => ({ ...item, category_name: category.name })).filter((item) => !query || normalize(`${item.name} ${item.description || ""} ${item.tag || ""} ${category.name}`).includes(query)),
@@ -2062,7 +2058,7 @@ async function submitPdvOrder() {
 }
 
 function renderGuests() {
-  const query = normalize(byId("guestSearchInput")?.value || byId("topSearchInput")?.value || "");
+  const query = normalize(currentSearchQuery());
   const guests = (state.guests?.guests || []).filter((guest) => !query || [guest.guest_name, guest.room_code, guest.phone]
     .some((value) => normalize(value || "").includes(query)));
   const occupiedRooms = new Set((state.guests?.guests || []).map((guest) => String(guest.room_code)));
@@ -2124,7 +2120,7 @@ function renderBillingLegacy() {
 function renderBilling() {
   const from = byId("histFrom", false)?.value || "0000-01-01";
   const to = byId("histTo", false)?.value || "9999-12-31";
-  const orders = state.orders.filter((order) => {
+  const orders = filteredOrders(currentSearchQuery()).filter((order) => {
     const date = dateKeyInHotelTimezone(order.created_at);
     return date >= from && date <= to;
   });
@@ -2157,7 +2153,7 @@ function renderBilling() {
 function exportBillingCsv() {
   const from = byId("histFrom").value;
   const to = byId("histTo").value;
-  const orders = state.orders.filter((order) => {
+  const orders = filteredOrders(currentSearchQuery()).filter((order) => {
     const date = dateKeyInHotelTimezone(order.created_at);
     return date >= from && date <= to;
   });
@@ -2175,7 +2171,7 @@ function exportBillingCsv() {
 }
 
 function renderCatalog() {
-  const query = normalize(byId("menuAdminSearch")?.value || byId("topSearchInput")?.value || "");
+  const query = normalize(currentSearchQuery());
   const sourceCategories = state.catalog?.categories || [];
   const categories = sourceCategories
     .filter((category) => state.catalogCategory === "all" || category.id === state.catalogCategory)
@@ -2193,7 +2189,7 @@ function renderCatalog() {
 
 function renderAdmin() {
   const target = byId("settingsContent");
-  if (state.settingsView === "home") target.innerHTML = renderSettingsHome();
+  if (state.settingsView === "home") target.innerHTML = renderFilteredSettingsHome();
   if (state.settingsView === "operation") target.innerHTML = renderOperationSettings();
   if (state.settingsView === "rooms") target.innerHTML = renderRoomSettings();
   if (state.settingsView === "printing") target.innerHTML = renderPrintingSettings();
@@ -2931,6 +2927,7 @@ function renderTopSearchResults() {
   const input = byId("topSearchInput", false);
   const target = byId("topSearchResults", false);
   if (!input || !target || !state.session) return;
+  if (getErpSearchContext(state.route).mode !== "navigation") return closeTopSearch();
   const query = normalize(input.value);
   const suggestions = buildSearchSuggestions().filter((entry) => !query || normalize(`${entry.label} ${entry.meta}`).includes(query)).slice(0, 7);
   const groups = suggestions.reduce((result, entry) => {
@@ -2988,8 +2985,33 @@ function handleTopSearchClick(event) {
   if (item) runSearchSuggestion(item.dataset.searchKind, item.dataset.searchValue);
 }
 
+function handleTopSearchInput() {
+  saveCurrentSearchQuery();
+  if (getErpSearchContext(state.route).mode === "navigation") {
+    renderTopSearchResults();
+    return;
+  }
+  if (state.route === "admin" && state.settingsView !== "home") state.settingsView = "home";
+  closeTopSearch();
+  renderActiveRoute();
+}
+
+function handleTopSearchFocus() {
+  if (getErpSearchContext(state.route).mode === "navigation") renderTopSearchResults();
+  else closeTopSearch();
+}
+
 function handleTopSearchKeydown(event) {
-  if (event.key === "Escape") return closeTopSearch();
+  if (event.key === "Escape") {
+    if (getErpSearchContext(state.route).mode === "navigation") return closeTopSearch();
+    if (!event.currentTarget.value) return;
+    event.preventDefault();
+    event.currentTarget.value = "";
+    saveCurrentSearchQuery();
+    renderActiveRoute();
+    return;
+  }
+  if (getErpSearchContext(state.route).mode !== "navigation") return;
   if (event.key !== "Enter") return;
   event.preventDefault();
   const first = byId("topSearchResults", false)?.querySelector("[data-search-kind]");
@@ -2999,6 +3021,7 @@ function handleTopSearchKeydown(event) {
 function runSearchSuggestion(kind, value) {
   closeTopSearch();
   byId("topSearchInput").value = "";
+  state.searchQueries.dashboard = "";
   if (kind === "route") switchTab(value);
   if (kind === "order") openOrder(value);
   if (kind === "catalog") {
@@ -3010,6 +3033,41 @@ function runSearchSuggestion(kind, value) {
 function closeTopSearch() {
   byId("topSearchResults", false)?.classList.add("hidden");
   document.body.classList.remove("erp-search-open");
+}
+
+function currentSearchQuery() {
+  return byId("topSearchInput", false)?.value || "";
+}
+
+function saveCurrentSearchQuery() {
+  if (!state.route) return;
+  state.searchQueries[state.route] = currentSearchQuery();
+}
+
+function syncContextualSearch(route = state.route) {
+  const input = byId("topSearchInput", false);
+  if (!input) return;
+  const context = getErpSearchContext(route);
+  input.placeholder = context.placeholder;
+  input.setAttribute("aria-label", context.placeholder);
+  input.value = state.searchQueries[route] || "";
+  byId("topSearchWrap", false)?.setAttribute("data-search-mode", context.mode);
+  if (context.mode !== "navigation") closeTopSearch();
+}
+
+function renderFilteredSettingsHome() {
+  const query = normalize(currentSearchQuery());
+  const markup = renderSettingsHome();
+  if (!query) return markup;
+  const template = document.createElement("template");
+  template.innerHTML = markup;
+  const grid = template.content.querySelector(".erp-settings-grid");
+  const cards = [...(grid?.querySelectorAll("[data-settings-view]") || [])];
+  for (const card of cards) {
+    if (!normalize(card.textContent).includes(query)) card.remove();
+  }
+  if (grid && !grid.children.length) grid.innerHTML = '<div class="legacy-list-empty">Nenhuma configuração encontrada.</div>';
+  return template.innerHTML;
 }
 
 function updateNotificationBadge(count) {
@@ -3071,7 +3129,17 @@ function bindOrderButtons(container) {
 
 function filteredOrders(query) {
   const normalized = normalize(query || "");
-  return state.orders.filter((order) => !normalized || normalize(`${order.public_id || ""} ${order.guest_name || ""} ${order.room_code || ""} ${order.status || ""}`).includes(normalized));
+  return state.orders.filter((order) => !normalized || normalize([
+    order.public_id,
+    order.display_number,
+    orderDisplayLabel(order),
+    order.guest_name,
+    order.room_code,
+    order.delivery_location,
+    order.status,
+    statusLabel(order.status),
+    money(order.total_cents, order.currency),
+  ].filter(Boolean).join(" ")).includes(normalized));
 }
 
 function renderBars(target, entries) {
