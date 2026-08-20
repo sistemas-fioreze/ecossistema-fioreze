@@ -27,3 +27,16 @@ test("sidebar account is round and collapses to avatar-only mode", () => {
   assert.match(accountCss, /\.sidebar-account-photo[\s\S]*border-radius:\s*50%/);
   assert.match(accountCss, /sidebar-collapsed \.sidebar-account-copy[\s\S]*sidebar-account-logout[\s\S]*display:\s*none/);
 });
+
+test("Electron account popover is compact, anchored and ordered like a desktop menu", () => {
+  assert.match(accountCss, /\.sidebar-footer > \.account-popover[\s\S]*left:\s*calc\(100% \+ 7px\)[\s\S]*width:\s*284px/);
+  assert.match(accountCss, /\.account-popover[\s\S]*border-radius:\s*12px/);
+  assert.match(accountCss, /\.quick-settings-grid\s*\{[\s\S]*display:\s*contents/);
+  assert.match(accountCss, /\.quick-settings-grid > \.quick-tile:not\(\.hidden\)[\s\S]*min-height:\s*38px/);
+  assert.match(accountCss, /\.quick-setting-panel\s*\{[\s\S]*order:\s*60/);
+  assert.match(accountCss, /\.quick-tile\.logout\s*\{[\s\S]*order:\s*100/);
+  assert.match(accountCss, /input\[type="range"\][\s\S]*accent-color:\s*#c2a94b/);
+  assert.match(accountCss, /\.sound-icon-btn\s*\{[\s\S]*width:\s*28px/);
+  assert.doesNotMatch(accountCss, /font-weight:\s*(?:450|520|550|620|650|680|7\d{2}|8\d{2}|9\d{2})(?:\s|;|!)/);
+  assert.doesNotMatch(accountCss, /font-size:\s*(?:7|7\.5|8|8\.5|9|9\.5|10|10\.5|11|11\.5)px/);
+});
