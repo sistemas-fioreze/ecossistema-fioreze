@@ -1,0 +1,33 @@
+body[data-erp="room-service"]:not(.sidebar-collapsed) .sidebar-footer > .account-popover {
+  left: 0 !important;
+  right: auto !important;
+  top: auto !important;
+  bottom: calc(100% + 8px) !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  transform-origin: bottom left !important;
+}
+
+body[data-erp="room-service"]:not(.sidebar-collapsed) .sidebar-footer > .account-popover::before {
+  display: none !important;
+}
+
+body[data-erp="room-service"]:not(.sidebar-collapsed) .sidebar-footer > .account-popover:not(.hidden) {
+  animation: sidebarAccountExpandedMenuIn 150ms ease-out forwards !important;
+}
+
+body[data-erp="room-service"] .sidebar-footer > .account-popover .scale-control {
+  display: none !important;
+}
+
+@keyframes sidebarAccountExpandedMenuIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
