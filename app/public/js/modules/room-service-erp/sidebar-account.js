@@ -1,5 +1,6 @@
-const STYLESHEET_HREF = "/css/modules/room-service-erp/sidebar-account.css?v=20260819-1";
+const STYLESHEET_HREF = "/css/modules/room-service-erp/sidebar-account.css?v=20260819-2";
 const RANGE_STYLESHEET_HREF = "/css/modules/room-service-erp/sidebar-account-range.css?v=20260819-1";
+const LAYOUT_STYLESHEET_HREF = "/css/modules/room-service-erp/sidebar-account-layout-v2.css?v=20260819-1";
 
 export function setupSidebarAccount(root = document) {
   if (!window.fiorezeDesktop?.isElectron) return;
@@ -57,7 +58,17 @@ export function setupSidebarAccount(root = document) {
 
   row.append(sessionButton, logoutButton);
   footer.append(row, accountPopover);
+  removeInterfaceScaleControl(accountPopover);
   setupRangeProgress(accountPopover);
+}
+
+function removeInterfaceScaleControl(accountPopover) {
+  const scaleControl = accountPopover.querySelector(".scale-control");
+  if (!scaleControl) return;
+
+  const panel = scaleControl.closest(".quick-setting-panel");
+  scaleControl.remove();
+  if (panel && panel.childElementCount === 0) panel.remove();
 }
 
 function setupRangeProgress(accountPopover) {
@@ -92,5 +103,13 @@ function ensureStyles(root) {
     rangeLink.href = RANGE_STYLESHEET_HREF;
     rangeLink.dataset.erpSidebarAccountRange = "";
     root.head.append(rangeLink);
+  }
+
+  if (!root.querySelector('link[data-erp-sidebar-account-layout]')) {
+    const layoutLink = root.createElement("link");
+    layoutLink.rel = "stylesheet";
+    layoutLink.href = LAYOUT_STYLESHEET_HREF;
+    layoutLink.dataset.erpSidebarAccountLayout = "";
+    root.head.append(layoutLink);
   }
 }
