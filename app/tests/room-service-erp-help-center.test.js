@@ -49,8 +49,8 @@ test("Help Center is integrated once into the shared web and Electron ERP shell"
   const css = read("public/css/modules/room-service-erp/help-center.css");
 
   assert.match(html, /help-center\.css\?v=20260820-5/);
-  assert.match(html, /app\.js\?v=20260820-6/);
-  assert.match(entry, /legacy-app\.js\?v=20260820-5/);
+  assert.match(html, /app\.js\?v=20260820-7/);
+  assert.match(entry, /legacy-app\.js\?v=20260820-6/);
   assert.match(app, /setupHelpCenter/);
   assert.match(app, /getPermissions: \(\) => state\.session\?\.permissions/);
   assert.match(app, /isElectron: \(\) => desktop\.isElectron/);

@@ -7627,3 +7627,13 @@ body[data-erp="room-service"] svg.lucide {
   stroke-width: 1.9;
   width: 20px !important;
 }
+
+/* The title-bar search is the only search surface and follows the active ERP area. */
+body[data-erp="room-service"] .pdv-menu-head,
+body[data-erp="room-service"] .erp-catalog-toolbar {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+body[data-erp="room-service"] #topSearchWrap[data-search-mode="filter"] .top-search-results {
+  display: none !important;
+}
