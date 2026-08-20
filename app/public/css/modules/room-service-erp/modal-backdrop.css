@@ -1,6 +1,8 @@
 :root {
   --erp-modal-backdrop-color: rgba(23, 29, 37, .4);
   --erp-modal-backdrop-blur: 9px;
+  --erp-modal-safe-inline: clamp(18px, 2.5vw, 40px);
+  --erp-modal-safe-block: clamp(18px, 2.5vh, 28px);
 }
 
 body[data-erp="room-service"] :is(
@@ -25,6 +27,9 @@ body[data-erp="room-service"] :is(
   #comboBuilderModal
 ) {
   box-sizing: border-box;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: var(--erp-modal-safe-block) var(--erp-modal-safe-inline) !important;
   background: var(--erp-modal-backdrop-color) !important;
   -webkit-backdrop-filter: blur(var(--erp-modal-backdrop-blur)) saturate(.9) !important;
   backdrop-filter: blur(var(--erp-modal-backdrop-blur)) saturate(.9) !important;
@@ -52,8 +57,145 @@ body[data-fioreze-desktop="electron"][data-erp="room-service"] :is(
   #comboBuilderModal
 ) {
   inset: 0 !important;
-  padding-top: calc(var(--erp-desktop-titlebar-height, 44px) + 18px) !important;
-  padding-bottom: 18px !important;
+  padding: calc(var(--erp-desktop-titlebar-height, 44px) + var(--erp-modal-safe-block)) var(--erp-modal-safe-inline) var(--erp-modal-safe-block) !important;
+}
+
+/* Operational dialogs use the available viewport as a horizontal workspace. */
+body[data-erp="room-service"] :is(
+  .erp-modal-card,
+  .erp-user-modal-card,
+  .erp-feedback-card,
+  .menu-modal-card,
+  .combo-builder-card,
+  .permission-modal-card,
+  .user-log-modal-card,
+  .store-modal-card,
+  .print-manager-card,
+  .print-log-modal-card,
+  .desktop-print-status-card,
+  .changelog-shell,
+  .help-modal,
+  #orderDetailCard,
+  #confirmModal > div,
+  #customModal > div,
+  #welcomeOverlay > .welcome-card,
+  #passwordChangeOverlay > div,
+  #userCreateModal > .user-create-modal
+) {
+  box-sizing: border-box;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  margin: 0 !important;
+}
+
+body[data-erp="room-service"] :is(.erp-modal-card, .erp-user-modal-card) {
+  width: min(960px, 100%) !important;
+}
+
+body[data-erp="room-service"] :is(#confirmModal > div, #customModal > div) {
+  width: min(600px, 100%) !important;
+}
+
+body[data-erp="room-service"] .erp-modal-card {
+  display: flex;
+  flex-direction: column;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+body[data-erp="room-service"] .erp-modal-card > .erp-modal-head {
+  flex: 0 0 auto;
+  min-height: 72px;
+  margin: 0 !important;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--erp-line);
+  background: var(--erp-surface);
+}
+
+body[data-erp="room-service"] .erp-modal-card > .erp-form {
+  min-height: 0;
+  padding: 18px 22px 20px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+body[data-erp="room-service"] .erp-modal-card--catalog {
+  width: min(1180px, 100%) !important;
+  height: min(680px, 100%) !important;
+}
+
+body[data-erp="room-service"] .erp-catalog-item-form {
+  flex: 1 1 auto;
+  overflow: hidden !important;
+}
+
+body[data-erp="room-service"] .erp-catalog-item-layout {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(360px, .92fr);
+  gap: 22px;
+  flex: 1 1 auto;
+}
+
+body[data-erp="room-service"] :is(.erp-catalog-item-fields, .erp-catalog-item-media) {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+body[data-erp="room-service"] .erp-catalog-item-fields {
+  padding-right: 22px;
+  overflow-y: auto;
+  border-right: 1px solid var(--erp-line);
+  scrollbar-gutter: stable;
+}
+
+body[data-erp="room-service"] .erp-catalog-item-media .erp-image-picker {
+  min-height: 0;
+  max-height: none;
+  flex: 1 1 auto;
+  align-content: start;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+body[data-erp="room-service"] .erp-catalog-item-form > .erp-modal-actions {
+  position: sticky;
+  bottom: -20px;
+  z-index: 2;
+  flex: 0 0 auto;
+  margin: 0 -22px -20px;
+  padding: 14px 22px;
+  border-top: 1px solid var(--erp-line);
+  background: var(--erp-surface);
+}
+
+body[data-erp="room-service"] :is(
+  .menu-modal-card,
+  .combo-builder-card,
+  .permission-modal-card,
+  .user-log-modal-card,
+  .print-manager-card,
+  .print-log-modal-card,
+  .changelog-shell,
+  .help-modal,
+  #orderDetailCard
+) {
+  width: min(1180px, 100%) !important;
+}
+
+body[data-erp="room-service"] :is(
+  .erp-user-modal-card,
+  .erp-feedback-card,
+  .store-modal-card,
+  .desktop-print-status-card,
+  #welcomeOverlay > .welcome-card,
+  #passwordChangeOverlay > div,
+  #userCreateModal > .user-create-modal
+) {
+  width: min(980px, 100%) !important;
 }
 
 body[data-fioreze-desktop="electron"][data-erp="room-service"]:has(
@@ -86,5 +228,46 @@ body[data-fioreze-desktop="electron"][data-erp="room-service"]:has(
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   :root {
     --erp-modal-backdrop-color: rgba(23, 29, 37, .58);
+  }
+}
+
+@media (max-width: 900px) {
+  body[data-erp="room-service"] :is(
+    .erp-modal,
+    .erp-user-modal,
+    #orderModal,
+    #storeControlModal,
+    #printManagerModal,
+    #printLogModal
+  ) {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+
+  body[data-erp="room-service"] :is(.erp-modal-card, .erp-user-modal-card) {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 94dvh !important;
+    border-radius: var(--erp-radius-xl) var(--erp-radius-xl) 0 0 !important;
+  }
+
+  body[data-erp="room-service"] .erp-catalog-item-form {
+    overflow-y: auto !important;
+  }
+
+  body[data-erp="room-service"] .erp-catalog-item-layout {
+    display: flex;
+    flex-direction: column;
+  }
+
+  body[data-erp="room-service"] .erp-catalog-item-fields {
+    padding-right: 0;
+    overflow: visible;
+    border-right: 0;
+  }
+
+  body[data-erp="room-service"] .erp-catalog-item-media .erp-image-picker {
+    max-height: 240px;
+    flex: none;
   }
 }
