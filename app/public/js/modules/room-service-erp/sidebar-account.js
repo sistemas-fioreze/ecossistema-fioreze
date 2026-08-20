@@ -42,8 +42,8 @@ export function setupSidebarAccount(root = document) {
 
   sessionButton.className = "sidebar-account-trigger";
   sessionButton.type = "button";
-  sessionButton.title = "Conta do usuario";
-  sessionButton.setAttribute("aria-label", "Abrir conta do usuario");
+  sessionButton.title = "Conta do usuário";
+  sessionButton.setAttribute("aria-label", "Abrir conta do usuário");
   sessionButton.replaceChildren(avatarFrame, copy);
 
   const logoutButton = root.createElement("button");
