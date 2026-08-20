@@ -144,7 +144,7 @@ test("pedidos antigos preservam dados e ocultam nomes operacionais invalidos", (
   assert.match(app, /displayGuestName\(order\.guest_name\)/);
   assert.match(app, /displayGuestName\(guest\.guest_name, ""\)/);
   assert.match(ordersModule, /detail\("Hóspede", displayGuestName\(order\.guest_name\)\)/);
-  assert.match(css, /\.order-mini-card \{[\s\S]*min-height: 66px;[\s\S]*padding: 9px 14px !important;/);
+  assert.match(css, /\.order-mini-card \{[\s\S]*min-height: 60px;[\s\S]*padding: 7px 14px !important;/);
 });
 
 test("login, menu rapido e escala usam a estrutura final sem superficies concorrentes", () => {

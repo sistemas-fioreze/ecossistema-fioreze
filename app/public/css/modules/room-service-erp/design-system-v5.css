@@ -1659,12 +1659,12 @@ body[data-erp="room-service"] .loose-list-head {
 }
 
 body[data-erp="room-service"] .order-mini-card {
-  min-height: 66px;
+  min-height: 60px;
   display: grid;
   grid-template-columns: 62px minmax(180px, 1fr) 118px 86px;
   align-items: center;
-  gap: 14px;
-  padding: 9px 14px !important;
+  gap: 12px;
+  padding: 7px 14px !important;
   border: 0 !important;
   border-bottom: 1px solid var(--erp-line) !important;
   border-radius: 0 !important;

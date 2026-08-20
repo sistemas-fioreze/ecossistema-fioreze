@@ -1,4 +1,4 @@
-const STYLESHEET_HREF = "/css/modules/room-service-erp/sidebar-account.css?v=20260819-2";
+const STYLESHEET_HREF = "/css/modules/room-service-erp/sidebar-account.css?v=20260820-1";
 const RANGE_STYLESHEET_HREF = "/css/modules/room-service-erp/sidebar-account-range.css?v=20260819-1";
 const LAYOUT_STYLESHEET_HREF = "/css/modules/room-service-erp/sidebar-account-layout-v2.css?v=20260819-1";
 const AVATAR_STYLESHEET_HREF = "/css/modules/room-service-erp/sidebar-account-avatar.css?v=20260819-1";
