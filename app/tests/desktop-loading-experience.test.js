@@ -16,6 +16,15 @@ test("Electron ERP installs a dedicated full-screen loading experience", () => {
   assert.match(loadingCss, /\.desktop-loading-screen[\s\S]*background:\s*#f7f8fa/);
 });
 
+test("Electron loading starts directly at the environment preparation content", () => {
+  assert.doesNotMatch(loadingModule, /desktop-loading-brand/);
+  assert.doesNotMatch(loadingModule, /desktopLoadingHotel/);
+  assert.doesNotMatch(loadingModule, /Hotéis Fioreze/);
+  assert.doesNotMatch(loadingModule, /app-topbar h1/);
+  assert.doesNotMatch(loadingCss, /\.desktop-loading-brand/);
+  assert.doesNotMatch(loadingCss, /\.desktop-loading-hotel/);
+});
+
 test("Electron loading keeps the live login status without fake percentage progress", () => {
   assert.match(loadingModule, /id="loginLoadingText"/);
   assert.match(loadingModule, /MutationObserver\(syncMessage\)/);
