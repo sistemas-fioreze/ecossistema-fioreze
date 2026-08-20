@@ -62,6 +62,7 @@ const iconNames = [
   "Ticket",
   "Trash2",
   "TriangleAlert",
+  "Upload",
   "UserRound",
   "Users",
   "Volume2",
