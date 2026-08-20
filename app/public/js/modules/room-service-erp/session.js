@@ -24,7 +24,7 @@ export function createSessionController({ onAuthenticated, onLoggedOut, onError 
       const payload = await getSession();
       await start(payload.data);
     } catch (error) {
-      if (error.status !== 401) onError?.("Nao foi possivel verificar a sessao administrativa.");
+      if (error.status !== 401) onError?.("Não foi possível verificar a sessão administrativa.");
       showView("login");
     }
   }
@@ -56,7 +56,7 @@ export function createSessionController({ onAuthenticated, onLoggedOut, onError 
   }
 
   async function start(session) {
-    els.sessionUser.textContent = session?.user?.display_name || "Usuario";
+    els.sessionUser.textContent = session?.user?.display_name || "Usuário";
     showView("app");
     await onAuthenticated(session);
   }

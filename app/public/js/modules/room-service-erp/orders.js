@@ -46,7 +46,7 @@ function orderCard(order, selectedId) {
   return `
     <button class="rs-order-card" type="button" data-order-id="${escapeAttr(order.id)}" aria-current="${order.id === selectedId}">
       <span class="rs-order-row"><strong>${escapeHtml(orderDisplayLabel(order))}</strong><span class="rs-status-chip">${statusLabel(order.status)}</span></span>
-      <span class="rs-order-row"><span>${escapeHtml(order.room_code || "Sem acomodacao")}</span><span>${formatMoney(order.total_cents, order.currency)}</span></span>
+      <span class="rs-order-row"><span>${escapeHtml(order.room_code || "Sem acomodação")}</span><span>${formatMoney(order.total_cents, order.currency)}</span></span>
       <small class="rs-muted">${escapeHtml(formatDate(order.created_at, order.timezone))} - ${Number(order.item_count || 0)} item(ns)</small>
     </button>
   `;
@@ -59,17 +59,17 @@ function renderOrderDetail(order) {
     <div class="rs-detail-grid">
       ${detail("Status", statusLabel(order.status))}
       ${detail("Hotel", order.hotel_name)}
-      ${detail("Hospede", order.guest_name || "Nao informado")}
-      ${detail("Acomodacao", order.delivery?.room_code || order.room_code || "Nao informada")}
+      ${detail("Hóspede", order.guest_name || "Não informado")}
+      ${detail("Acomodação", order.delivery?.room_code || order.room_code || "Não informada")}
       ${detail("Origem", order.origin)}
       ${detail("Total", formatMoney(order.total_cents, order.currency))}
     </div>
     <h3>Itens</h3>
     ${(order.items || []).map((item) => `<div class="rs-detail-row"><span>${escapeHtml(item.quantity)}x ${escapeHtml(item.name)}${item.selected_options?.note ? `<small class="rs-muted">Observação: ${escapeHtml(item.selected_options.note)}</small>` : ""}</span><strong>${formatMoney(item.line_total_cents, order.currency)}</strong></div>`).join("") || '<div class="rs-empty">Sem itens.</div>'}
-    <h3>Historico</h3>
-    ${(order.history || []).map((entry) => `<div class="rs-detail-row"><span>${statusLabel(entry.status)}</span><small>${escapeHtml(formatDate(entry.created_at, order.timezone))}</small></div>`).join("") || '<div class="rs-empty">Sem historico.</div>'}
-    <h3>Impressao</h3>
-    <p class="rs-muted">${escapeHtml(order.printing?.message || "Impressao desativada neste ambiente.")}</p>
+    <h3>Histórico</h3>
+    ${(order.history || []).map((entry) => `<div class="rs-detail-row"><span>${statusLabel(entry.status)}</span><small>${escapeHtml(formatDate(entry.created_at, order.timezone))}</small></div>`).join("") || '<div class="rs-empty">Sem histórico.</div>'}
+    <h3>Impressão</h3>
+    <p class="rs-muted">${escapeHtml(order.printing?.message || "Impressão desativada neste ambiente.")}</p>
   `;
 }
 
