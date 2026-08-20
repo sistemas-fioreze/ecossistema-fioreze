@@ -13,7 +13,8 @@ test("Electron ERP installs a dedicated full-screen loading experience", () => {
   assert.match(loadingModule, /desktop-loading-experience/);
   assert.match(loadingModule, /Preparando seu ambiente/);
   assert.match(loadingCss, /\.login-card\.is-loading[\s\S]*position:\s*fixed/);
-  assert.match(loadingCss, /\.desktop-loading-screen[\s\S]*background:\s*#f7f8fa/);
+  assert.match(loadingCss, /#loginOverlay[\s\S]*background:\s*#ffffff/);
+  assert.match(loadingCss, /\.desktop-loading-screen[\s\S]*background:\s*#ffffff/);
 });
 
 test("Electron loading starts directly at the environment preparation content", () => {

@@ -1,5 +1,5 @@
 body[data-erp="room-service"][data-fioreze-desktop="electron"] #loginOverlay {
-  background: #f7f8fa !important;
+  background: #ffffff !important;
 }
 
 body[data-erp="room-service"][data-fioreze-desktop="electron"] #loginOverlay .login-card.is-loading {
@@ -14,7 +14,7 @@ body[data-erp="room-service"][data-fioreze-desktop="electron"] #loginOverlay .lo
   padding: 0 !important;
   border: 0 !important;
   border-radius: 0 !important;
-  background: #f7f8fa !important;
+  background: #ffffff !important;
   box-shadow: none !important;
   overflow: hidden !important;
 }
@@ -28,7 +28,7 @@ body[data-erp="room-service"][data-fioreze-desktop="electron"] .desktop-loading-
   justify-content: center !important;
   padding: 32px !important;
   border-radius: 0 !important;
-  background: #f7f8fa !important;
+  background: #ffffff !important;
   opacity: 1 !important;
   transform: none !important;
   transition: opacity 160ms ease !important;
