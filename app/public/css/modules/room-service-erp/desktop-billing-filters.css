@@ -1,0 +1,121 @@
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .erp-billing-filters.erp-billing-toolbar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .erp-billing-toolbar .erp-billing-date-field {
+  min-height: 40px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #6f7986 !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  text-transform: none !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .erp-billing-toolbar .erp-billing-filter-label {
+  flex: 0 0 auto;
+  color: #7c8693 !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  text-transform: none !important;
+  white-space: nowrap;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .erp-billing-toolbar .erp-billing-date-input {
+  width: 142px !important;
+  min-width: 142px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  padding: 0 10px !important;
+  border: 1px solid #dde2e8 !important;
+  border-radius: 8px !important;
+  background: #ffffff !important;
+  color: #27303a !important;
+  box-shadow: none !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  color-scheme: light;
+  transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .erp-billing-toolbar .erp-billing-date-input:hover {
+  border-color: #cfd5dc !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .erp-billing-toolbar .erp-billing-date-input:focus,
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .erp-billing-toolbar .erp-billing-date-input:focus-visible {
+  border-color: #c2a94b !important;
+  outline: 0 !important;
+  box-shadow: 0 0 0 3px rgba(194, 169, 75, 0.14) !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .erp-billing-toolbar .erp-billing-date-input::-webkit-calendar-picker-indicator {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  opacity: 0.62;
+  cursor: pointer;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .erp-billing-toolbar .erp-billing-toolbar-action {
+  height: 40px !important;
+  min-height: 40px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 13px !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  white-space: nowrap;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .erp-billing-toolbar .erp-billing-toolbar-refresh {
+  border: 1px solid #dde2e8 !important;
+  background: #ffffff !important;
+  color: #3f4955 !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .erp-billing-toolbar .erp-billing-toolbar-refresh:hover {
+  border-color: #cfd5dc !important;
+  background: #f7f8fa !important;
+  transform: none !important;
+}
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"] .erp-billing-toolbar .erp-billing-toolbar-export {
+  border-radius: 8px !important;
+  transform: none !important;
+}
+
+@media (max-width: 1120px) {
+  body[data-erp="room-service"][data-fioreze-desktop="electron"] .erp-billing-filters.erp-billing-toolbar {
+    justify-content: flex-start !important;
+  }
+}
+
+@media (max-width: 760px) {
+  body[data-erp="room-service"][data-fioreze-desktop="electron"] .erp-billing-toolbar .erp-billing-date-field {
+    width: 100%;
+  }
+
+  body[data-erp="room-service"][data-fioreze-desktop="electron"] .erp-billing-toolbar .erp-billing-date-input {
+    width: min(170px, 100%) !important;
+    min-width: 0 !important;
+  }
+}
