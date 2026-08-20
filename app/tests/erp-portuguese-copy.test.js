@@ -28,6 +28,7 @@ test("ERP Portuguese polish restores diacritics without touching identifiers", (
     ["Com observacao", "Com observação"],
     ["Atualizacao do aplicativo", "Atualização do aplicativo"],
     ["Nova versao disponivel", "Nova versão disponível"],
+    ["ESTA DISPONIVEL", "ESTÁ DISPONÍVEL"],
     ["Nao foi possivel verificar a sessao", "Não foi possível verificar a sessão"],
     ["Impressao e notificacoes", "Impressão e notificações"],
     ["Suite e exibicao", "Suíte e exibição"],
@@ -57,6 +58,9 @@ test("modern ERP modules and native fallback screens keep reviewed Portuguese co
     "app/public/js/modules/room-service-erp/pos.js",
     "app/public/js/modules/room-service-erp/guests.js",
     "app/public/js/modules/room-service-erp/session.js",
+    "app/public/js/modules/room-service-erp/changelog.js",
+    "app/public/js/modules/room-service-erp/sidebar-account.js",
+    "app/public/js/modules/room-service-erp/desktop-loading-experience.js",
     "desktop/room-service/updater.cjs",
     "desktop/room-service/unconfigured.html",
   ].map(read).join("\n");
@@ -71,6 +75,7 @@ test("modern ERP modules and native fallback screens keep reviewed Portuguese co
     "Cardapio",
     "Catalogo",
     "Codigo do usuario",
+    "Conta do usuario",
     "Nao foi possivel",
     "Impressao desativada",
     "Atualizacao",
@@ -78,6 +83,7 @@ test("modern ERP modules and native fallback screens keep reviewed Portuguese co
     "Versao ",
     " disponivel",
     " instalacao ",
+    "Fundacao oficial",
   ];
 
   for (const spelling of forbiddenUiSpellings) {
