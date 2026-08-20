@@ -36,7 +36,9 @@ const WORD_REPLACEMENTS = Object.freeze({
   descricoes: "descrições",
   disponivel: "disponível",
   disponiveis: "disponíveis",
+  edicao: "edição",
   exibicao: "exibição",
+  exclusao: "exclusão",
   exportacao: "exportação",
   exportacoes: "exportações",
   fundacao: "fundação",
@@ -58,10 +60,20 @@ const WORD_REPLACEMENTS = Object.freeze({
   instalacoes: "instalações",
   integracao: "integração",
   integracoes: "integrações",
+  lancamento: "lançamento",
+  lancamentos: "lançamentos",
+  maximo: "máximo",
+  maxima: "máxima",
+  maximos: "máximos",
+  maximas: "máximas",
   media: "média",
   medias: "médias",
   midia: "mídia",
   midias: "mídias",
+  minimo: "mínimo",
+  minima: "mínima",
+  minimos: "mínimos",
+  minimas: "mínimas",
   modulo: "módulo",
   modulos: "módulos",
   nao: "não",
@@ -71,6 +83,8 @@ const WORD_REPLACEMENTS = Object.freeze({
   numeros: "números",
   observacao: "observação",
   observacoes: "observações",
+  opcao: "opção",
+  opcoes: "opções",
   operacao: "operação",
   operacoes: "operações",
   pagina: "página",
@@ -150,7 +164,7 @@ export function normalizeErpPortugueseText(value) {
   if (!output) return output;
 
   for (const [pattern, replacement] of PHRASE_REPLACEMENTS) {
-    output = output.replace(pattern, replacement);
+    output = output.replace(pattern, (match) => applyCasePattern(match, replacement));
   }
 
   output = output.replace(/[A-Za-zÀ-ÿ]+/gu, (token) => {
