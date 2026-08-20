@@ -1,0 +1,9 @@
+body[data-erp="room-service"] .sidebar-account-avatar {
+  background: #ffffff !important;
+  color: #56616d !important;
+}
+
+.dark body[data-erp="room-service"] .sidebar-account-avatar {
+  background: #ffffff !important;
+  color: #56616d !important;
+}

@@ -1,0 +1,53 @@
+body[data-erp="room-service"] .sidebar-footer > .account-popover input[type="range"] {
+  --range-progress: 0%;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  width: 100% !important;
+  height: 18px !important;
+  min-height: 18px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+  cursor: pointer;
+}
+
+body[data-erp="room-service"] .sidebar-footer > .account-popover input[type="range"]::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 4px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(to right, #c2a94b 0%, #c2a94b var(--range-progress), #d8dde3 var(--range-progress), #d8dde3 100%);
+  box-shadow: none;
+}
+
+body[data-erp="room-service"] .sidebar-footer > .account-popover input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  background: #c2a94b;
+  box-shadow: 0 0 0 1px rgba(143, 122, 47, 0.16), 0 2px 5px rgba(31, 38, 46, 0.14);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+body[data-erp="room-service"] .sidebar-footer > .account-popover input[type="range"]:hover::-webkit-slider-thumb {
+  transform: scale(1.08);
+}
+
+body[data-erp="room-service"] .sidebar-footer > .account-popover input[type="range"]:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px rgba(194, 169, 75, 0.2), 0 2px 5px rgba(31, 38, 46, 0.14);
+}
+
+.dark body[data-erp="room-service"] .sidebar-footer > .account-popover input[type="range"]::-webkit-slider-runnable-track {
+  background: linear-gradient(to right, #c2a94b 0%, #c2a94b var(--range-progress), #4a5058 var(--range-progress), #4a5058 100%);
+}
+
+.dark body[data-erp="room-service"] .sidebar-footer > .account-popover input[type="range"]::-webkit-slider-thumb {
+  border-color: #211e1b;
+}

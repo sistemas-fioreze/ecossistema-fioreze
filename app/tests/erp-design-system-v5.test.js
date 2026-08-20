@@ -143,7 +143,7 @@ test("pedidos antigos preservam dados e ocultam nomes operacionais invalidos", (
   assert.match(app, /letters\.length >= 2 \? cleaned : fallback/);
   assert.match(app, /displayGuestName\(order\.guest_name\)/);
   assert.match(app, /displayGuestName\(guest\.guest_name, ""\)/);
-  assert.match(ordersModule, /detail\("Hospede", displayGuestName\(order\.guest_name\)\)/);
+  assert.match(ordersModule, /detail\("Hóspede", displayGuestName\(order\.guest_name\)\)/);
   assert.match(css, /\.order-mini-card \{[\s\S]*min-height: 66px;[\s\S]*padding: 9px 14px !important;/);
 });
 

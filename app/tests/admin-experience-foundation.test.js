@@ -207,7 +207,7 @@ test("Central compartilha as proporcoes e os controles do shell oficial do ERP",
   assert.match(shell, /data-admin-session-toggle/);
   assert.match(shell, /admin-brand-wordmark/);
   assert.match(shell, /admin-sidebar-head[\s\S]*data-admin-shell-toggle[\s\S]*admin-brand-lockup/);
-  assert.match(shell, /data-admin-refresh/);
+  assert.doesNotMatch(shell, /data-admin-refresh/);
   assert.match(shell, /fioreze:admin-refresh/);
   assert.doesNotMatch(shell, /admin-sidebar-footer|admin-brand-symbol/);
   assert.match(css, /\.is-sidebar-compact \.admin-brand-lockup,[\s\S]{0,160}display: none/);

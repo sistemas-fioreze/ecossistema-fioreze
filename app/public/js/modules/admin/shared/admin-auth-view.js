@@ -294,7 +294,6 @@ function enhanceAdminExperience(session) {
         <label>${icon("search")}<input type="search" placeholder="Pesquisar no sistema..." aria-label="Pesquisar no sistema" aria-haspopup="listbox" aria-expanded="false" autocomplete="off"><kbd>Ctrl K</kbd></label>
         <div class="admin-command-results" data-admin-search-results role="listbox" hidden></div>
       </div>
-      <button class="admin-icon-button" type="button" data-admin-refresh aria-label="Atualizar esta tela" title="Atualizar">${icon("refresh")}</button>
       <a class="admin-icon-button admin-mail-button" href="/admin/mensagens/" aria-label="Abrir mensagens" title="Mensagens">${icon("mail")}<span data-admin-unread hidden></span></a>
       <button class="admin-icon-button" type="button" data-admin-help-open aria-label="Abrir ajuda desta página" title="Ajuda">${icon("help")}</button>
     `;
@@ -317,7 +316,6 @@ function enhanceAdminExperience(session) {
     if (event.target.closest("[data-admin-backdrop]")) setMenuOpen(false);
     if (event.target.closest("[data-admin-help-open]")) setHelpOpen(true);
     if (event.target.closest("[data-admin-help-close]")) setHelpOpen(false);
-    if (event.target.closest("[data-admin-refresh]")) requestContentRefresh();
     if (event.target.closest("[data-admin-session-toggle]")) setSessionOpen(!sessionBox?.classList.contains("is-open"));
     if (!event.target.closest(".admin-session-box")) setSessionOpen(false);
   });
