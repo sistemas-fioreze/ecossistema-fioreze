@@ -1,4 +1,4 @@
-const STYLESHEET_HREF = "/css/modules/room-service-erp/desktop-billing-filters.css?v=20260819-2";
+const STYLESHEET_HREF = "/css/modules/room-service-erp/desktop-billing-filters.css?v=20260819-3";
 
 export function setupDesktopBillingFilters(root = document) {
   if (!window.fiorezeDesktop?.isElectron) return;
