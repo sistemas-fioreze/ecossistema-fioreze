@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { HELP_ARTICLES, HELP_CATEGORIES } from "../public/js/modules/room-service-erp/help-content.js";
-import { canAccessHelpArticle, searchHelpArticles } from "../public/js/modules/room-service-erp/help.js";
+import { canAccessHelpArticle } from "../public/js/modules/room-service-erp/help.js";
 
 const appRoot = path.resolve(import.meta.dirname, "..");
 const read = (relative) => fs.readFileSync(path.join(appRoot, relative), "utf8");
@@ -19,18 +19,6 @@ test("Help Center documents only the audited Room Service ERP modules", () => {
   assert.equal(new Set(HELP_ARTICLES.map((article) => article.id)).size, HELP_ARTICLES.length);
 });
 
-test("Help search indexes title, keywords, category and step content", () => {
-  const printResults = searchHelpArticles(HELP_ARTICLES, "imprimir pedido");
-  assert.ok(printResults.some((article) => article.id === "orders-reprint"));
-  assert.ok(printResults.some((article) => article.id === "printing-setup"));
-
-  const scheduleResults = searchHelpArticles(HELP_ARTICLES, "horarios automatico");
-  assert.equal(scheduleResults[0]?.id, "operation-hours");
-
-  const billingResults = searchHelpArticles(HELP_ARTICLES, "exportar csv");
-  assert.equal(billingResults[0]?.id, "billing-review-export");
-});
-
 test("Help articles respect ERP permissions and platform", () => {
   const catalog = HELP_ARTICLES.find((article) => article.id === "catalog-manage-products");
   const updates = HELP_ARTICLES.find((article) => article.id === "desktop-updates");
@@ -41,6 +29,18 @@ test("Help articles respect ERP permissions and platform", () => {
   assert.equal(canAccessHelpArticle(updates, { isElectron: true }), true);
 });
 
+test("Help Center omits internal search and browser-like navigation", () => {
+  const help = read("public/js/modules/room-service-erp/help.js");
+  const css = read("public/css/modules/room-service-erp/help-center.css");
+
+  assert.doesNotMatch(help, /erpHelpSearch|Pesquisar na ajuda|Ctrl K/);
+  assert.doesNotMatch(help, /erp-help-history|data-help-action="forward"|data-help-action="home"/);
+  assert.doesNotMatch(help, /<small>ERP Fioreze<\/small>/);
+  assert.match(help, /erp-help-contextual/);
+  assert.match(help, /data-help-action="back"/);
+  assert.doesNotMatch(css, /\.erp-help-search|\.erp-help-history/);
+});
+
 test("Help Center is integrated once into the shared web and Electron ERP shell", () => {
   const html = read("public/erp/room-service/index.html");
   const app = read("public/js/modules/room-service-erp/legacy-app.js");
@@ -48,8 +48,9 @@ test("Help Center is integrated once into the shared web and Electron ERP shell"
   const help = read("public/js/modules/room-service-erp/help.js");
   const css = read("public/css/modules/room-service-erp/help-center.css");
 
-  assert.match(html, /help-center\.css\?v=20260820-4/);
-  assert.match(entry, /legacy-app\.js\?v=20260820-4/);
+  assert.match(html, /help-center\.css\?v=20260820-5/);
+  assert.match(html, /app\.js\?v=20260820-6/);
+  assert.match(entry, /legacy-app\.js\?v=20260820-5/);
   assert.match(app, /setupHelpCenter/);
   assert.match(app, /getPermissions: \(\) => state\.session\?\.permissions/);
   assert.match(app, /isElectron: \(\) => desktop\.isElectron/);
@@ -58,9 +59,15 @@ test("Help Center is integrated once into the shared web and Electron ERP shell"
   assert.match(help, /iconMarkup\("circle-help"\)/);
   assert.match(help, /role="dialog" aria-modal="true"/);
   assert.match(help, /data-help-action="context"/);
+  assert.match(help, /erp-help-contextual/);
+  assert.match(help, /data-help-action="back"/);
   assert.match(help, /loading="lazy" decoding="async"/);
   assert.match(help, /event\.key === "Escape"/);
+  assert.doesNotMatch(help, /erpHelpSearch|Pesquisar na ajuda|Ctrl K|erp-help-history|data-help-action="forward"/);
+  assert.doesNotMatch(help, /<small>ERP Fioreze<\/small>/);
   assert.match(css, /data-fioreze-desktop="electron"/);
+  assert.match(css, /height: 56px/);
+  assert.doesNotMatch(css, /\.erp-help-search|\.erp-help-history/);
   assert.match(css, /@media \(max-width: 780px\)/);
   assert.match(css, /@media \(max-width: 580px\)/);
 });

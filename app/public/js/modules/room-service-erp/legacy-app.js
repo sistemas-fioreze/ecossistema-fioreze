@@ -45,7 +45,7 @@ import {
   uploadOwnAvatar,
 } from "./api.js";
 import { desktop } from "./desktop-adapter.js";
-import { setupHelpCenter } from "./help.js?v=20260820-4";
+import { setupHelpCenter } from "./help.js?v=20260820-5";
 import { iconMarkup } from "./icon-system.js";
 import { buildInterfaceViewport } from "./interface-viewport.js";
 import { bindPdvCheckoutActions, bindPdvDropTarget, bindPdvProductDrag } from "./pdv-actions.js";
