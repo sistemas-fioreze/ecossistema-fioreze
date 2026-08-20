@@ -69,6 +69,7 @@ export async function setupDesktopControls(root = document) {
   document.documentElement.dataset.fiorezeDesktop = "electron";
   document.documentElement.dataset.windowMaterial = "solid";
   document.documentElement.dataset.windowControls = controlMode;
+  installDesktopSearchPolish(root);
   const customWindowControls = root.querySelector(".rs-window-controls");
   if (customWindowControls) customWindowControls.hidden = controlMode === "native";
   root.getElementById("desktopTitlebar")?.removeAttribute("hidden");
@@ -99,6 +100,15 @@ export async function setupDesktopControls(root = document) {
   syncDesktopPrintStatus(root);
   window.setInterval(() => syncDesktopPrintStatus(root), 10_000);
   installDesktopUpdater(root);
+}
+
+function installDesktopSearchPolish(root) {
+  if (root.getElementById("desktopSearchPolishStylesheet")) return;
+  const stylesheet = root.createElement("link");
+  stylesheet.id = "desktopSearchPolishStylesheet";
+  stylesheet.rel = "stylesheet";
+  stylesheet.href = "/css/modules/room-service-erp/desktop-search-polish.css?v=20260819-2";
+  root.head.append(stylesheet);
 }
 
 function installDesktopWorkspace(root) {
