@@ -12,7 +12,7 @@ export function setupDesktopLoadingExperience(root = document) {
   screen.dataset.desktopLoadingReady = "true";
   screen.classList.add("desktop-loading-screen");
 
-  const originalMessage = root.getElementById("loginLoadingText")?.textContent?.trim() || "Verificando sessao...";
+  const originalMessage = root.getElementById("loginLoadingText")?.textContent?.trim() || "Verificando sessão...";
   screen.replaceChildren(buildExperience(root, originalMessage));
 
   const bridge = root.getElementById("loginLoadingText");
