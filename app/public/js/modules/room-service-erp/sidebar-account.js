@@ -1,6 +1,7 @@
 const STYLESHEET_HREF = "/css/modules/room-service-erp/sidebar-account.css?v=20260819-2";
 const RANGE_STYLESHEET_HREF = "/css/modules/room-service-erp/sidebar-account-range.css?v=20260819-1";
 const LAYOUT_STYLESHEET_HREF = "/css/modules/room-service-erp/sidebar-account-layout-v2.css?v=20260819-1";
+const AVATAR_STYLESHEET_HREF = "/css/modules/room-service-erp/sidebar-account-avatar.css?v=20260819-1";
 
 export function setupSidebarAccount(root = document) {
   if (!window.fiorezeDesktop?.isElectron) return;
@@ -111,5 +112,13 @@ function ensureStyles(root) {
     layoutLink.href = LAYOUT_STYLESHEET_HREF;
     layoutLink.dataset.erpSidebarAccountLayout = "";
     root.head.append(layoutLink);
+  }
+
+  if (!root.querySelector('link[data-erp-sidebar-account-avatar]')) {
+    const avatarLink = root.createElement("link");
+    avatarLink.rel = "stylesheet";
+    avatarLink.href = AVATAR_STYLESHEET_HREF;
+    avatarLink.dataset.erpSidebarAccountAvatar = "";
+    root.head.append(avatarLink);
   }
 }

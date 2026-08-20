@@ -5,6 +5,7 @@ import test from "node:test";
 const appEntry = fs.readFileSync(new URL("../public/js/modules/room-service-erp/app.js", import.meta.url), "utf8");
 const accountModule = fs.readFileSync(new URL("../public/js/modules/room-service-erp/sidebar-account.js", import.meta.url), "utf8");
 const accountCss = fs.readFileSync(new URL("../public/css/modules/room-service-erp/sidebar-account.css", import.meta.url), "utf8");
+const accountAvatarCss = fs.readFileSync(new URL("../public/css/modules/room-service-erp/sidebar-account-avatar.css", import.meta.url), "utf8");
 const accountLayoutCss = fs.readFileSync(new URL("../public/css/modules/room-service-erp/sidebar-account-layout-v2.css", import.meta.url), "utf8");
 const rangeCss = fs.readFileSync(new URL("../public/css/modules/room-service-erp/sidebar-account-range.css", import.meta.url), "utf8");
 
@@ -24,9 +25,12 @@ test("sidebar account reuses the live user identity and Lucide fallback", () => 
   assert.match(accountModule, /quick-tile\.logout/);
 });
 
-test("sidebar account is round and collapses to avatar-only mode", () => {
+test("sidebar account is round, white and collapses to avatar-only mode", () => {
   assert.match(accountCss, /\.sidebar-account-avatar[\s\S]*border-radius:\s*50%/);
   assert.match(accountCss, /\.sidebar-account-photo[\s\S]*border-radius:\s*50%/);
+  assert.match(accountModule, /sidebar-account-avatar\.css\?v=20260819-1/);
+  assert.match(accountAvatarCss, /\.sidebar-account-avatar[\s\S]*background:\s*#ffffff !important/);
+  assert.match(accountAvatarCss, /\.sidebar-account-avatar[\s\S]*color:\s*#56616d !important/);
   assert.match(accountCss, /sidebar-collapsed \.sidebar-account-copy[\s\S]*sidebar-account-logout[\s\S]*display:\s*none/);
 });
 
