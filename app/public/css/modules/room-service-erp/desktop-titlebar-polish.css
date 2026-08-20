@@ -1,0 +1,12 @@
+/* Electron-only titlebar refinements. */
+
+body[data-erp="room-service"][data-fioreze-desktop="electron"][data-window-maximized="true"] .rs-desktop-workspace .top-search {
+  position: fixed !important;
+  top: 4px !important;
+  left: 50% !important;
+  right: auto !important;
+  margin: 0 !important;
+  transform: translateX(-50%) !important;
+  z-index: 100010 !important;
+  -webkit-app-region: no-drag !important;
+}
