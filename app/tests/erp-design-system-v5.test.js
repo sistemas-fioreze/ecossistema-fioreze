@@ -131,6 +131,20 @@ test("conta e suporte usam estados visuais controlados", () => {
   assert.match(css, /\.erp-account-settings \{[\s\S]*grid-template-columns: minmax\(300px, \.8fr\) minmax\(420px, 1\.2fr\)/);
   assert.match(css, /\.erp-feedback-preview img\[hidden\]/);
   assert.match(css, /\.top-search-item\.active[\s\S]*background: var\(--brand-primary-soft\)/);
+  assert.match(css, /\.account-popover \{[\s\S]*inset: calc\(100% \+ 8px\) 18px auto auto !important;/);
+});
+
+test("pedidos antigos preservam dados e ocultam nomes operacionais invalidos", () => {
+  const css = read("public/css/modules/room-service-erp/design-system-v5.css");
+  const app = read("public/js/modules/room-service-erp/legacy-app.js");
+  const ordersModule = read("public/js/modules/room-service-erp/orders.js");
+
+  assert.match(app, /function displayGuestName\(value, fallback = "Hóspede não informado"\)/);
+  assert.match(app, /letters\.length >= 2 \? cleaned : fallback/);
+  assert.match(app, /displayGuestName\(order\.guest_name\)/);
+  assert.match(app, /displayGuestName\(guest\.guest_name, ""\)/);
+  assert.match(ordersModule, /detail\("Hóspede", displayGuestName\(order\.guest_name\)\)/);
+  assert.match(css, /\.order-mini-card \{[\s\S]*min-height: 66px;[\s\S]*padding: 9px 14px !important;/);
 });
 
 test("login, menu rapido e escala usam a estrutura final sem superficies concorrentes", () => {
@@ -187,7 +201,7 @@ test("PDV ancora a comanda e separa cabecalho, lista rolavel e rodape fixo", () 
   assert.match(css, /--erp-desktop-titlebar-height: 44px;/);
   assert.match(css, /data-fioreze-desktop="electron"\] #appShell\.app-shell \{\s*height: calc\(100dvh - var\(--erp-desktop-titlebar-height\)\) !important;/);
   assert.match(css, /\.erp-pdv-list \{[\s\S]*minmax\(300px, 1fr\)/);
-  assert.match(css, /#menuContent \.erp-pdv-card-copy p \{[\s\S]*-webkit-line-clamp: 2;/);
+  assert.match(css, /#menuContent \.erp-pdv-card-copy p \{[\s\S]*-webkit-line-clamp: 1;/);
   assert.match(css, /#menuContent \.erp-pdv-card-action \{[\s\S]*border-top: 0 !important;/);
   assert.doesNotMatch(app, /Selecione um item para adicionar/);
   assert.doesNotMatch(app, /class="erp-pdv-order-head"/);

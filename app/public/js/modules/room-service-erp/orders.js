@@ -59,7 +59,7 @@ function renderOrderDetail(order) {
     <div class="rs-detail-grid">
       ${detail("Status", statusLabel(order.status))}
       ${detail("Hotel", order.hotel_name)}
-      ${detail("Hóspede", order.guest_name || "Não informado")}
+      ${detail("Hóspede", displayGuestName(order.guest_name))}
       ${detail("Acomodação", order.delivery?.room_code || order.room_code || "Não informada")}
       ${detail("Origem", order.origin)}
       ${detail("Total", formatMoney(order.total_cents, order.currency))}
@@ -86,6 +86,12 @@ function orderDisplayLabel(order) {
   if (displayNumber > 0) return `Pedido #${displayNumber}`;
   const legacyNumber = String(order?.public_id || "").match(/(?:^|[-_])(\d{1,8})$/)?.[1];
   return legacyNumber ? `Pedido #${legacyNumber}` : "Pedido";
+}
+
+function displayGuestName(value, fallback = "Hóspede não informado") {
+  const cleaned = String(value ?? "").trim().replace(/\s+/g, " ");
+  const letters = cleaned.replace(/[^\p{L}]/gu, "");
+  return letters.length >= 2 ? cleaned : fallback;
 }
 
 function escapeHtml(value) {
