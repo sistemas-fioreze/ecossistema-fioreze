@@ -9,14 +9,18 @@ body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-works
   width: clamp(320px, 32vw, 450px) !important;
   min-width: 280px !important;
   max-width: 450px !important;
+  align-self: center !important;
   z-index: 100010 !important;
 }
 
 body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-box {
-  height: 40px !important;
-  min-height: 40px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  display: flex !important;
+  align-items: center !important;
+  box-sizing: border-box !important;
   gap: 9px !important;
-  padding: 0 11px 0 12px !important;
+  padding: 0 10px 0 12px !important;
   overflow: hidden !important;
   border: 1px solid #d9dee5 !important;
   border-radius: 10px !important;
@@ -45,7 +49,7 @@ body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-works
 }
 
 body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-box input {
-  height: 38px !important;
+  height: 34px !important;
   min-width: 0 !important;
   flex: 1 1 auto !important;
   padding: 0 !important;
@@ -69,8 +73,16 @@ body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-works
 
 body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search-box kbd {
   min-width: 0 !important;
-  margin-left: auto !important;
-  padding: 2px 6px !important;
+  height: 20px !important;
+  min-height: 20px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  align-self: center !important;
+  flex: 0 0 auto !important;
+  margin: 0 0 0 auto !important;
+  padding: 0 6px !important;
+  box-sizing: border-box !important;
   border: 1px solid #e0e4e8 !important;
   border-radius: 6px !important;
   background: #f2f4f6 !important;
@@ -82,6 +94,7 @@ body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-works
   line-height: 1 !important;
   letter-spacing: 0 !important;
   white-space: nowrap !important;
+  vertical-align: middle !important;
 }
 
 body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-workspace .top-search:has(.top-search-results:not(.hidden)) .top-search-box {
@@ -166,7 +179,7 @@ body[data-erp="room-service"][data-fioreze-desktop="electron"] .rs-desktop-works
   display: block !important;
   margin-top: 2px !important;
   color: #7d8896 !important;
-  font-size: 11px !important;
+  font-size: 12px !important;
   font-weight: 500 !important;
   line-height: 1.2 !important;
 }
