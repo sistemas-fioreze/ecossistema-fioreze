@@ -129,11 +129,11 @@ function closeEasterEgg(root) {
 
 function easterEggMarkup() {
   return `<div class="wesley-easter-overlay" id="wesleyEasterOverlay" aria-hidden="true">
-    <section class="wesley-retro-window" id="wesleyRetroWindow" role="dialog" aria-modal="true" aria-label="Sobre este programa">
-      <header class="wesley-titlebar">
+    <div class="wesley-retro-window" id="wesleyRetroWindow" role="dialog" aria-modal="true" aria-label="Sobre este programa">
+      <div class="wesley-titlebar">
         <span class="wesley-titlebar-text">Sobre este programa</span>
         <button class="wesley-close-button" id="wesleyCloseButton" type="button" data-wesley-easter-close aria-label="Fechar">×</button>
-      </header>
+      </div>
       <div class="wesley-window-content">
         <div class="wesley-wordart-area">
           <div class="wesley-wordart-grid" aria-hidden="true"></div>
@@ -143,7 +143,7 @@ function easterEggMarkup() {
           <span class="wesley-star four" aria-hidden="true">✧</span>
           <div class="wesley-wordart-wrapper">
             <div class="wesley-wordart" id="wesleyWordart">WESLEY<br>LACERDA</div>
-            <p class="wesley-wordart-subtitle">certified computer person</p>
+            <div class="wesley-wordart-subtitle">certified computer person</div>
           </div>
         </div>
         <div class="wesley-info-panel">
@@ -154,11 +154,11 @@ function easterEggMarkup() {
           <div class="wesley-info-row"><span class="wesley-label">Status:</span><span>"por incrível q pareça, tá funcionando"</span></div>
           <div class="wesley-info-row"><span class="wesley-label">Histórico:</span><span>planilha → Apps Script → Python → Cloudflare → D1 → Electron → "só mais uma coisinha"</span></div>
         </div>
-        <div class="wesley-marquee-shell" aria-hidden="true"><p class="wesley-marquee">★ ESTE ERP SOBREVIVEU A REDESIGNS, MIGRAÇÕES, IMPRESSORAS TÉRMICAS, CLOUDFLARE, ELECTRON E INÚMEROS "GEPE FAZ UM PROMPT PRA MIM" ★</p></div>
-        <p class="wesley-secret-message" id="wesleySecretMessage">Parabéns. Você clicou até encontrar o desenvolvedor.</p>
+        <div class="wesley-marquee-shell" aria-hidden="true"><div class="wesley-marquee">★ ESTE ERP SOBREVIVEU A REDESIGNS, MIGRAÇÕES, IMPRESSORAS TÉRMICAS, CLOUDFLARE, ELECTRON E INÚMEROS "GEPE FAZ UM PROMPT PRA MIM" ★</div></div>
+        <div class="wesley-secret-message" id="wesleySecretMessage">Parabéns. Você clicou até encontrar o desenvolvedor.</div>
         <div class="wesley-actions"><button class="wesley-retro-button" id="wesleyOkButton" type="button" data-wesley-easter-close>OK</button></div>
       </div>
-    </section>
+    </div>
   </div>`;
 }
 

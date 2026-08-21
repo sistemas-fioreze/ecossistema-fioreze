@@ -14,7 +14,6 @@ body[data-erp="room-service"] .wesley-easter-overlay {
   display: none;
   align-items: center;
   justify-content: center;
-  padding: 12px;
   background: rgba(0, 0, 0, .16);
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
@@ -32,9 +31,7 @@ body[data-erp="room-service"].rs-electron-shell:has(.wesley-easter-overlay.activ
 body[data-erp="room-service"] .wesley-retro-window {
   width: 560px;
   max-width: calc(100vw - 24px);
-  max-height: calc(100vh - 24px);
   padding: 3px;
-  overflow: auto;
   color: #080808;
   background: #c0c0c0;
   border-top: 2px solid #fff;
@@ -47,8 +44,8 @@ body[data-erp="room-service"] .wesley-retro-window {
   opacity: 0;
 }
 
-body[data-erp="room-service"] .wesley-retro-window.opening {
-  animation: wesleyWindowOpen .22s steps(4, end) forwards;
+body[data-erp="room-service"] .wesley-easter-overlay.active .wesley-retro-window.opening {
+  animation: wesleyWindowOpen .22s steps(4, end) forwards !important;
 }
 
 body[data-erp="room-service"] .wesley-titlebar {
@@ -87,6 +84,8 @@ body[data-erp="room-service"] .wesley-close-button {
   font-size: 11px !important;
   font-weight: bold !important;
   line-height: 1;
+  text-align: center;
+  appearance: auto;
   cursor: default;
 }
 
@@ -95,6 +94,7 @@ body[data-erp="room-service"] .wesley-close-button:active {
   border-left-color: #404040 !important;
   border-right-color: #fff !important;
   border-bottom-color: #fff !important;
+  transform: none !important;
 }
 
 body[data-erp="room-service"] .wesley-close-button:hover,
@@ -134,7 +134,10 @@ body[data-erp="room-service"] .wesley-star {
   color: #fff;
   font-family: "Times New Roman", serif;
   text-shadow: 1px 1px #000, 2px 2px #000080;
-  animation: wesleyStarBlink 1.2s steps(2, end) infinite;
+}
+
+body[data-erp="room-service"] .wesley-easter-overlay.active .wesley-star {
+  animation: wesleyStarBlink 1.2s steps(2, end) infinite !important;
 }
 
 body[data-erp="room-service"] .wesley-star.one { top: 18px; left: 25px; font-size: 27px; }
@@ -167,7 +170,10 @@ body[data-erp="room-service"] .wesley-wordart {
   text-shadow: 3px 3px 0 #f00, 6px 6px 0 #800080, 9px 9px 0 rgba(0, 0, 0, .45);
   cursor: default;
   transform: perspective(500px) rotateX(8deg) skewX(-7deg);
-  animation: wesleyWordartEntrance .6s steps(6, end);
+}
+
+body[data-erp="room-service"] .wesley-easter-overlay.active .wesley-wordart {
+  animation: wesleyWordartEntrance .6s steps(6, end) !important;
 }
 
 body[data-erp="room-service"] .wesley-wordart-subtitle {
@@ -216,7 +222,10 @@ body[data-erp="room-service"] .wesley-marquee {
   white-space: nowrap;
   font-family: "Courier New", monospace;
   font-size: 11px;
-  animation: wesleyMarquee 13s linear infinite;
+}
+
+body[data-erp="room-service"] .wesley-easter-overlay.active .wesley-marquee {
+  animation: wesleyMarquee 13s linear infinite !important;
 }
 
 body[data-erp="room-service"] .wesley-secret-message {
@@ -246,6 +255,9 @@ body[data-erp="room-service"] .wesley-retro-button {
   font-family: Tahoma, Arial, sans-serif !important;
   font-size: 11px !important;
   font-weight: 400;
+  line-height: normal !important;
+  text-align: center;
+  appearance: auto;
   cursor: default;
 }
 
@@ -255,11 +267,13 @@ body[data-erp="room-service"] .wesley-retro-button:active {
   border-left-color: #404040;
   border-right-color: #fff;
   border-bottom-color: #fff;
+  transform: none !important;
 }
 
-body[data-erp="room-service"] .wesley-retro-button:focus {
-  outline: 1px dotted #000;
-  outline-offset: -5px;
+body[data-erp="room-service"] .wesley-retro-button:focus,
+body[data-erp="room-service"] .wesley-retro-button:focus-visible {
+  outline: 1px dotted #000 !important;
+  outline-offset: -5px !important;
 }
 
 @keyframes wesleyWindowOpen {
