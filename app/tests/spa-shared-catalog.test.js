@@ -146,6 +146,24 @@ test("migration do Spa cria conteudo compartilhado e registra 13 servicos sem en
   assert.equal((migration.match(/'spa-zena-[a-z-]+',\n    '/g) || []).length, 13);
 });
 
+test("menu aprovado de 2026 atualiza o catalogo compartilhado com imagens auditaveis", () => {
+  const migration = fs.readFileSync(`${APP_ROOT}/migrations/0048_spa_zena_2026_catalog.sql`, "utf8");
+
+  assert.match(migration, /'spa-zena-esferas-sal-himalaia'/);
+  assert.match(migration, /'spa-zena-massagem-cranio-facial'/);
+  assert.match(migration, /'media-spa-zena-2026-cranio-facial'/);
+  assert.match(migration, /'media-spa-zena-2026-banho-imersao'/);
+  assert.match(migration, /'spa-zena-massagem-relaxante',[\s\S]*?31000/);
+  assert.match(migration, /'spa-zena-massagem-terapeutica',[\s\S]*?34500/);
+  assert.match(migration, /'spa-zena-esfoliacao-corporal',[\s\S]*?17500/);
+  assert.match(migration, /'spa-zena-banho-imersao',[\s\S]*?31000/);
+  assert.match(migration, /'spa-zena-massagem-kids',[\s\S]*?'spa-zena-spa-day-revigorante'/);
+  assert.match(migration, /status = 'archived'/);
+  assert.match(migration, /b7fbe8ed03529590819c115d932e522a9484dd92be19adc729e1006e13f093ba/);
+  assert.match(migration, /a6cc2d67af00a777b18590b0e313b54b9e39c0cb708086cf66b88f45a7852ff5/);
+  assert.doesNotMatch(migration, /script\.google\.com|apps script/i);
+});
+
 test("normalizacao visual do Spa preserva busca sem acentos e preco brasileiro", () => {
   assert.equal(internalsForTests.normalizeSearch("Terapia com Pedras Quentes"), "terapia com pedras quentes");
   assert.equal(internalsForTests.normalizeSearch("Esfoliação"), "esfoliacao");

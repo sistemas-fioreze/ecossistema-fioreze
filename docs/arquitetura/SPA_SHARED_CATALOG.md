@@ -81,4 +81,20 @@ Toda mutação usa consultas parametrizadas, proteção administrativa de origem
 
 Os binários não ficam no Git. Antes de aplicar a migration em um ambiente, os quatorze objetos devem ser enviados ao bucket configurado nos caminhos `shared/spa/brand/` e `shared/spa/catalog/`, preservando os hashes registrados.
 
+`0048_spa_zena_2026_catalog.sql` atualiza o catálogo para o menu aprovado em agosto de 2026:
+
+- mantém o catálogo único para todas as unidades;
+- publica onze terapias ativas, com preços, durações e descrições aprovados;
+- adiciona Massagem com Esferas de Sal do Himalaia e Massagem Crânio-Facial;
+- arquiva Massagem Kids, Ritual Zena Sal & Chama e os dois Spa-Day anteriores;
+- reutiliza as imagens aprovadas que já estavam no R2;
+- registra novas imagens somente para a massagem crânio-facial e o banho de imersão.
+
+Os dois novos binários permanecem fora do Git e devem ser enviados antes da migration:
+
+| Objeto R2 | SHA-256 |
+| --- | --- |
+| `shared/spa/catalog/2026/spa-zena-2026-cranio-facial.png` | `b7fbe8ed03529590819c115d932e522a9484dd92be19adc729e1006e13f093ba` |
+| `shared/spa/catalog/2026/spa-zena-2026-banho-imersao.png` | `a6cc2d67af00a777b18590b0e313b54b9e39c0cb708086cf66b88f45a7852ff5` |
+
 O portal e o editor não chamam Apps Script, Google Sheets ou o endpoint antigo.
