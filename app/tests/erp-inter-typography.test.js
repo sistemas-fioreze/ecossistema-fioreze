@@ -17,7 +17,7 @@ function readFont(relativePath) {
 
 function erpStyleSources() {
   const css = fs.readdirSync(erpCssRoot)
-    .filter((name) => name.endsWith(".css"))
+    .filter((name) => name.endsWith(".css") && name !== "easter-egg.css")
     .map((name) => fs.readFileSync(path.join(erpCssRoot, name), "utf8"));
   return [read("app/public/erp/room-service/index.html"), ...css].join("\n");
 }

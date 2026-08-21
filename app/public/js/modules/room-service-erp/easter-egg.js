@@ -10,7 +10,7 @@ const FUNNY_VERSIONS = [
   "v9.9-definitivamente-ultima-versao",
   "v10.0-final-finalissimo-REV3",
   "v2026.8-gepe-approved",
-  "v-infinita-em-desenvolvimento",
+  "v∞-em-desenvolvimento",
 ];
 
 let previousFocus = null;
@@ -113,9 +113,8 @@ function openEasterEgg(root) {
   windowElement.classList.remove("opening");
   void windowElement.offsetWidth;
   windowElement.classList.add("opening");
-  renderLucideIcons(overlay);
   playStartupSound();
-  setTimeout(() => overlay.querySelector("[data-wesley-easter-close]")?.focus(), 80);
+  setTimeout(() => overlay.querySelector("#wesleyOkButton")?.focus(), 100);
 }
 
 function closeEasterEgg(root) {
@@ -130,45 +129,37 @@ function closeEasterEgg(root) {
 
 function easterEggMarkup() {
   return `<div class="wesley-easter-overlay" id="wesleyEasterOverlay" aria-hidden="true">
-    <section class="wesley-retro-window" id="wesleyRetroWindow" role="dialog" aria-modal="true" aria-labelledby="wesleyEasterTitle">
+    <section class="wesley-retro-window" id="wesleyRetroWindow" role="dialog" aria-modal="true" aria-label="Sobre este programa">
       <header class="wesley-titlebar">
-        <span class="wesley-titlebar-text" id="wesleyEasterTitle">Sobre este programa</span>
-        <button class="wesley-close-button" type="button" data-wesley-easter-close aria-label="Fechar"><i data-lucide="x" aria-hidden="true"></i></button>
+        <span class="wesley-titlebar-text">Sobre este programa</span>
+        <button class="wesley-close-button" id="wesleyCloseButton" type="button" data-wesley-easter-close aria-label="Fechar">×</button>
       </header>
       <div class="wesley-window-content">
         <div class="wesley-wordart-area">
           <div class="wesley-wordart-grid" aria-hidden="true"></div>
-          <i class="wesley-css-star one" aria-hidden="true"></i><i class="wesley-css-star two" aria-hidden="true"></i>
-          <i class="wesley-css-star three" aria-hidden="true"></i><i class="wesley-css-star four" aria-hidden="true"></i>
+          <span class="wesley-star one" aria-hidden="true">★</span>
+          <span class="wesley-star two" aria-hidden="true">✦</span>
+          <span class="wesley-star three" aria-hidden="true">★</span>
+          <span class="wesley-star four" aria-hidden="true">✧</span>
           <div class="wesley-wordart-wrapper">
-            <button class="wesley-wordart" id="wesleyWordart" type="button">WESLEY<br>LACERDA</button>
+            <div class="wesley-wordart" id="wesleyWordart">WESLEY<br>LACERDA</div>
             <p class="wesley-wordart-subtitle">certified computer person</p>
           </div>
         </div>
-        <dl class="wesley-info-panel">
-          <div class="wesley-info-row"><dt>Produto:</dt><dd>Fioreze ERP</dd></div>
-          <div class="wesley-info-row"><dt>Criador:</dt><dd>Wesley Lacerda</dd></div>
-          <div class="wesley-info-row"><dt>Versão:</dt><dd class="wesley-version" id="wesleyFunnyVersion"></dd></div>
-          <div class="wesley-info-row"><dt>Build:</dt><dd>*preciso de um café</dd></div>
-          <div class="wesley-info-row"><dt>Status:</dt><dd>“por incrível que pareça, está funcionando”</dd></div>
-          <div class="wesley-info-row"><dt>Histórico:</dt><dd>planilha → Apps Script → Python → Cloudflare → D1 → Electron → “só mais uma coisinha”</dd></div>
-        </dl>
-        <div class="wesley-marquee-shell" aria-hidden="true"><p class="wesley-marquee">ESTE ERP SOBREVIVEU A REDESIGNS, MIGRAÇÕES, IMPRESSORAS TÉRMICAS, CLOUDFLARE, ELECTRON E INÚMEROS “GEPE, FAZ UM PROMPT PRA MIM”</p></div>
+        <div class="wesley-info-panel">
+          <div class="wesley-info-row"><span class="wesley-label">Produto:</span><span>ERP</span></div>
+          <div class="wesley-info-row"><span class="wesley-label">Criador:</span><span>Wesley Lacerda</span></div>
+          <div class="wesley-info-row"><span class="wesley-label">Versão:</span><span class="wesley-version" id="wesleyFunnyVersion"></span></div>
+          <div class="wesley-info-row"><span class="wesley-label">Build:</span><span>*preciso de um café</span></div>
+          <div class="wesley-info-row"><span class="wesley-label">Status:</span><span>"por incrível q pareça, tá funcionando"</span></div>
+          <div class="wesley-info-row"><span class="wesley-label">Histórico:</span><span>planilha → Apps Script → Python → Cloudflare → D1 → Electron → "só mais uma coisinha"</span></div>
+        </div>
+        <div class="wesley-marquee-shell" aria-hidden="true"><p class="wesley-marquee">★ ESTE ERP SOBREVIVEU A REDESIGNS, MIGRAÇÕES, IMPRESSORAS TÉRMICAS, CLOUDFLARE, ELECTRON E INÚMEROS "GEPE FAZ UM PROMPT PRA MIM" ★</p></div>
         <p class="wesley-secret-message" id="wesleySecretMessage">Parabéns. Você clicou até encontrar o desenvolvedor.</p>
-        <div class="wesley-actions"><button class="wesley-retro-button" type="button" data-wesley-easter-close>OK</button></div>
+        <div class="wesley-actions"><button class="wesley-retro-button" id="wesleyOkButton" type="button" data-wesley-easter-close>OK</button></div>
       </div>
     </section>
   </div>`;
-}
-
-function renderLucideIcons(root) {
-  const runtime = globalThis.FiorezeLucide;
-  if (!runtime?.createIcons || !runtime?.icons) return;
-  runtime.createIcons({
-    icons: runtime.icons,
-    attrs: { "stroke-width": "1.9", "stroke-linecap": "round", "stroke-linejoin": "round" },
-    root,
-  });
 }
 
 function getAudioContext() {
@@ -187,7 +178,7 @@ function playStartupSound() {
     const gain = context.createGain();
     oscillator.type = "sine";
     oscillator.frequency.value = frequency;
-    gain.gain.setValueAtTime(0.045, context.currentTime + delay);
+    gain.gain.setValueAtTime(0.055, context.currentTime + delay);
     gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + delay + 0.22);
     oscillator.connect(gain);
     gain.connect(context.destination);
@@ -204,7 +195,7 @@ function playSecretSound() {
   oscillator.type = "square";
   oscillator.frequency.setValueAtTime(900, context.currentTime);
   oscillator.frequency.setValueAtTime(1200, context.currentTime + 0.07);
-  gain.gain.setValueAtTime(0.02, context.currentTime);
+  gain.gain.setValueAtTime(0.025, context.currentTime);
   gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.16);
   oscillator.connect(gain);
   gain.connect(context.destination);

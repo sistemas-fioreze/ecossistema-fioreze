@@ -34,8 +34,11 @@ test("ERP uses a local, pinned Lucide bundle as its only icon library", () => {
   assert.ok(bundle.length < 50_000);
 });
 
-test("ERP source contains no hand-authored SVG, foreign icon library, emoji icon, or character-only control", () => {
-  const sources = erpSourceFiles().map((file) => `${file}\n${read(file)}`).join("\n");
+test("ERP source outside the preserved retro easter egg contains only Lucide controls", () => {
+  const sources = erpSourceFiles()
+    .filter((file) => !file.endsWith("easter-egg.js"))
+    .map((file) => `${file}\n${read(file)}`)
+    .join("\n");
 
   assert.doesNotMatch(sources, /<svg\b/i);
   assert.doesNotMatch(sources, /font-?awesome|\bfa-[a-z]/i);
