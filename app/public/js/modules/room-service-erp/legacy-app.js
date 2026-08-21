@@ -1045,10 +1045,11 @@ function renderApplicationVersionSettings() {
 
 function applicationVersionCard({ icon, title, product }) {
   const current = product.current || "Não instalado";
+  const easterTrigger = title === "Fioreze ERP" ? ' data-wesley-easter-trigger' : "";
   const available = product.available && product.available !== product.current
     ? `<p class="erp-version-available">Versão disponível <strong>${escapeHtml(product.available)}</strong></p>`
     : "";
-  return `<article class="erp-version-card" data-version-status="${escapeAttr(product.status)}"><span class="erp-version-product-icon">${settingsIcon(icon)}</span><div class="erp-version-copy"><div class="erp-version-title"><strong>${escapeHtml(title)}</strong><span class="erp-version-badge">${escapeHtml(applicationVersionStatusLabel(product.status))}</span></div><p class="erp-version-current">${escapeHtml(current)}</p><small>${escapeHtml(product.message)}</small>${available}</div></article>`;
+  return `<article class="erp-version-card" data-version-status="${escapeAttr(product.status)}"${easterTrigger}><span class="erp-version-product-icon">${settingsIcon(icon)}</span><div class="erp-version-copy"><div class="erp-version-title"><strong>${escapeHtml(title)}</strong><span class="erp-version-badge">${escapeHtml(applicationVersionStatusLabel(product.status))}</span></div><p class="erp-version-current">${escapeHtml(current)}</p><small>${escapeHtml(product.message)}</small>${available}</div></article>`;
 }
 
 function createInitialApplicationVersions() {
