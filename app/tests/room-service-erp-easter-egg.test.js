@@ -61,8 +61,8 @@ test("ERP easter egg is an accessible on-demand modal shared by web and Electron
   assert.match(styles, /z-index:\s*999999/);
   assert.match(styles, /rs-electron-shell:has\(\.wesley-easter-overlay\.active\)[\s\S]*\.rs-desktop-titlebar/);
   assert.match(styles, /font-family:\s*Tahoma,\s*"MS Sans Serif",\s*Arial,\s*sans-serif/);
-  assert.match(styles, /max-height:\s*calc\(100vh - 24px\)/);
-  assert.match(styles, /animation:\s*wesleyWindowOpen\s*\.22s\s*steps\(4, end\)\s*forwards/);
+  assert.match(styles, /\.wesley-easter-overlay\.active \.wesley-retro-window\.opening/);
+  assert.match(styles, /animation:\s*wesleyWindowOpen\s*\.22s\s*steps\(4, end\)\s*forwards\s*!important/);
   assert.match(styles, /\.wesley-close-button[\s\S]*background:\s*#c0c0c0\s*!important/);
 });
 
@@ -77,9 +77,16 @@ test("ERP easter egg preserves the original retro artwork and copy", () => {
   assert.match(moduleSource, /por incrível q pareça, tá funcionando/);
   assert.match(moduleSource, /GEPE FAZ UM PROMPT PRA MIM/);
   assert.match(moduleSource, /v∞-em-desenvolvimento/);
+  assert.match(moduleSource, /<div class="wesley-wordart-subtitle">certified computer person<\/div>/);
+  assert.match(moduleSource, /<div class="wesley-marquee">★ ESTE ERP SOBREVIVEU/);
   assert.doesNotMatch(moduleSource, /data-lucide/);
   assert.match(styles, /font-family:\s*Impact,\s*"Arial Black",\s*sans-serif/);
   assert.match(styles, /font-family:\s*"Comic Sans MS",\s*cursive/);
   assert.match(styles, /font-family:\s*"Courier New",\s*monospace/);
   assert.match(styles, /letter-spacing:\s*2px/);
+  assert.match(styles, /\.wesley-easter-overlay\.active \.wesley-wordart[\s\S]*animation:\s*wesleyWordartEntrance\s*\.6s\s*steps\(6, end\)\s*!important/);
+  assert.match(styles, /\.wesley-easter-overlay\.active \.wesley-star[\s\S]*animation:\s*wesleyStarBlink\s*1\.2s\s*steps\(2, end\)\s*infinite\s*!important/);
+  assert.match(styles, /\.wesley-easter-overlay\.active \.wesley-marquee[\s\S]*animation:\s*wesleyMarquee\s*13s\s*linear\s*infinite\s*!important/);
+  assert.match(styles, /\.wesley-retro-button:focus-visible[\s\S]*outline:\s*1px dotted #000 !important/);
+  assert.match(styles, /\.wesley-retro-button:active[\s\S]*transform:\s*none !important/);
 });
