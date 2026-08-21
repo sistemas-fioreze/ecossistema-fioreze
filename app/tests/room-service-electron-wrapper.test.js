@@ -154,7 +154,7 @@ test("settings stays available outside the ERP sidebar", () => {
   assert.match(entrypoint, /legacy-app\.js\?v=20260820-6/);
   assert.match(html, /design-system-v5\.css\?v=20260820-2/);
   assert.match(html, /lucide-erp\.min\.js\?v=1\.27\.0/);
-  assert.match(html, /app\.js\?v=20260820-7/);
+  assert.match(html, /app\.js\?v=20260821-1/);
 });
 
 test("collapsed ERP navigation keeps the active item on a centered square tile", () => {
