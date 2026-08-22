@@ -26,6 +26,7 @@ from .updater import (
     defer_update,
     download_update,
     is_update_deferred,
+    milliseconds_until_next_local_midnight,
     schedule_update_install,
 )
 from .version import APP_VERSION
@@ -36,6 +37,7 @@ DEFAULT_ORIGIN = "https://portal.hoteisfioreze.com.br"
 STATUS_WINDOW_WIDTH = 410
 STATUS_WINDOW_HEIGHT = 708
 STATUS_WINDOW_MARGIN = 6
+AUTO_UPDATE_RETRY_MS = 15 * 60 * 1000
 COLORS = {
     "canvas": "#f3f5f7",
     "surface": "#ffffff",
@@ -408,6 +410,9 @@ class AgentApplication:
         self.focus_check = None
         self.status_focus_armed = False
         self.update_check_running = False
+        self.automatic_update_running = False
+        self.midnight_update_after = None
+        self.update_retry_after = None
         self.update_dialog = None
         self.update_progress = None
         self.update_progress_label = None
@@ -423,7 +428,8 @@ class AgentApplication:
             self.show_setup()
         self.root.after(250, self.process_events)
         if can_self_update():
-            self.root.after(4000, self.check_for_agent_update)
+            self.root.after(4000, lambda: self.check_for_agent_update(mode="startup"))
+            self.schedule_midnight_update_check()
 
     def _configure_styles(self):
         style = ttk.Style(self.root)
@@ -943,6 +949,10 @@ class AgentApplication:
             self.test_connection,
             self.test_print,
             self.show_window,
+            self.open_erp,
+            lambda: self.check_for_agent_update(mode="manual"),
+            lambda: self.check_for_agent_update(mode="install"),
+            self.restart_application,
         )
         self.tray.start()
 
@@ -993,25 +1003,120 @@ class AgentApplication:
         if self.tray:
             self.root.withdraw()
 
-    def check_for_agent_update(self):
-        if self.update_check_running or not can_self_update():
+    def schedule_midnight_update_check(self):
+        if not can_self_update():
+            return
+        if self.midnight_update_after:
+            self.root.after_cancel(self.midnight_update_after)
+        delay = milliseconds_until_next_local_midnight()
+        self.midnight_update_after = self.root.after(delay, self._run_midnight_update_check)
+
+    def _run_midnight_update_check(self):
+        self.midnight_update_after = None
+        self.schedule_midnight_update_check()
+        self.check_for_agent_update(mode="automatic")
+
+    def check_for_agent_update(self, mode="manual"):
+        if self.update_check_running or self.automatic_update_running:
+            if mode == "automatic":
+                self._schedule_automatic_update_retry()
+            elif mode in {"manual", "install"}:
+                self.show_window()
+                self._set_activity("Uma verificacao de atualizacao ja esta em andamento.", "warning")
+            return
+        if not can_self_update():
+            if mode in {"manual", "install"}:
+                self.show_window()
+                self._set_activity("A atualizacao esta disponivel somente no Fioreze Suite instalado.", "warning")
             return
         self.update_check_running = True
+        if mode in {"manual", "install"}:
+            self.show_window()
+            self._set_activity("Verificando atualizacoes...", "neutral")
 
         def run_check():
             try:
                 manifest = check_for_update()
-            except UpdateError:
+                error_message = None
+            except UpdateError as error:
                 manifest = None
-            self.events.put(lambda: self._complete_agent_update_check(manifest))
+                error_message = str(error)
+            self.events.put(lambda: self._complete_agent_update_check(manifest, mode, error_message))
 
         threading.Thread(target=run_check, name="fioreze-update-check", daemon=True).start()
 
-    def _complete_agent_update_check(self, manifest):
+    def _complete_agent_update_check(self, manifest, mode, error_message=None):
         self.update_check_running = False
-        if manifest and not is_update_deferred(manifest["version"]):
+        if error_message:
+            if mode == "automatic":
+                self._set_activity("Atualizacao automatica adiada: sem conexao com o servidor.", "warning")
+                self._schedule_automatic_update_retry()
+            elif mode in {"manual", "install"}:
+                self._set_activity(error_message, "danger")
+            return
+        if not manifest:
+            if mode in {"manual", "install"}:
+                self._set_activity(f"Fioreze Suite {APP_VERSION} esta atualizado.", "success")
+            return
+        if mode == "automatic":
+            self._start_automatic_update(manifest)
+        elif mode == "install":
+            self._start_automatic_update(manifest, automatic=False)
+        elif mode == "manual" or not is_update_deferred(manifest["version"]):
             self._show_agent_update(manifest)
-        self.root.after(6 * 60 * 60 * 1000, self.check_for_agent_update)
+
+    def _schedule_automatic_update_retry(self):
+        if self.update_retry_after:
+            self.root.after_cancel(self.update_retry_after)
+        self.update_retry_after = self.root.after(
+            AUTO_UPDATE_RETRY_MS,
+            self._run_automatic_update_retry,
+        )
+
+    def _run_automatic_update_retry(self):
+        self.update_retry_after = None
+        self.check_for_agent_update(mode="automatic")
+
+    def _start_automatic_update(self, manifest, automatic=True):
+        if self.update_retry_after:
+            self.root.after_cancel(self.update_retry_after)
+            self.update_retry_after = None
+        self.automatic_update_running = True
+        prefix = "Atualizacao automatica" if automatic else "Atualizacao manual"
+        self._set_activity(f"{prefix}: preparando a versao {manifest['version']}...", "neutral")
+
+        def run_download():
+            try:
+                path = download_update(
+                    manifest,
+                    on_progress=lambda value: self.events.put(
+                        lambda progress=value: self._set_activity(
+                            f"{prefix}: {progress}% baixado.",
+                            "neutral",
+                        )
+                    ),
+                )
+                self.events.put(lambda: self._complete_automatic_update(path, automatic))
+            except UpdateError as error:
+                self.events.put(lambda message=str(error): self._fail_automatic_update(message, automatic))
+
+        threading.Thread(target=run_download, name="fioreze-update-auto-download", daemon=True).start()
+
+    def _complete_automatic_update(self, path, automatic=True):
+        try:
+            schedule_update_install(path)
+            self.automatic_update_running = False
+            self.restarting = True
+            write_runtime_status("updating", "Instalando atualizacao do Fioreze Suite", self.config)
+            self.root.after(350, self.exit_application)
+        except UpdateError as error:
+            self._fail_automatic_update(str(error), automatic)
+
+    def _fail_automatic_update(self, message, retry=True):
+        self.automatic_update_running = False
+        self._set_activity(message, "danger")
+        if retry:
+            self._schedule_automatic_update_retry()
 
     def _show_agent_update(self, manifest):
         if self.update_dialog and self.update_dialog.winfo_exists():

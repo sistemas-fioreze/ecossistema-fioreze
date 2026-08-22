@@ -76,8 +76,15 @@ test("unidade fornece logo reduzida e agente preserva selecao de impressora e ba
   assert.match(app, /_button\(settings_actions, "Salvar"/);
   assert.match(app, /load_unit_tray_icon/);
   assert.match(tray, /pystray\.Icon/);
-  assert.match(tray, /MenuItem\("Abrir"/);
+  assert.match(tray, /MenuItem\("Abrir painel"/);
+  assert.match(tray, /MenuItem\("Abrir ERP"/);
+  assert.match(tray, /MenuItem\("Verificar atualizacoes"/);
+  assert.match(tray, /MenuItem\("Atualizar agora"/);
+  assert.match(tray, /MenuItem\("Reiniciar agente"/);
   assert.match(tray, /MenuItem\("Sair"/);
+  assert.match(app, /schedule_midnight_update_check/);
+  assert.match(app, /mode="automatic"/);
+  assert.match(app, /AUTO_UPDATE_RETRY_MS\s*=\s*15 \* 60 \* 1000/);
 });
 
 test("build Windows gera pacote separado sem configuracao ou credencial", async () => {
