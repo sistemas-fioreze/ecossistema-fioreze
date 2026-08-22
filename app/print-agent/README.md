@@ -18,6 +18,9 @@ O atalho abre o `Fioreze-ERP.exe`, que usa a rota da unidade `/<slug>/admin/erp/
 
 Na janela redesenhada e no menu da bandeja, o operador pode:
 
+- verificar se existe uma nova versao sem iniciar o download;
+- baixar e instalar uma atualizacao imediatamente com `Atualizar agora`;
+- reiniciar o agente local sem reiniciar o computador;
 - testar a conexao HTTPS com a plataforma;
 - atualizar a lista de impressoras;
 - escolher uma impressora;
@@ -88,13 +91,18 @@ publicados em `desktop/erp/releases/` no bucket R2 privado.
 publicados em `desktop/print-agent/releases/`.
 
 O agente instalado consulta apenas
-`https://portal.hoteisfioreze.com.br/downloads/print-agent/latest.json`. Quando
-ha uma versao nova, mostra `Baixar e instalar` ou `Lembrar mais tarde`. Nenhum
-download comeca sozinho. O adiamento vale por 24 horas e fica somente no
-computador. Antes de substituir o executavel instalado, o agente valida nome,
-versao, limite de tamanho e SHA-256. A troca ocorre depois do encerramento do
-processo e reinicia o agente na bandeja; o token e a configuracao local nao
-entram no manifesto nem no pacote baixado.
+`https://portal.hoteisfioreze.com.br/downloads/print-agent/latest.json`. Uma
+verificacao automatica ocorre diariamente as `00:00`, usando o horario local do
+computador. Quando existe uma versao nova, o download, a validacao, a troca do
+executavel e o reinicio acontecem sem intervencao. Se o servidor estiver
+temporariamente indisponivel, o agente tenta novamente depois de 15 minutos.
+
+O menu da bandeja tambem oferece `Verificar atualizacoes`, que apenas informa o
+estado e mantem a confirmacao visual, e `Atualizar agora`, que executa o fluxo
+completo imediatamente. Antes de substituir o executavel instalado, o agente
+valida nome, versao, limite de tamanho e SHA-256. A troca ocorre depois do
+encerramento do processo e reinicia o agente na bandeja; o token e a
+configuracao local nao entram no manifesto nem no pacote baixado.
 
 Para computadores ainda na versao anterior ao OTA, basta abrir uma vez o novo
 `Fioreze-Suite.exe`: o bootstrap preserva o arquivo baixado, substitui somente a

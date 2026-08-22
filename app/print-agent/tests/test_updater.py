@@ -14,6 +14,7 @@ from fioreze_print_agent.updater import (
     defer_update,
     download_update,
     is_update_deferred,
+    milliseconds_until_next_local_midnight,
     schedule_update_install,
     validate_manifest,
 )
@@ -47,6 +48,13 @@ def manifest_for(content=b"MZ fixture", version="1.4.4"):
 
 
 class UpdaterTests(unittest.TestCase):
+    def test_midnight_delay_uses_the_computer_local_clock(self):
+        now = datetime(2026, 8, 22, 23, 59, 30, tzinfo=timezone(timedelta(hours=-3)))
+        self.assertEqual(milliseconds_until_next_local_midnight(now), 30_000)
+
+        morning = datetime(2026, 8, 22, 8, 0, 0)
+        self.assertEqual(milliseconds_until_next_local_midnight(morning), 16 * 60 * 60 * 1000)
+
     def test_manifest_uses_fixed_https_feed_and_versioned_executable(self):
         parsed = validate_manifest(manifest_for())
         self.assertEqual(parsed["download_url"], f"{UPDATE_BASE_URL}/Fioreze-Suite-1.4.4.exe")

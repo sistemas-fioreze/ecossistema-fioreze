@@ -36,6 +36,12 @@ def version_tuple(value):
     return tuple(int(part) for part in match.groups())
 
 
+def milliseconds_until_next_local_midnight(now=None):
+    current = now or datetime.now().astimezone()
+    next_midnight = (current + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    return max(1, int((next_midnight - current).total_seconds() * 1000))
+
+
 def validate_manifest(payload):
     if not isinstance(payload, dict) or payload.get("schema_version") != 1:
         raise UpdateError("Manifesto de atualizacao invalido.")
