@@ -824,6 +824,12 @@ class MockD1Database {
   selectFirst(sql, params) {
     const normalized = normalize(sql);
 
+    if (normalized.includes("select timezone from hotels where id = ?")) {
+      const [hotelId] = params;
+      const hotel = this.data.hotels.find((entry) => entry.id === hotelId);
+      return hotel ? { timezone: hotel.timezone } : null;
+    }
+
     if (normalized.includes("from admin_login_attempts") && normalized.includes("locked_until > ?")) {
       const [accountHash, ipHash, now] = params;
       return (
@@ -2172,6 +2178,9 @@ class MockD1Database {
       const hotelCount = countInPlaceholders(normalized, "o.hotel_id in");
       const hotelIds = params.slice(1, 1 + hotelCount);
       let cursor = 1 + hotelCount;
+      const hasDateRange = normalized.includes("o.created_at >= ?") && normalized.includes("o.created_at < ?");
+      const dateStart = hasDateRange ? params[cursor++] : null;
+      const dateEnd = hasDateRange ? params[cursor++] : null;
       const hasStatus = normalized.includes("o.status = ?");
       const status = hasStatus ? params[cursor++] : null;
       const hasSentStatuses = normalized.includes("o.status in ('received', 'accepted', 'preparing')");
@@ -2179,6 +2188,7 @@ class MockD1Database {
       const search = hasSearch ? String(params[cursor] || "").replaceAll("%", "").toLowerCase() : "";
       return this.data.orders
         .filter((order) => order.module_key === moduleKey && hotelIds.includes(order.hotel_id))
+        .filter((order) => !hasDateRange || (order.created_at >= dateStart && order.created_at < dateEnd))
         .filter((order) => !status || order.status === status)
         .filter((order) => !hasSentStatuses || ["received", "accepted", "preparing"].includes(order.status))
         .filter((order) => {

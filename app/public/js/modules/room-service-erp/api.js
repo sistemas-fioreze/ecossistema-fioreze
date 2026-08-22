@@ -29,11 +29,12 @@ export function logout() {
   return adminApi("/api/v1/admin/room-service/logout", { method: "POST", body: {} }).catch(() => null);
 }
 
-export function listOrders({ hotelId, status, q } = {}) {
+export function listOrders({ hotelId, status, q, date } = {}) {
   const params = new URLSearchParams();
   if (hotelId) params.set("hotel_id", hotelId);
   if (status) params.set("status", status);
   if (q) params.set("q", q);
+  if (date) params.set("date", date);
   return adminApi(`/api/v1/admin/room-service/orders?${params.toString()}`);
 }
 

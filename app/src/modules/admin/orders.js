@@ -44,6 +44,7 @@ export async function listAdminOrders({ env, session, url, permissionKey = READ_
   const hotelId = optionalString(url.searchParams.get("hotel_id"), "hotel_id", { max: 80 });
   const status = optionalString(url.searchParams.get("status"), "status", { max: 40 });
   const search = optionalString(url.searchParams.get("q"), "q", { max: 120 });
+  const date = validateLocalDate(url.searchParams.get("date"));
 
   const hotelIds = hotelId ? [hotelId] : session.hotel_ids;
   if (hotelId) requireAdminHotelAccess(session, hotelId);
@@ -53,6 +54,15 @@ export async function listAdminOrders({ env, session, url, permissionKey = READ_
   const params = [MODULE_KEY];
   filters.push(`o.hotel_id IN (${hotelIds.map(() => "?").join(", ")})`);
   params.push(...hotelIds);
+
+  if (date) {
+    if (hotelIds.length !== 1) throw badRequest("hotel_id obrigatorio ao filtrar pedidos por data.");
+    const hotel = await first(env, "SELECT timezone FROM hotels WHERE id = ? LIMIT 1", [hotelIds[0]]);
+    if (!hotel) throw notFoundError("Unidade administrativa nao encontrada.");
+    const range = localDayUtcRange(date, hotel.timezone || "America/Sao_Paulo");
+    filters.push("o.created_at >= ? AND o.created_at < ?");
+    params.push(range.start, range.end);
+  }
 
   if (status) {
     const publicStatus = toPublicStatus(toStorageStatus(status));
@@ -533,4 +543,64 @@ function defaultStatusNote(status) {
     cancelled: "Pedido cancelado.",
   };
   return notes[status] || "Status atualizado.";
+}
+
+function validateLocalDate(value) {
+  const normalized = String(value || "").trim();
+  if (!normalized) return "";
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(normalized);
+  if (!match) throw badRequest("date deve usar o formato YYYY-MM-DD.");
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
+    throw badRequest("date invalida.");
+  }
+  return normalized;
+}
+
+function localDayUtcRange(dateKey, timezone) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const nextDate = new Date(Date.UTC(year, month - 1, day + 1));
+  return {
+    start: zonedMidnightToIso({ year, month, day }, timezone),
+    end: zonedMidnightToIso({
+      year: nextDate.getUTCFullYear(),
+      month: nextDate.getUTCMonth() + 1,
+      day: nextDate.getUTCDate(),
+    }, timezone),
+  };
+}
+
+function zonedMidnightToIso(parts, timezone) {
+  const target = Date.UTC(parts.year, parts.month - 1, parts.day);
+  let instant = target;
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  });
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const formatted = Object.fromEntries(
+      formatter.formatToParts(new Date(instant)).map((entry) => [entry.type, entry.value]),
+    );
+    const represented = Date.UTC(
+      Number(formatted.year),
+      Number(formatted.month) - 1,
+      Number(formatted.day),
+      Number(formatted.hour),
+      Number(formatted.minute),
+      Number(formatted.second),
+    );
+    instant += target - represented;
+  }
+
+  return new Date(instant).toISOString();
 }

@@ -56,3 +56,14 @@ test("ERP removes tab-local searches and routes the title-bar search to active c
   assert.match(app, /function renderFilteredSettingsHome\(\)/);
   assert.match(css, /#topSearchWrap\[data-search-mode="filter"\] \.top-search-results/);
 });
+
+test("ERP combines selected order date with contextual order search", () => {
+  const app = read("public/js/modules/room-service-erp/legacy-app.js");
+  const api = read("public/js/modules/room-service-erp/api.js");
+
+  assert.match(api, /export function listOrders\(\{ hotelId, status, q, date \} = \{\}\)/);
+  assert.match(api, /if \(date\) params\.set\("date", date\)/);
+  assert.match(app, /histDate[^\n]+addEventListener\("change", \(\) => refreshOrdersForSelectedDate\(\)\)/);
+  assert.match(app, /listOrders\(\{ hotelId: state\.hotelId, date \}\)/);
+  assert.match(app, /state\.orderDateOrders\.filter\(\(order\) => !normalized \|\| orderMatchesSearch\(order, normalized\)\)/);
+});

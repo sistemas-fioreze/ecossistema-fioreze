@@ -86,6 +86,40 @@ test("pedidos recebem numero humano sequencial isolado por unidade", async () =>
   assert.equal(aurora.body.data.order.display_number, 1);
 });
 
+test("aba Pedidos filtra o dia selecionado no fuso da unidade", async () => {
+  const { env, json } = createWorkerTestContext();
+  const cookie = await createSessionCookie(env);
+  env.__data.orders.push(
+    { ...order("order-before-local-day", "muller-fioreze", "received", 1000), created_at: "2026-08-22T02:59:59.999Z" },
+    { ...order("order-local-day-start", "muller-fioreze", "received", 2000), created_at: "2026-08-22T03:00:00.000Z" },
+    { ...order("order-local-day-end", "muller-fioreze", "delivered", 3000), created_at: "2026-08-23T02:59:59.999Z" },
+    { ...order("order-after-local-day", "muller-fioreze", "delivered", 4000), created_at: "2026-08-23T03:00:00.000Z" },
+  );
+
+  const selectedDay = await json(
+    "/api/v1/admin/room-service/orders?hotel_id=muller-fioreze&date=2026-08-22",
+    withCookie(cookie),
+  );
+
+  assert.equal(selectedDay.response.status, 200);
+  assert.deepEqual(
+    selectedDay.body.data.orders.map((entry) => entry.id),
+    ["order-local-day-end", "order-local-day-start"],
+  );
+});
+
+test("filtro de pedidos rejeita data inexistente", async () => {
+  const { env, json } = createWorkerTestContext();
+  const cookie = await createSessionCookie(env);
+
+  const result = await json(
+    "/api/v1/admin/room-service/orders?hotel_id=muller-fioreze&date=2026-02-30",
+    withCookie(cookie),
+  );
+
+  assert.equal(result.response.status, 400);
+});
+
 test("ERP Room Service cria pedido PDV com origem administrativa sem print_event", async () => {
   const { env, json } = createWorkerTestContext();
   const cookie = await createSessionCookie(env);
