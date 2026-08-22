@@ -37,6 +37,19 @@ test("cria pedido de Room Service recalculando total pelo banco", async () => {
   assert.equal(env.__data.printEvents.length, 0);
 });
 
+test("portal publico continua exigindo nome do hospede", async () => {
+  const { json, env } = createWorkerTestContext();
+  const { guest_name: _guestName, ...withoutGuest } = VALID_ORDER;
+  const { response, body } = await json(
+    "/api/v1/public/hotels/muller-fioreze/room-service/orders",
+    jsonPost(withoutGuest),
+  );
+
+  assert.equal(response.status, 400);
+  assert.equal(body.error.code, "bad_request");
+  assert.equal(env.__data.orders.length, 0);
+});
+
 test("rejeita observacao de item acima do limite", async () => {
   const { json, env } = createWorkerTestContext();
   const { response, body } = await json(

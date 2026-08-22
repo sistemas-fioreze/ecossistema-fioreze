@@ -97,6 +97,19 @@ test("ERP aplica branding, contexto de rota e componentes da nova geracao", () =
   assert.doesNotMatch(app, /class="erp-v4-page/);
 });
 
+test("PDV usa confirmacao animada, hospede opcional e retorno real da impressao", () => {
+  const css = read("public/css/modules/room-service-erp/design-system-v5.css");
+  const app = read("public/js/modules/room-service-erp/legacy-app.js");
+
+  assert.match(app, /Hóspede \(opcional\)/);
+  assert.match(app, /showPdvOrderSuccess\(created\?\.data\)/);
+  assert.match(app, /assets\/room-service\/order-sent\.gif/);
+  assert.match(app, /order\?\.impression\?\.queued === true/);
+  assert.doesNotMatch(app, /Pedido criado sem acionar impressao/);
+  assert.match(css, /\.erp-pdv-success-modal\s*\{[\s\S]*?backdrop-filter:\s*blur\(9px\)/);
+  assert.match(css, /\.erp-pdv-success-card\s*\{[\s\S]*?background:\s*#fff/);
+});
+
 test("editor, modais e layout estreito preservam conteudo e acoes", () => {
   const css = read("public/css/modules/room-service-erp/design-system-v5.css");
   const app = read("public/js/modules/room-service-erp/legacy-app.js");

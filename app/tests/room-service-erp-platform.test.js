@@ -112,6 +112,39 @@ test("ERP Room Service cria pedido PDV com origem administrativa sem print_event
   assert.equal(env.__data.printEvents.length, 0);
 });
 
+test("PDV permite hospede vazio e informa a impressao automatica realmente enfileirada", async () => {
+  const { env, json } = createWorkerTestContext({ IMPRESSION_ENABLED: "true" });
+  const cookie = await createSessionCookie(env);
+  env.__data.settings.push({
+    hotel_id: "muller-fioreze",
+    setting_key: "room-service.printing_enabled",
+    setting_value: "true",
+    value_type: "boolean",
+    is_public: 0,
+  });
+
+  const created = await json(
+    "/api/v1/admin/room-service/orders",
+    withCookie(
+      cookie,
+      adminJson("POST", {
+        hotel_id: "muller-fioreze",
+        room_code: "D-101",
+        items: [{ catalog_item_id: "muller-sandwich", quantity: 1, unit_price_cents: 2500 }],
+      }),
+    ),
+  );
+
+  assert.equal(created.response.status, 201);
+  assert.equal(created.body.data.impression.enabled, true);
+  assert.equal(created.body.data.impression.queued, true);
+  assert.equal(env.__data.orders.at(-1).guest_name, null);
+  assert.equal(env.__data.roomServiceGuestDirectory.length, 0);
+  assert.equal(env.__data.printEvents.length, 1);
+  assert.equal(env.__data.printEvents[0].order_id, created.body.data.id);
+  assert.equal(env.__data.printEvents[0].job_kind, "automatic");
+});
+
 test("pedido confirmado alimenta diretorio do hotel e encerramento preserva pedidos", async () => {
   const { env, json } = createWorkerTestContext();
   const cookie = await createSessionCookie(env);

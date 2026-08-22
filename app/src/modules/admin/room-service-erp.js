@@ -295,6 +295,7 @@ export async function createRoomServiceErpOrder({ request, env, session }) {
   return createRoomServiceOrder({
     request: adminRequest,
     env,
+    administrative: true,
     tenant: {
       ...hotel,
       settings: { [`${MODULE_KEY}.operation_mode`]: operation.mode },
