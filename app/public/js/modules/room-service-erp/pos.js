@@ -10,7 +10,7 @@ export function renderPos({ outlet, hotel, catalog, erpContext, onOrderCreated }
     <section class="rs-panel">
       <p class="rs-kicker">PDV Direto</p>
       <h1>Pedido manual pela equipe</h1>
-      <p class="rs-muted">Pedidos criados aqui usam a mesma tabela orders, origem admin_pdv e impressão desativada.</p>
+      <p class="rs-muted">Registre pedidos feitos diretamente pela equipe da unidade.</p>
     </section>
     <section class="rs-pos-layout">
       <div class="rs-panel">
@@ -22,7 +22,7 @@ export function renderPos({ outlet, hotel, catalog, erpContext, onOrderCreated }
       <form id="pdvOrderForm" class="rs-panel rs-pdv-form">
         <h2>Carrinho</h2>
         <div id="pdvCart" class="rs-cart-lines"><div class="rs-empty">Selecione produtos do catálogo.</div></div>
-        <label><span>Hóspede</span><input name="guest_name" required maxlength="120"></label>
+        <label><span>Hóspede (opcional)</span><input name="guest_name" maxlength="120"></label>
         <label><span>Acomodação</span>${roomSelect(erpContext?.rooms || [])}</label>
         <label><span>Observação</span><textarea name="notes" maxlength="500"></textarea></label>
         <button class="rs-primary-button" type="submit">Criar pedido PDV</button>
@@ -54,7 +54,7 @@ export function renderPos({ outlet, hotel, catalog, erpContext, onOrderCreated }
     const form = new FormData(event.currentTarget);
     messageEl.textContent = "Criando pedido...";
     try {
-      await createPdvOrder(
+      const created = await createPdvOrder(
         {
           hotel_id: hotel.hotel_id,
           guest_name: form.get("guest_name"),
@@ -71,7 +71,7 @@ export function renderPos({ outlet, hotel, catalog, erpContext, onOrderCreated }
       cart.clear();
       event.currentTarget.reset();
       renderCart(cartEl, cart);
-      messageEl.textContent = "Pedido criado sem acionar impressão.";
+      messageEl.innerHTML = `<img src="/assets/room-service/order-sent.gif" alt="" width="88" height="66"><strong>Pedido enviado</strong><span>${created?.data?.impression?.queued ? "Pedido criado e enviado para impressão." : "Pedido criado com sucesso."}</span>`;
       await onOrderCreated?.();
     } catch (error) {
       messageEl.textContent = error.message || "Não foi possível criar o pedido.";

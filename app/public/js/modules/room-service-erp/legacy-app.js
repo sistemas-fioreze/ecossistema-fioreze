@@ -438,7 +438,7 @@ function installPdvInterface() {
         <div class="erp-pdv-section-title"><span>1</span><div><strong>Entrega</strong><small>Informe quem receberá o pedido</small></div></div>
         <div class="erp-pdv-field-grid">
           <label class="erp-pdv-field erp-pdv-room"><span>Acomodação</span><div id="roomCombobox" class="erp-room-combobox"><input id="roomNumber" placeholder="Buscar acomodação" aria-label="Acomodação" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="roomOptions" autocomplete="off"><button id="roomComboboxToggle" type="button" aria-label="Mostrar acomodações" tabindex="-1"><i data-lucide="chevron-down" aria-hidden="true"></i></button><div id="roomOptions" class="erp-room-options hidden" role="listbox" aria-label="Acomodações da unidade"></div></div></label>
-          <label class="erp-pdv-field"><span>Hóspede</span><input id="guestName" placeholder="Nome do hóspede" autocomplete="off"></label>
+          <label class="erp-pdv-field"><span>Hóspede (opcional)</span><input id="guestName" placeholder="Nome do hóspede" autocomplete="off"></label>
         </div>
         <label class="erp-pdv-field"><span>Local de entrega</span><select id="consumptionLocation"><option value="Acomodação">Entregar na acomodação</option><option value="Recepção">Consumo na recepção</option></select></label>
         <label class="erp-pdv-field"><span>Observações do pedido</span><textarea id="orderObs" placeholder="Preferências ou informações importantes"></textarea></label>
@@ -2037,14 +2037,14 @@ async function submitPdvOrder() {
   if (!state.cart.size) return notify("Adicione ao menos um produto.");
   const guestName = byId("guestName").value.trim();
   const roomCode = byId("roomNumber").value.trim();
-  if (!guestName || !roomCode) return notify("Informe hospede e acomodacao.");
+  if (!roomCode) return notify("Informe a acomodacao.");
   const roomExists = (state.context?.rooms || state.rooms || []).some((room) => room.status !== "inactive" && String(room.code) === roomCode);
   if (!roomExists) return notify("Selecione uma acomodacao cadastrada.");
   try {
     setPageBusy(true, "Criando pedido...");
-    await createPdvOrder({
+    const created = await createPdvOrder({
       hotel_id: state.hotelId,
-      guest_name: guestName,
+      ...(guestName ? { guest_name: guestName } : {}),
       room_code: roomCode,
       notes: `Local de entrega: ${byId("consumptionLocation").value}\n${byId("orderObs").value.trim()}`.trim(),
       items: [...state.cart.values()].map(({ item, quantity }) => ({ catalog_item_id: item.id, quantity, unit_price_cents: item.price_cents })),
@@ -2053,14 +2053,45 @@ async function submitPdvOrder() {
     byId("guestName").value = "";
     byId("roomNumber").value = "";
     byId("orderObs").value = "";
-    notify("Pedido criado sem acionar impressao.");
     await refreshAll();
     switchTab("hist");
+    showPdvOrderSuccess(created?.data);
   } catch (error) {
     notify(error.message || "Nao foi possivel criar o pedido.");
   } finally {
     setPageBusy(false);
   }
+}
+
+function showPdvOrderSuccess(order) {
+  document.querySelector(".erp-pdv-success-modal")?.remove();
+  const queued = order?.impression?.queued === true;
+  const modal = document.createElement("section");
+  modal.className = "erp-pdv-success-modal";
+  modal.setAttribute("role", "dialog");
+  modal.setAttribute("aria-modal", "true");
+  modal.setAttribute("aria-labelledby", "erp-pdv-success-title");
+  modal.innerHTML = `
+    <div class="erp-pdv-success-card">
+      <img src="/assets/room-service/order-sent.gif" alt="" aria-hidden="true">
+      <h2 id="erp-pdv-success-title">Pedido enviado</h2>
+      <p>${queued ? "Pedido criado e enviado para impressão." : "Pedido criado com sucesso."}</p>
+      <button type="button">OK</button>
+    </div>
+  `;
+  const close = () => {
+    document.removeEventListener("keydown", onKeydown);
+    modal.remove();
+  };
+  const onKeydown = (event) => {
+    if (event.key === "Escape") close();
+  };
+  modal.addEventListener("click", (event) => {
+    if (event.target === modal || event.target.closest("button")) close();
+  });
+  document.addEventListener("keydown", onKeydown);
+  document.body.append(modal);
+  modal.querySelector("button")?.focus();
 }
 
 function renderGuests() {

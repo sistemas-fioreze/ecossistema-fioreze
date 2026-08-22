@@ -160,6 +160,7 @@ test("Room Service incorporado usa o cabecalho do portal e abre sem tela de carr
 
 test("fluxo visual inclui revisao, preparo e acompanhamento recente sem exibir ID tecnico", () => {
   const shell = renderStaticShell();
+  const css = fs.readFileSync(new URL("../public/css/modules/room-service/room-service.css", import.meta.url), "utf8");
   const script = fs.readFileSync(new URL("../public/js/modules/room-service/index.js", import.meta.url), "utf8");
   const successAnimation = fs.readFileSync(new URL("../public/assets/room-service/order-sent.gif", import.meta.url));
 
@@ -172,6 +173,8 @@ test("fluxo visual inclui revisao, preparo e acompanhamento recente sem exibir I
   assert.match(script, /const statusLabel = "Enviado"/);
   assert.doesNotMatch(script, /statusLabel = \{ sent: "Enviado", printed:/);
   assert.doesNotMatch(script, /Recebemos seu pedido \$\{order\.public_id/);
+  assert.match(css, /\.rs-modal-card\.success\s*\{[\s\S]*?background:\s*#fff/);
+  assert.match(css, /\.rs-modal-card\.success::before\s*\{\s*content:\s*none/);
   assert.match(successAnimation.subarray(0, 6).toString("ascii"), /^GIF8[79]a$/);
 });
 

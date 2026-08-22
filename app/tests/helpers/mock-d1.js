@@ -1047,6 +1047,22 @@ class MockD1Database {
       return device ? { ...device } : null;
     }
 
+    if (normalized.includes("from hotel_settings hs") && normalized.includes("left join printer_templates pt")) {
+      const [moduleKey, hotelId] = params;
+      const settingRow = this.data.settings.find(
+        (entry) => entry.hotel_id === hotelId && entry.setting_key === "room-service.printing_enabled",
+      );
+      const template = this.data.printerTemplates.find(
+        (entry) =>
+          entry.hotel_id === hotelId &&
+          entry.module_key === moduleKey &&
+          entry.status === "active" &&
+          entry.is_default === 1,
+      );
+      if (!settingRow) return null;
+      return { setting_value: settingRow.setting_value, template_id: template?.id || null };
+    }
+
     if (normalized.includes("from printer_templates") && normalized.includes("is_default = 1")) {
       const [hotelId, moduleKey] = params;
       const template = this.data.printerTemplates.find(
@@ -2482,6 +2498,36 @@ class MockD1Database {
 
   execute(sql, params) {
     const normalized = normalize(sql);
+
+    if (normalized.startsWith("insert or ignore into print_events")) {
+      const [id, hotel_id, module_key, order_id, template_id, requested_at, created_at, updated_at, request_key] = params;
+      if (this.data.printEvents.some((entry) => entry.id === id || entry.request_key === request_key)) {
+        return d1Result(0);
+      }
+      this.data.printEvents.push({
+        id,
+        hotel_id,
+        module_key,
+        order_id,
+        printer_id: null,
+        status: "queued",
+        attempts: 0,
+        last_error: null,
+        requested_at,
+        printed_at: null,
+        created_at,
+        updated_at,
+        device_id: null,
+        template_id,
+        request_key,
+        claim_token_hash: null,
+        claimed_at: null,
+        claim_expires_at: null,
+        completed_at: null,
+        job_kind: "automatic",
+      });
+      return d1Result(1);
+    }
 
     if (normalized.startsWith("insert into print_events")) {
       const [id, hotel_id, module_key, order_id, requested_at, created_at, updated_at, template_id, request_key] = params;

@@ -1368,16 +1368,12 @@
 }
 
 .rs-modal-card.success {
+  background: #fff;
   animation: rs-success-in 480ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .rs-modal-card.success::before {
-  position: absolute;
-  inset: -45% -20% auto;
-  height: 170px;
-  background: radial-gradient(circle, color-mix(in srgb, var(--rs-primary) 18%, transparent), transparent 64%);
-  content: "";
-  pointer-events: none;
+  content: none;
 }
 
 .rs-modal-card h3 {

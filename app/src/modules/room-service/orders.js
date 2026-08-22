@@ -15,7 +15,7 @@ import { parseCatalogOptions } from "./products.js";
 
 const MODULE_KEY = "room-service";
 
-export async function createRoomServiceOrder({ request, env, tenant }) {
+export async function createRoomServiceOrder({ request, env, tenant, administrative = false }) {
   const idempotencyKey = request.headers.get("Idempotency-Key") || "";
   if (!isValidIdempotencyKey(idempotencyKey)) {
     throw badRequest("Idempotency-Key obrigatoria e invalida.", {
@@ -31,7 +31,9 @@ export async function createRoomServiceOrder({ request, env, tenant }) {
   const payload = await readJson(request);
   const preparation = validatePreparation({ request, env, tenant, payload });
   const notesEnabled = tenant.settings?.[`${MODULE_KEY}.order_notes_enabled`] !== false;
-  const guestName = requireString(payload.guest_name, "guest_name", { max: 120 });
+  const guestName = administrative
+    ? optionalString(payload.guest_name, "guest_name", { max: 120 })
+    : requireString(payload.guest_name, "guest_name", { max: 120 });
   const guestPhone = optionalString(payload.guest_phone, "guest_phone", { max: 40 });
   const roomCode = requireString(payload.room_code, "room_code", { max: 24 });
   const notes = optionalString(payload.notes, "notes", { max: 500 });
@@ -140,7 +142,7 @@ export async function createRoomServiceOrder({ request, env, tenant }) {
         origin,
         room.id,
         room.code,
-        guestName,
+        guestName || null,
         notes,
         currency,
         subtotalCents,
@@ -152,7 +154,10 @@ export async function createRoomServiceOrder({ request, env, tenant }) {
         preparation.scheduled_for,
       ],
     ),
-    statement(
+  ];
+
+  if (guestName) {
+    statements.push(statement(
       env,
       `INSERT INTO room_service_guest_directory (
          id, hotel_id, module_key, room_id, room_code, guest_name, phone,
@@ -192,7 +197,10 @@ export async function createRoomServiceOrder({ request, env, tenant }) {
         createdAt,
         createdAt,
       ],
-    ),
+    ));
+  }
+
+  statements.push(
     statement(
       env,
       `INSERT INTO order_status_history (
@@ -200,7 +208,7 @@ export async function createRoomServiceOrder({ request, env, tenant }) {
        ) VALUES (?, ?, ?, ?, 'received', 'Pedido recebido localmente.', ?)`,
       [createPublicId("hist"), orderId, tenant.hotel_id, MODULE_KEY, createdAt],
     ),
-  ];
+  );
 
   for (const item of itemSnapshots) {
     statements.push(
