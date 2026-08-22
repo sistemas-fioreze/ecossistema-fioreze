@@ -10,6 +10,7 @@ import {
 } from "./guest-navigation.js";
 import { sanitizePublicAssetUrl } from "./theme.js";
 import { formatRoomServiceHours } from "./service-hours.js";
+import { lucideIcon } from "./lucide-icons.js";
 
 const MODULE_DESCRIPTIONS = {
   "room-service": "Refeições e bebidas no conforto da sua acomodação.",
@@ -938,41 +939,41 @@ function infoIcon(key = "") {
 }
 
 function icon(name) {
-  const paths = {
-    home: '<path d="m3 11 9-8 9 8v10h-6v-6H9v6H3V11Z"/>',
-    services: '<path d="M5 14h14M7 14a5 5 0 0 1 10 0M12 7V5M4 18h16M9 18v2M15 18v2"/><path d="M10 5h4"/>',
-    calendar: '<path d="M5 4v3M19 4v3M4 9h16M5 6h14a1 1 0 0 1 1 1v13H4V7a1 1 0 0 1 1-1Z"/><path d="M8 13h3M13 13h3M8 17h3"/>',
-    hotel: '<path d="M4 20V7M4 14h16M20 20v-8a3 3 0 0 0-3-3H9a5 5 0 0 0-5 5"/><path d="M7 11h4a2 2 0 0 1 2 2v1H7v-3ZM4 17h16v3H4v-3Z"/>',
-    blog: '<path d="M5 4h10a4 4 0 0 1 4 4v12H8a3 3 0 0 1-3-3V4Z"/><path d="M8 8h7M8 12h8M8 16h5"/>',
-    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
-    pin: '<path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/>',
-    map: '<path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"/><path d="M9 3v15M15 6v15"/>',
-    file: '<path d="M7 3h7l5 5v13H7V3Z"/><path d="M14 3v6h5M9 13h6M9 17h6"/>',
-    list: '<path d="M4 6h16M4 12h16M4 18h16"/>',
-    "room-service": '<path d="M5 14h14M7 14a5 5 0 0 1 10 0M12 7V5M4 18h16"/><path d="M10 5h4"/>',
-    bag: '<path d="M5 8h14l-1 12H6L5 8Z"/><path d="M9 9V7a3 3 0 0 1 6 0v2"/>',
-    spa: '<path d="M12 21c-4-2-6-5-6-9 3 0 5 1 6 3 1-2 3-3 6-3 0 4-2 7-6 9Z"/><path d="M12 15c-2-2-3-5 0-9 3 4 2 7 0 9Z"/>',
-    heart: '<path d="M20.8 5.8a5.5 5.5 0 0 0-7.8 0L12 6.9l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 22l8.8-8.4a5.5 5.5 0 0 0 0-7.8Z"/>',
-    sparkle: '<path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z"/><path d="M19 3v4M21 5h-4"/>',
-    chevron: '<path d="m9 5 7 7-7 7"/>',
-    wifi: '<path d="M4 9a12 12 0 0 1 16 0M7 12a8 8 0 0 1 10 0M10 15a3 3 0 0 1 4 0"/><circle cx="12" cy="19" r="1"/>',
-    coffee: '<path d="M5 8h11v7a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V8Z"/><path d="M16 10h2a2 2 0 0 1 0 4h-2M8 4v2M12 4v2"/>',
-    phone: '<path d="M7 3h3l1 5-2 1a15 15 0 0 0 6 6l1-2 5 1v3c0 2-2 4-4 4A16 16 0 0 1 3 7c0-2 2-4 4-4Z"/>',
-    "no-smoking": '<path d="M4 17h16M7 13h10a2 2 0 0 1 2 2v2H5v-2a2 2 0 0 1 2-2Z"/><path d="M14 8c0-2 3-2 3-4M3 3l18 18"/>',
-    reception: '<circle cx="12" cy="7" r="3"/><path d="M5 20v-2a7 7 0 0 1 14 0v2M3 20h18"/>',
-    baby: '<path d="M10 2h4l1 3H9l1-3Z"/><path d="M9 5h6v3l2 3v8a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-8l2-3V5Z"/><path d="M9 9h6M9 13h5M9 17h4"/>',
-    fitness: '<path d="M4 10v4M7 8v8M17 8v8M20 10v4M7 12h10"/>',
-    kids: '<circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M3 20v-2a5 5 0 0 1 10 0v2M11 20v-2a5 5 0 0 1 10 0v2"/>',
-    office: '<path d="M4 8h16v11H4V8Z"/><path d="M9 8V5h6v3M3 19h18M8 12h8M12 12v7"/>',
-    lounge: '<path d="M5 12V8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4M4 12h16v7H4v-7ZM7 19v2M17 19v2"/>',
-    tech: '<rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 7h6M10 17h4"/>',
-    chimarrao: '<path d="M7 9h10l-1 7a4 4 0 0 1-4 3 4 4 0 0 1-4-3L7 9Z"/><path d="m15 10 3-7M18 3h2M9 13h6"/>',
-    pool: '<path d="M3 16c2 0 2 1.5 4 1.5S9 16 11 16s2 1.5 4 1.5 2-1.5 4-1.5 2 1.5 2 1.5M3 20c2 0 2 1.5 4 1.5S9 20 11 20s2 1.5 4 1.5 2-1.5 4-1.5 2 1.5 2 1.5M7 14V7a3 3 0 0 1 6 0M13 14V9h5"/>',
-    voltage: '<path d="m13 2-8 12h7l-1 8 8-12h-7l1-8Z"/>',
-    quiet: '<path d="M6 9v6h4l5 4V5l-5 4H6ZM19 9l3 6M22 9l-3 6"/>',
-    info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>',
-    "chevron-back": '<path d="m15 5-7 7 7 7"/>',
-    "external-link": '<path d="M14 4h6v6M20 4l-9 9"/><path d="M18 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h6"/>',
+  const names = {
+    home: "house",
+    services: "store",
+    calendar: "calendar-days",
+    hotel: "bed-double",
+    blog: "notebook-text",
+    clock: "clock-3",
+    pin: "map-pin",
+    map: "map",
+    file: "file-text",
+    list: "list",
+    "room-service": "concierge-bell",
+    bag: "shopping-bag",
+    spa: "flower-2",
+    heart: "heart",
+    sparkle: "sparkles",
+    chevron: "chevron-right",
+    wifi: "wifi",
+    coffee: "coffee",
+    phone: "phone",
+    "no-smoking": "cigarette-off",
+    reception: "concierge-bell",
+    baby: "baby",
+    fitness: "dumbbell",
+    kids: "users",
+    office: "briefcase-business",
+    lounge: "sofa",
+    tech: "smartphone",
+    chimarrao: "cup-soda",
+    pool: "waves",
+    voltage: "zap",
+    quiet: "volume-x",
+    info: "info",
+    "chevron-back": "chevron-left",
+    "external-link": "external-link",
   };
-  return `<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${paths[name] || paths.info}</svg>`;
+  return lucideIcon(names[name] || names.info);
 }

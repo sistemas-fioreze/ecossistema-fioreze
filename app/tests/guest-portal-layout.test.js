@@ -53,6 +53,7 @@ test("portal usa o layout de referencia com identidade e conteudo dinamicos", ()
   assert.match(portalCss, /@media \(min-width: 960px\)/);
   assert.match(publicIndex, /guest-portal\/guest-portal\.css/);
   assert.match(publicIndex, /guest-portal\/guest-navigation\.css/);
+  assert.match(publicIndex, /lucide-erp\.min\.js/);
 });
 
 test("programação recorrente agrupa datas no portal e permanece editável", () => {
@@ -384,16 +385,26 @@ test("informacoes do hotel suportam guia visual editavel e programacao", () => {
   assert.match(portalScript, /is-guest-guide/);
   assert.match(portalScript, /renderAppTop\(state, "Programação"/);
   assert.match(portalCss, /\.is-guest-guide \.hotel-info-grid/);
-  assert.match(portalCss, /\.info-key-baby-kitchen/);
-  assert.match(portalCss, /\.info-key-espaco-tche/);
-  assert.match(portalCss, /\.info-key-office/);
+  assert.match(portalScript, /info-key-\$\{escapeHtml\(keyClass\)\}/);
   assert.match(portalScript, /chimarrao/);
   assert.match(portalScript, /officeReservationAction/);
   assert.match(portalScript, /formatRoomServiceHours/);
   assert.match(portalScript, /arrangeGuideInformation/);
   assert.match(portalScript, /information\[wifiIndex\][\s\S]*information\[babyIndex\]/);
-  assert.match(portalScript, /baby:.*M10 2h4l1 3H9/);
+  assert.match(portalScript, /baby:\s*"baby"/);
+  assert.match(portalScript, /chimarrao:\s*"cup-soda"/);
+  assert.match(portalCss, /\.is-guest-guide \.hotel-info-grid\s*\{[\s\S]*?gap:\s*14px;[\s\S]*?border:\s*0/);
+  assert.match(portalCss, /\.is-guest-guide \.hotel-info-card\s*\{[\s\S]*?border-radius:\s*18px;[\s\S]*?background:\s*#fff/);
   assert.match(adminScript, /Programação/);
+});
+
+test("portal usa exclusivamente o pacote Lucide do ERP na navegacao e nas informacoes", () => {
+  assert.match(navigationScript, /import \{ lucideIcon \} from "\.\/lucide-icons\.js"/);
+  assert.match(portalScript, /import \{ lucideIcon \} from "\.\/lucide-icons\.js"/);
+  assert.match(navigationScript, /hotel:\s*"bed-double"/);
+  assert.match(portalScript, /wifi:\s*"wifi"/);
+  assert.doesNotMatch(navigationScript, /<svg\b/);
+  assert.doesNotMatch(portalScript, /const paths\s*=/);
 });
 
 test("Espaço Office usa o WhatsApp configurado da unidade e mensagem de reserva", () => {

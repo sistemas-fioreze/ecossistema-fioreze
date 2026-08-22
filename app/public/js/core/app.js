@@ -9,10 +9,12 @@ import {
 } from "./guest-navigation.js";
 import { loadModule } from "./module-loader.js";
 import { formatRoomServiceHours } from "./service-hours.js";
+import { setupLucideIcons } from "./lucide-icons.js";
 import { resolveModuleFromPath, resolveSlugFromPath } from "./tenant.js";
 import { applyBranding } from "./theme.js";
 
 const app = document.getElementById("app");
+setupLucideIcons(document);
 
 async function boot() {
   const slug = resolveSlugFromPath();
