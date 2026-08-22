@@ -82,6 +82,8 @@ const state = {
   context: null,
   dashboard: null,
   orders: [],
+  orderDateOrders: [],
+  orderDateRequest: 0,
   catalog: { categories: [] },
   guests: null,
   billing: null,
@@ -296,12 +298,12 @@ function bindStaticActions() {
   byId("roomOptions", false)?.addEventListener("click", handlePdvRoomSelection);
   byId("roomComboboxToggle", false)?.addEventListener("click", togglePdvRoomOptions);
   byId("dashDate", false)?.addEventListener("change", renderDashboard);
-  byId("histDate", false)?.addEventListener("change", renderOrders);
+  byId("histDate", false)?.addEventListener("change", () => refreshOrdersForSelectedDate());
   byId("histFrom", false)?.addEventListener("change", renderBilling);
   byId("histTo", false)?.addEventListener("change", renderBilling);
   byId("billingRefreshButton", false)?.addEventListener("click", renderBilling);
   byId("billingExportButton", false)?.addEventListener("click", exportBillingCsv);
-  byId("ordersRefreshButton", false)?.addEventListener("click", refreshAll);
+  byId("ordersRefreshButton", false)?.addEventListener("click", () => refreshOrdersForSelectedDate());
   byId("guestsRefreshButton", false)?.addEventListener("click", refreshAll);
   byId("erpFeedbackButton", false)?.addEventListener("click", openFeedbackDialog);
   byId("erpFeedbackForm", false)?.addEventListener("submit", sendErpFeedback);
@@ -1413,10 +1415,12 @@ async function refreshAll() {
     const canManageUsers = permissions.has("room-service.users.manage");
     const canManageCatalog = permissions.has("room-service.catalog.manage");
     const canManageSettings = permissions.has("room-service.settings.manage");
-    const [context, dashboard, orders, catalog, guests, billing, users, userPermissions, operations, media, rooms, printing] = await Promise.all([
+    const selectedOrderDate = byId("histDate", false)?.value || localDateKey(new Date());
+    const [context, dashboard, orders, orderDateOrders, catalog, guests, billing, users, userPermissions, operations, media, rooms, printing] = await Promise.all([
       getContext({ hotelId }),
       permissions.has("room-service.dashboard.read") || canRead ? getDashboard({ hotelId }) : null,
       canRead ? listOrders({ hotelId }) : null,
+      canRead ? listOrders({ hotelId, date: selectedOrderDate }) : null,
       permissions.has("room-service.catalog.read") || canRead || canWrite ? getCatalog({ hotelId }) : null,
       permissions.has("room-service.guests.read") || canRead ? getGuests({ hotelId }) : null,
       permissions.has("room-service.billing.read") || canRead ? getBilling({ hotelId }) : null,
@@ -1430,6 +1434,7 @@ async function refreshAll() {
     state.context = context.data;
     state.dashboard = dashboard?.data || null;
     state.orders = orders?.data?.orders || [];
+    state.orderDateOrders = orderDateOrders?.data?.orders || [];
     state.knownOrderIds = new Set(state.orders.map((order) => order.id));
     state.catalog = catalog?.data || { categories: [] };
     state.guests = guests?.data || null;
@@ -1742,13 +1747,31 @@ function renderDashboard() {
 
 function renderOrders() {
   const query = currentSearchQuery();
-  const orders = filteredOrders(query);
+  const normalized = normalize(query || "");
+  const orders = state.orderDateOrders.filter((order) => !normalized || orderMatchesSearch(order, normalized));
   setText("simpleHistMeta", `${orders.length} pedidos`);
   const target = byId("simpleHistTableBody");
   target.innerHTML = orders.length
     ? orders.map(orderMiniCard).join("")
     : '<div class="loose-list-empty">Nenhum pedido encontrado nesse dia.</div>';
   bindOrderButtons(target);
+}
+
+async function refreshOrdersForSelectedDate({ busy = true } = {}) {
+  const date = byId("histDate", false)?.value;
+  if (!date || !state.hotelId || !state.session?.permissions?.includes("room-service.orders.read")) return;
+  const requestId = ++state.orderDateRequest;
+  if (busy) setPageBusy(true, "Carregando pedidos...");
+  try {
+    const payload = await listOrders({ hotelId: state.hotelId, date });
+    if (requestId !== state.orderDateRequest) return;
+    state.orderDateOrders = payload.data.orders || [];
+    renderOrders();
+  } catch (error) {
+    if (requestId === state.orderDateRequest) notify(error.message || "Nao foi possivel carregar os pedidos deste dia.");
+  } finally {
+    if (busy && requestId === state.orderDateRequest) setPageBusy(false);
+  }
 }
 
 function orderMiniCard(order) {
@@ -2970,6 +2993,7 @@ async function pollNewOrders() {
     const [dashboard, billing] = await Promise.all([getDashboard({ hotelId: state.hotelId }), getBilling({ hotelId: state.hotelId })]);
     state.dashboard = dashboard.data;
     state.billing = billing.data;
+    if (state.route === "hist") await refreshOrdersForSelectedDate({ busy: false });
     renderActiveRoute();
   } catch (error) {
     if (error.status === 401) stopOrderPolling();
@@ -3196,7 +3220,11 @@ function bindOrderButtons(container) {
 
 function filteredOrders(query) {
   const normalized = normalize(query || "");
-  return state.orders.filter((order) => !normalized || normalize([
+  return state.orders.filter((order) => !normalized || orderMatchesSearch(order, normalized));
+}
+
+function orderMatchesSearch(order, normalized) {
+  return normalize([
     order.public_id,
     order.display_number,
     orderDisplayLabel(order),
@@ -3206,7 +3234,7 @@ function filteredOrders(query) {
     order.status,
     statusLabel(order.status),
     money(order.total_cents, order.currency),
-  ].filter(Boolean).join(" ")).includes(normalized));
+  ].filter(Boolean).join(" ")).includes(normalized);
 }
 
 function renderBars(target, entries) {
