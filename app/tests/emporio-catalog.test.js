@@ -244,6 +244,38 @@ test("documentacao do Emporio Centro cadastra nove produtos e preserva preco pen
   assert.doesNotMatch(migration, /script\.google\.com|i\.postimg\.cc|password|token|secret/i);
 });
 
+test("migration do Emporio Muller substitui somente o demo pelo catalogo legado", () => {
+  const migration = fs.readFileSync(
+    `${APP_ROOT}/migrations/0049_muller_emporio_catalog.sql`,
+    "utf8",
+  );
+
+  assert.match(migration, /WHERE id = 'item-muller-emporio-demo'/);
+  assert.match(migration, /WHERE id = 'catg-muller-emporio'/);
+  assert.equal(
+    (migration.match(/'item-muller-emporio-[^']+',\r?\n\s*'product-muller-emporio-/g) || []).length,
+    5,
+  );
+  assert.equal(
+    (migration.match(/'media-muller-emporio-[^']+', 'hotels\/muller-fioreze\/portal\/emporio\/catalogo-2026\//g) || []).length,
+    5,
+  );
+  assert.match(migration, /Home Spray - Essência Minueto - 150 ml/);
+  assert.match(migration, /Difusor de Aromas com Varetas Minueto - 400 ml/);
+  assert.match(migration, /Sabonete Líquido Dourado Minueto - 400 ml/);
+  assert.match(migration, /Tábua de Corte - Família Fioreze - Bambu/);
+  assert.match(migration, /\b12400\b/);
+  assert.match(migration, /\b23800\b/);
+  assert.match(migration, /\b21600\b/);
+  assert.match(migration, /\b4200\b/);
+  assert.match(migration, /\b12000\b/);
+  assert.doesNotMatch(migration, /orders|order_items|print_events|aurora-demo|fiorezecentro/i);
+  assert.doesNotMatch(
+    migration,
+    /script\.google\.com|i\.postimg\.cc|whatsapp|password|token|secret/i,
+  );
+});
+
 function adminJson(cookie, method, body) {
   return withCookie(cookie, {
     method,
