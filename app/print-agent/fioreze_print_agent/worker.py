@@ -4,7 +4,7 @@ import time
 from .api import ApiError, PrintAgentApi
 from .journal import PrintJournal
 from .printer import print_raw
-from .templates import render_print_job
+from .templates import format_order_number, render_print_job
 
 
 class PrintWorker(threading.Thread):
@@ -52,7 +52,7 @@ class PrintWorker(threading.Thread):
                 except ApiError:
                     logo = None
             payload = render_print_job(job, logo)
-            print_raw(self.config["printer_name"], payload, f"Fioreze {job['order']['public_id']}")
+            print_raw(self.config["printer_name"], payload, f"Fioreze Pedido {format_order_number(job['order'])}")
             self.journal.record(job["id"])
         except Exception as error:
             api.fail(job["id"], job["claim_token"], type(error).__name__)

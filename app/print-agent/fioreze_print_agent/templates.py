@@ -9,6 +9,14 @@ ESC = b"\x1b"
 GS = b"\x1d"
 
 
+def format_order_number(order):
+    try:
+        number = int(order.get("display_number") or 0)
+    except (TypeError, ValueError):
+        number = 0
+    return f"{number:04d}" if number > 0 else "----"
+
+
 def render_print_job(job, logo_bytes=None):
     template = job.get("template", {})
     config = template.get("config", {})
@@ -32,7 +40,7 @@ def render_classic_job(job, logo_bytes=None):
             center(order.get("hotel_short_name") or order.get("hotel_name") or "FIOREZE", columns),
             center(copy.get("title", "COMPROVANTE"), columns),
             "=" * columns,
-            row("PEDIDO", order.get("public_id", ""), columns),
+            row("PEDIDO N.", format_order_number(order), columns),
             row("ACOMODACAO", order.get("room_code", ""), columns),
             row("HOSPEDE", order.get("guest_name", ""), columns),
             row("RECEBIDO", format_timestamp(order.get("created_at")), columns),
@@ -71,7 +79,7 @@ def render_centro_job(job, logo_bytes=None):
             *[center(line, columns) for line in config.get("header_lines", [])],
             center(copy.get("title", "COMPROVANTE"), columns),
             "=" * columns,
-            row("COMANDA", order.get("public_id", ""), columns),
+            row("PEDIDO N.", format_order_number(order), columns),
             emphasized_value("APARTAMENTO", order.get("room_code", ""), columns),
             row("HOSPEDE", order.get("guest_name", ""), columns),
             row("LOCAL", order.get("delivery_location", "ACOMODACAO"), columns),
@@ -103,7 +111,7 @@ def render_test_page(template, hotel_name, printer_name, logo_bytes=None):
         "order": {
             "hotel_name": hotel_name,
             "hotel_short_name": hotel_name,
-            "public_id": "TESTE-LOCAL",
+            "display_number": 1,
             "room_code": "000",
             "guest_name": "TESTE DE IMPRESSAO",
             "delivery_location": "RECEPCAO",

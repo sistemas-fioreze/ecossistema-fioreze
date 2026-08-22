@@ -208,7 +208,7 @@ function renderStaticShell({ embedded = false } = {}) {
       <section class="rs-modal" data-modal hidden role="dialog" aria-modal="true" aria-labelledby="rs-modal-title">
         <div class="rs-modal-card" data-modal-card>
           <div class="rs-success-mark" data-modal-success hidden aria-hidden="true">
-            <svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+            <img src="/assets/room-service/order-sent.gif" alt="">
           </div>
           <h3 id="rs-modal-title" data-modal-title></h3>
           <p data-modal-text></p>
@@ -945,7 +945,7 @@ async function submitOrder(container, state, form) {
     renderCart(container, state);
     toggleCart(container, state, false);
     await refreshRecentOrders(container, state, { justSent: true });
-    showToast(container, "Pedido enviado com sucesso");
+    showModal(container, "Pedido enviado", "A unidade já recebeu sua solicitação.", { success: true });
   } catch (error) {
     status.classList.add("error");
     status.textContent = error.message;
@@ -1213,8 +1213,8 @@ function renderRecentOrders(container, state, orders, { justSent = false } = {})
     ${justSent ? `<div class="rs-order-sent"><strong>Pedido enviado</strong><span>A unidade já recebeu sua solicitação.</span></div>` : ""}
     <header><span>Pedidos recentes</span><small>Neste dispositivo</small></header>
     <div>${orders.map((order) => {
-      const status = ["sent", "printed", "delivered"].includes(order.status) ? order.status : "sent";
-      const statusLabel = { sent: "Enviado", printed: "Impresso", delivered: "Entregue" }[status];
+      const status = "sent";
+      const statusLabel = "Enviado";
       const created = formatLocalTime(order.created_at, state.bootstrap.locale, state.bootstrap.timezone);
       const scheduled = order.preparation_mode === "scheduled" && order.scheduled_for
         ? ` · entrega ${formatLocalTime(order.scheduled_for, state.bootstrap.locale, state.bootstrap.timezone)}`
