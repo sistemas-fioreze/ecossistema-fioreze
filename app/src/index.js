@@ -11,6 +11,7 @@ import { redirectShortLink } from "./modules/short-links/public.js";
 import { extractCustomDomainSlug, isShortLinkCustomDomainRequest } from "./modules/short-links/shared.js";
 import { serveCustomPortalPage } from "./modules/portal-pages/public.js";
 import { serveDesktopRelease, servePrintAgentRelease } from "./modules/desktop-releases.js";
+import { serveInternalDownloadCenter, serveInternalInstaller } from "./modules/internal-downloads.js";
 import { archiveExpiredPortalEvents } from "./services/portal-event-lifecycle.js";
 import { registerPrintAgentRoutes } from "./modules/print-agent/routes.js";
 import {
@@ -60,6 +61,26 @@ router.head("/portal-content/:hotel_slug/:page_slug", async ({ env, params }) =>
 async function handleRequest(request, env, ctx) {
   const url = new URL(request.url);
   const officialPortalHost = isGuestPortalPublicHost(request, env);
+
+  if (isRetiredHumanDownloadPath(url.pathname)) {
+    return servePublicNotFoundPage(request, env);
+  }
+
+  const internalDownloadRoute = parseInternalDownloadRoute(url.pathname);
+  if (internalDownloadRoute) {
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      return servePublicNotFoundPage(request, env);
+    }
+    const head = request.method === "HEAD";
+    if (internalDownloadRoute.product) {
+      return serveInternalInstaller({ env, product: internalDownloadRoute.product, head });
+    }
+    return serveInternalDownloadCenter({ env, head });
+  }
+
+  if (url.pathname === "/internal" || url.pathname.startsWith("/internal/download/")) {
+    return servePublicNotFoundPage(request, env);
+  }
 
   if (isShortLinkCustomDomainRequest(request, env)) {
     return handleShortLinkCustomDomainRequest({ request, env, ctx, url });
@@ -204,6 +225,23 @@ function parseUnitErpRoute(pathname) {
     hotelSlug,
     redirectTo: suffix ? null : `/${hotelSlug}/admin/erp/`,
   };
+}
+
+function parseInternalDownloadRoute(pathname) {
+  if (pathname === "/internal/download" || pathname === "/internal/download/") {
+    return { product: null };
+  }
+  const match = String(pathname || "").match(/^\/internal\/download\/(erp|suite)\/?$/);
+  return match ? { product: match[1] } : null;
+}
+
+function isRetiredHumanDownloadPath(pathname) {
+  return new Set([
+    "/downloads/erp/download",
+    "/downloads/erp/installer",
+    "/downloads/print-agent/download",
+    "/downloads/print-agent/installer",
+  ]).has(pathname);
 }
 
 function isRetiredErpPath(pathname) {
