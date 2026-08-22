@@ -1,20 +1,19 @@
 const STYLESHEET_HREF = "/css/modules/admin/admin-downloads.css";
 const CARD_MARKER = "data-admin-downloads-card";
 const DIALOG_ID = "adminDownloadsDialog";
+const DOWNLOAD_CENTER = "/internal/download";
 
 const PACKAGES = [
   {
     name: "Fioreze ERP",
     description: "Aplicativo desktop do ERP Fioreze para Windows.",
-    installer: "/downloads/erp/installer",
-    files: "/downloads/erp/download",
+    installer: "/internal/download/erp",
     icon: "monitor",
   },
   {
     name: "Fioreze Suite",
     description: "Suite local de serviços e impressão para os computadores das unidades.",
-    installer: "/downloads/print-agent/installer",
-    files: "/downloads/print-agent/download",
+    installer: "/internal/download/suite",
     icon: "package",
   },
 ];
@@ -79,6 +78,7 @@ function ensureDialog(root) {
       <div class="admin-downloads-grid">
         ${PACKAGES.map(renderPackage).join("")}
       </div>
+      <a class="admin-download-secondary" href="${DOWNLOAD_CENTER}" target="_blank" rel="noopener">Abrir central unificada de downloads</a>
     </div>
   `;
   dialog.querySelector("[data-admin-downloads-close]")?.addEventListener("click", () => dialog.close());
@@ -105,7 +105,6 @@ function renderPackage(item) {
       </div>
       <div class="admin-download-package-actions">
         <a class="admin-download-primary" href="${item.installer}">${downloadIcon()}<span>Baixar instalador</span></a>
-        <a class="admin-download-secondary" href="${item.files}" target="_blank" rel="noopener">Ver arquivos do release</a>
       </div>
     </article>
   `;
