@@ -161,13 +161,18 @@ test("Room Service incorporado usa o cabecalho do portal e abre sem tela de carr
 test("fluxo visual inclui revisao, preparo e acompanhamento recente sem exibir ID tecnico", () => {
   const shell = renderStaticShell();
   const script = fs.readFileSync(new URL("../public/js/modules/room-service/index.js", import.meta.url), "utf8");
+  const successAnimation = fs.readFileSync(new URL("../public/assets/room-service/order-sent.gif", import.meta.url));
 
   assert.match(shell, /data-order-review/);
   assert.match(shell, /data-recent-orders/);
+  assert.match(shell, /order-sent\.gif/);
   assert.match(script, /Revise antes de enviar/);
   assert.match(script, /Agendar entrega/);
-  assert.match(script, /Pedido enviado com sucesso/);
+  assert.match(script, /showModal\(container, "Pedido enviado"[^;]+success: true/);
+  assert.match(script, /const statusLabel = "Enviado"/);
+  assert.doesNotMatch(script, /statusLabel = \{ sent: "Enviado", printed:/);
   assert.doesNotMatch(script, /Recebemos seu pedido \$\{order\.public_id/);
+  assert.match(successAnimation.subarray(0, 6).toString("ascii"), /^GIF8[79]a$/);
 });
 
 test("pedido informa o lancamento na conta do hospede antes do envio", () => {

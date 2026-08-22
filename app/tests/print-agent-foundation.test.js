@@ -10,6 +10,7 @@ const centroTemplateUrl = new URL("../migrations/0042_fioreze_centro_print_templ
 const routesUrl = new URL("../src/modules/print-agent/routes.js", import.meta.url);
 const serviceUrl = new URL("../src/modules/print-agent/service.js", import.meta.url);
 const agentUrl = new URL("../print-agent/fioreze_print_agent/worker.py", import.meta.url);
+const templatesUrl = new URL("../print-agent/fioreze_print_agent/templates.py", import.meta.url);
 const appUrl = new URL("../print-agent/fioreze_print_agent/app.py", import.meta.url);
 const trayUrl = new URL("../print-agent/fioreze_print_agent/tray.py", import.meta.url);
 const updaterUrl = new URL("../print-agent/fioreze_print_agent/updater.py", import.meta.url);
@@ -63,6 +64,22 @@ test("falha transitoria retorna a fila e limita novas tentativas", async () => {
 test("agente local nao contem dependencias do legado", async () => {
   const source = await readFile(agentUrl, "utf8");
   assert.doesNotMatch(source, /gspread|google sheets|apps script/i);
+});
+
+test("comprovante usa numero humano sequencial sem expor o identificador tecnico", async () => {
+  const [service, agent, templates] = await Promise.all([
+    readFile(serviceUrl, "utf8"),
+    readFile(agentUrl, "utf8"),
+    readFile(templatesUrl, "utf8"),
+  ]);
+  assert.match(service, /AS display_number/i);
+  assert.match(service, /sequence\.hotel_id = o\.hotel_id/i);
+  assert.match(service, /sequence\.module_key = o\.module_key/i);
+  assert.match(templates, /def format_order_number\(order\)/);
+  assert.match(templates, /row\("PEDIDO N\.", format_order_number\(order\), columns\)/);
+  assert.doesNotMatch(templates, /row\("(?:PEDIDO|COMANDA)"[^\n]*public_id/);
+  assert.match(agent, /Fioreze Pedido \{format_order_number\(job\['order'\]\)\}/);
+  assert.doesNotMatch(agent, /job\['order'\]\['public_id'\]/);
 });
 
 test("unidade fornece logo reduzida e agente preserva selecao de impressora e bandeja", async () => {

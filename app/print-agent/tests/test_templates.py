@@ -3,7 +3,7 @@ from io import BytesIO
 
 from PIL import Image
 
-from fioreze_print_agent.templates import format_money, render_print_job, render_test_page, wrap_text
+from fioreze_print_agent.templates import format_money, format_order_number, render_print_job, render_test_page, wrap_text
 
 
 class TemplateTests(unittest.TestCase):
@@ -15,7 +15,8 @@ class TemplateTests(unittest.TestCase):
             ]}},
             "order": {
                 "hotel_name": "Hotel Exemplo",
-                "public_id": "RS-TESTE",
+                "public_id": "rs_technical-id-that-must-not-print",
+                "display_number": 1,
                 "room_code": "101",
                 "guest_name": "Hospede Ficticio",
                 "currency": "BRL",
@@ -29,9 +30,14 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("VIA DO HOSPEDE", payload)
         self.assertIn("R$ 32,50", payload)
         self.assertIn("ASSINATURA", payload)
+        self.assertIn("PEDIDO N.", payload)
+        self.assertIn("0001", payload)
+        self.assertNotIn("rs_technical-id", payload)
 
     def test_money_and_wrapping_are_deterministic(self):
         self.assertEqual(format_money(123456), "R$ 1.234,56")
+        self.assertEqual(format_order_number({"display_number": 42}), "0042")
+        self.assertEqual(format_order_number({"public_id": "rs_internal"}), "----")
         self.assertEqual(wrap_text("um texto de teste", 8), ["um texto", "de teste"])
 
     def test_item_observation_uses_note_from_snapshot(self):
@@ -66,7 +72,8 @@ class TemplateTests(unittest.TestCase):
             }},
             "order": {
                 "hotel_name": "Fioreze Centro",
-                "public_id": "RS-FICTICIO",
+                "public_id": "rs_ficticio-interno",
+                "display_number": 27,
                 "room_code": "000",
                 "guest_name": "Hospede Ficticio",
                 "currency": "BRL",
@@ -87,6 +94,8 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("V.UNIT", payload)
         self.assertIn("R$ 20,00", payload)
         self.assertIn("Sabor: Demonstracao; Sem talheres", payload)
+        self.assertIn("0027", payload)
+        self.assertNotIn("rs_ficticio-interno", payload)
 
     def test_logo_is_rendered_as_escpos_raster_without_printer(self):
         source = BytesIO()
@@ -104,7 +113,7 @@ class TemplateTests(unittest.TestCase):
             "Hotel Ficticio",
             "Impressora Ficticia",
         ).decode("cp850", errors="ignore")
-        self.assertIn("TESTE-LOCAL", payload)
+        self.assertIn("0001", payload)
         self.assertIn("Nao preparar", payload)
 
 

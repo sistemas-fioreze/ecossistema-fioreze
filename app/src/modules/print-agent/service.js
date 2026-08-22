@@ -351,6 +351,16 @@ async function loadPrintableJob(env, device, jobId, claimToken, claimExpiresAt) 
     env,
     `SELECT pe.id AS print_event_id, pe.job_kind, pe.attempts, pe.template_id,
             o.id AS order_id, o.public_id, o.origin, o.room_code, o.guest_name,
+            (
+              SELECT COUNT(*)
+                FROM orders sequence
+               WHERE sequence.hotel_id = o.hotel_id
+                 AND sequence.module_key = o.module_key
+                 AND (
+                   sequence.created_at < o.created_at
+                   OR (sequence.created_at = o.created_at AND sequence.id <= o.id)
+                 )
+            ) AS display_number,
             o.notes, o.currency, o.subtotal_cents, o.total_cents, o.preparation_mode,
             o.scheduled_for, o.created_at, h.name AS hotel_name, h.short_name AS hotel_short_name,
             h.timezone, hb.logo_url

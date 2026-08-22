@@ -293,13 +293,15 @@ test("desabilitar observacoes bloqueia notas gerais e por item", async () => {
 });
 
 test("acompanhamento recente exige a chave do proprio pedido e preserva isolamento", async () => {
-  const { json } = createWorkerTestContext();
+  const { json, env } = createWorkerTestContext();
   const trackingKey = "tracking-order-demo";
   const created = await json(
     "/api/v1/public/hotels/muller-fioreze/room-service/orders",
     jsonPost(VALID_ORDER, { "idempotency-key": trackingKey }),
   );
   const publicId = created.body.data.public_id;
+  const order = env.__data.orders.find((entry) => entry.public_id === publicId);
+  order.status = "ready";
   const tracked = await json(
     `/api/v1/public/hotels/muller-fioreze/room-service/orders/${publicId}/status`,
     { headers: { "X-Order-Tracking-Key": trackingKey } },
@@ -312,9 +314,16 @@ test("acompanhamento recente exige a chave do proprio pedido e preserva isolamen
     `/api/v1/public/hotels/aurora-demo/room-service/orders/${publicId}/status`,
     { headers: { "X-Order-Tracking-Key": trackingKey } },
   );
+  order.status = "delivered";
+  const trackedAfterDelivery = await json(
+    `/api/v1/public/hotels/muller-fioreze/room-service/orders/${publicId}/status`,
+    { headers: { "X-Order-Tracking-Key": trackingKey } },
+  );
 
   assert.equal(tracked.response.status, 200);
   assert.equal(tracked.body.data.status, "sent");
+  assert.equal(trackedAfterDelivery.response.status, 200);
+  assert.equal(trackedAfterDelivery.body.data.status, "sent");
   assert.equal(wrongKey.response.status, 404);
   assert.equal(otherHotel.response.status, 404);
 });

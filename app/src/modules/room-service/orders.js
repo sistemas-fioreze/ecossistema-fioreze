@@ -379,9 +379,6 @@ function validatePreparation({ request, env, tenant, payload }) {
   return { mode, scheduled_for: scheduledDate.toISOString() };
 }
 
-function publicOrderStatus(status) {
-  if (["received", "accepted", "preparing"].includes(status)) return "sent";
-  if (status === "ready") return "printed";
-  if (status === "delivered") return "delivered";
-  return status;
+function publicOrderStatus(_status) {
+  return "sent";
 }
