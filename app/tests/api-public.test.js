@@ -125,7 +125,10 @@ test("evento recorrente retorna um único card com todas as ocorrências", async
     timezone: event.timezone,
   });
 
-  const { body } = await context.json("/api/v1/public/hotels/muller-fioreze/portal/events");
+  const { body } = await context.json(
+    "/api/v1/public/hotels/muller-fioreze/portal/events",
+    { headers: { "x-fioreze-test-now": "2026-08-09T12:00:00.000Z" } },
+  );
   const matches = body.data.events.filter((entry) => entry.id === event.id);
   assert.equal(matches.length, 1);
   assert.deepEqual(matches[0].occurrences.map((occurrence) => occurrence.id), [
