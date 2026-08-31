@@ -4,7 +4,7 @@ const STYLE_ID = "adminShortLinksDialogStyles";
 let pendingMode = "edit";
 let lastTrigger = null;
 
-installShortLinksPopups();
+if (typeof document !== "undefined") installShortLinksPopups();
 
 function installShortLinksPopups() {
   const editor = document.getElementById("shortLinksEditor");
@@ -19,6 +19,7 @@ function installShortLinksPopups() {
   document.body.append(dialog);
   dialog.append(editor);
 
+  const manager = document.getElementById("shortLinksManager");
   const list = document.getElementById("shortLinksList");
   const addButton = document.getElementById("addShortLinkButton");
   const closeButton = document.getElementById("cancelShortLinkButton");
@@ -39,6 +40,13 @@ function installShortLinksPopups() {
 
   const editorObserver = new MutationObserver(() => syncDialogState(dialog, editor));
   editorObserver.observe(editor, { attributes: true, attributeFilter: ["hidden"] });
+
+  if (manager) {
+    const managerObserver = new MutationObserver(() => {
+      if (manager.hidden && !editor.hidden) closeButton?.click();
+    });
+    managerObserver.observe(manager, { attributes: true, attributeFilter: ["hidden"] });
+  }
 
   if (list) {
     const listObserver = new MutationObserver(() => enhanceShortLinkRows(list));
@@ -65,7 +73,7 @@ function capturePopupMode(event) {
 function enhanceShortLinkRows(list) {
   for (const row of list.querySelectorAll(".admin-short-link-row")) {
     const actions = row.querySelector(".admin-link-card-actions");
-    const editButton = actions?.querySelector('[data-link-action="edit"]:not([data-short-link-popup-mode="metrics"])');
+    const editButton = actions?.querySelector('[data-link-action="edit"]:not([data-short-link-popup-mode])');
     if (!actions || !editButton) continue;
 
     const label = editButton.querySelector("span");
@@ -73,16 +81,36 @@ function enhanceShortLinkRows(list) {
     editButton.dataset.shortLinkPopupMode = canManage ? "edit" : "view";
     if (canManage && label) label.textContent = "Editar";
 
+    if (canManage && !actions.querySelector('[data-short-link-popup-mode="view"]')) {
+      const viewButton = createPopupActionButton({
+        linkId: editButton.dataset.linkId,
+        mode: "view",
+        label: "Visualizar",
+        icon: eyeIcon(),
+      });
+      actions.insertBefore(viewButton, editButton);
+    }
+
     if (!actions.querySelector('[data-short-link-popup-mode="metrics"]')) {
-      const metricsButton = document.createElement("button");
-      metricsButton.type = "button";
-      metricsButton.dataset.linkAction = "edit";
-      metricsButton.dataset.linkId = editButton.dataset.linkId || "";
-      metricsButton.dataset.shortLinkPopupMode = "metrics";
-      metricsButton.innerHTML = `${analyticsIcon()}<span>Métricas</span>`;
+      const metricsButton = createPopupActionButton({
+        linkId: editButton.dataset.linkId,
+        mode: "metrics",
+        label: "Métricas",
+        icon: analyticsIcon(),
+      });
       editButton.insertAdjacentElement("afterend", metricsButton);
     }
   }
+}
+
+function createPopupActionButton({ linkId, mode, label, icon }) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.dataset.linkAction = "edit";
+  button.dataset.linkId = linkId || "";
+  button.dataset.shortLinkPopupMode = mode;
+  button.innerHTML = `${icon}<span>${label}</span>`;
+  return button;
 }
 
 function syncDialogState(dialog, editor) {
@@ -127,10 +155,6 @@ function applyPopupMode(dialog, editor, mode) {
   }
 
   window.requestAnimationFrame(() => {
-    const target = normalizedMode === "metrics"
-      ? (analyticsFilters?.hidden ? analyticsPanel : analyticsFilters)
-      : editor;
-    target?.scrollIntoView?.({ block: "start", behavior: "auto" });
     editor.scrollTo?.({ top: 0, behavior: "auto" });
   });
 }
@@ -184,7 +208,7 @@ function ensureStyles() {
       min-width: 74px;
     }
 
-    #${DIALOG_ID}[data-short-link-popup-mode="edit"] :is(#shortLinkAnalyticsFilters, #shortLinksAnalytics, #shortLinkSharingPanel),
+    #${DIALOG_ID}[data-short-link-popup-mode="edit"] :is(#shortLinkAnalyticsFilters, #shortLinksAnalytics, #shortLinkSharingPanel, #shortLinkQrPanel),
     #${DIALOG_ID}[data-short-link-popup-mode="view"] :is(#shortLinkAnalyticsFilters, #shortLinksAnalytics, #shortLinkSharingPanel),
     #${DIALOG_ID}[data-short-link-popup-mode="metrics"] :is(#shortLinksForm, #shortLinkQrPanel, #shortLinkSharingPanel),
     #${DIALOG_ID}[data-short-link-popup-mode="qr"] :is(#shortLinksForm, #shortLinkAnalyticsFilters, #shortLinksAnalytics, #shortLinkSharingPanel),
@@ -223,6 +247,10 @@ function ensureStyles() {
     }
   `;
   document.head.append(style);
+}
+
+function eyeIcon() {
+  return '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>';
 }
 
 function analyticsIcon() {
