@@ -1,0 +1,529 @@
+#adminShortLinksDialog {
+  width: min(1180px, calc(100vw - 40px));
+  max-width: 1180px;
+  max-height: calc(100vh - 40px);
+  margin: auto;
+  border: 0;
+  border-radius: 18px;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  overflow: hidden;
+}
+
+#adminShortLinksDialog::backdrop {
+  background: rgba(20, 24, 28, 0.48);
+  backdrop-filter: blur(5px);
+}
+
+#adminShortLinksDialog > .admin-short-links-editor {
+  width: 100%;
+  height: min(820px, calc(100vh - 40px));
+  max-height: calc(100vh - 40px);
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #dde1e5;
+  border-radius: 18px;
+  padding: 0;
+  background: #fff;
+  box-shadow: 0 32px 90px rgba(20, 24, 28, 0.26);
+}
+
+#adminShortLinksDialog > .admin-short-links-editor > .admin-panel-heading {
+  position: relative;
+  z-index: 4;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid #eceef0;
+  background: #fff;
+}
+
+#adminShortLinksDialog > .admin-short-links-editor > .admin-panel-heading h3 {
+  margin: 0 0 5px;
+  font-size: 20px;
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+#adminShortLinksDialog > .admin-short-links-editor > .admin-panel-heading .admin-muted {
+  max-width: 760px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+#adminShortLinksDialog .admin-link-editor-close {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid #e0e3e6;
+  border-radius: 10px;
+  background: #fff;
+  color: #59616b;
+  font-size: 24px;
+  line-height: 1;
+  font-weight: 400;
+}
+
+#adminShortLinksDialog .admin-link-editor-close:hover {
+  background: #f6f7f8;
+  color: #1f252b;
+}
+
+#shortLinkPopupTabs {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  overflow-x: auto;
+  border-bottom: 1px solid #eceef0;
+  background: #fbfbfc;
+  scrollbar-width: thin;
+}
+
+#shortLinkPopupTabs button {
+  min-height: 36px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  flex: 0 0 auto;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: #606975;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+#shortLinkPopupTabs button svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#shortLinkPopupTabs button:hover {
+  border-color: #e1e4e7;
+  background: #fff;
+  color: #20262d;
+}
+
+#shortLinkPopupTabs button[aria-selected="true"] {
+  border-color: rgba(194, 169, 75, 0.34);
+  background: #fffaf0;
+  color: #76631c;
+  box-shadow: 0 1px 2px rgba(25, 28, 31, 0.05);
+}
+
+#adminShortLinksPopupLayout {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  overflow: hidden;
+  background: #f7f8f9;
+}
+
+#adminShortLinksDialog .admin-short-links-popup-main {
+  min-width: 0;
+  overflow: auto;
+  padding: 24px;
+  background: #fff;
+}
+
+#shortLinkPopupSummary {
+  min-width: 0;
+  overflow: auto;
+  padding: 22px;
+  border-left: 1px solid #e5e8eb;
+  background: #f7f8f9;
+}
+
+#shortLinkPopupSummary .admin-short-links-summary-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+#shortLinkPopupSummary .admin-short-links-summary-heading > div > span,
+#shortLinkPopupSummary .admin-short-links-summary-label,
+#shortLinkPopupSummary .admin-short-links-summary-details span,
+#shortLinkPopupOverview .admin-short-links-overview-hero > div > span,
+#shortLinkPopupOverview .admin-short-links-overview-grid article > span {
+  display: block;
+  margin-bottom: 5px;
+  color: #7a838e;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+#shortLinkPopupSummary .admin-short-links-summary-heading h4 {
+  margin: 0;
+  color: #20262d;
+  font-size: 15px;
+  line-height: 1.35;
+  font-weight: 600;
+}
+
+#adminShortLinksDialog .admin-short-links-status-pill {
+  min-height: 26px;
+  padding: 0 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #eaf7ef;
+  color: #1d7a49;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+#adminShortLinksDialog .admin-short-links-status-pill[data-status="paused"] {
+  background: #fff4dd;
+  color: #8b6412;
+}
+
+#adminShortLinksDialog .admin-short-links-status-pill[data-status="archived"] {
+  background: #eef0f2;
+  color: #68717b;
+}
+
+#shortLinkPopupSummary .admin-short-links-summary-card {
+  padding: 18px;
+  border: 1px solid #e2e5e8;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(30, 34, 38, 0.05);
+}
+
+#shortLinkPopupSummary #shortLinkPopupSummaryQr {
+  width: 94px;
+  height: 94px;
+  display: block;
+  margin: 0 auto 16px;
+  padding: 7px;
+  object-fit: contain;
+  border: 1px solid #eceef0;
+  border-radius: 12px;
+  background: #fff;
+}
+
+#shortLinkPopupSummary #shortLinkPopupSummaryQr[hidden] {
+  display: none;
+}
+
+#shortLinkPopupSummary #shortLinkPopupSummaryName {
+  display: block;
+  margin-bottom: 9px;
+  color: #20262d;
+  font-size: 15px;
+  line-height: 1.35;
+  font-weight: 600;
+}
+
+#shortLinkPopupSummary .admin-short-links-summary-url {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 11px;
+  overflow: hidden;
+  border: 1px solid rgba(194, 169, 75, 0.35);
+  border-radius: 10px;
+  background: #fffaf0;
+  color: #725f18;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#shortLinkPopupSummary .admin-short-links-summary-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+#shortLinkPopupSummary .admin-short-links-summary-actions button,
+#shortLinkPopupSummary .admin-short-links-destination-button {
+  min-height: 38px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid #dfe3e6;
+  border-radius: 9px;
+  background: #fff;
+  color: #38414a;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+#shortLinkPopupSummary .admin-short-links-summary-actions svg,
+#shortLinkPopupSummary .admin-short-links-destination-button svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#shortLinkPopupSummary .admin-short-links-summary-actions button:hover:not(:disabled),
+#shortLinkPopupSummary .admin-short-links-destination-button:hover:not(:disabled) {
+  border-color: #cfd4d9;
+  background: #f9fafb;
+}
+
+#shortLinkPopupSummary button:disabled {
+  cursor: default;
+  opacity: 0.46;
+}
+
+#shortLinkPopupSummary .admin-short-links-summary-details {
+  margin-top: 14px;
+  border: 1px solid #e2e5e8;
+  border-radius: 12px;
+  background: #fff;
+}
+
+#shortLinkPopupSummary .admin-short-links-summary-details > div {
+  padding: 13px 14px;
+}
+
+#shortLinkPopupSummary .admin-short-links-summary-details > div + div {
+  border-top: 1px solid #edf0f2;
+}
+
+#shortLinkPopupSummary .admin-short-links-summary-details strong {
+  display: block;
+  overflow-wrap: anywhere;
+  color: #323a43;
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+#shortLinkPopupSummary .admin-short-links-destination-button {
+  width: 100%;
+  margin-top: 10px;
+}
+
+#shortLinkPopupOverview {
+  display: grid;
+  gap: 16px;
+}
+
+#shortLinkPopupOverview .admin-short-links-overview-hero {
+  padding: 20px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid #e3e6e9;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #fff, #fbfbfc);
+}
+
+#shortLinkPopupOverview .admin-short-links-overview-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #fff8e6;
+  color: #9b7f22;
+}
+
+#shortLinkPopupOverview .admin-short-links-overview-icon svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#shortLinkPopupOverview .admin-short-links-overview-hero h4 {
+  margin: 0 0 4px;
+  color: #20262d;
+  font-size: 17px;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+#shortLinkPopupOverview .admin-short-links-overview-hero p {
+  margin: 0;
+  overflow: hidden;
+  color: #7b681f;
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#shortLinkPopupOverview .admin-short-links-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+#shortLinkPopupOverview .admin-short-links-overview-grid article {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid #e5e8eb;
+  border-radius: 12px;
+  background: #fff;
+}
+
+#shortLinkPopupOverview .admin-short-links-overview-grid article.is-wide {
+  grid-column: 1 / -1;
+}
+
+#shortLinkPopupOverview .admin-short-links-overview-grid strong {
+  display: block;
+  overflow-wrap: anywhere;
+  color: #303840;
+  font-size: 13px;
+  line-height: 1.55;
+  font-weight: 500;
+}
+
+#adminShortLinksDialog .admin-short-links-popup-main #shortLinksForm {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+}
+
+#adminShortLinksDialog .admin-short-links-popup-main #shortLinksForm > .admin-field-wide,
+#adminShortLinksDialog .admin-short-links-popup-main #shortLinksForm > .admin-form-grid,
+#adminShortLinksDialog .admin-short-links-popup-main #shortLinksForm > [type="submit"] {
+  grid-column: 1 / -1;
+}
+
+#adminShortLinksDialog .admin-short-links-popup-main #shortLinksForm > .admin-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+#adminShortLinksDialog .admin-short-links-popup-main #shortLinksForm > [type="submit"] {
+  justify-self: end;
+  min-width: 132px;
+}
+
+#adminShortLinksDialog .admin-short-links-popup-main :is(#shortLinkQrPanel, #shortLinkSharingPanel, #shortLinksAnalytics) {
+  margin: 0;
+}
+
+#adminShortLinksDialog .admin-short-links-popup-main #shortLinkAnalyticsFilters {
+  margin: 0 0 16px;
+  padding: 14px;
+  border: 1px solid #e4e7ea;
+  border-radius: 12px;
+  background: #fafbfc;
+}
+
+#adminShortLinksDialog[data-short-link-popup-mode="edit"] :is(#shortLinkPopupOverview, #shortLinkAnalyticsFilters, #shortLinksAnalytics, #shortLinkSharingPanel, #shortLinkQrPanel),
+#adminShortLinksDialog[data-short-link-popup-mode="view"] :is(#shortLinksForm, #shortLinkAnalyticsFilters, #shortLinksAnalytics, #shortLinkSharingPanel, #shortLinkQrPanel),
+#adminShortLinksDialog[data-short-link-popup-mode="metrics"] :is(#shortLinkPopupOverview, #shortLinksForm, #shortLinkQrPanel, #shortLinkSharingPanel),
+#adminShortLinksDialog[data-short-link-popup-mode="qr"] :is(#shortLinkPopupOverview, #shortLinksForm, #shortLinkAnalyticsFilters, #shortLinksAnalytics, #shortLinkSharingPanel),
+#adminShortLinksDialog[data-short-link-popup-mode="share"] :is(#shortLinkPopupOverview, #shortLinksForm, #shortLinkQrPanel, #shortLinkAnalyticsFilters, #shortLinksAnalytics) {
+  display: none !important;
+}
+
+#adminShortLinksDialog[data-short-link-popup-mode="view"] #shortLinksForm [type="submit"] {
+  display: none !important;
+}
+
+@media (max-width: 920px) {
+  #adminShortLinksDialog {
+    width: calc(100vw - 20px);
+    max-height: calc(100vh - 20px);
+    border-radius: 14px;
+  }
+
+  #adminShortLinksDialog > .admin-short-links-editor {
+    height: calc(100vh - 20px);
+    max-height: calc(100vh - 20px);
+    border-radius: 14px;
+  }
+
+  #adminShortLinksPopupLayout {
+    grid-template-columns: minmax(0, 1fr);
+    overflow: auto;
+  }
+
+  #adminShortLinksDialog .admin-short-links-popup-main,
+  #shortLinkPopupSummary {
+    overflow: visible;
+  }
+
+  #shortLinkPopupSummary {
+    border-top: 1px solid #e5e8eb;
+    border-left: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  #adminShortLinksDialog {
+    width: calc(100vw - 12px);
+    max-height: calc(100vh - 12px);
+    border-radius: 12px;
+  }
+
+  #adminShortLinksDialog > .admin-short-links-editor {
+    height: calc(100vh - 12px);
+    max-height: calc(100vh - 12px);
+    border-radius: 12px;
+  }
+
+  #adminShortLinksDialog > .admin-short-links-editor > .admin-panel-heading {
+    padding: 18px 16px 14px;
+  }
+
+  #shortLinkPopupTabs {
+    padding-inline: 10px;
+  }
+
+  #adminShortLinksDialog .admin-short-links-popup-main,
+  #shortLinkPopupSummary {
+    padding: 16px;
+  }
+
+  #adminShortLinksDialog .admin-short-links-popup-main #shortLinksForm,
+  #adminShortLinksDialog .admin-short-links-popup-main #shortLinksForm > .admin-form-grid,
+  #shortLinkPopupOverview .admin-short-links-overview-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #shortLinkPopupOverview .admin-short-links-overview-hero {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  #shortLinkPopupOverview .admin-short-links-overview-hero .admin-short-links-status-pill {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+}
