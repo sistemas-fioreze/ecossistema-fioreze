@@ -23,7 +23,7 @@ test("segredo Base32 faz round-trip e URI segue padrão otpauth", () => {
   assert.equal(__test.base32Encode(bytes), RFC_SECRET);
   assert.deepEqual([...__test.base32Decode(RFC_SECRET)], [...bytes]);
   const uri = __test.createOtpAuthUri({ label: "marketing@fioreze.com", secret: RFC_SECRET });
-  assert.match(uri, /^otpauth:\/\/totp\/Fioreze:/);
+  assert.match(uri, /^otpauth:\/\/totp\/Fioreze%3Amarketing%40fioreze\.com\?/);
   assert.match(uri, /issuer=Fioreze/);
   assert.match(uri, /algorithm=SHA1/);
   assert.match(uri, /digits=6/);
@@ -34,7 +34,7 @@ test("códigos de recuperação são únicos e não triviais", () => {
   const codes = __test.generateRecoveryCodes();
   assert.equal(codes.length, 10);
   assert.equal(new Set(codes).size, 10);
-  for (const code of codes) assert.match(code, /^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+  for (const code of codes) assert.match(code, /^[A-Z2-9]{4}(?:-[A-Z2-9]{4}){3}$/);
 });
 
 test("login por senha só cria sessão após TOTP quando MFA está ativo", async () => {
