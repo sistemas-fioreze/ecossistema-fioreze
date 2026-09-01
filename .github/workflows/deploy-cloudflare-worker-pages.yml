@@ -62,9 +62,6 @@ jobs:
       - name: Validar aplicacao
         run: npm run validate
 
-      - name: Aplicar migrations D1
-        run: npx wrangler d1 migrations apply fioreze-portais-db-dev --remote --config wrangler.jsonc
-
       - name: Publicar Worker na Cloudflare
         run: npx wrangler deploy --config wrangler.jsonc
 
