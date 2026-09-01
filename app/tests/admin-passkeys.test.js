@@ -34,7 +34,7 @@ test("cerimônia exige passkey descobrível e verificação local do usuário", 
   assert.match(service, /requireResidentKey: true/);
   assert.match(service, /userVerification: "required"/);
   assert.match(service, /attestation: "none"/);
-  assert.match(service, /algorithm = -7|algorithm INTEGER NOT NULL/);
+  assert.match(service, /const ES256_ALGORITHM = -7/);
   assert.match(service, /passkey_signature_invalid/);
   assert.match(service, /passkey_counter_invalid/);
 });
