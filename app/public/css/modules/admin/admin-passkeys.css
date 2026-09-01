@@ -1,0 +1,236 @@
+.admin-passkey-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 2px 0;
+  color: #8a8f98;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.admin-passkey-divider::before,
+.admin-passkey-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(17, 24, 39, 0.1);
+}
+
+.admin-passkey-login-button {
+  width: 100%;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px solid rgba(17, 24, 39, 0.14);
+  border-radius: 10px;
+  background: #ffffff;
+  color: #24272d;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.admin-passkey-login-button:hover:not(:disabled) {
+  border-color: rgba(194, 169, 75, 0.75);
+  box-shadow: 0 8px 22px rgba(17, 24, 39, 0.08);
+  transform: translateY(-1px);
+}
+
+.admin-passkey-login-button:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.admin-passkey-login-button svg,
+.admin-passkey-card svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.admin-passkey-card {
+  display: grid;
+  gap: 18px;
+  margin-top: 18px;
+  padding: 20px;
+  border: 1px solid rgba(17, 24, 39, 0.1);
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.admin-passkey-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+}
+
+.admin-passkey-card-icon,
+.admin-passkey-row-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: rgba(194, 169, 75, 0.14);
+  color: #8f7a2f;
+}
+
+.admin-passkey-card-head strong {
+  display: block;
+  color: #24272d;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.admin-passkey-card-head p {
+  margin: 5px 0 0;
+  color: #6f7580;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.admin-passkey-enroll {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.admin-passkey-enroll label {
+  display: grid;
+  gap: 7px;
+  color: #535862;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.admin-passkey-enroll input {
+  width: 100%;
+  min-height: 42px;
+  box-sizing: border-box;
+  border: 1px solid rgba(17, 24, 39, 0.14);
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 0 12px;
+  color: #24272d;
+  font: inherit;
+}
+
+.admin-passkey-enroll input:focus {
+  outline: none;
+  border-color: #c2a94b;
+  box-shadow: 0 0 0 3px rgba(194, 169, 75, 0.14);
+}
+
+.admin-passkey-enroll .admin-primary-button {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.admin-passkey-status {
+  min-height: 18px;
+  margin: -4px 0 0;
+  color: #686e78;
+  font-size: 12px;
+}
+
+.admin-passkey-list {
+  display: grid;
+  border-top: 1px solid rgba(17, 24, 39, 0.08);
+}
+
+.admin-passkey-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(17, 24, 39, 0.08);
+}
+
+.admin-passkey-row > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.admin-passkey-row strong {
+  overflow: hidden;
+  color: #2b2f36;
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-passkey-row span {
+  color: #777d87;
+  font-size: 12px;
+}
+
+.admin-passkey-row button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(17, 24, 39, 0.12);
+  border-radius: 9px;
+  background: #ffffff;
+  color: #555b65;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-passkey-row button:hover:not(:disabled) {
+  border-color: rgba(176, 64, 64, 0.35);
+  color: #9b3434;
+}
+
+.admin-passkey-empty {
+  display: grid;
+  gap: 4px;
+  padding: 18px 0 4px;
+  color: #777d87;
+  font-size: 12px;
+}
+
+.admin-passkey-empty strong {
+  color: #3d424a;
+  font-weight: 600;
+}
+
+.admin-passkey-card.is-unsupported {
+  opacity: 0.82;
+}
+
+@media (max-width: 760px) {
+  .admin-passkey-enroll {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-passkey-enroll .admin-primary-button {
+    width: 100%;
+  }
+
+  .admin-passkey-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .admin-passkey-row button {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
