@@ -55,16 +55,28 @@ test("login por senha só cria sessão após TOTP quando MFA está ativo", async
   assert.match(api, /\/api\/v1\/admin\/login\/totp/);
 });
 
-test("UI do autenticador mantém configuração sensível dentro de dialogs", async () => {
-  const ui = await readFile(new URL("../public/js/modules/admin/admin-totp.js", import.meta.url), "utf8");
+test("UI do autenticador separa identidade, pareamento e recuperação em dialogs", async () => {
+  const entry = await readFile(new URL("../public/js/modules/admin/admin-totp.js", import.meta.url), "utf8");
+  const ui = await readFile(new URL("../public/js/modules/admin/admin-totp-v2.js", import.meta.url), "utf8");
   const css = await readFile(new URL("../public/css/modules/admin/admin-totp.css", import.meta.url), "utf8");
 
-  assert.match(ui, /Aplicativo autenticador/);
+  assert.match(entry, /admin-totp-v2\.js/);
+  assert.match(ui, /data-totp-dialog =? "identity"|dataset\.totpDialog = "identity"/);
+  assert.match(ui, /Confirmar identidade/);
+  assert.match(ui, /data-totp-identity-password/);
+  assert.match(ui, /dataset\.totpDialog = "pairing"/);
   assert.match(ui, /Configurar autenticador/);
-  assert.match(ui, /data-totp-setup-password/);
   assert.match(ui, /data-totp-qr/);
+  assert.match(ui, /data-totp-secret-display/);
+  assert.match(ui, /dataset\.totpDialog = "activation-recovery"/);
   assert.match(ui, /recovery_codes/);
   assert.match(ui, /Desativar autenticador/);
+  assert.doesNotMatch(ui, /data-totp-setup-stage="password"/);
+
   assert.match(css, /admin-totp-pair-grid/);
+  assert.match(css, /admin-totp-qr svg\{[^}]*shape-rendering:crispEdges/);
+  assert.match(css, /admin-totp-qr svg path\{fill:#111!important;stroke:none!important\}/);
+  assert.match(css, /admin-totp-identity-dialog/);
+  assert.match(css, /admin-totp-pairing-dialog/);
   assert.doesNotMatch(css, /@import\s+url/i);
 });
