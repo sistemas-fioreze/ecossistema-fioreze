@@ -10,6 +10,7 @@ import {
 } from "../../services/admin-passkeys.js";
 import { ensureAdminPasskeySchema } from "../../services/admin-passkey-schema.js";
 import { toSessionPayload } from "../../services/admin-auth.js";
+import { registerAdminTotpRoutes } from "./totp-routes.js";
 
 export function registerAdminPasskeyRoutes(router) {
   router.post("/api/v1/admin/passkeys/login/options", async ({ request, env }) => {
@@ -46,4 +47,6 @@ export function registerAdminPasskeyRoutes(router) {
     await ensureAdminPasskeySchema(env);
     return ok(await deleteOwnAdminPasskey({ request, env, session, passkeyId: params.id }));
   });
+
+  registerAdminTotpRoutes(router);
 }
