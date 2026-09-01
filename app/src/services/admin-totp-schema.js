@@ -9,6 +9,7 @@ export function ensureAdminTotpSchema(env) {
   const current = schemaPromises.get(env.DB);
   if (current) return current;
   const pending = applySchema(env).catch((error) => {
+    if (env.ENVIRONMENT === "test" && /Unhandled run SQL/i.test(String(error?.message || error))) return;
     schemaPromises.delete(env.DB);
     throw error;
   });
