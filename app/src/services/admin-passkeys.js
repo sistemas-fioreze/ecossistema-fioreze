@@ -1,5 +1,5 @@
 import { all, first, run } from "../core/database.js";
-import { badRequest, conflict, forbidden, unauthorized } from "../core/errors.js";
+import { AppError, badRequest, conflict, forbidden, unauthorized } from "../core/errors.js";
 import { createPublicId } from "../core/identifiers.js";
 import { requestNow } from "../core/time.js";
 import { optionalString, readJson, requireString } from "../core/validation.js";
@@ -384,7 +384,13 @@ async function assertChallengeIssuanceAllowed(env, ipHash, now) {
     [ipHash, cutoff],
   );
   if (Number(row?.challenge_count || 0) >= MAX_ACTIVE_LOGIN_CHALLENGES_PER_IP) {
-    throw new (class extends Error {})();
+    throw new AppError(
+      429,
+      "rate_limited",
+      "Muitas tentativas. Aguarde um minuto e tente novamente.",
+      undefined,
+      { headers: { "retry-after": "60" } },
+    );
   }
 }
 
