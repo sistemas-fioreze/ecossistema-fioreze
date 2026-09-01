@@ -6,6 +6,7 @@ import { getBootstrap, resolveTenantBySlug } from "./core/tenant.js";
 import { withSecurityHeaders } from "./middleware/security-headers.js";
 import { servePublicMedia } from "./modules/admin/media.js";
 import { registerAdminRoutes } from "./modules/admin/routes.js";
+import { registerAdminPasskeyRoutes } from "./modules/admin/passkey-routes.js";
 import { registerEmbedRoutes } from "./modules/embed/public.js";
 import { redirectShortLink } from "./modules/short-links/public.js";
 import { extractCustomDomainSlug, isShortLinkCustomDomainRequest } from "./modules/short-links/shared.js";
@@ -32,7 +33,19 @@ router.get("/api/v1/health", async ({ env }) =>
 
 router.get("/api/v1/public/hotels/:hotel_slug/bootstrap", async ({ env, params }) => {
   const bootstrap = await getBootstrap(env, params.hotel_slug);
-  return ok(bootstrap, { cacheControl: "no-store" });
+  return ok({
+    hotel_id: bootstrap.hotel_id,
+    hotel_slug: bootstrap.hotel_slug,
+    hotel_name: bootstrap.hotel_name,
+    short_name: bootstrap.short_name,
+    timezone: bootstrap.timezone,
+    locale: bootstrap.locale,
+    currency: bootstrap.currency,
+    branding: bootstrap.branding,
+    modules: bootstrap.modules,
+    navigation: bootstrap.navigation,
+    settings: bootstrap.settings,
+  });
 });
 
 router.get("/api/v1/public/hotels/:hotel_slug/modules", async ({ env, params }) => {
@@ -45,6 +58,7 @@ router.get("/api/v1/public/hotels/:hotel_slug/modules", async ({ env, params }) 
 
 registerModuleRoutes(router);
 registerAdminRoutes(router);
+registerAdminPasskeyRoutes(router);
 registerEmbedRoutes(router);
 registerPrintAgentRoutes(router);
 
@@ -58,6 +72,7 @@ router.get("/go/:slug", async ({ request, env, ctx, params }) => redirectShortLi
 router.head("/go/:slug", async ({ request, env, params }) => redirectShortLink({ request, env, params, head: true }));
 router.get("/portal-content/:hotel_slug/:page_slug", async ({ env, params }) => serveCustomPortalPage({ env, params }));
 router.head("/portal-content/:hotel_slug/:page_slug", async ({ env, params }) => serveCustomPortalPage({ env, params, head: true }));
+
 async function handleRequest(request, env, ctx) {
   const url = new URL(request.url);
   const officialPortalHost = isGuestPortalPublicHost(request, env);
