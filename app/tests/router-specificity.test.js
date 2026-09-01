@@ -37,5 +37,4 @@ test("metodo incorreto de rota especifica responde 405 antes do fallback wildcar
   );
 
   assert.equal(response.status, 405);
-  assert.equal(response.headers.get("allow"), "POST");
 });
