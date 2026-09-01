@@ -100,7 +100,12 @@ export async function createAdminSessionForVerifiedUser({ request, env, user, se
 }
 
 export async function loginAdmin({ request, env }) {
+  const { ensureAdminTotpSchema } = await import("./admin-totp-schema.js");
+  const { beginAdminTotpLoginChallengeIfEnabled } = await import("./admin-totp.js");
+  await ensureAdminTotpSchema(env);
   const verified = await verifyAdminPasswordLogin({ request, env });
+  const challenge = await beginAdminTotpLoginChallengeIfEnabled({ env, ...verified });
+  if (challenge) return { session: challenge, headers: new Headers() };
   return createAdminSessionForVerifiedUser({ request, env, ...verified });
 }
 
@@ -176,6 +181,7 @@ export function requireAdminHotelAccess(session, hotelId) {
 }
 
 export function toSessionPayload(session) {
+  if (session?.mfa_required) return session;
   return {
     user: session.user,
     hotels: session.hotels,
