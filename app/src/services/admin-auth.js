@@ -216,13 +216,14 @@ export function assertAdminMutationAllowed({ request }) {
 async function findUserByEmail(env, email) {
   return first(
     env,
-    `SELECT u.id, u.user_number, u.display_name, u.email, u.password_hash, u.password_strategy,
-            u.status, u.force_password_change,
-            u.avatar_object_key, u.avatar_mime_type, u.avatar_updated_at,
-            CASE WHEN t.user_id IS NULL THEN 0 ELSE 1 END AS totp_enabled
-       FROM admin_users u
-       LEFT JOIN admin_totp_config t ON t.user_id = u.id
-      WHERE lower(u.email) = lower(?)
+    `SELECT id, user_number, display_name, email, password_hash, password_strategy,
+            status, force_password_change,
+            avatar_object_key, avatar_mime_type, avatar_updated_at,
+            CASE WHEN EXISTS (
+              SELECT 1 FROM admin_totp_config t WHERE t.user_id = admin_users.id
+            ) THEN 1 ELSE 0 END AS totp_enabled
+       FROM admin_users
+      WHERE lower(email) = lower(?)
       LIMIT 1`,
     [email],
   );
