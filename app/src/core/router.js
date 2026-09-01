@@ -9,6 +9,10 @@ function splitPath(pathname) {
   return trimmed ? trimmed.split("/") : [];
 }
 
+function isWildcardPattern(pattern) {
+  return splitPath(pattern).at(-1) === "*";
+}
+
 function matchRoute(pattern, pathname) {
   const patternParts = splitPath(pattern);
   const pathParts = splitPath(pathname);
@@ -69,8 +73,22 @@ export class Router {
   async handle(request, env, ctx) {
     const url = new URL(request.url);
     const allowed = new Set();
+    const specificRoutes = this.routes.filter((route) => !isWildcardPattern(route.pattern));
+    const wildcardRoutes = this.routes.filter((route) => isWildcardPattern(route.pattern));
 
-    for (const route of this.routes) {
+    for (const route of specificRoutes) {
+      const params = matchRoute(route.pattern, url.pathname);
+      if (!params) continue;
+      if (route.method !== "*" && route.method !== request.method) {
+        allowed.add(route.method);
+        continue;
+      }
+      return route.handler({ request, env, ctx, params, url });
+    }
+
+    if (allowed.size) return methodNotAllowed([...allowed].sort());
+
+    for (const route of wildcardRoutes) {
       const params = matchRoute(route.pattern, url.pathname);
       if (!params) continue;
       if (route.method !== "*" && route.method !== request.method) {
