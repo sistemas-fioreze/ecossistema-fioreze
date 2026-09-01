@@ -28,7 +28,7 @@ const MASTER_ADMIN_USER_NUMBER = 1;
 const DUMMY_PASSWORD_HASH =
   "pbkdf2$sha256$100000$ZmlvcmV6ZS1kdW1teS1zYWx0LTIwMjY=$mXQQxO28jbsrTZwq2R4c6bUcLzkM5YQm4cHhaxI8W+E=";
 
-export async function loginAdmin({ request, env }) {
+export async function verifyAdminPasswordLogin({ request, env }) {
   const payload = await readJson(request);
   const email = requireString(payload.email, "email", { max: 180 }).toLowerCase();
   const password = requireString(payload.password, "password", { max: 300 });
@@ -54,7 +54,10 @@ export async function loginAdmin({ request, env }) {
   }
 
   const sessionType = Number(user.force_password_change || 0) === 1 ? PASSWORD_CHANGE_SESSION_TYPE : FULL_SESSION_TYPE;
+  return { user, securityContext, createdAt, sessionType };
+}
 
+export async function createAdminSessionForVerifiedUser({ request, env, user, securityContext, createdAt, sessionType }) {
   const token = createSessionToken();
   const tokenHash = await sha256Hex(token);
   const userAgentHash = await optionalHeaderHash(request, "user-agent");
@@ -67,7 +70,7 @@ export async function loginAdmin({ request, env }) {
     context: securityContext,
     sessionRecord: {
       id: sessionId,
-      userId: user.id,
+      userId: user.id || user.user_id,
       tokenHash,
       userAgentHash,
       ipHash,
@@ -79,7 +82,7 @@ export async function loginAdmin({ request, env }) {
 
   const session = await buildAdminSession(env, {
     session_id: sessionId,
-    user_id: user.id,
+    user_id: user.id || user.user_id,
     user_number: user.user_number,
     display_name: user.display_name,
     email: user.email,
@@ -94,6 +97,11 @@ export async function loginAdmin({ request, env }) {
     session,
     headers: sessionCookieHeaders(token, request, env),
   };
+}
+
+export async function loginAdmin({ request, env }) {
+  const verified = await verifyAdminPasswordLogin({ request, env });
+  return createAdminSessionForVerifiedUser({ request, env, ...verified });
 }
 
 export async function logoutAdmin({ request, env }) {
@@ -202,11 +210,13 @@ export function assertAdminMutationAllowed({ request }) {
 async function findUserByEmail(env, email) {
   return first(
     env,
-    `SELECT id, user_number, display_name, email, password_hash, password_strategy,
-            status, force_password_change,
-            avatar_object_key, avatar_mime_type, avatar_updated_at
-       FROM admin_users
-      WHERE lower(email) = lower(?)
+    `SELECT u.id, u.user_number, u.display_name, u.email, u.password_hash, u.password_strategy,
+            u.status, u.force_password_change,
+            u.avatar_object_key, u.avatar_mime_type, u.avatar_updated_at,
+            CASE WHEN t.user_id IS NULL THEN 0 ELSE 1 END AS totp_enabled
+       FROM admin_users u
+       LEFT JOIN admin_totp_config t ON t.user_id = u.id
+      WHERE lower(u.email) = lower(?)
       LIMIT 1`,
     [email],
   );
