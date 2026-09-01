@@ -6,7 +6,9 @@ import { __test } from "../src/services/admin-passkeys.js";
 const migration = fs.readFileSync("migrations/0050_admin_passkeys.sql", "utf8");
 const worker = fs.readFileSync("src/index.js", "utf8");
 const routes = fs.readFileSync("src/modules/admin/passkey-routes.js", "utf8");
+const schema = fs.readFileSync("src/services/admin-passkey-schema.js", "utf8");
 const service = fs.readFileSync("src/services/admin-passkeys.js", "utf8");
+const workflow = fs.readFileSync("../.github/workflows/deploy-cloudflare-worker-pages.yml", "utf8");
 const html = fs.readFileSync("public/admin/index.html", "utf8");
 const client = fs.readFileSync("public/js/modules/admin/admin-passkeys.js", "utf8");
 const css = fs.readFileSync("public/css/modules/admin/admin-passkeys.css", "utf8");
@@ -18,6 +20,17 @@ test("schema de passkeys guarda somente material público e desafios descartáve
   assert.match(migration, /CREATE TABLE IF NOT EXISTS admin_webauthn_challenges/);
   assert.match(migration, /consumed_at TEXT/);
   assert.doesNotMatch(migration, /private_key/i);
+});
+
+test("rotas WebAuthn inicializam o schema idempotente pelo binding D1", () => {
+  assert.match(routes, /ensureAdminPasskeySchema/);
+  assert.match(schema, /CREATE TABLE IF NOT EXISTS admin_passkeys/);
+  assert.match(schema, /CREATE TABLE IF NOT EXISTS admin_webauthn_challenges/);
+  assert.match(schema, /CREATE INDEX IF NOT EXISTS idx_admin_passkeys_user/);
+  assert.match(schema, /CREATE INDEX IF NOT EXISTS idx_admin_webauthn_challenges_ip/);
+  assert.doesNotMatch(schema, /private_key/i);
+  assert.doesNotMatch(workflow, /d1 migrations apply/);
+  assert.doesNotMatch(workflow, /--remote/);
 });
 
 test("Worker registra endpoints WebAuthn da Central", () => {
