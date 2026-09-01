@@ -52,13 +52,16 @@ test("cerimônia exige passkey descobrível e verificação local do usuário", 
   assert.match(service, /passkey_counter_invalid/);
 });
 
-test("interface oferece login sem senha e gerenciamento em Minha conta", () => {
+test("interface oferece login sem senha e cadastro de passkey em modal", () => {
   assert.match(html, /admin-passkeys\.js/);
   assert.match(client, /Entrar com chave de acesso/);
-  assert.match(client, /Adicionar chave de acesso/);
+  assert.match(client, /Nova chave de acesso/);
+  assert.match(client, /createEnrollmentDialog/);
+  assert.match(client, /data-passkey-password/);
   assert.match(client, /navigator\.credentials\.create/);
   assert.match(client, /navigator\.credentials\.get/);
   assert.match(client, /current_password/);
+  assert.doesNotMatch(client, /data-passkey-enroll/);
   assert.doesNotMatch(css, /@import\s+url/i);
   const fontSizes = [...css.matchAll(/font-size:\s*([0-9.]+)px/g)].map((match) => Number(match[1]));
   assert.ok(fontSizes.every((size) => size >= 12));

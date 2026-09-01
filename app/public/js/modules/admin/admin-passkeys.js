@@ -1,10 +1,12 @@
 import { adminApi } from "./shared/admin-api.js";
+import { setupAdminAccountExperience } from "./admin-account-experience.js";
 
-const STYLESHEET_HREF = "/css/modules/admin/admin-passkeys.css?v=20260901-1";
+const STYLESHEET_HREF = "/css/modules/admin/admin-passkeys.css?v=20260901-2";
 let passkeyListLoaded = false;
 
 setupStyles();
 setupLoginPasskey();
+setupAdminAccountExperience();
 setupAccountPasskeys();
 
 function setupStyles() {
@@ -67,6 +69,7 @@ function setupLoginPasskey() {
 function setupAccountPasskeys() {
   const manager = document.getElementById("accountManager");
   const details = document.getElementById("accountDetails");
+  const securityGrid = document.getElementById("accountSecurityGrid");
   if (!manager || !details || manager.querySelector("[data-admin-passkey-manager]")) return;
 
   const section = document.createElement("section");
@@ -79,41 +82,49 @@ function setupAccountPasskeys() {
         <strong>Chaves de acesso</strong>
         <p>Entre com Windows Hello, biometria, PIN ou uma passkey sincronizada, sem digitar sua senha.</p>
       </div>
-    </div>
-    <div class="admin-passkey-enroll" data-passkey-enroll>
-      <label>
-        <span>Confirme sua senha atual</span>
-        <input type="password" autocomplete="current-password" maxlength="300" data-passkey-password>
-      </label>
-      <button class="admin-primary-button" type="button" data-passkey-add>${passkeyIcon()}<span>Adicionar chave de acesso</span></button>
+      <button class="admin-primary-button" type="button" data-passkey-add>${passkeyIcon()}<span>Nova chave de acesso</span></button>
     </div>
     <p class="admin-passkey-status" data-passkey-status role="status" aria-live="polite"></p>
     <div class="admin-passkey-list" data-passkey-list></div>
   `;
-  details.insertAdjacentElement("afterend", section);
+  if (securityGrid) securityGrid.prepend(section);
+  else details.insertAdjacentElement("afterend", section);
 
-  const password = section.querySelector("[data-passkey-password]");
   const addButton = section.querySelector("[data-passkey-add]");
   const status = section.querySelector("[data-passkey-status]");
   const list = section.querySelector("[data-passkey-list]");
+  const enrollDialog = createEnrollmentDialog();
+  document.body.append(enrollDialog);
+  const password = enrollDialog.querySelector("[data-passkey-password]");
+  const name = enrollDialog.querySelector("[data-passkey-name]");
+  const confirmButton = enrollDialog.querySelector("[data-passkey-confirm]");
+  const dialogStatus = enrollDialog.querySelector("[data-passkey-dialog-status]");
 
   if (!supportsPasskeys()) {
     section.classList.add("is-unsupported");
-    section.querySelector("[data-passkey-enroll]").hidden = true;
+    addButton.hidden = true;
     status.textContent = "Este navegador ou dispositivo não oferece suporte a chaves de acesso.";
     return;
   }
 
-  addButton.addEventListener("click", async () => {
-    status.textContent = "";
+  addButton.addEventListener("click", () => {
+    password.value = "";
+    name.value = defaultPasskeyName();
+    dialogStatus.textContent = "";
+    enrollDialog.showModal();
+    requestAnimationFrame(() => password.focus());
+  });
+
+  confirmButton.addEventListener("click", async () => {
+    dialogStatus.textContent = "";
     if (!password.value) {
-      status.textContent = "Digite sua senha atual para cadastrar uma nova chave de acesso.";
+      dialogStatus.textContent = "Confirme sua senha atual para continuar.";
       password.focus();
       return;
     }
-    addButton.disabled = true;
-    const original = addButton.innerHTML;
-    addButton.textContent = "Preparando chave de acesso...";
+    confirmButton.disabled = true;
+    const original = confirmButton.textContent;
+    confirmButton.textContent = "Preparando...";
     try {
       const optionsPayload = await adminApi("/api/v1/admin/me/passkeys/registration/options", {
         method: "POST",
@@ -126,30 +137,32 @@ function setupAccountPasskeys() {
         method: "POST",
         body: {
           credential: serializeRegistration(credential),
-          device_name: defaultPasskeyName(),
+          device_name: name.value.trim() || defaultPasskeyName(),
         },
       });
+      enrollDialog.close();
       password.value = "";
-      status.textContent = "Chave de acesso adicionada. No próximo login, você já pode entrar sem senha.";
+      status.textContent = "Chave de acesso adicionada. Ela já pode ser usada no próximo login.";
       await refreshPasskeyList(list);
     } catch (exception) {
       if (exception?.name === "NotAllowedError") {
-        status.textContent = "A criação da chave de acesso foi cancelada.";
+        dialogStatus.textContent = "A criação da chave de acesso foi cancelada.";
       } else if (exception?.name === "InvalidStateError") {
-        status.textContent = "Esta chave de acesso já está cadastrada na sua conta.";
+        dialogStatus.textContent = "Esta chave de acesso já está cadastrada na sua conta.";
       } else {
-        status.textContent = exception?.message || "Não foi possível adicionar a chave de acesso.";
+        dialogStatus.textContent = exception?.message || "Não foi possível adicionar a chave de acesso.";
       }
     } finally {
-      addButton.disabled = false;
-      addButton.innerHTML = original;
+      confirmButton.disabled = false;
+      confirmButton.textContent = original;
     }
   });
 
   list.addEventListener("click", async (event) => {
     const removeButton = event.target.closest("[data-passkey-remove]");
     if (!removeButton) return;
-    if (!window.confirm("Remover esta chave de acesso? Ela não poderá mais ser usada para entrar.")) return;
+    const confirmed = await confirmPasskeyRemoval(removeButton.dataset.passkeyName || "esta chave de acesso");
+    if (!confirmed) return;
     removeButton.disabled = true;
     status.textContent = "Removendo chave de acesso...";
     try {
@@ -165,11 +178,88 @@ function setupAccountPasskeys() {
     }
   });
 
+  enrollDialog.addEventListener("click", (event) => {
+    if (event.target.closest("[data-passkey-dialog-close]")) enrollDialog.close();
+    if (event.target === enrollDialog) enrollDialog.close();
+  });
+
   const observer = new MutationObserver(() => {
     if (!manager.hidden && !passkeyListLoaded) void refreshPasskeyList(list);
   });
   observer.observe(manager, { attributes: true, attributeFilter: ["hidden"] });
   if (!manager.hidden || window.location.pathname.startsWith("/admin/minha-conta/")) void refreshPasskeyList(list);
+}
+
+function createEnrollmentDialog() {
+  const dialog = document.createElement("dialog");
+  dialog.className = "admin-account-dialog admin-passkey-dialog";
+  dialog.dataset.passkeyDialog = "enroll";
+  dialog.innerHTML = `
+    <div class="admin-account-dialog-shell">
+      <header>
+        <div class="admin-account-dialog-heading">
+          <span class="admin-account-dialog-icon">${passkeyIcon()}</span>
+          <div><span>Segurança</span><h2>Nova chave de acesso</h2><p>Confirme sua identidade e dê um nome fácil de reconhecer para esta chave.</p></div>
+        </div>
+        <button type="button" class="admin-account-dialog-close" data-passkey-dialog-close aria-label="Fechar">${closeIcon()}</button>
+      </header>
+      <div class="admin-account-dialog-body">
+        <div class="admin-passkey-dialog-form">
+          <label><span>Senha atual</span><input type="password" autocomplete="current-password" maxlength="300" data-passkey-password></label>
+          <label><span>Nome da chave</span><input type="text" maxlength="80" autocomplete="off" data-passkey-name><small>Ex.: Windows Hello do escritório ou iPhone pessoal.</small></label>
+          <p class="admin-passkey-dialog-status" data-passkey-dialog-status role="status" aria-live="polite"></p>
+          <div class="admin-passkey-dialog-actions">
+            <button type="button" data-passkey-dialog-close>Cancelar</button>
+            <button class="admin-primary-button" type="button" data-passkey-confirm>Continuar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  return dialog;
+}
+
+async function confirmPasskeyRemoval(name) {
+  const dialog = document.createElement("dialog");
+  dialog.className = "admin-account-dialog admin-passkey-dialog";
+  dialog.innerHTML = `
+    <div class="admin-account-dialog-shell">
+      <header>
+        <div class="admin-account-dialog-heading">
+          <span class="admin-account-dialog-icon">${passkeyIcon()}</span>
+          <div><span>Segurança</span><h2>Remover chave de acesso</h2><p>Depois de removida, esta chave não poderá mais ser usada para entrar.</p></div>
+        </div>
+        <button type="button" class="admin-account-dialog-close" data-passkey-cancel aria-label="Fechar">${closeIcon()}</button>
+      </header>
+      <div class="admin-account-dialog-body">
+        <div class="admin-passkey-remove-summary"><strong>${escapeHtml(name)}</strong><span>As outras chaves da sua conta continuarão funcionando normalmente.</span></div>
+        <div class="admin-passkey-dialog-actions">
+          <button type="button" data-passkey-cancel>Cancelar</button>
+          <button type="button" class="admin-passkey-danger" data-passkey-remove-confirm>Remover chave</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.append(dialog);
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      dialog.close();
+      dialog.remove();
+      resolve(value);
+    };
+    dialog.addEventListener("click", (event) => {
+      if (event.target.closest("[data-passkey-remove-confirm]")) finish(true);
+      else if (event.target.closest("[data-passkey-cancel]") || event.target === dialog) finish(false);
+    });
+    dialog.addEventListener("cancel", (event) => {
+      event.preventDefault();
+      finish(false);
+    });
+    dialog.showModal();
+  });
 }
 
 async function refreshPasskeyList(list) {
@@ -180,7 +270,7 @@ async function refreshPasskeyList(list) {
     const passkeys = payload.data.passkeys || [];
     list.innerHTML = passkeys.length
       ? passkeys.map(renderPasskey).join("")
-      : '<div class="admin-passkey-empty"><strong>Nenhuma chave de acesso cadastrada</strong><span>Adicione uma para entrar com biometria, PIN ou o desbloqueio do seu dispositivo.</span></div>';
+      : '<div class="admin-passkey-empty"><strong>Nenhuma chave cadastrada</strong><span>Adicione uma chave para entrar sem digitar sua senha.</span></div>';
   } catch (exception) {
     passkeyListLoaded = false;
     list.innerHTML = `<div class="admin-passkey-empty"><span>${escapeHtml(exception?.message || "Não foi possível carregar suas chaves de acesso.")}</span></div>`;
@@ -192,14 +282,16 @@ async function refreshPasskeyList(list) {
 function renderPasskey(passkey) {
   const used = passkey.last_used_at ? `Último uso ${formatDate(passkey.last_used_at)}` : "Ainda não utilizada";
   const created = `Adicionada ${formatDate(passkey.created_at)}`;
+  const name = passkey.device_name || "Chave de acesso";
   return `
     <article class="admin-passkey-row">
       <span class="admin-passkey-row-icon">${passkeyIcon()}</span>
       <div>
-        <strong>${escapeHtml(passkey.device_name || "Chave de acesso")}</strong>
+        <strong>${escapeHtml(name)}</strong>
         <span>${escapeHtml(used)} · ${escapeHtml(created)}</span>
       </div>
-      <button type="button" data-passkey-remove="${escapeAttr(passkey.id)}">Remover</button>
+      <span class="admin-passkey-state">Ativa</span>
+      <button type="button" data-passkey-remove="${escapeAttr(passkey.id)}" data-passkey-name="${escapeAttr(name)}">Remover</button>
     </article>`;
 }
 
@@ -290,6 +382,10 @@ function formatDate(value) {
 
 function passkeyIcon() {
   return '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l8-8M15 8l2 2M17 6l2 2"></path></svg>';
+}
+
+function closeIcon() {
+  return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg>';
 }
 
 function escapeHtml(value) {
