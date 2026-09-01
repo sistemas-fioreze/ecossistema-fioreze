@@ -33,19 +33,7 @@ router.get("/api/v1/health", async ({ env }) =>
 
 router.get("/api/v1/public/hotels/:hotel_slug/bootstrap", async ({ env, params }) => {
   const bootstrap = await getBootstrap(env, params.hotel_slug);
-  return ok({
-    hotel_id: bootstrap.hotel_id,
-    hotel_slug: bootstrap.hotel_slug,
-    hotel_name: bootstrap.hotel_name,
-    short_name: bootstrap.short_name,
-    timezone: bootstrap.timezone,
-    locale: bootstrap.locale,
-    currency: bootstrap.currency,
-    branding: bootstrap.branding,
-    modules: bootstrap.modules,
-    navigation: bootstrap.navigation,
-    settings: bootstrap.settings,
-  });
+  return ok(bootstrap, { cacheControl: "no-store" });
 });
 
 router.get("/api/v1/public/hotels/:hotel_slug/modules", async ({ env, params }) => {
@@ -72,7 +60,6 @@ router.get("/go/:slug", async ({ request, env, ctx, params }) => redirectShortLi
 router.head("/go/:slug", async ({ request, env, params }) => redirectShortLink({ request, env, params, head: true }));
 router.get("/portal-content/:hotel_slug/:page_slug", async ({ env, params }) => serveCustomPortalPage({ env, params }));
 router.head("/portal-content/:hotel_slug/:page_slug", async ({ env, params }) => serveCustomPortalPage({ env, params, head: true }));
-
 async function handleRequest(request, env, ctx) {
   const url = new URL(request.url);
   const officialPortalHost = isGuestPortalPublicHost(request, env);
