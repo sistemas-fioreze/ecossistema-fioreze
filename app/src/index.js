@@ -6,6 +6,7 @@ import { getBootstrap, resolveTenantBySlug } from "./core/tenant.js";
 import { withSecurityHeaders } from "./middleware/security-headers.js";
 import { servePublicMedia } from "./modules/admin/media.js";
 import { registerAdminRoutes } from "./modules/admin/routes.js";
+import { registerAdminPasskeyRoutes } from "./modules/admin/passkey-routes.js";
 import { registerEmbedRoutes } from "./modules/embed/public.js";
 import { redirectShortLink } from "./modules/short-links/public.js";
 import { extractCustomDomainSlug, isShortLinkCustomDomainRequest } from "./modules/short-links/shared.js";
@@ -45,6 +46,7 @@ router.get("/api/v1/public/hotels/:hotel_slug/modules", async ({ env, params }) 
 
 registerModuleRoutes(router);
 registerAdminRoutes(router);
+registerAdminPasskeyRoutes(router);
 registerEmbedRoutes(router);
 registerPrintAgentRoutes(router);
 
