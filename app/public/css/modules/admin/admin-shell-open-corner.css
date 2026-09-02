@@ -1,0 +1,21 @@
+/* Open-corner L contour: horizontal line goes right, vertical line starts below the header. */
+@media (min-width: 981px) {
+  body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] {
+    --central-shell-header-height: 84px;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-global-sidebar {
+    border-right: 0 !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-global-sidebar::after {
+    content: "";
+    position: absolute;
+    top: var(--central-shell-header-height);
+    right: -1px;
+    bottom: 0;
+    width: 1px;
+    background: var(--central-shell-contour);
+    pointer-events: none;
+  }
+}
