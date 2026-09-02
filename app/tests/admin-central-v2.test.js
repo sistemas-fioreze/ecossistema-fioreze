@@ -16,8 +16,8 @@ test("Central V3 refina shell, conta e segurança sem quebrar a fundação exist
   assert.match(shell, /Configurações/);
   assert.match(shell, /if \(kicker\) kicker\.hidden = false/);
   assert.match(shell, /data-central-profile-summary/);
-  assert.match(shell, /data-central-passkey-manage/);
-  assert.match(shell, /data-central-passkey-dialog/);
+  assert.match(shell, /dataset\.centralPasskeyManage/);
+  assert.match(shell, /dataset\.centralPasskeyDialog/);
   assert.match(shell, /Códigos de recuperação/);
   assert.match(shell, /MutationObserver/);
   assert.match(shell, /admin-central-v2\.css/);
