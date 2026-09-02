@@ -9,7 +9,8 @@ test("Central V3 refina shell, conta e segurança sem quebrar a fundação exist
   const polishCss = await readFile(new URL("../public/css/modules/admin/admin-central-v3.css", import.meta.url), "utf8");
   const shellCss = await readFile(new URL("../public/css/modules/admin/admin-shell-unified.css", import.meta.url), "utf8");
 
-  assert.match(entry, /admin-central-v2\.js\?v=20260902-2/);
+  assert.match(entry, /admin-central-v2\.js\?v=20260902-3/);
+  assert.match(shell, /admin-shell-unified\.css\?v=20260902-2/);
   assert.match(shell, /data-central-sidebar-footer/);
   assert.match(shell, /sidebar\.querySelector\("\[data-central-sidebar-context\]"\)\?\.remove\(\)/);
   assert.match(shell, /dataset\.centralSidebarSession/);
