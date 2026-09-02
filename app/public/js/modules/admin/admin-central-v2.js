@@ -1,5 +1,6 @@
 const STYLESHEET_HREF = "/css/modules/admin/admin-central-v2.css?v=20260902-1";
 const POLISH_STYLESHEET_HREF = "/css/modules/admin/admin-central-v3.css?v=20260902-2";
+const SHELL_STYLESHEET_HREF = "/css/modules/admin/admin-shell-unified.css?v=20260902-1";
 let syncFrame = 0;
 
 export function setupAdminCentralV2(root = document) {
@@ -225,6 +226,7 @@ function clarifyTotpActions(manager) {
 function ensureStyles(root) {
   ensureStylesheet(root, 'link[data-admin-central-v2]', STYLESHEET_HREF, "adminCentralV2");
   ensureStylesheet(root, 'link[data-admin-central-v3]', POLISH_STYLESHEET_HREF, "adminCentralV3");
+  ensureStylesheet(root, 'link[data-admin-shell-unified]', SHELL_STYLESHEET_HREF, "adminShellUnified");
 }
 
 function ensureStylesheet(root, selector, href, dataName) {
