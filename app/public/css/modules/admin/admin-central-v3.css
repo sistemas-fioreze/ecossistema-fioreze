@@ -1,0 +1,620 @@
+/* Central Administrativa V3: refinement layer over the V2 foundation. */
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] {
+  --central-v3-ink: #22262b;
+  --central-v3-muted: #70767e;
+  --central-v3-faint: #949aa1;
+  --central-v3-line: #e5e7e8;
+  --central-v3-line-strong: #d8dcde;
+  --central-v3-gold: #c2a94b;
+  --central-v3-gold-ink: #776626;
+  --central-v3-soft: #f7f8f7;
+  --central-v3-surface: #ffffff;
+  --central-v3-danger: #9b3a3a;
+}
+
+/* Sidebar: remove redundancy and let navigation breathe. */
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-dashboard {
+  grid-template-columns: 238px minmax(0, 1fr);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-dashboard.is-sidebar-compact {
+  grid-template-columns: 78px minmax(0, 1fr);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-global-sidebar {
+  gap: 12px;
+  padding: 16px 12px 16px;
+  background: #fcfcfb;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-sidebar-head {
+  min-height: 62px;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 12px;
+  padding: 0 5px 4px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-brand-wordmark {
+  height: 48px;
+  background-size: 142px auto;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-shell-toggle-sidebar {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  min-height: 34px;
+  border-radius: 9px;
+  color: #737981;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-global-nav {
+  gap: 19px;
+  padding: 8px 2px 14px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-nav-group > p {
+  padding: 0 11px;
+  color: #979ca2;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .08em;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-global-nav a,
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-global-nav .admin-nav-group > div > span {
+  min-height: 43px;
+  border-radius: 10px;
+  padding-inline: 11px;
+  color: #656c74;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-global-nav a[aria-current="page"] {
+  background: #f0f0ef;
+  color: var(--central-v3-ink);
+  box-shadow: none;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-global-nav a[aria-current="page"]::before {
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  background: var(--central-v3-gold);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-sidebar-footer {
+  margin-top: auto;
+  padding: 13px 8px 2px;
+  border-top: 1px solid var(--central-v3-line);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-sidebar-footer .admin-avatar {
+  width: 36px;
+  height: 36px;
+  flex-basis: 36px;
+  border-radius: 11px;
+  background: #f3eed8;
+  color: var(--central-v3-gold-ink);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-sidebar-footer-copy strong {
+  color: #30353a;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-sidebar-footer-copy span {
+  color: #8a9097;
+  font-size: 12px;
+}
+
+/* Header: content first, controls second. */
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-dashboard > .admin-topbar,
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-portal-layout .admin-topbar {
+  height: 82px;
+  min-height: 82px;
+  gap: 18px;
+  padding: 11px 22px 11px 28px;
+  background: rgba(255, 255, 255, .97);
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-topbar-copy {
+  min-width: 280px;
+  gap: 3px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-topbar-copy h1 {
+  max-width: 460px;
+  color: var(--central-v3-ink);
+  font-size: 20px;
+  font-weight: 600;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-topbar-copy > .admin-muted {
+  display: block;
+  max-width: 520px;
+  color: #858b92;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-central-breadcrumbs {
+  min-height: 18px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 1px;
+  color: #9a9fa5;
+  font-size: 12px;
+  line-height: 1;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-central-breadcrumbs a {
+  color: #7e7248;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-central-breadcrumbs a:hover {
+  color: #5f542c;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-central-breadcrumbs strong {
+  color: #888e95;
+  font-weight: 500;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-topbar-actions {
+  gap: 8px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-command-search {
+  width: min(380px, 30vw);
+  min-width: 230px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-command-search label {
+  height: 42px;
+  border-radius: 11px;
+  background: #f8f8f8;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] :where(.admin-icon-button, .admin-shell-toggle-mobile) {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  min-height: 42px;
+  border-radius: 11px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-session-trigger {
+  height: 42px;
+  max-width: 205px;
+  border-radius: 11px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-session-copy small {
+  color: #9a8f67;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: .04em;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-session-copy strong {
+  max-width: 118px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* General surfaces: fewer boxes, softer rhythm. */
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-dashboard > :where(
+  .admin-home-dashboard,
+  .admin-launcher-grid,
+  .admin-management-panel,
+  .admin-access-denied
+),
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-portals-surface {
+  padding: 34px clamp(24px, 3.4vw, 52px) 56px;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] :where(
+  .admin-panel-heading,
+  .admin-events-heading,
+  .admin-links-heading,
+  .admin-settings-heading,
+  .admin-media-heading
+) h2 {
+  font-size: 28px;
+  font-weight: 600;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] :where(
+  .admin-page-kicker,
+  .eyebrow,
+  .admin-section-kicker,
+  .admin-account-kicker
+) {
+  color: #8b815f;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .08em;
+}
+
+/* Account: profile is a real summary panel; security is no longer a card containing cards. */
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] #accountManager {
+  max-width: 1240px;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-account-workspace {
+  grid-template-columns: minmax(270px, 320px) minmax(0, 1fr);
+  gap: 30px;
+  align-items: start;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-account-profile-card {
+  top: 6px;
+  gap: 20px;
+  padding: 24px;
+  border: 1px solid var(--central-v3-line);
+  border-radius: 20px;
+  background: var(--central-v3-surface);
+  box-shadow: 0 12px 34px rgba(28, 32, 36, .045);
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-account-profile-body {
+  grid-template-columns: 1fr;
+  gap: 16px;
+  padding: 2px 0 0;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] #accountDetails {
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-account-identity {
+  align-items: center;
+  gap: 14px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-account-identity .admin-profile-photo,
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-account-identity .admin-avatar {
+  width: 68px;
+  height: 68px;
+  flex-basis: 68px;
+  border-radius: 18px;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-account-identity strong {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-account-identity small {
+  color: #7c8289;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-account-secondary-action {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 11px;
+  background: #fbfbfb;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-central-profile-summary {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid var(--central-v3-line);
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-central-profile-summary > div {
+  display: grid;
+  gap: 4px;
+  padding: 15px 0;
+  border-bottom: 1px solid var(--central-v3-line);
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-central-profile-summary span {
+  color: #979ca2;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-central-profile-summary strong {
+  color: #42474d;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-account-section {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-account-section-header {
+  margin-bottom: 18px;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-account-section-copy h2 {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-account-section-copy p {
+  max-width: 700px;
+  color: #7b8188;
+  font-size: 13px;
+}
+
+/* Four security methods share the same visual rank. */
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-account-security-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] :where(
+  .admin-passkey-card,
+  .admin-totp-card,
+  .admin-account-action-card
+) {
+  grid-column: auto;
+  min-width: 0;
+  min-height: 168px;
+  box-sizing: border-box;
+  border: 1px solid var(--central-v3-line);
+  border-radius: 17px;
+  background: var(--central-v3-surface);
+  box-shadow: none;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-account-action-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto 1fr auto;
+  gap: 12px;
+  padding: 17px;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-account-action-card > button {
+  grid-column: 1 / -1;
+  align-self: end;
+  justify-self: start;
+  margin: 0;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-passkey-card {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 17px;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-passkey-card-head {
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-passkey-card-head > .admin-primary-button {
+  display: none;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-passkey-card-head p {
+  margin-top: 4px;
+  color: #7c8289;
+  line-height: 1.5;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-central-passkey-summary {
+  margin: 8px 0 0;
+  color: #555b62;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-central-manage-button {
+  align-self: end;
+  justify-self: start;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-top: auto;
+  padding: 0 13px;
+  border: 1px solid var(--central-v3-line-strong);
+  border-radius: 10px;
+  background: #fff;
+  color: #4d535a;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-central-manage-button:hover {
+  border-color: rgba(194, 169, 75, .48);
+  color: #71601f;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-central-manage-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-totp-card {
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto 1fr auto;
+  gap: 12px;
+  padding: 17px;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-totp-card-actions {
+  grid-column: 1 / -1;
+  justify-content: flex-start;
+  align-self: end;
+  margin-top: 2px;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-totp-card-status {
+  grid-column: 1 / -1;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] :where(
+  .admin-account-action-icon,
+  .admin-passkey-card-icon,
+  .admin-passkey-row-icon,
+  .admin-totp-card-icon
+) {
+  background: #f5f1df;
+  color: #8a7424;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] :where(
+  .admin-account-action-copy strong,
+  .admin-passkey-card-head strong,
+  .admin-totp-card-title-row strong
+) {
+  color: #34393f;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] :where(
+  .admin-account-action-copy p,
+  .admin-passkey-card-head p,
+  .admin-totp-card-copy > p,
+  .admin-totp-meta
+) {
+  color: #7d838a;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Passkey details live in a dialog instead of stretching the account page. */
+.admin-central-passkey-dialog {
+  width: min(720px, calc(100vw - 30px));
+}
+
+.admin-central-passkey-dialog .admin-account-dialog-shell {
+  width: 100%;
+}
+
+.admin-central-passkey-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.admin-central-passkey-toolbar .admin-primary-button {
+  min-height: 40px;
+}
+
+.admin-central-passkey-content {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-central-passkey-content .admin-passkey-list {
+  border-top-color: var(--central-v3-line);
+}
+
+.admin-central-passkey-content .admin-passkey-row {
+  padding: 14px 0;
+  border-bottom-color: var(--central-v3-line);
+}
+
+.admin-central-passkey-content .admin-passkey-row:last-child {
+  border-bottom: 0;
+}
+
+/* Destructive actions stay available without becoming the loudest thing on screen. */
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-totp-card-actions .is-danger {
+  border-color: transparent;
+  background: transparent;
+  color: #955050;
+}
+
+body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-totp-card-actions .is-danger:hover:not(:disabled) {
+  border-color: rgba(155, 58, 58, .16);
+  background: rgba(155, 58, 58, .045);
+  box-shadow: none;
+}
+
+@media (max-width: 1180px) {
+  body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-topbar-copy {
+    min-width: 230px;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-command-search {
+    width: min(330px, 28vw);
+  }
+
+  body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-account-workspace {
+    grid-template-columns: minmax(250px, 290px) minmax(0, 1fr);
+    gap: 22px;
+  }
+}
+
+@media (max-width: 980px) {
+  body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-dashboard,
+  body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-dashboard.is-sidebar-compact {
+    grid-template-columns: 1fr;
+  }
+
+  body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-account-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-account-profile-card {
+    position: static;
+  }
+}
+
+@media (max-width: 760px) {
+  body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-topbar-copy > .admin-muted {
+    display: none;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-topbar-copy {
+    min-width: 0;
+  }
+
+  body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-account-security-grid {
+    grid-template-columns: 1fr;
+  }
+
+  body[data-admin-section="account"][data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] :where(
+    .admin-passkey-card,
+    .admin-totp-card,
+    .admin-account-action-card
+  ) {
+    min-height: 0;
+  }
+
+  .admin-central-passkey-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-central-passkey-toolbar .admin-primary-button {
+    width: 100%;
+  }
+}
