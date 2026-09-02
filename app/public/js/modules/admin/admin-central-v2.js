@@ -1,6 +1,6 @@
 const STYLESHEET_HREF = "/css/modules/admin/admin-central-v2.css?v=20260902-1";
 const POLISH_STYLESHEET_HREF = "/css/modules/admin/admin-central-v3.css?v=20260902-2";
-const SHELL_STYLESHEET_HREF = "/css/modules/admin/admin-shell-unified.css?v=20260902-1";
+const SHELL_STYLESHEET_HREF = "/css/modules/admin/admin-shell-unified.css?v=20260902-2";
 let syncFrame = 0;
 
 export function setupAdminCentralV2(root = document) {
