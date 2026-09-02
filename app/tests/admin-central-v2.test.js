@@ -10,10 +10,11 @@ test("Central V3 refina shell, conta e segurança sem quebrar a fundação exist
 
   assert.match(entry, /admin-central-v2\.js/);
   assert.match(shell, /data-central-sidebar-footer/);
-  assert.doesNotMatch(shell, /data-central-sidebar-context/);
+  assert.match(shell, /sidebar\.querySelector\("\[data-central-sidebar-context\]"\)\?\.remove\(\)/);
   assert.match(shell, /admin-topbar-actions/);
   assert.match(shell, /data-central-breadcrumbs/);
   assert.match(shell, /Configurações/);
+  assert.match(shell, /if \(kicker\) kicker\.hidden = false/);
   assert.match(shell, /data-central-profile-summary/);
   assert.match(shell, /data-central-passkey-manage/);
   assert.match(shell, /data-central-passkey-dialog/);
