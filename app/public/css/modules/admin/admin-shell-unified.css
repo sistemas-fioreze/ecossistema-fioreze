@@ -158,8 +158,41 @@ body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="
   width: 240px;
 }
 
+/* Subtle L-shaped boundary between the white shell and the canvas. */
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] {
+  --central-shell-contour: #dde1e3;
+  --central-shell-canvas: #f5f6f5;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-global-sidebar {
+  border-right: 1px solid var(--central-shell-contour) !important;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-dashboard > .admin-topbar,
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-portal-layout .admin-topbar {
+  border-bottom: 1px solid var(--central-shell-contour) !important;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-dashboard > :where(
+  .admin-home-dashboard,
+  .admin-launcher-grid,
+  .admin-management-panel,
+  .admin-access-denied
+),
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-portals-surface {
+  background: var(--central-shell-canvas) !important;
+}
+
+/* Profile image and fallback initials share the same deliberate ring. */
+body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-sidebar-footer .admin-avatar {
+  box-sizing: border-box;
+  border: 1px solid rgba(194, 169, 75, .52);
+  box-shadow: 0 0 0 2px #ffffff;
+}
+
 @media (max-width: 980px) {
   body[data-admin-design="workspace"][data-admin-shell="erp"][data-admin-central="v3"] .admin-global-sidebar {
     background: #ffffff !important;
+    border-right: 1px solid var(--central-shell-contour) !important;
   }
 }
