@@ -85,9 +85,11 @@ function synchronizeTopbarContext(root, topbar) {
   const copy = topbar.querySelector(".admin-topbar-copy");
   if (!copy) return;
   const section = document.body.dataset.adminSection || "home";
+  const kicker = copy.querySelector(".admin-page-kicker");
   let breadcrumbs = copy.querySelector("[data-central-breadcrumbs]");
   if (section !== "account") {
     breadcrumbs?.remove();
+    if (kicker) kicker.hidden = false;
     return;
   }
 
@@ -99,7 +101,6 @@ function synchronizeTopbarContext(root, topbar) {
     breadcrumbs.innerHTML = '<a href="/admin/configuracoes/">Configurações</a><span aria-hidden="true">/</span><strong>Minha conta</strong>';
     copy.prepend(breadcrumbs);
   }
-  const kicker = copy.querySelector(".admin-page-kicker");
   if (kicker) kicker.hidden = true;
   const subtitle = copy.querySelector(".admin-muted");
   if (subtitle) subtitle.textContent = "Gerencie seu perfil, métodos de acesso e proteção da conta.";
