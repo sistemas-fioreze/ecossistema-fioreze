@@ -54,12 +54,13 @@ function enhanceSidebar(root, dashboard) {
 
   const userName = root.querySelector("#sessionUser")?.textContent?.trim() || "Conta";
   const meta = root.querySelector("[data-admin-session-hotels]")?.textContent?.trim() || "Acesso administrativo";
+  const initialsText = initials(userName);
   const user = footer.querySelector("[data-central-sidebar-user]");
   const metaNode = footer.querySelector("[data-central-sidebar-meta]");
   const avatar = footer.querySelector("[data-central-sidebar-avatar]");
-  if (user) user.textContent = userName;
-  if (metaNode) metaNode.textContent = meta;
-  if (avatar) avatar.textContent = initials(userName);
+  if (user && user.textContent !== userName) user.textContent = userName;
+  if (metaNode && metaNode.textContent !== meta) metaNode.textContent = meta;
+  if (avatar && avatar.textContent !== initialsText) avatar.textContent = initialsText;
 }
 
 function enhanceTopbar(root, dashboard) {
