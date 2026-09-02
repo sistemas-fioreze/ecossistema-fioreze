@@ -12,7 +12,13 @@ export function setupAdminCentralV2(root = document) {
 
   scheduleSync();
   const observer = new MutationObserver(scheduleSync);
-  observer.observe(root.body, { childList: true, subtree: true, characterData: true });
+  observer.observe(root.body, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+    attributes: true,
+    attributeFilter: ["hidden"],
+  });
   window.addEventListener("popstate", scheduleSync);
   window.addEventListener("fioreze:admin-refresh", scheduleSync);
 }
