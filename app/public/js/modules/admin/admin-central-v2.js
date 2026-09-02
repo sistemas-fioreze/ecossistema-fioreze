@@ -1,5 +1,5 @@
 const STYLESHEET_HREF = "/css/modules/admin/admin-central-v2.css?v=20260902-1";
-const POLISH_STYLESHEET_HREF = "/css/modules/admin/admin-central-v3.css?v=20260902-1";
+const POLISH_STYLESHEET_HREF = "/css/modules/admin/admin-central-v3.css?v=20260902-2";
 let syncFrame = 0;
 
 export function setupAdminCentralV2(root = document) {
@@ -43,23 +43,25 @@ function enhanceSidebar(root, dashboard) {
     footer = root.createElement("div");
     footer.className = "admin-sidebar-footer";
     footer.dataset.centralSidebarFooter = "";
-    footer.innerHTML = `
-      <span class="admin-avatar" data-central-sidebar-avatar aria-hidden="true">F</span>
-      <span class="admin-sidebar-footer-copy"><strong data-central-sidebar-user>Conta</strong><span data-central-sidebar-meta>Acesso administrativo</span></span>
-      <a class="admin-sidebar-account-link" href="/admin/minha-conta/" aria-label="Abrir minha conta" title="Minha conta">${userIcon()}</a>
-    `;
     sidebar.append(footer);
   }
 
-  const userName = root.querySelector("#sessionUser")?.textContent?.trim() || "Conta";
-  const meta = root.querySelector("[data-admin-session-hotels]")?.textContent?.trim() || "Acesso administrativo";
-  const initialsText = initials(userName);
-  const user = footer.querySelector("[data-central-sidebar-user]");
-  const metaNode = footer.querySelector("[data-central-sidebar-meta]");
-  const avatar = footer.querySelector("[data-central-sidebar-avatar]");
-  if (user && user.textContent !== userName) user.textContent = userName;
-  if (metaNode && metaNode.textContent !== meta) metaNode.textContent = meta;
-  if (avatar && avatar.textContent !== initialsText) avatar.textContent = initialsText;
+  const sessionBox = dashboard.querySelector(".admin-session-box");
+  if (!sessionBox) return;
+  sessionBox.classList.add("admin-sidebar-session");
+  sessionBox.dataset.centralSidebarSession = "";
+  if (sessionBox.parentElement !== footer || footer.children.length !== 1) footer.replaceChildren(sessionBox);
+
+  const meta = sessionBox.querySelector("[data-admin-session-hotels]")?.textContent?.trim() || "Acesso administrativo";
+  const triggerMeta = sessionBox.querySelector(".admin-session-copy small");
+  if (triggerMeta && triggerMeta.textContent !== meta) triggerMeta.textContent = meta;
+
+  const accountLink = sessionBox.querySelector('[data-admin-session-menu] a[href="/admin/configuracoes/"]');
+  if (accountLink && accountLink.dataset.centralAccountLink !== "true") {
+    accountLink.href = "/admin/minha-conta/";
+    accountLink.dataset.centralAccountLink = "true";
+    accountLink.innerHTML = `${userIcon()} Minha conta`;
+  }
 }
 
 function enhanceTopbar(root, dashboard) {
@@ -68,7 +70,6 @@ function enhanceTopbar(root, dashboard) {
       const controls = [
         topbar.querySelector(":scope > .admin-command-search"),
         ...topbar.querySelectorAll(":scope > .admin-icon-button"),
-        topbar.querySelector(":scope > .admin-session-box"),
       ].filter(Boolean);
       if (controls.length) {
         const actions = root.createElement("div");
@@ -233,16 +234,6 @@ function ensureStylesheet(root, selector, href, dataName) {
   link.href = href;
   link.dataset[dataName] = "";
   root.head.append(link);
-}
-
-function initials(name) {
-  return String(name || "F")
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase() || "F";
 }
 
 function userIcon() {
