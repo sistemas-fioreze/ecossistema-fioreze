@@ -18,6 +18,7 @@ test("Central Administrativa possui uma camada mobile global carregada por últi
   assert.match(module, /admin-mobile-v2\.css\?v=20260903-1/);
   assert.match(module, /admin-mobile-polish\.css\?v=20260903-2/);
   assert.match(module, /const MOBILE_QUERY = "\(max-width: 980px\)"/);
+  assert.match(module, /existing\.getAttribute\("href"\) !== href/);
   assert.match(module, /classList\.remove\("is-menu-open"\)/);
   assert.match(module, /is-admin-mobile-menu-open/);
   assert.match(module, /aria-expanded/);
