@@ -1,4 +1,3 @@
-import "../admin-totp.js?v=20260903-4";
 import { installAdminDownloads } from "./admin-downloads.js";
 
 const installedRoots = new WeakSet();

@@ -24,9 +24,9 @@ test("Central Administrativa possui uma camada mobile global carregada por últi
   assert.match(module, /event\.key === "Escape"/);
 });
 
-test("bootstrap compartilhado carrega a autoridade mobile também em Portais", async () => {
-  const picker = await readFile(new URL("../public/js/modules/admin/shared/admin-select-picker.js", import.meta.url), "utf8");
-  assert.match(picker, /\.\.\/admin-totp\.js\?v=20260903-4/);
+test("bootstrap compartilhado versiona a autoridade mobile para todas as rotas administrativas", async () => {
+  const api = await readFile(new URL("../public/js/modules/admin/shared/admin-api.js", import.meta.url), "utf8");
+  assert.match(api, /import\("\.\.\/admin-totp\.js\?v=20260903-4"\)/);
 });
 
 test("layout mobile cobre shell, formulários, listas, dialogs e Links", async () => {
