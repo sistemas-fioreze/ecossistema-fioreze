@@ -1,3 +1,4 @@
+import "../admin-mobile-v1.js?v=20260903-5";
 import { installAdminDownloads } from "./admin-downloads.js";
 
 const installedRoots = new WeakSet();
