@@ -1,6 +1,10 @@
 /* Mobile polish after the global responsive authority. */
 
 @media (max-width: 980px) {
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-portal-main {
+    gap: 0 !important;
+  }
+
   body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-topbar {
     grid-template-columns: 46px minmax(0, 1fr) 44px 44px !important;
     grid-auto-rows: auto;
