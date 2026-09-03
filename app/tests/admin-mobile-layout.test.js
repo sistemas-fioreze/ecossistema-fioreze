@@ -16,7 +16,7 @@ test("Central Administrativa possui uma camada mobile global carregada por últi
   assert.match(module, /admin-mobile-auth\.css\?v=20260903-1/);
   assert.match(module, /admin-mobile-sections\.css\?v=20260903-1/);
   assert.match(module, /admin-mobile-v2\.css\?v=20260903-1/);
-  assert.match(module, /admin-mobile-polish\.css\?v=20260903-2/);
+  assert.match(module, /admin-mobile-polish\.css\?v=20260903-3/);
   assert.match(module, /const MOBILE_QUERY = "\(max-width: 980px\)"/);
   assert.match(module, /existing\.getAttribute\("href"\) !== href/);
   assert.match(module, /classList\.remove\("is-menu-open"\)/);
@@ -108,6 +108,7 @@ test("autoridade mobile v2 cobre breakpoints e módulos administrativos crítico
 test("polimento mobile mantém header compacto e Links densos sem perder toque", async () => {
   const css = await readFile(new URL("../public/css/modules/admin/admin-mobile-polish.css", import.meta.url), "utf8");
 
+  assert.match(css, /\.admin-portal-main[\s\S]*gap: 0 !important/);
   assert.match(css, /\.admin-topbar-actions[\s\S]*display: contents !important/);
   assert.match(css, /\.admin-mail-button[\s\S]*grid-column: 3/);
   assert.match(css, /\.admin-command-search[\s\S]*grid-row: 2/);
