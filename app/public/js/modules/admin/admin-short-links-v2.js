@@ -1,4 +1,5 @@
 const STYLESHEET_HREF = "/css/modules/admin/admin-short-links-v2.css?v=20260903-1";
+const CANVAS_STYLESHEET_HREF = "/css/modules/admin/admin-short-links-canvas.css?v=20260903-1";
 const SECONDARY_ACTIONS = new Set(["share", "toggle", "archive", "delete"]);
 let syncFrame = 0;
 
@@ -113,11 +114,16 @@ function closeOverflowMenus(scope) {
 }
 
 function ensureStyles(root) {
-  if (root.querySelector('link[data-admin-short-links-v2]')) return;
+  ensureStylesheet(root, 'link[data-admin-short-links-v2]', STYLESHEET_HREF, "adminShortLinksV2");
+  ensureStylesheet(root, 'link[data-admin-short-links-canvas]', CANVAS_STYLESHEET_HREF, "adminShortLinksCanvas");
+}
+
+function ensureStylesheet(root, selector, href, dataName) {
+  if (root.querySelector(selector)) return;
   const link = root.createElement("link");
   link.rel = "stylesheet";
-  link.href = STYLESHEET_HREF;
-  link.dataset.adminShortLinksV2 = "";
+  link.href = href;
+  link.dataset[dataName] = "";
   root.head.append(link);
 }
 
