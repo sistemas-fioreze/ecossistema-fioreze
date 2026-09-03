@@ -1,9 +1,11 @@
 const MOBILE_STYLESHEET_HREF = "/css/modules/admin/admin-mobile-v1.css?v=20260903-1";
 const MOBILE_AUTH_STYLESHEET_HREF = "/css/modules/admin/admin-mobile-auth.css?v=20260903-1";
+const MOBILE_SECTIONS_STYLESHEET_HREF = "/css/modules/admin/admin-mobile-sections.css?v=20260903-1";
 
 export function setupAdminMobileV1(root = document) {
   ensureStylesheet(root, 'link[data-admin-mobile-v1]', MOBILE_STYLESHEET_HREF, "adminMobileV1");
   ensureStylesheet(root, 'link[data-admin-mobile-auth]', MOBILE_AUTH_STYLESHEET_HREF, "adminMobileAuth");
+  ensureStylesheet(root, 'link[data-admin-mobile-sections]', MOBILE_SECTIONS_STYLESHEET_HREF, "adminMobileSections");
 
   const dashboard = root.querySelector('[data-view="dashboard"]');
   if (!dashboard || dashboard.dataset.mobileUx === "v1") return;
