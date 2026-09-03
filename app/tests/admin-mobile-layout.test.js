@@ -10,12 +10,17 @@ test("Central Administrativa possui uma camada mobile global carregada por últi
   const mobileIndex = entry.indexOf("admin-mobile-v1.js");
   assert.ok(shortLinksIndex >= 0, "o módulo de Links deve continuar carregado");
   assert.ok(mobileIndex > shortLinksIndex, "a camada mobile deve carregar depois dos estilos de features");
+  assert.match(entry, /admin-mobile-v1\.js\?v=20260903-2/);
 
   assert.match(module, /admin-mobile-v1\.css\?v=20260903-1/);
   assert.match(module, /admin-mobile-auth\.css\?v=20260903-1/);
   assert.match(module, /admin-mobile-sections\.css\?v=20260903-1/);
-  assert.match(module, /matchMedia\("\(max-width: 980px\)"\)/);
+  assert.match(module, /admin-mobile-v2\.css\?v=20260903-1/);
+  assert.match(module, /const MOBILE_QUERY = "\(max-width: 980px\)"/);
   assert.match(module, /classList\.remove\("is-menu-open"\)/);
+  assert.match(module, /is-admin-mobile-menu-open/);
+  assert.match(module, /aria-expanded/);
+  assert.match(module, /event\.key === "Escape"/);
 });
 
 test("layout mobile cobre shell, formulários, listas, dialogs e Links", async () => {
@@ -63,6 +68,29 @@ test("login e MFA mobile ficam dentro da viewport e usam controles tocáveis", a
   assert.match(css, /\.admin-access-card input[\s\S]*font-size: 16px !important/);
   assert.match(css, /\.admin-totp-login-field input[\s\S]*min-height: 56px/);
   assert.match(css, /\.admin-totp-login-actions[\s\S]*grid-template-columns: minmax\(0, 1fr\)/);
+  assert.doesNotMatch(css, /@import\s+url/i);
+  assert.doesNotMatch(css, /font-size:\s*(?:[0-9]|1[01])px/);
+  assert.doesNotMatch(css, /font-weight:\s*(?:[1-9][1-9][0-9]|[1-9][0-9][1-9])/);
+});
+
+test("autoridade mobile v2 cobre breakpoints e módulos administrativos críticos", async () => {
+  const css = await readFile(new URL("../public/css/modules/admin/admin-mobile-v2.css", import.meta.url), "utf8");
+
+  assert.match(css, /@media \(max-width: 980px\)/);
+  assert.match(css, /@media \(max-width: 640px\)/);
+  assert.match(css, /@media \(max-width: 430px\)/);
+  assert.match(css, /@media \(max-width: 390px\)/);
+  assert.match(css, /\.admin-command-results[\s\S]*top: calc\(100% \+ 6px\) !important/);
+  assert.match(css, /\.admin-management-row[\s\S]*grid-template-columns: auto minmax\(0, 1fr\) !important/);
+  assert.match(css, /\.admin-account-security-grid[\s\S]*grid-template-columns: minmax\(0, 1fr\) !important/);
+  assert.match(css, /\.admin-totp-pair-grid/);
+  assert.match(css, /\.admin-unit-row/);
+  assert.match(css, /#shortLinksManager\[data-links-design="v2"\][\s\S]*\.admin-links-overflow-menu/);
+  assert.match(css, /\.admin-messages-manager\.is-reading-message \.admin-message-detail/);
+  assert.match(css, /\.admin-media-grid[\s\S]*repeat\(auto-fill, minmax\(160px, 1fr\)\)/);
+  assert.match(css, /\.guest-portal-editor-tabs[\s\S]*display: flex !important/);
+  assert.match(css, /\.guest-portal-preview-frame[\s\S]*max-width: 100% !important/);
+  assert.match(css, /font-size: 16px/);
   assert.doesNotMatch(css, /@import\s+url/i);
   assert.doesNotMatch(css, /font-size:\s*(?:[0-9]|1[01])px/);
   assert.doesNotMatch(css, /font-weight:\s*(?:[1-9][1-9][0-9]|[1-9][0-9][1-9])/);
