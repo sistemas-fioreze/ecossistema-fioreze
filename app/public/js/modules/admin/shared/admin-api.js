@@ -205,7 +205,7 @@ function requiresAdminMutationHeader(options) {
 
 if (typeof document !== "undefined") {
   queueMicrotask(() => {
-    import("../admin-totp.js")
+    import("../admin-totp.js?v=20260903-4")
       .then((module) => module.setupAdminTotp?.())
       .catch(() => null);
   });
