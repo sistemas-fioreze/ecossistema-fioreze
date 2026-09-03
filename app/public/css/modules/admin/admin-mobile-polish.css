@@ -1,0 +1,151 @@
+/* Mobile polish after the global responsive authority. */
+
+@media (max-width: 980px) {
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-topbar {
+    grid-template-columns: 46px minmax(0, 1fr) 44px 44px !important;
+    grid-auto-rows: auto;
+    column-gap: 8px !important;
+    row-gap: 8px !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-topbar-actions {
+    display: contents !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-shell-toggle-mobile {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-topbar-copy {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-mail-button {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-topbar [data-admin-help-open] {
+    grid-column: 4;
+    grid-row: 1;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-command-search {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100% !important;
+    margin: 0 !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] #shortLinksManager[data-links-design="v2"] .admin-short-links-workspace {
+    padding-top: 4px !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] #shortLinksManager[data-links-design="v2"] .admin-short-links-summary,
+  body[data-admin-design="workspace"][data-admin-shell="erp"] #portalAnalyticsSummary {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] #shortLinksManager[data-links-design="v2"] .admin-short-links-summary article,
+  body[data-admin-design="workspace"][data-admin-shell="erp"] #portalAnalyticsSummary article {
+    min-height: 72px !important;
+    padding: 12px 14px !important;
+    border-top: 1px solid #e2e4e6 !important;
+    border-left: 0 !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] #shortLinksManager[data-links-design="v2"] .admin-short-links-summary article:nth-child(-n + 2),
+  body[data-admin-design="workspace"][data-admin-shell="erp"] #portalAnalyticsSummary article:nth-child(-n + 2) {
+    border-top: 0 !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] #shortLinksManager[data-links-design="v2"] .admin-short-links-summary article:nth-child(2n),
+  body[data-admin-design="workspace"][data-admin-shell="erp"] #portalAnalyticsSummary article:nth-child(2n) {
+    border-left: 1px solid #e2e4e6 !important;
+  }
+}
+
+@media (max-width: 640px) {
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-topbar {
+    padding-block: max(9px, env(safe-area-inset-top)) 9px !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-topbar-copy :where(.eyebrow, .admin-page-kicker, .admin-central-breadcrumbs) {
+    display: none !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] #shortLinksManager[data-links-design="v2"] .admin-analytics-switcher {
+    min-height: 50px !important;
+    padding-inline: 12px !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] #shortLinksManager[data-links-design="v2"] .admin-analytics-switcher button {
+    min-height: 50px !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] #shortLinksManager[data-links-design="v2"] .admin-short-links-topbar {
+    gap: 8px !important;
+    padding: 10px 12px 6px !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] #shortLinksManager[data-links-design="v2"] .admin-short-links-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    align-items: end !important;
+    gap: 8px 10px !important;
+    margin-bottom: 12px !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] #shortLinksManager[data-links-design="v2"] .admin-short-links-filters > label:first-child {
+    grid-column: 1 / -1;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] #shortLinksManager[data-links-design="v2"] .admin-short-links-filters label {
+    gap: 4px !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] #shortLinksManager[data-links-design="v2"] .admin-short-links-filters select {
+    min-height: 44px !important;
+    height: 44px !important;
+    padding-block: 0 !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] #shortLinksManager[data-links-design="v2"] #shortLinksMessage {
+    min-height: 18px !important;
+    margin-bottom: 8px !important;
+  }
+}
+
+@media (min-width: 431px) and (max-width: 640px) {
+  body[data-admin-design="workspace"][data-admin-shell="erp"] #shortLinksManager[data-links-design="v2"] .admin-short-links-topbar {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] #shortLinksManager[data-links-design="v2"] #addShortLinkButton {
+    width: auto !important;
+    padding-inline: 14px !important;
+  }
+}
+
+@media (max-width: 430px) {
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-topbar {
+    grid-template-columns: 44px minmax(0, 1fr) 44px 44px !important;
+    padding-inline: 10px !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] #shortLinksManager[data-links-design="v2"] .admin-short-links-summary,
+  body[data-admin-design="workspace"][data-admin-shell="erp"] #portalAnalyticsSummary {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] #shortLinksManager[data-links-design="v2"] .admin-short-links-summary article:nth-child(-n + 2),
+  body[data-admin-design="workspace"][data-admin-shell="erp"] #portalAnalyticsSummary article:nth-child(-n + 2) {
+    border-top: 0 !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] #shortLinksManager[data-links-design="v2"] .admin-short-links-summary article:nth-child(2n),
+  body[data-admin-design="workspace"][data-admin-shell="erp"] #portalAnalyticsSummary article:nth-child(2n) {
+    border-left: 1px solid #e2e4e6 !important;
+  }
+}

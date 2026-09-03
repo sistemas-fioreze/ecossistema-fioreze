@@ -10,17 +10,23 @@ test("Central Administrativa possui uma camada mobile global carregada por últi
   const mobileIndex = entry.indexOf("admin-mobile-v1.js");
   assert.ok(shortLinksIndex >= 0, "o módulo de Links deve continuar carregado");
   assert.ok(mobileIndex > shortLinksIndex, "a camada mobile deve carregar depois dos estilos de features");
-  assert.match(entry, /admin-mobile-v1\.js\?v=20260903-2/);
+  assert.match(entry, /admin-mobile-v1\.js\?v=20260903-3/);
 
   assert.match(module, /admin-mobile-v1\.css\?v=20260903-1/);
   assert.match(module, /admin-mobile-auth\.css\?v=20260903-1/);
   assert.match(module, /admin-mobile-sections\.css\?v=20260903-1/);
   assert.match(module, /admin-mobile-v2\.css\?v=20260903-1/);
+  assert.match(module, /admin-mobile-polish\.css\?v=20260903-1/);
   assert.match(module, /const MOBILE_QUERY = "\(max-width: 980px\)"/);
   assert.match(module, /classList\.remove\("is-menu-open"\)/);
   assert.match(module, /is-admin-mobile-menu-open/);
   assert.match(module, /aria-expanded/);
   assert.match(module, /event\.key === "Escape"/);
+});
+
+test("bootstrap compartilhado carrega a autoridade mobile também em Portais", async () => {
+  const picker = await readFile(new URL("../public/js/modules/admin/shared/admin-select-picker.js", import.meta.url), "utf8");
+  assert.match(picker, /\.\.\/admin-totp\.js\?v=20260903-4/);
 });
 
 test("layout mobile cobre shell, formulários, listas, dialogs e Links", async () => {
@@ -91,6 +97,20 @@ test("autoridade mobile v2 cobre breakpoints e módulos administrativos crítico
   assert.match(css, /\.guest-portal-editor-tabs[\s\S]*display: flex !important/);
   assert.match(css, /\.guest-portal-preview-frame[\s\S]*max-width: 100% !important/);
   assert.match(css, /font-size: 16px/);
+  assert.doesNotMatch(css, /@import\s+url/i);
+  assert.doesNotMatch(css, /font-size:\s*(?:[0-9]|1[01])px/);
+  assert.doesNotMatch(css, /font-weight:\s*(?:[1-9][1-9][0-9]|[1-9][0-9][1-9])/);
+});
+
+test("polimento mobile mantém header compacto e Links densos sem perder toque", async () => {
+  const css = await readFile(new URL("../public/css/modules/admin/admin-mobile-polish.css", import.meta.url), "utf8");
+
+  assert.match(css, /\.admin-topbar-actions[\s\S]*display: contents !important/);
+  assert.match(css, /\.admin-mail-button[\s\S]*grid-column: 3/);
+  assert.match(css, /\.admin-command-search[\s\S]*grid-row: 2/);
+  assert.match(css, /\.admin-short-links-filters[\s\S]*repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(css, /\.admin-short-links-summary[\s\S]*repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(css, /min-height: 44px/);
   assert.doesNotMatch(css, /@import\s+url/i);
   assert.doesNotMatch(css, /font-size:\s*(?:[0-9]|1[01])px/);
   assert.doesNotMatch(css, /font-weight:\s*(?:[1-9][1-9][0-9]|[1-9][0-9][1-9])/);

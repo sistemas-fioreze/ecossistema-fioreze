@@ -2,6 +2,7 @@ const MOBILE_STYLESHEET_HREF = "/css/modules/admin/admin-mobile-v1.css?v=2026090
 const MOBILE_AUTH_STYLESHEET_HREF = "/css/modules/admin/admin-mobile-auth.css?v=20260903-1";
 const MOBILE_SECTIONS_STYLESHEET_HREF = "/css/modules/admin/admin-mobile-sections.css?v=20260903-1";
 const MOBILE_FINAL_STYLESHEET_HREF = "/css/modules/admin/admin-mobile-v2.css?v=20260903-1";
+const MOBILE_POLISH_STYLESHEET_HREF = "/css/modules/admin/admin-mobile-polish.css?v=20260903-1";
 const MOBILE_QUERY = "(max-width: 980px)";
 
 export function setupAdminMobileV1(root = document) {
@@ -9,6 +10,7 @@ export function setupAdminMobileV1(root = document) {
   ensureStylesheet(root, 'link[data-admin-mobile-auth]', MOBILE_AUTH_STYLESHEET_HREF, "adminMobileAuth");
   ensureStylesheet(root, 'link[data-admin-mobile-sections]', MOBILE_SECTIONS_STYLESHEET_HREF, "adminMobileSections");
   ensureStylesheet(root, 'link[data-admin-mobile-v2]', MOBILE_FINAL_STYLESHEET_HREF, "adminMobileV2");
+  ensureStylesheet(root, 'link[data-admin-mobile-polish]', MOBILE_POLISH_STYLESHEET_HREF, "adminMobilePolish");
 
   const dashboard = root.querySelector('[data-view="dashboard"]');
   if (!dashboard || dashboard.dataset.mobileUx === "v2") return;
