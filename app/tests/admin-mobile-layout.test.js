@@ -16,8 +16,9 @@ test("Central Administrativa possui uma camada mobile global carregada por últi
   assert.match(module, /admin-mobile-auth\.css\?v=20260903-1/);
   assert.match(module, /admin-mobile-sections\.css\?v=20260903-1/);
   assert.match(module, /admin-mobile-v2\.css\?v=20260903-1/);
-  assert.match(module, /admin-mobile-polish\.css\?v=20260903-1/);
+  assert.match(module, /admin-mobile-polish\.css\?v=20260903-2/);
   assert.match(module, /const MOBILE_QUERY = "\(max-width: 980px\)"/);
+  assert.match(module, /existing\.getAttribute\("href"\) !== href/);
   assert.match(module, /classList\.remove\("is-menu-open"\)/);
   assert.match(module, /is-admin-mobile-menu-open/);
   assert.match(module, /aria-expanded/);
@@ -26,7 +27,9 @@ test("Central Administrativa possui uma camada mobile global carregada por últi
 
 test("bootstrap compartilhado versiona a autoridade mobile para todas as rotas administrativas", async () => {
   const api = await readFile(new URL("../public/js/modules/admin/shared/admin-api.js", import.meta.url), "utf8");
+  const picker = await readFile(new URL("../public/js/modules/admin/shared/admin-select-picker.js", import.meta.url), "utf8");
   assert.match(api, /import\("\.\.\/admin-totp\.js\?v=20260903-4"\)/);
+  assert.match(picker, /import "\.\.\/admin-mobile-v1\.js\?v=20260903-5"/);
 });
 
 test("layout mobile cobre shell, formulários, listas, dialogs e Links", async () => {
@@ -108,6 +111,9 @@ test("polimento mobile mantém header compacto e Links densos sem perder toque",
   assert.match(css, /\.admin-topbar-actions[\s\S]*display: contents !important/);
   assert.match(css, /\.admin-mail-button[\s\S]*grid-column: 3/);
   assert.match(css, /\.admin-command-search[\s\S]*grid-row: 2/);
+  assert.match(css, /\.admin-short-links-topbar[\s\S]*grid-template-columns: minmax\(0, 1fr\) 48px !important/);
+  assert.match(css, /#addShortLinkButton[\s\S]*width: 48px !important[\s\S]*height: 48px !important/);
+  assert.match(css, /#addShortLinkButton svg[\s\S]*transform: translate\(-50%, -50%\)/);
   assert.match(css, /\.admin-short-links-filters[\s\S]*repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(css, /\.admin-short-links-summary[\s\S]*repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(css, /min-height: 44px/);
