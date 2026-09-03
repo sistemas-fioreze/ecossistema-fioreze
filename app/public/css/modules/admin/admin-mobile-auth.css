@@ -1,0 +1,92 @@
+/* Mobile authentication polish for Central Administrativa. */
+@media (max-width: 640px) {
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-login,
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-loading {
+    min-height: 100dvh;
+    padding: max(18px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom));
+    background: #fff;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card {
+    width: 100% !important;
+    max-width: 380px;
+    min-height: 0;
+    gap: 12px;
+    padding: 0 !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card .brand-mark {
+    width: min(190px, 64vw) !important;
+    height: 72px !important;
+    margin-bottom: 6px !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card h1 {
+    font-size: 21px !important;
+    line-height: 1.2;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card label {
+    width: 100% !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card input {
+    width: 100%;
+    min-height: 50px;
+    border-radius: 13px;
+    font-size: 16px !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card .admin-primary-button {
+    width: 100% !important;
+    min-height: 48px;
+    margin-top: 2px;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-turnstile {
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-totp-login-step {
+    width: 100%;
+    max-width: 100%;
+    gap: 16px !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-totp-login-header,
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-totp-login-heading,
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-totp-login-field,
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-totp-login-actions {
+    width: 100%;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-totp-login-heading h2 {
+    font-size: 22px !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-totp-login-copy,
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-totp-login-field-meta {
+    font-size: 13px !important;
+    line-height: 1.5;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-totp-login-field input {
+    width: 100%;
+    min-height: 56px;
+    font-size: 18px !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-totp-login-actions {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-totp-login-actions button {
+    width: 100%;
+    min-height: 46px;
+    justify-content: center;
+  }
+}
