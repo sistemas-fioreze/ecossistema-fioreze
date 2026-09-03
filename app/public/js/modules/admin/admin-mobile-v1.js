@@ -17,12 +17,6 @@ export function setupAdminMobileV1(root = document) {
   const mobileQuery = window.matchMedia(MOBILE_QUERY);
   const backdrop = dashboard.querySelector("[data-admin-backdrop]");
 
-  const closeMobileMenu = () => {
-    dashboard.classList.remove("is-menu-open");
-    if (backdrop) backdrop.hidden = true;
-    syncMenuState();
-  };
-
   const syncMenuState = () => {
     const isMobile = mobileQuery.matches;
     const isOpen = isMobile && dashboard.classList.contains("is-menu-open");
@@ -36,6 +30,12 @@ export function setupAdminMobileV1(root = document) {
       dashboard.classList.remove("is-menu-open");
       if (backdrop) backdrop.hidden = true;
     }
+  };
+
+  const closeMobileMenu = () => {
+    dashboard.classList.remove("is-menu-open");
+    if (backdrop) backdrop.hidden = true;
+    syncMenuState();
   };
 
   dashboard.addEventListener("click", (event) => {
@@ -70,4 +70,10 @@ function ensureStylesheet(root, selector, href, dataName) {
   root.head.append(link);
 }
 
-if (typeof document !== "undefined") setupAdminMobileV1();
+if (typeof document !== "undefined") {
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => setupAdminMobileV1(), { once: true });
+  } else {
+    setupAdminMobileV1();
+  }
+}
