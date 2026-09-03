@@ -86,8 +86,42 @@
   }
 
   body[data-admin-design="workspace"][data-admin-shell="erp"] #shortLinksManager[data-links-design="v2"] .admin-short-links-topbar {
+    grid-template-columns: minmax(0, 1fr) 48px !important;
+    align-items: center !important;
     gap: 8px !important;
     padding: 10px 12px 6px !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] #shortLinksManager[data-links-design="v2"] .admin-short-links-search {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] #shortLinksManager[data-links-design="v2"] #addShortLinkButton {
+    position: relative;
+    width: 48px !important;
+    min-width: 48px !important;
+    max-width: 48px !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    overflow: hidden;
+    border-radius: 12px !important;
+    white-space: nowrap;
+    text-indent: -9999px;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] #shortLinksManager[data-links-design="v2"] #addShortLinkButton svg {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px !important;
+    height: 20px !important;
+    transform: translate(-50%, -50%);
+    text-indent: 0;
   }
 
   body[data-admin-design="workspace"][data-admin-shell="erp"] #shortLinksManager[data-links-design="v2"] .admin-short-links-filters {
@@ -114,17 +148,6 @@
   body[data-admin-design="workspace"][data-admin-shell="erp"] #shortLinksManager[data-links-design="v2"] #shortLinksMessage {
     min-height: 18px !important;
     margin-bottom: 8px !important;
-  }
-}
-
-@media (min-width: 431px) and (max-width: 640px) {
-  body[data-admin-design="workspace"][data-admin-shell="erp"] #shortLinksManager[data-links-design="v2"] .admin-short-links-topbar {
-    grid-template-columns: minmax(0, 1fr) auto !important;
-  }
-
-  body[data-admin-design="workspace"][data-admin-shell="erp"] #shortLinksManager[data-links-design="v2"] #addShortLinkButton {
-    width: auto !important;
-    padding-inline: 14px !important;
   }
 }
 
