@@ -64,7 +64,11 @@ export function setupAdminMobileV1(root = document) {
 }
 
 function ensureStylesheet(root, selector, href, dataName) {
-  if (root.querySelector(selector)) return;
+  const existing = root.querySelector(selector);
+  if (existing) {
+    if (existing.getAttribute("href") !== href) existing.href = href;
+    return;
+  }
   const link = root.createElement("link");
   link.rel = "stylesheet";
   link.href = href;
