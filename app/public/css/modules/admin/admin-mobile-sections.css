@@ -1,0 +1,442 @@
+/* Section-specific mobile behavior for complex Central workspaces. */
+
+@media (max-width: 980px) {
+  /* Home */
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-dashboard {
+    width: 100%;
+    min-width: 0;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-grid,
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-action-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] :where(
+    .admin-home-chart-card,
+    .admin-home-units-card,
+    .admin-home-actions
+  ) {
+    min-width: 0;
+    padding: 16px !important;
+    border-radius: 16px !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-bars > * {
+    min-width: 0;
+  }
+
+  /* Messages: mailbox tabs + one pane at a time. */
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-messages-manager {
+    width: 100%;
+    min-width: 0;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #fff !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-messages-layout {
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes {
+    position: static !important;
+    width: 100%;
+    min-width: 0;
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px !important;
+    padding: 10px 12px !important;
+    border-right: 0 !important;
+    border-bottom: 1px solid #e3e5e7;
+    background: #fff;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-compose {
+    width: 44px !important;
+    min-width: 44px;
+    min-height: 44px !important;
+    padding: 0 !important;
+    border-radius: 12px !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-compose > span {
+    display: none !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes nav {
+    min-width: 0;
+    display: flex !important;
+    gap: 4px !important;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-boxes nav button {
+    flex: 0 0 auto;
+    min-height: 44px !important;
+    padding: 0 12px !important;
+    border-radius: 11px !important;
+    white-space: nowrap;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-list-panel {
+    min-width: 0;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    overflow: hidden;
+    background: #fff;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-toolbar {
+    width: 100%;
+    min-width: 0;
+    display: grid !important;
+    grid-template-columns: 42px repeat(4, 42px);
+    gap: 6px !important;
+    padding: 10px 12px !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-toolbar > button {
+    width: 42px !important;
+    min-width: 42px !important;
+    min-height: 42px !important;
+    padding: 0 !important;
+    justify-content: center !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-toolbar > button span {
+    display: none !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-search {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100% !important;
+    min-width: 0;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-search input {
+    width: 100%;
+    min-height: 44px;
+    font-size: 16px !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] #messagesStatus {
+    margin: 0;
+    padding: 0 12px 8px;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-list {
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-row {
+    min-width: 0;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-row > button {
+    min-width: 0;
+    grid-template-columns: 40px minmax(0, 1fr) auto !important;
+    gap: 10px !important;
+    padding: 12px !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-row-copy {
+    min-width: 0;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-row-copy :where(strong, b, small) {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-detail {
+    display: none !important;
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    background: #fff;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-messages-manager.is-reading-message .admin-message-boxes,
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-messages-manager.is-reading-message .admin-message-list-panel {
+    display: none !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-messages-manager.is-reading-message .admin-messages-layout {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-messages-manager.is-reading-message .admin-message-detail {
+    display: block !important;
+    grid-row: 1;
+    width: 100%;
+    height: 100%;
+    padding: 16px !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-detail-actions {
+    width: 100%;
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 8px !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-detail-actions button {
+    flex: 1 1 auto;
+    min-height: 42px;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-attachment img {
+    width: 100%;
+    height: auto;
+  }
+
+  /* Preserve full white canvas for Links & QR Codes on mobile. */
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-portals-surface[data-active-portal-section="shortLinksManager"] {
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-portals-surface[data-active-portal-section="shortLinksManager"] #shortLinksManager[data-links-design="v2"],
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-portals-surface[data-active-portal-section="shortLinksManager"] .admin-short-links-workspace {
+    background: #fff !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-analytics-dashboard {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-analytics-card,
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-analytics-card-wide {
+    grid-column: auto !important;
+    min-width: 0;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-analytics-history {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  /* Media library becomes a single-column drive. */
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-portals-surface[data-active-portal-section="mediaLibrary"] {
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-media-library {
+    width: 100%;
+    min-width: 0;
+    min-height: 100%;
+    padding: 12px !important;
+    overflow-x: hidden;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-media-drive {
+    width: 100%;
+    min-width: 0;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-media-drive-sidebar {
+    width: 100%;
+    min-width: 0;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 8px !important;
+    padding: 0 !important;
+    border-right: 0 !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-media-storage-card {
+    display: none !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-media-drive-main {
+    width: 100%;
+    min-width: 0;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-media-heading-actions {
+    width: 100%;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-media-heading-actions button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-media-toolbar {
+    width: 100%;
+    min-width: 0;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-media-breadcrumbs {
+    min-width: 0;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  /* Guest Portal editor: inspector first, preview below. */
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-portals-surface[data-active-portal-section="contentManager"] {
+    padding: 0 !important;
+    overflow-y: auto !important;
+    background: #f4f5f7 !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-guest-portal-manager,
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .guest-portal-editor {
+    width: 100%;
+    min-width: 0;
+    height: auto !important;
+    min-height: 100%;
+    overflow: visible !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .guest-portal-editor-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 8;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: end;
+    gap: 8px !important;
+    min-height: 0;
+    padding: 10px 12px !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .guest-portal-editor-toolbar > label {
+    grid-column: 1 / -1;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .guest-portal-device-switcher {
+    min-width: 0;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .guest-portal-editor-actions {
+    min-width: 0;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .guest-portal-editor-body {
+    width: 100%;
+    min-width: 0;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    overflow: visible !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .guest-portal-inspector {
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    border-right: 0 !important;
+    border-bottom: 1px solid #dfe3e8;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .guest-portal-editor-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    overflow-x: auto;
+    grid-template-columns: repeat(4, minmax(90px, 1fr)) !important;
+    padding: 8px !important;
+    background: #fff;
+    scrollbar-width: none;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .guest-portal-editor-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .guest-portal-editor-panel {
+    max-height: none !important;
+    padding: 16px !important;
+    overflow: visible !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .guest-portal-preview-area {
+    width: 100%;
+    min-width: 0;
+    min-height: 620px;
+    padding: 14px 12px 18px !important;
+    overflow: visible !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .guest-portal-preview-frame {
+    width: 100% !important;
+    max-width: 100%;
+    height: 680px !important;
+    min-height: 520px;
+  }
+}
+
+@media (max-width: 640px) {
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-home-kpis {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-row > button {
+    grid-template-columns: 36px minmax(0, 1fr) !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-message-row time {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-media-heading-actions {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .guest-portal-device-switcher button,
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .guest-portal-editor-actions :where(a, button) {
+    min-height: 42px !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .guest-portal-editor-actions :where(a, button) span {
+    display: none;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .guest-editor-color-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .guest-editor-media-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  body[data-admin-design="workspace"][data-admin-shell="erp"] .emporio-carousel-editor-row {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
