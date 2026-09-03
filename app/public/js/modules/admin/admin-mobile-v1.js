@@ -2,7 +2,7 @@ const MOBILE_STYLESHEET_HREF = "/css/modules/admin/admin-mobile-v1.css?v=2026090
 const MOBILE_AUTH_STYLESHEET_HREF = "/css/modules/admin/admin-mobile-auth.css?v=20260903-1";
 const MOBILE_SECTIONS_STYLESHEET_HREF = "/css/modules/admin/admin-mobile-sections.css?v=20260903-1";
 const MOBILE_FINAL_STYLESHEET_HREF = "/css/modules/admin/admin-mobile-v2.css?v=20260903-1";
-const MOBILE_POLISH_STYLESHEET_HREF = "/css/modules/admin/admin-mobile-polish.css?v=20260903-1";
+const MOBILE_POLISH_STYLESHEET_HREF = "/css/modules/admin/admin-mobile-polish.css?v=20260903-2";
 const MOBILE_QUERY = "(max-width: 980px)";
 
 export function setupAdminMobileV1(root = document) {
