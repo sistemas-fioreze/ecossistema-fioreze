@@ -44,7 +44,19 @@ jobs:
           fi
 
       - name: Validar sintaxe do Worker
-        run: node --check tools/asana-calendar-bridge/src/index.js
+        run: |
+          node --check tools/asana-calendar-bridge/src/index.js
+          node --check tools/asana-calendar-bridge/src/diagnostics.js
 
       - name: Publicar bridge na Cloudflare
         run: npx --yes wrangler@4 deploy --config tools/asana-calendar-bridge/wrangler.jsonc
+
+      - name: Executar diagnostico temporario
+        shell: bash
+        run: |
+          sleep 8
+          echo "===== BRIDGE DIAGNOSTICS ====="
+          curl --silent --show-error \
+            --write-out '\nHTTP_STATUS=%{http_code}\n' \
+            https://fioreze-asana-calendar-bridge.marketing1-840.workers.dev/
+          echo "===== END DIAGNOSTICS ====="
