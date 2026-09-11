@@ -48,3 +48,13 @@ jobs:
 
       - name: Publicar bridge na Cloudflare
         run: npx --yes wrangler@4 deploy --config tools/asana-calendar-bridge/wrangler.jsonc
+
+      - name: Verificar modo do bridge
+        shell: bash
+        run: |
+          sleep 5
+          echo "===== BRIDGE HEALTH ====="
+          curl --silent --show-error --fail \
+            https://fioreze-asana-calendar-bridge.marketing1-840.workers.dev/health
+          echo
+          echo "===== END HEALTH ====="
