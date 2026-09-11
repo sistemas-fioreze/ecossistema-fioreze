@@ -5,7 +5,16 @@ O Worker usa dois destinos:
 - tarefas do Asana **sem horário** → Google Tasks (aparecem como tarefas no Google Calendar);
 - tarefas do Asana **com horário** → eventos no calendário `Asana`, preservando o horário.
 
-A conclusão das Google Tasks é bidirecional com o Asana. Nome, notas e datas continuam tendo o Asana como fonte principal. O Cron roda a cada 5 minutos.
+A conclusão das Google Tasks é bidirecional com o Asana. Nome, notas e datas continuam tendo o Asana como fonte principal.
+
+## Latência
+
+O bridge usa dois mecanismos em paralelo:
+
+- **Asana → Google:** webhook no `My Tasks` / User Task List. Mudanças no Asana disparam uma sincronização assim que o webhook é entregue;
+- **Google Tasks → Asana:** fallback por Cron a cada **1 minuto**, porque a Google Tasks API não oferece webhook de alterações equivalente.
+
+O Cron de 1 minuto também funciona como reconciliação de segurança caso algum evento do webhook do Asana não seja entregue.
 
 ## Configuração já existente
 
@@ -15,8 +24,6 @@ ASANA_WORKSPACE_GID
 GOOGLE_CALENDAR_ID
 GOOGLE_SERVICE_ACCOUNT_JSON
 ```
-
-Esses valores mantêm o modo atual funcionando enquanto o OAuth do Google Tasks ainda não estiver configurado.
 
 ## Google Tasks API
 
@@ -61,6 +68,18 @@ Não salve client secret nem refresh token no GitHub.
 
 > Atenção: projetos OAuth externos com status **Testing** recebem refresh tokens que normalmente expiram em 7 dias. Para uma integração permanente, ajuste o estado de publicação de acordo com a política do Google para o seu uso.
 
+## Webhook do Asana
+
+Após cada deploy, o GitHub Actions chama o endpoint interno de setup do Worker. O Worker:
+
+1. consulta o GID do `My Tasks` da conta autenticada no Asana;
+2. verifica se já existe um webhook para essa User Task List;
+3. cria o webhook se necessário;
+4. executa a handshake `X-Hook-Secret` exigida pelo Asana;
+5. usa uma URL de webhook com token não adivinhável derivado do PAT do Asana.
+
+O endpoint de eventos responde imediatamente ao Asana e executa a reconciliação completa em background via `waitUntil`, evitando timeout da entrega.
+
 ## Ativação automática
 
 O `/health` informa o modo atual:
@@ -69,7 +88,7 @@ O `/health` informa o modo atual:
 legacy-calendar-events
 ```
 
-Enquanto faltar algum secret do OAuth do Google Tasks, nada muda e o bridge continua usando eventos.
+Enquanto faltar algum secret do OAuth do Google Tasks, o bridge continua usando eventos.
 
 Quando estes três estiverem presentes:
 
@@ -85,13 +104,14 @@ o Worker muda automaticamente para:
 hybrid-google-tasks
 ```
 
-Na primeira sincronização híbrida:
+Na sincronização híbrida:
 
 - os antigos eventos de dia inteiro gerenciados pelo bridge são removidos;
 - tarefas sem horário são criadas na lista Google Tasks `Asana`;
 - tarefas com horário continuam como eventos;
 - concluir uma Google Task pode concluir a tarefa correspondente no Asana;
 - concluir no Asana marca a Google Task como concluída;
+- remover a data no Asana remove a Google Task correspondente;
 - se uma tarefa concluída for reaberta, a alteração mais recente entre Asana e Google vence.
 
 ## Verificação
@@ -106,8 +126,11 @@ O estado final deve mostrar:
 
 ```text
 mode: hybrid-google-tasks
+schedule: * * * * *
 configured.googleTasksClientId: true
 configured.googleTasksClientSecret: true
 configured.googleTasksRefreshToken: true
 configured.hybridReady: true
+realtime.asanaToGoogle: Asana webhook (User Task List)
+realtime.googleToAsana: 1-minute fallback polling
 ```
