@@ -1,0 +1,50 @@
+name: Deploy Asana Google Calendar Bridge
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "tools/asana-calendar-bridge/**"
+      - ".github/workflows/deploy-asana-calendar-bridge.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-asana-calendar-bridge
+  cancel-in-progress: false
+
+jobs:
+  validate-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+    steps:
+      - name: Baixar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Verificar credenciais Cloudflare
+        shell: bash
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::Secret CLOUDFLARE_API_TOKEN nao configurado no repositorio."
+            exit 1
+          fi
+          if [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::error::Secret CLOUDFLARE_ACCOUNT_ID nao configurado no repositorio."
+            exit 1
+          fi
+
+      - name: Validar sintaxe do Worker
+        run: node --check tools/asana-calendar-bridge/src/index.js
+
+      - name: Publicar bridge na Cloudflare
+        run: npx --yes wrangler@4 deploy --config tools/asana-calendar-bridge/wrangler.jsonc
