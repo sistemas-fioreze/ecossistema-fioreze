@@ -58,3 +58,12 @@ jobs:
             https://fioreze-asana-calendar-bridge.marketing1-840.workers.dev/health
           echo
           echo "===== END HEALTH ====="
+
+      - name: Registrar ou verificar webhook do Asana
+        shell: bash
+        run: |
+          echo "===== ASANA WEBHOOK ====="
+          curl --silent --show-error --fail -X POST \
+            https://fioreze-asana-calendar-bridge.marketing1-840.workers.dev/internal/asana-webhook/setup
+          echo
+          echo "===== END ASANA WEBHOOK ====="
