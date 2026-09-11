@@ -11,6 +11,7 @@
     "BRIDGE_ID": "fioreze-asana-my-tasks-v1",
     "ASANA_WORKSPACE_GID": "1206872713766179",
     "GOOGLE_CALENDAR_ID": "e45579b0bb9cec19c9fef5f927bf272fdccb3c62b58016e49a53eecfd33f57c3@group.calendar.google.com",
+    "GOOGLE_TASKLIST_TITLE": "Asana",
     "DEFAULT_EVENT_DURATION_MINUTES": "60",
     "GOOGLE_EVENT_TRANSPARENCY": "transparent"
   }
