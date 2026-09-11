@@ -119,9 +119,10 @@ async function syncAsanaToGoogleCalendar(env) {
     stats.updated += 1;
   });
 
+  const duplicateEventIds = new Set(duplicateEvents.map((event) => event.id));
   const staleEvents = existingEvents.filter((event) => {
     const taskGid = event.extendedProperties?.private?.asanaTaskGid;
-    return taskGid && !scheduledTaskGids.has(taskGid);
+    return taskGid && !scheduledTaskGids.has(taskGid) && !duplicateEventIds.has(event.id);
   });
 
   await mapLimit(staleEvents, 8, async (event) => {
