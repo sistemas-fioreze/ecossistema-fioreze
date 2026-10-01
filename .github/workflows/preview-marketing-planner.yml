@@ -1,0 +1,50 @@
+name: Preview Fioreze Marketing Planner
+
+on:
+  push:
+    branches: [codex/fioreze-social-planner]
+    paths:
+      - ".github/workflows/preview-marketing-planner.yml"
+      - "app/public/**"
+      - "app/src/**"
+      - "app/social-planner/**"
+      - "app/migrations/**"
+      - "app/package.json"
+      - "app/package-lock.json"
+      - "app/wrangler.jsonc"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: preview-fioreze-marketing-planner
+  cancel-in-progress: true
+
+jobs:
+  upload-preview-version:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Baixar repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Validar aplicação
+        run: npm run validate
+
+      - name: Enviar versão de prévia sem alterar o tráfego ativo
+        run: npx wrangler versions upload --config wrangler.jsonc --keep-vars --preview-alias marketing-planner --message "Preview da branch $GITHUB_SHA"

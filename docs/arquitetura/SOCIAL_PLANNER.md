@@ -63,3 +63,13 @@ validar: `npm run social:typecheck`, `npm run pages:check` e `npm test`.
 Nenhuma migration remota é executada por esses comandos. A aplicação publicada
 precisará das migrations `0059` e `0060` no D1 do ambiente escolhido e de permissões
 atribuídas aos perfis administrativos reais.
+
+## Prévia isolada no Worker de desenvolvimento
+
+O workflow `preview-marketing-planner.yml` valida a branch do Planner e envia uma
+nova versão com `wrangler versions upload`. A versão recebe o alias
+`marketing-planner`, mas não é distribuída ao tráfego ativo do Worker. Essa
+prévia usa os bindings de desenvolvimento existentes, incluindo D1 e R2. O
+workflow não executa migrations; elas devem estar aplicadas antes do teste.
+Não promova a versão para o tráfego ativo antes de reconciliar as mudanças do
+Worker publicado com o código-fonte do repositório.
