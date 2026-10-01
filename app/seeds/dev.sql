@@ -1,5 +1,7 @@
 PRAGMA foreign_keys = ON;
 
+-- As permissões do planner são concedidas apenas à conta fictícia de desenvolvimento.
+
 INSERT OR IGNORE INTO modules (module_key, name, description, status, created_at, updated_at) VALUES
   ('guest-portal', 'Portal do Hospede', 'Shell publico compartilhado para experiencias do hospede.', 'foundation', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
   ('room-service', 'Room Service', 'Pedidos de alimentos e bebidas por hotel.', 'foundation', '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'),
@@ -217,3 +219,7 @@ INSERT OR IGNORE INTO order_items (id, order_id, hotel_id, module_key, catalog_i
 
 INSERT OR IGNORE INTO order_status_history (id, order_id, hotel_id, module_key, status, note, actor_user_id, created_at) VALUES
   ('order-hist-demo-muller-001', 'order-demo-muller-001', 'muller-fioreze', 'room-service', 'received', 'Seed ficticio local.', NULL, '2026-07-04T00:00:00.000Z');
+
+INSERT OR IGNORE INTO admin_role_permissions (role_id, permission_id, created_at)
+SELECT 'role-demo-manager', id, CURRENT_TIMESTAMP FROM admin_permissions
+WHERE permission_key IN ('social-planner.read', 'social-planner.write');

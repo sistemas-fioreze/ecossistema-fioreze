@@ -12,6 +12,7 @@ Um unico Worker, um unico front-end publico, uma unica autenticacao administrati
 - `public/admin/index.html`: central de acesso administrativo.
 - `public/admin/room-service/index.html`: ERP operacional do Room Service.
 - `public/admin/portais/index.html`: fundacao visual da Central de Portais Fioreze.
+- `public/admin/social-planner/index.html`: planejamento editorial de Stories, protegido pela sessão administrativa.
 - `src/core/`: roteamento, D1, tenant, bootstrap, validacao, respostas e feature flags.
 - `src/middleware/`: autenticacao, autorizacao, modulo habilitado e headers.
 - `src/modules/`: regras e rotas por modulo.
@@ -38,6 +39,7 @@ Rotas administrativas:
 - `/erp/room-service/`: ERP operacional canonico do Room Service;
 - `/admin/room-service/`: redirecionamento de compatibilidade para o ERP;
 - `/admin/portais/`: Central de Portais Fioreze.
+- `/admin/social-planner/week`: grade semanal do Fioreze Social Planner; consulte `docs/arquitetura/SOCIAL_PLANNER.md`.
 
 Autorizacao visual usa `permission_key` retornada pela sessao e acesso por hotel retornado pelo backend. A barreira efetiva permanece nas APIs administrativas.
 

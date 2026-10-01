@@ -173,6 +173,13 @@ function buildSystems(session) {
       href: "/admin/portais/",
     });
   }
+  if (getPermissions(session).includes("social-planner.read")) {
+    systems.push({
+      title: "Fioreze Social Planner",
+      description: "Planejamento semanal de Stories dos perfis da rede",
+      href: "/admin/social-planner/week",
+    });
+  }
   systems.push({
     title: "Mensagens",
     description: "Comunicação interna da equipe",
