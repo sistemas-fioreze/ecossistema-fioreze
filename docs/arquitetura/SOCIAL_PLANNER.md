@@ -1,17 +1,22 @@
-# Fioreze Social Planner
+# Fioreze Marketing Planner
 
-O Social Planner é um módulo administrativo do Worker compartilhado, servido em
-`/admin/social-planner/week`. A interface em TypeScript fica em
+O Marketing Planner é um módulo administrativo do Worker compartilhado, servido em
+`/admin/social-planner/overview`. A interface em TypeScript fica em
 `app/social-planner/` e é compilada para o asset estático
 `app/public/js/modules/social-planner/planner.js` pelo esbuild já usado no
 repositório. Não usa uma aplicação separada nem credenciais no navegador.
 
 ## Dados e segurança
 
-- A migration `0052_social_planner.sql` cria os perfis editoriais, categorias,
+- A migration `0059_social_planner.sql` cria os perfis editoriais, categorias,
   pilares, campanhas, sequências e Stories. O perfil editorial aponta para
   `hotels.id`; o nome e o Instagram do planner ficam em `social_planner_hotels`
   para preservar os dados operacionais das unidades existentes.
+- A migration `0060_marketing_planner.sql` cria visitas, checklist, vínculo
+  reutilizável com `media_assets`, artigos do Blog e `source_visit_id` opcional
+  em Stories. Os três domínios compartilham hotéis, categorias, campanhas e
+  usuários por chave estrangeira. O nome exibido fica em
+  `marketing_planner_settings`.
 - `responsible_user_id` aponta para `admin_users`. A sessão administrativa
   existente protege todas as rotas. `social-planner.read` e
   `social-planner.write` são permissões próprias; apenas a role fictícia local
@@ -37,11 +42,18 @@ Prefixo: `/api/v1/admin/social-planner`.
 - `POST /campaigns`, `PATCH /campaigns/:id`
 - `POST /sequences`, `PATCH /sequences/:id/move`,
   `POST /sequences/:id/duplicate`
+- `GET/POST /visits`, `GET/PATCH/DELETE /visits/:id`, endpoints de itens do
+  checklist e associação de mídias existentes. As listagens usam intervalo e
+  filtros por hotel, status, pessoa e campanha.
+- `GET/POST /blog-posts`, `GET/PATCH/DELETE /blog-posts/:id`, com filtros por
+  período, hotel, status, categoria, autor e campanha.
+- `GET/PATCH /settings` para o nome exibido.
 
-A interface usa um `StoryRepository` para concentrar chamadas e atualizar a
-semana em memória após criação, edição e arraste. Movimentos otimistas são
-revertidos e mostram aviso quando a API falha. A visão mensal e Pendências usam
-os mesmos componentes e registros.
+A interface concentra chamadas em repositórios e separa as visões de visitas,
+blog e dashboard em arquivos próprios. Stories e visitas são lidos por janela
+de datas. Movimentos otimistas na semana social e no Kanban do Blog são
+revertidos com aviso quando a API falha. Uma página futura de hotel pode
+consultar os três domínios por `hotel_id` sem alterar o modelo de dados.
 
 ## Desenvolvimento local
 
@@ -49,5 +61,5 @@ No diretório `app/`, execute `npm install`, `npm run db:migrate:local`,
 `npm run db:seed:local` e `npm run dev`. `predev` compila o TypeScript. Para
 validar: `npm run social:typecheck`, `npm run pages:check` e `npm test`.
 Nenhuma migration remota é executada por esses comandos. A aplicação publicada
-precisará da migration `0052` no D1 do ambiente escolhido e de permissões
+precisará das migrations `0059` e `0060` no D1 do ambiente escolhido e de permissões
 atribuídas aos perfis administrativos reais.

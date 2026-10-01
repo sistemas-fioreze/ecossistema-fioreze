@@ -24,7 +24,7 @@ test("migration Müller cadastra sete fotos, sete experiências e oito adicionai
   const migration = fs.readFileSync(
     `${APP_ROOT}/migrations/0033_muller_special_decorations_catalog.sql`,
     "utf8",
-  );
+  ).replace(/\r\n/g, "\n");
   const mediaIds = new Set(migration.match(/media-muller-special-[a-z-]+/g));
   const itemIds = new Set(migration.match(/romantic-muller-fioreze-[a-z-]+/g));
   const packageTypes = [...migration.matchAll(/\n\s*'package',\n\s*'decoration-category-muller/g)];

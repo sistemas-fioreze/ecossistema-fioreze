@@ -175,9 +175,9 @@ function buildSystems(session) {
   }
   if (getPermissions(session).includes("social-planner.read")) {
     systems.push({
-      title: "Fioreze Social Planner",
-      description: "Planejamento semanal de Stories dos perfis da rede",
-      href: "/admin/social-planner/week",
+      title: "Fioreze Marketing Planner",
+      description: "Redes sociais, visitas aos hotéis e blog",
+      href: "/admin/social-planner/overview",
     });
   }
   systems.push({

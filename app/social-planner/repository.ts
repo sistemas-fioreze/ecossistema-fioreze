@@ -4,6 +4,7 @@ export interface StoryRepository {
   hotels(): Promise<Hotel[]>; categories(): Promise<Category[]>; pillars(): Promise<ContentPillar[]>;
   users(): Promise<User[]>; campaigns(): Promise<Campaign[]>; sequences(): Promise<StorySequence[]>;
   stories(start: string, end: string, filters: StoryFilters): Promise<Story[]>;
+  story(id: string): Promise<Story>;
   create(input: StoryInput): Promise<Story>; update(id: string, input: StoryInput): Promise<Story>; remove(id: string): Promise<void>;
   createCampaign(input: Partial<Campaign>): Promise<Campaign>; updateCampaign(id: string, input: Partial<Campaign>): Promise<Campaign>;
   createSequence(title: string): Promise<StorySequence>; moveSequence(id: string, hotel_id: string, date: string): Promise<void>;
@@ -11,7 +12,7 @@ export interface StoryRepository {
 }
 
 const base = "/api/v1/admin/social-planner";
-async function request<T>(path: string, method = "GET", body?: unknown): Promise<T> {
+export async function request<T>(path: string, method = "GET", body?: unknown): Promise<T> {
   const response = await fetch(`${base}${path}`, {
     method, credentials: "same-origin",
     headers: { accept: "application/json", ...(body ? { "content-type": "application/json" } : {}), ...(method !== "GET" ? { "x-fioreze-admin-action": "erp-admin" } : {}) },
@@ -33,6 +34,7 @@ export const apiStoryRepository: StoryRepository = {
     }
     return request(`/stories?${params}`);
   },
+  story: (id) => request(`/stories/${encodeURIComponent(id)}`),
   create: (input) => request("/stories", "POST", input),
   update: (id, input) => request(`/stories/${encodeURIComponent(id)}`, "PATCH", input),
   remove: (id) => request(`/stories/${encodeURIComponent(id)}`, "DELETE"),

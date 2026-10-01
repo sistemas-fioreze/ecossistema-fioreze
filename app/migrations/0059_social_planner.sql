@@ -94,6 +94,9 @@ CREATE INDEX IF NOT EXISTS idx_social_stories_sequence ON social_stories(sequenc
 INSERT OR IGNORE INTO admin_permissions (id, permission_key, module_key, description, created_at, updated_at) VALUES
   ('perm-social-planner-read', 'social-planner.read', 'social-planner', 'Consultar o planejamento social.', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
   ('perm-social-planner-write', 'social-planner.write', 'social-planner', 'Editar o planejamento social.', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT OR IGNORE INTO admin_roles (id, role_key, name, description, created_at, updated_at)
+VALUES ('role-marketing-planner-editor', 'marketing-planner-editor', 'Editor do Marketing Planner',
+  'Planejar redes sociais, visitas e blog.', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 INSERT OR IGNORE INTO admin_role_permissions (role_id, permission_id, created_at)
 SELECT r.id, p.id, CURRENT_TIMESTAMP FROM admin_roles r CROSS JOIN admin_permissions p
-WHERE r.role_key = 'demo-manager' AND p.permission_key IN ('social-planner.read', 'social-planner.write');
+WHERE r.role_key = 'marketing-planner-editor' AND p.permission_key IN ('social-planner.read', 'social-planner.write');

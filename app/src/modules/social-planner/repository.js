@@ -6,7 +6,7 @@ const statuses = new Set(["idea", "to_produce", "producing", "approval", "ready"
 const formats = new Set(["photo", "video", "repost", "art", "text", "boomerang", "other"]);
 const objectives = new Set(["engagement", "relationship", "conversion", "information", "institutional", "traffic", "promotion"]);
 const priorities = new Set(["low", "normal", "high", "urgent"]);
-const storyFields = ["hotel_id", "date", "planned_time", "sort_order", "title", "description", "story_text", "category_id", "content_pillar_id", "format", "objective", "status", "priority", "cta", "link", "responsible_user_id", "campaign_id", "media_asset_id", "sequence_group_id", "sequence_position", "notes", "published_at", "published_url"];
+const storyFields = ["hotel_id", "date", "planned_time", "sort_order", "title", "description", "story_text", "category_id", "content_pillar_id", "format", "objective", "status", "priority", "cta", "link", "responsible_user_id", "campaign_id", "media_asset_id", "sequence_group_id", "sequence_position", "source_visit_id", "notes", "published_at", "published_url"];
 const textLimits = { title: 160, description: 4000, story_text: 4000, cta: 300, link: 1000, notes: 4000, published_url: 1000 };
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const timePattern = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
@@ -29,11 +29,17 @@ export async function listUsers(env) {
 }
 
 export async function listCampaigns(env) {
-  return all(env, `SELECT c.*, COUNT(s.id) AS story_count,
-    COALESCE(SUM(CASE WHEN s.status = 'published' THEN 1 ELSE 0 END), 0) AS published_count,
-    COUNT(DISTINCT s.hotel_id) AS hotel_count
-    FROM social_campaigns c LEFT JOIN social_stories s ON s.campaign_id = c.id
-    GROUP BY c.id ORDER BY c.start_date DESC, c.name`);
+  return all(env, `SELECT c.*,
+    (SELECT COUNT(*) FROM social_stories s WHERE s.campaign_id = c.id) AS story_count,
+    (SELECT COUNT(*) FROM social_stories s WHERE s.campaign_id = c.id AND s.status = 'published') AS published_count,
+    (SELECT COUNT(*) FROM marketing_hotel_visits v WHERE v.campaign_id = c.id) AS visit_count,
+    (SELECT COUNT(*) FROM marketing_blog_posts p WHERE p.campaign_id = c.id) AS article_count,
+    (SELECT COUNT(DISTINCT hotel_id) FROM (
+      SELECT campaign_id, hotel_id FROM social_stories
+      UNION ALL SELECT campaign_id, hotel_id FROM marketing_hotel_visits
+      UNION ALL SELECT campaign_id, hotel_id FROM marketing_blog_posts WHERE hotel_id IS NOT NULL
+    ) linked WHERE linked.campaign_id = c.id) AS hotel_count
+    FROM social_campaigns c ORDER BY c.start_date DESC, c.name`);
 }
 
 export async function saveCampaign(env, input, id = null) {
@@ -89,6 +95,14 @@ export async function saveStory(env, input, id = null) {
   if (patch.campaign_id) await assertExists(env, "social_campaigns", "id", patch.campaign_id, "Campanha");
   if (patch.responsible_user_id) await assertExists(env, "admin_users", "id", patch.responsible_user_id, "Responsável");
   if (patch.sequence_group_id) await assertExists(env, "social_story_sequences", "id", patch.sequence_group_id, "Sequência");
+  if (patch.source_visit_id || (id && patch.hotel_id)) {
+    const current = id ? await getStory(env, id) : null;
+    const sourceId = Object.hasOwn(patch, "source_visit_id") ? patch.source_visit_id : current?.source_visit_id;
+    if (sourceId) {
+      const source = await first(env, "SELECT hotel_id FROM marketing_hotel_visits WHERE id = ?", [sourceId]);
+      if (!source || source.hotel_id !== (patch.hotel_id || current?.hotel_id)) throw badRequest("A visita de origem deve pertencer ao mesmo hotel do Story.");
+    }
+  }
   if (patch.media_asset_id) {
     const asset = await first(env, "SELECT id, hotel_id, status FROM media_assets WHERE id = ?", [patch.media_asset_id]);
     const hotelId = patch.hotel_id || (id ? (await getStory(env, id)).hotel_id : null);
@@ -143,6 +157,10 @@ export async function moveSequence(env, id, input) {
     JOIN media_assets m ON m.id = s.media_asset_id
     WHERE s.sequence_group_id = ? AND m.hotel_id IS NOT NULL AND m.hotel_id <> ?`, [id, hotelId]);
   if (incompatible?.count) throw badRequest("Remova mídias específicas de outro hotel antes de mover a sequência.");
+  const sourced = await first(env, `SELECT COUNT(*) AS count FROM social_stories s
+    JOIN marketing_hotel_visits v ON v.id = s.source_visit_id
+    WHERE s.sequence_group_id = ? AND v.hotel_id <> ?`, [id, hotelId]);
+  if (sourced?.count) throw badRequest("Remova a visita de origem antes de mover a sequência para outro hotel.");
   await run(env, "UPDATE social_stories SET date = ?, hotel_id = ?, updated_at = ? WHERE sequence_group_id = ?", [date, hotelId, new Date().toISOString(), id]);
   return { moved: true };
 }
