@@ -65,6 +65,12 @@ var marketingRepository = {
   connectCalendar: () => request("/calendar/google/connect", "POST", {}),
   disconnectCalendar: () => request("/calendar/google/connection", "DELETE"),
   syncVisitCalendar: (visitId) => request(`/visits/${encodeURIComponent(visitId)}/calendar-sync`, "POST", {}),
+  asanaSetup: () => request("/asana/setup"),
+  connectAsana: () => request("/asana/connect", "POST", {}),
+  disconnectAsana: () => request("/asana/connection", "DELETE"),
+  selectAsanaWorkspace: (workspace_gid) => request("/asana/workspace", "PATCH", { workspace_gid }),
+  saveAsanaProjects: (mappings) => request("/asana/projects", "PATCH", { mappings }),
+  asanaTasks: (start2, end, hotelId = "all") => request(range("/asana/tasks", start2, end, { hotel_id: hotelId })),
   posts: (start2, end, filters = {}) => request(range("/blog-posts", start2, end, filters)),
   post: (id) => request(`/blog-posts/${encodeURIComponent(id)}`),
   createPost: (input) => request("/blog-posts", "POST", input),
@@ -238,8 +244,40 @@ function overviewView(stories, visits, posts, hotels, today2, week) {
   return `<div class="page-heading"><div><p class="eyebrow">Fioreze Marketing Planner</p><h1>Vis\xE3o geral</h1><p class="subtle">O que precisa de aten\xE7\xE3o no Marketing da Rede Fioreze.</p></div></div><h2 class="section-title">Hoje</h2><div class="overview-metrics">${stat("Stories", String(todayStories.length), `${todayStories.filter((s) => s.status !== "published" && s.status !== "ready").length} ainda pendentes`)}${stat("Pr\xF3xima visita", nextVisit ? nextVisit.hotel_name : "\u2014", nextVisit ? `${nextVisit.date} \xB7 ${nextVisit.item_count - nextVisit.completed_item_count} tarefas abertas` : "Nenhuma visita pr\xF3xima")}${stat("Blog nos pr\xF3ximos 7 dias", String(duePosts.length), `${posts.filter((p) => p.status === "review").length} em revis\xE3o`)}</div><h2 class="section-title">Esta semana</h2><div class="overview-metrics">${stat("Stories", `${weekStories.length} / ${weekStories.filter((s) => s.status === "published").length}`, "planejados / publicados")}${stat("Visitas", `${weekVisits.length} / ${weekVisits.filter((v) => v.status === "completed").length}`, "planejadas / realizadas")}${stat("Artigos", `${weekPosts.length} / ${weekPosts.filter((p) => p.status === "published").length}`, "planejados / publicados")}</div><section class="section-card"><h2>Pr\xF3ximas a\xE7\xF5es <span class="subtle">${actions.length}</span></h2><div class="action-list">${actions.length ? actions.slice(0, 20).map((a) => `<button class="action-row" data-view="${a.view}"><strong>${escapeHtml(a.title)}</strong><span>${escapeHtml(a.detail)}</span><span aria-hidden="true">\u2192</span></button>`).join("") : '<p class="subtle">Nenhuma a\xE7\xE3o urgente neste per\xEDodo.</p>'}</div></section>`;
 }
 
+// social-planner/asana.ts
+function asanaCalendarView(context) {
+  const setup = context.setup;
+  const heading2 = `<div class="page-heading"><div><p class="eyebrow">Integra\xE7\xF5es</p><h1>Calend\xE1rio do Asana</h1><p class="subtle">Tarefas das unidades organizadas no calend\xE1rio de marketing.</p></div></div>`;
+  if (!setup?.configured) return `${heading2}${connectionState("Configura\xE7\xE3o pendente", "Cadastre o aplicativo OAuth do Asana para liberar a conex\xE3o individual de cada usu\xE1rio.", false)}`;
+  if (!setup.connected) return `${heading2}${connectionState("Conecte sua conta do Asana", "Cada usu\xE1rio autoriza a pr\xF3pria conta. O Planner nunca recebe sua senha e respeita exatamente os projetos que voc\xEA pode acessar.", true)}`;
+  const focus = fromIso(context.day);
+  const monthStart = isoDate(new Date(focus.getFullYear(), focus.getMonth(), 1));
+  const monthEnd = isoDate(new Date(focus.getFullYear(), focus.getMonth() + 1, 0));
+  const gridStart = weekStart(monthStart);
+  const days = Array.from({ length: 42 }, (_, index) => addDays(gridStart, index));
+  const monthName = dateLabel(monthStart, { month: "long", year: "numeric" });
+  const mappedCount = setup.units.filter((unit) => unit.project_gid).length;
+  const calendar = days.map((day) => {
+    const inside = day >= monthStart && day <= monthEnd;
+    const tasks = context.tasks.filter((task) => task.start_date && task.end_date && day >= task.start_date && day <= task.end_date);
+    const visible = tasks.slice(0, 3);
+    const taskItems = visible.map((task) => `<a class="asana-task ${task.completed ? "completed" : ""}" data-hotel="${escapeHtml(task.hotel_id)}" href="${escapeHtml(task.permalink_url || "#")}" ${task.permalink_url ? 'target="_blank" rel="noopener noreferrer"' : ""} title="${escapeHtml(`${task.project_name} \xB7 ${task.name}`)}"><span>${escapeHtml(task.name)}</span>${task.assignee_name ? `<small>${escapeHtml(task.assignee_name)}</small>` : ""}</a>`).join("");
+    const more = tasks.length > visible.length ? `<span class="asana-task-more">+${tasks.length - visible.length} tarefas</span>` : "";
+    return `<div class="asana-calendar-day ${inside ? "" : "outside"} ${day === context.today ? "today" : ""}"><time datetime="${day}">${Number(day.slice(-2))}</time><div class="asana-day-tasks">${taskItems}${more}</div></div>`;
+  }).join("");
+  const unitOptions = context.hotels.filter((hotel) => setup.units.some((unit) => unit.hotel_id === hotel.id)).map((hotel) => option(hotel.id, hotel.short_name, context.hotelFilter)).join("");
+  const mappingRows = setup.units.map((unit) => `<label class="asana-mapping-row"><span><strong>${escapeHtml(unit.expected_project_name)}</strong><small>${unit.project_gid ? "Projeto conectado" : "Projeto ainda n\xE3o localizado"}</small></span><select data-asana-hotel="${escapeHtml(unit.hotel_id)}"><option value="">N\xE3o vinculado</option>${setup.projects.map((project) => option(project.gid, project.name, unit.project_gid || "")).join("")}</select></label>`).join("");
+  const workspaceOptions = setup.workspaces.map((workspace) => option(workspace.gid, workspace.name, setup.connection?.workspace_gid || "")).join("");
+  const integration = `<details class="asana-integration"><summary><span><strong>${escapeHtml(setup.connection?.account_name || setup.connection?.account_email || "Conta Asana")}</strong><small>${escapeHtml(setup.connection?.workspace_name || "Selecione o workspace")} \xB7 ${mappedCount}/6 unidades conectadas</small></span><i data-lucide="chevron-down" aria-hidden="true"></i></summary><div class="asana-integration-body">${setup.error ? `<p class="calendar-error">${escapeHtml(setup.error)}</p>` : ""}<form id="asanaWorkspaceForm" class="asana-workspace-form"><label><span>Workspace</span><select name="workspace_gid" required>${workspaceOptions}</select></label><button class="button" type="submit">Usar workspace</button></form><form id="asanaProjectForm" class="asana-mapping-list"><div class="section-heading"><div><h2>Projetos das unidades</h2><p class="subtle">Os nomes oficiais s\xE3o reconhecidos automaticamente. Ajuste somente quando o projeto usar outro nome no Asana.</p></div></div>${mappingRows}<div class="asana-mapping-actions"><button class="button primary" type="submit">Salvar v\xEDnculos</button><button class="button danger" type="button" data-action="disconnect-asana">Desconectar Asana</button></div></form></div></details>`;
+  const toolbar = `<div class="asana-calendar-toolbar"><div class="asana-calendar-title"><button class="icon-button" type="button" data-action="asana-prev-month" aria-label="M\xEAs anterior"><i data-lucide="chevron-left"></i></button><h2>${escapeHtml(monthName)}</h2><button class="icon-button" type="button" data-action="asana-next-month" aria-label="Pr\xF3ximo m\xEAs"><i data-lucide="chevron-right"></i></button><button class="button" type="button" data-action="asana-today">Hoje</button></div><label class="asana-unit-filter"><span>Unidade</span><select id="asanaHotelFilter"><option value="all">Todas as unidades</option>${unitOptions}</select></label></div>`;
+  return `${heading2}${integration}<section class="asana-calendar-shell">${toolbar}<div class="asana-weekdays">${["Seg", "Ter", "Qua", "Qui", "Sex", "S\xE1b", "Dom"].map((label) => `<span>${label}</span>`).join("")}</div><div class="asana-calendar-grid">${calendar}</div></section>`;
+}
+function connectionState(title, description, canConnect) {
+  return `<section class="asana-connect-state"><span class="asana-connect-icon"><i data-lucide="calendar-days" aria-hidden="true"></i></span><div><h2>${escapeHtml(title)}</h2><p>${escapeHtml(description)}</p></div>${canConnect ? '<button class="button primary" type="button" data-action="connect-asana">Conectar com o Asana</button>' : ""}</section>`;
+}
+
 // social-planner/app.ts
-var views = { overview: "Vis\xE3o Geral", week: "Redes \xB7 Semana", calendar: "Redes \xB7 Calend\xE1rio", pending: "Redes \xB7 Pend\xEAncias", "visits-week": "Visitas \xB7 Semana", "visits-calendar": "Visitas \xB7 Calend\xE1rio", "visits-history": "Visitas \xB7 Hist\xF3rico", "blog-schedule": "Blog \xB7 Cronograma", "blog-ideas": "Blog \xB7 Pautas", "blog-published": "Blog \xB7 Publicados", campaigns: "Campanhas", assets: "Banco de conte\xFAdos", hotels: "Hot\xE9is", categories: "Categorias", performance: "Desempenho", users: "Usu\xE1rios", settings: "Configura\xE7\xF5es" };
+var views = { overview: "Vis\xE3o Geral", week: "Redes \xB7 Semana", calendar: "Redes \xB7 Calend\xE1rio", pending: "Redes \xB7 Pend\xEAncias", "asana-calendar": "Calend\xE1rio do Asana", "visits-week": "Visitas \xB7 Semana", "visits-calendar": "Visitas \xB7 Calend\xE1rio", "visits-history": "Visitas \xB7 Hist\xF3rico", "blog-schedule": "Blog \xB7 Cronograma", "blog-ideas": "Blog \xB7 Pautas", "blog-published": "Blog \xB7 Publicados", campaigns: "Campanhas", assets: "Banco de conte\xFAdos", hotels: "Hot\xE9is", categories: "Categorias", performance: "Desempenho", users: "Usu\xE1rios", settings: "Configura\xE7\xF5es" };
 var today = isoDate(/* @__PURE__ */ new Date());
 var CAMPAIGN_TIMELINE_DAYS = 35;
 var params = new URLSearchParams(location.search);
@@ -266,6 +304,9 @@ var state = {
   blogFilters: { hotel_id: params.get("blog_hotel") || "all", status: params.get("blog_status") || "all", category_id: params.get("blog_category") || "all", author_user_id: params.get("blog_author") || "all", campaign_id: params.get("blog_campaign") || "all" },
   blogMode: "list",
   calendar: { provider: "google", configured: false, connected: false, connection: null },
+  asanaSetup: null,
+  asanaTasks: [],
+  asanaHotelFilter: params.get("asana_hotel") || "all",
   session: null,
   managedUsers: [],
   loading: true,
@@ -300,7 +341,8 @@ function icon(name) {
     left: "chevron-left",
     right: "chevron-right",
     alert: "triangle-alert",
-    close: "x"
+    close: "x",
+    asana: "calendar-range"
   };
   return `<i data-lucide="${names[name] || "layout-dashboard"}" aria-hidden="true"></i>`;
 }
@@ -322,7 +364,8 @@ function route(view) {
   state.view = view;
   document.querySelector("#sidebar")?.classList.remove("mobile-open");
   updateUrl();
-  if (["week", "calendar", "pending", "overview", "visits-week", "visits-calendar", "visits-history", "blog-schedule", "blog-ideas", "blog-published"].includes(view)) void loadData();
+  if (view === "asana-calendar") void loadAsanaData();
+  else if (["week", "calendar", "pending", "overview", "visits-week", "visits-calendar", "visits-history", "blog-schedule", "blog-ideas", "blog-published"].includes(view)) void loadData();
   else if (view === "users") void loadManagedUsers();
   else render();
 }
@@ -337,6 +380,7 @@ function updateUrl() {
   if (state.platformFilter !== "all") query.set("platform", state.platformFilter);
   if (state.campaignStart !== weekStart(today)) query.set("campaign_start", state.campaignStart);
   if (state.visitFilter !== "all") query.set("visit_hotel", state.visitFilter);
+  if (state.asanaHotelFilter !== "all") query.set("asana_hotel", state.asanaHotelFilter);
   for (const [key, urlKey] of [["hotel_id", "blog_hotel"], ["status", "blog_status"], ["category_id", "blog_category"], ["author_user_id", "blog_author"], ["campaign_id", "blog_campaign"]]) {
     if (state.blogFilters[key] && state.blogFilters[key] !== "all") query.set(urlKey, state.blogFilters[key]);
   }
@@ -345,7 +389,7 @@ function updateUrl() {
 function renderNavigation() {
   const groups = [
     ["Trabalho", [["overview", "Vis\xE3o geral", "grid"]]],
-    ["Planejamento", [["week", "Cronograma", "calendar"], ["calendar", "Calend\xE1rio", "calendar"], ["pending", "Pend\xEAncias", "alert"]]],
+    ["Planejamento", [["week", "Cronograma", "calendar"], ["calendar", "Calend\xE1rio", "calendar"], ["pending", "Pend\xEAncias", "alert"], ["asana-calendar", "Calend\xE1rio do Asana", "asana"]]],
     ["Produ\xE7\xE3o", [["visits-week", "Visitas", "hotel"], ["visits-calendar", "Agenda de visitas", "calendar"], ["visits-history", "Hist\xF3rico", "check"], ["blog-schedule", "Blog", "calendar"], ["blog-ideas", "Pautas", "grid"], ["blog-published", "Publicados", "check"]]],
     ["Conte\xFAdo", [["assets", "Banco de conte\xFAdos", "image"], ["campaigns", "Campanhas", "flag"], ["performance", "Desempenho", "grid"]]],
     ["Administra\xE7\xE3o", [["hotels", "Hot\xE9is", "hotel"], ["categories", "Categorias", "tag"], ["users", "Usu\xE1rios", "users"], ["settings", "Configura\xE7\xF5es", "settings"]]]
@@ -403,6 +447,34 @@ async function loadManagedUsers() {
   } finally {
     state.loading = false;
     render();
+  }
+}
+async function loadAsanaData() {
+  const version = ++loadVersion;
+  state.loading = true;
+  render();
+  try {
+    const focus = fromIso(state.day);
+    const start2 = isoDate(new Date(focus.getFullYear(), focus.getMonth(), 1));
+    const end = isoDate(new Date(focus.getFullYear(), focus.getMonth() + 1, 0));
+    const setup = await marketingRepository.asanaSetup();
+    if (version === loadVersion) state.asanaSetup = setup;
+    let tasks = [];
+    if (setup.connected) {
+      try {
+        tasks = await marketingRepository.asanaTasks(start2, end, state.asanaHotelFilter);
+      } catch (error) {
+        notify(error.message, true);
+      }
+    }
+    if (version === loadVersion) state.asanaTasks = tasks;
+  } catch (error) {
+    notify(error.message, true);
+  } finally {
+    if (version === loadVersion) {
+      state.loading = false;
+      render();
+    }
   }
 }
 var platformOptions = [
@@ -641,6 +713,7 @@ function render() {
   if (state.view.startsWith("visits-")) main.innerHTML = visitsView(visitContext());
   else if (state.view.startsWith("blog-")) main.innerHTML = blogView(blogContext());
   else if (state.view === "overview") main.innerHTML = overviewView(state.stories, state.visits, state.posts, state.hotels, today, state.week);
+  else if (state.view === "asana-calendar") main.innerHTML = asanaCalendarView({ setup: state.asanaSetup, tasks: state.asanaTasks, hotels: state.hotels, day: state.day, today, hotelFilter: state.asanaHotelFilter });
   else main.innerHTML = { week: weekView, calendar: calendarView, pending: pendingView, campaigns: campaignsView, assets: assetsView, hotels: hotelsView, categories: categoriesView, performance: performanceView, users: usersView, settings: settingsView }[state.view]?.() || "";
   hydrateIcons(main);
 }
@@ -979,6 +1052,40 @@ document.addEventListener("click", async (event) => {
     }
     return;
   }
+  if (action === "connect-asana") {
+    try {
+      const result = await marketingRepository.connectAsana();
+      location.assign(result.authorization_url);
+    } catch (error) {
+      notify(error.message, true);
+    }
+    return;
+  }
+  if (action === "disconnect-asana") {
+    if (!window.confirm("Desconectar sua conta do Asana deste Planner?")) return;
+    try {
+      await marketingRepository.disconnectAsana();
+      state.asanaSetup = await marketingRepository.asanaSetup();
+      state.asanaTasks = [];
+      render();
+      notify("Conta do Asana desconectada.");
+    } catch (error) {
+      notify(error.message, true);
+    }
+    return;
+  }
+  if (["asana-prev-month", "asana-next-month", "asana-today"].includes(action || "")) {
+    const date = action === "asana-today" ? fromIso(today) : fromIso(state.day);
+    if (action !== "asana-today") {
+      date.setDate(1);
+      date.setMonth(date.getMonth() + (action === "asana-prev-month" ? -1 : 1));
+    }
+    state.day = isoDate(date);
+    state.week = weekStart(state.day);
+    updateUrl();
+    void loadAsanaData();
+    return;
+  }
   if (action === "close-drawer") closeDrawer();
   if (action === "open-linked-story") {
     try {
@@ -1267,6 +1374,12 @@ document.addEventListener("click", async (event) => {
 });
 document.addEventListener("change", (event) => {
   const target = event.target;
+  if (target.id === "asanaHotelFilter") {
+    state.asanaHotelFilter = target.value;
+    updateUrl();
+    void loadAsanaData();
+    return;
+  }
   if (target.dataset.visitFilter) {
     state.visitFilter = target.value;
     updateUrl();
@@ -1340,6 +1453,32 @@ document.addEventListener("submit", async (event) => {
       document.title = saved.display_name;
       render();
       notify("Nome atualizado.");
+    } catch (error) {
+      notify(error.message, true);
+    }
+    return;
+  }
+  if (event.target.id === "asanaWorkspaceForm") {
+    event.preventDefault();
+    const form = event.target;
+    const workspace = String(new FormData(form).get("workspace_gid") || "");
+    try {
+      state.asanaSetup = await marketingRepository.selectAsanaWorkspace(workspace);
+      notify("Workspace do Asana atualizado.");
+      await loadAsanaData();
+    } catch (error) {
+      notify(error.message, true);
+    }
+    return;
+  }
+  if (event.target.id === "asanaProjectForm") {
+    event.preventDefault();
+    const form = event.target;
+    const mappings = [...form.querySelectorAll("[data-asana-hotel]")].map((select) => ({ hotel_id: select.dataset.asanaHotel || "", project_gid: select.value || null }));
+    try {
+      state.asanaSetup = await marketingRepository.saveAsanaProjects(mappings);
+      notify("Projetos das unidades atualizados.");
+      await loadAsanaData();
     } catch (error) {
       notify(error.message, true);
     }
@@ -1527,9 +1666,12 @@ async function initializePlanner() {
   document.querySelector("#plannerName").textContent = state.displayName;
   document.title = state.displayName;
   if (state.view === "users") await loadManagedUsers();
+  else if (state.view === "asana-calendar") await loadAsanaData();
   else await loadData();
   if (params.get("calendar") === "connected") notify("Google Calendar conectado \xE0 sua conta.");
   if (params.get("calendar") === "error") notify("N\xE3o foi poss\xEDvel concluir a conex\xE3o com o Google Calendar.", true);
+  if (params.get("asana") === "connected") notify("Asana conectado \xE0 sua conta.");
+  if (params.get("asana") === "error") notify("N\xE3o foi poss\xEDvel concluir a conex\xE3o com o Asana.", true);
   if (planningAlerts()) notify(`${planningAlerts()} Story(s) de hoje ainda est\xE3o como Ideia.`);
 }
 void start();

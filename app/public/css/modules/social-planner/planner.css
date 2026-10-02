@@ -397,6 +397,61 @@ main { max-width: none; min-height: calc(100vh - 68px); margin: 0; padding: 24px
 .campaign-unscheduled-row small, .campaign-unscheduled-row > span:nth-child(2) { color: var(--muted); font-size: 10px; }
 .campaign-unscheduled-row svg { width: 15px; height: 15px; }
 
+.asana-connect-state { min-height: 210px; display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; align-items: center; gap: 18px; padding: 26px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); }
+.asana-connect-icon { width: 52px; height: 52px; display: grid; place-items: center; border-radius: 7px; color: #e6c65a; background: #302b1d; }
+.asana-connect-icon svg { width: 25px; height: 25px; }
+.asana-connect-state h2 { margin: 0 0 6px; color: #fff; font-size: 18px; font-weight: 600; }
+.asana-connect-state p { max-width: 680px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.asana-integration { margin-bottom: 14px; overflow: hidden; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); }
+.asana-integration > summary { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 14px; cursor: pointer; list-style: none; }
+.asana-integration > summary::-webkit-details-marker { display: none; }
+.asana-integration > summary > span { min-width: 0; display: grid; gap: 3px; }
+.asana-integration > summary strong { color: #fff; font-size: 12px; font-weight: 600; }
+.asana-integration > summary small { color: var(--muted); font-size: 10px; }
+.asana-integration > summary svg { width: 16px; height: 16px; transition: transform .2s ease; }
+.asana-integration[open] > summary svg { transform: rotate(180deg); }
+.asana-integration-body { padding: 16px; border-top: 1px solid var(--border); }
+.asana-workspace-form { display: flex; align-items: end; gap: 10px; margin-bottom: 20px; }
+.asana-workspace-form label { min-width: 260px; display: grid; gap: 6px; color: var(--muted); font-size: 11px; }
+.asana-mapping-list { display: grid; gap: 0; }
+.asana-mapping-list .section-heading { margin-bottom: 8px; }
+.asana-mapping-list h2 { margin: 0 0 3px; color: #fff; font-size: 14px; font-weight: 600; }
+.asana-mapping-row { min-height: 58px; display: grid; grid-template-columns: minmax(240px, 1fr) minmax(280px, .8fr); align-items: center; gap: 20px; border-bottom: 1px solid var(--border); }
+.asana-mapping-row > span { min-width: 0; display: grid; gap: 3px; }
+.asana-mapping-row strong { overflow: hidden; color: var(--text); font-size: 12px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.asana-mapping-row small { color: var(--muted); font-size: 10px; }
+.asana-mapping-actions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 14px; }
+.asana-calendar-shell { overflow: hidden; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); }
+.asana-calendar-toolbar { min-height: 64px; display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.asana-calendar-title { display: flex; align-items: center; gap: 5px; }
+.asana-calendar-title h2 { min-width: 170px; margin: 0 6px; color: #fff; font-size: 15px; font-weight: 600; text-transform: capitalize; }
+.asana-unit-filter { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 10px; }
+.asana-unit-filter select { min-width: 170px; }
+.asana-weekdays, .asana-calendar-grid { min-width: 840px; display: grid; grid-template-columns: repeat(7, minmax(120px, 1fr)); }
+.asana-weekdays { color: var(--muted); background: #202121; }
+.asana-weekdays span { padding: 8px 10px; border-right: 1px solid #343535; font-size: 10px; font-weight: 600; }
+.asana-calendar-shell { overflow-x: auto; scrollbar-color: #555653 #1a1b1b; }
+.asana-calendar-grid { grid-auto-rows: minmax(112px, auto); }
+.asana-calendar-day { min-width: 0; padding: 8px; border-top: 1px solid #343535; border-right: 1px solid #343535; background: #1b1c1c; }
+.asana-calendar-day.outside { background: #181919; opacity: .58; }
+.asana-calendar-day.today { box-shadow: inset 0 0 0 1px #c7a948; background: #211f18; }
+.asana-calendar-day time { width: 25px; height: 25px; display: grid; place-items: center; margin: 0 0 5px auto; border-radius: 50%; color: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+.asana-calendar-day.today time { color: #17130a; background: #d8b949; font-weight: 700; }
+.asana-day-tasks { display: grid; gap: 4px; }
+.asana-task { min-width: 0; display: grid; gap: 2px; padding: 5px 7px; border-left: 3px solid #5f9dd1; border-radius: 3px; color: #e9f3fb; background: #253849; text-decoration: none; }
+.asana-task:hover { filter: brightness(1.13); }
+.asana-task span, .asana-task small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.asana-task span { font-size: 10px; font-weight: 600; }
+.asana-task small { color: #c0d4e3; font-size: 8px; }
+.asana-task.completed { opacity: .55; text-decoration: line-through; }
+.asana-task[data-hotel="hoteis-fioreze"] { border-color: #d5b545; background: #3a321b; color: #fff2bd; }
+.asana-task[data-hotel="fioreze-quero-quero"] { border-color: #65a9d8; background: #23384a; }
+.asana-task[data-hotel="fioreze-primo"] { border-color: #db7d63; background: #472c27; color: #ffe5dc; }
+.asana-task[data-hotel="chales-familia-fioreze"] { border-color: #55b77a; background: #203b2b; color: #d9f6e4; }
+.asana-task[data-hotel="muller-fioreze"] { border-color: #b08bd2; background: #352944; color: #f0e4fb; }
+.asana-task[data-hotel="fioreze-origem"] { border-color: #d18b4f; background: #443020; color: #fae6d3; }
+.asana-task-more { padding: 2px 4px; color: var(--muted); font-size: 9px; }
+
 @media (max-width: 1280px) {
   .topbar { grid-template-columns: 205px minmax(280px, 1fr) auto; }
   .topbar-brand img { width: 120px; }
@@ -457,6 +512,17 @@ main { max-width: none; min-height: calc(100vh - 68px); margin: 0; padding: 24px
   .campaign-timeline-header, .campaign-timeline-row { grid-template-columns: 200px repeat(35, minmax(38px, 1fr)); }
   .campaign-unscheduled-row { grid-template-columns: minmax(0, 1fr) 18px; }
   .campaign-unscheduled-row > span:nth-child(2) { display: none; }
+  .asana-connect-state { grid-template-columns: 44px minmax(0, 1fr); padding: 18px; }
+  .asana-connect-icon { width: 44px; height: 44px; }
+  .asana-connect-state .button { grid-column: 1 / -1; }
+  .asana-workspace-form, .asana-calendar-toolbar { align-items: stretch; flex-direction: column; }
+  .asana-workspace-form label { min-width: 0; }
+  .asana-mapping-row { grid-template-columns: 1fr; gap: 7px; padding: 10px 0; }
+  .asana-mapping-actions { align-items: stretch; flex-direction: column; }
+  .asana-calendar-title { justify-content: space-between; }
+  .asana-calendar-title h2 { min-width: 0; flex: 1; text-align: center; }
+  .asana-unit-filter { justify-content: space-between; }
+  .asana-unit-filter select { min-width: 0; flex: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }

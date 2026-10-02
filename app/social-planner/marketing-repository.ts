@@ -1,5 +1,5 @@
 import { request } from "./repository";
-import type { BlogInput, BlogPost, CalendarConnectionStatus, Visit, VisitInput, VisitItem } from "./types";
+import type { AsanaSetup, AsanaTask, BlogInput, BlogPost, CalendarConnectionStatus, Visit, VisitInput, VisitItem } from "./types";
 
 function range(path: string, start?: string, end?: string, filters: Record<string, string> = {}) {
   const query = new URLSearchParams();
@@ -24,6 +24,12 @@ export const marketingRepository = {
   connectCalendar: () => request<{ authorization_url: string; expires_at: string }>("/calendar/google/connect", "POST", {}),
   disconnectCalendar: () => request<{ disconnected: boolean }>("/calendar/google/connection", "DELETE"),
   syncVisitCalendar: (visitId: string) => request<{ configured: boolean; synced: number; failed: number; skipped: number }>(`/visits/${encodeURIComponent(visitId)}/calendar-sync`, "POST", {}),
+  asanaSetup: () => request<AsanaSetup>("/asana/setup"),
+  connectAsana: () => request<{ authorization_url: string; expires_at: string }>("/asana/connect", "POST", {}),
+  disconnectAsana: () => request<{ disconnected: boolean }>("/asana/connection", "DELETE"),
+  selectAsanaWorkspace: (workspace_gid: string) => request<AsanaSetup>("/asana/workspace", "PATCH", { workspace_gid }),
+  saveAsanaProjects: (mappings: { hotel_id: string; project_gid: string | null }[]) => request<AsanaSetup>("/asana/projects", "PATCH", { mappings }),
+  asanaTasks: (start: string, end: string, hotelId = "all") => request<AsanaTask[]>(range("/asana/tasks", start, end, { hotel_id: hotelId })),
   posts: (start?: string, end?: string, filters: Record<string, string> = {}) => request<BlogPost[]>(range("/blog-posts", start, end, filters)),
   post: (id: string) => request<BlogPost>(`/blog-posts/${encodeURIComponent(id)}`),
   createPost: (input: BlogInput) => request<BlogPost>("/blog-posts", "POST", input),

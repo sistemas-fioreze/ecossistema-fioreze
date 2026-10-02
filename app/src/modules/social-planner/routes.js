@@ -27,6 +27,10 @@ import {
   completeGoogleCalendarConnection, disconnectGoogleCalendar, getCalendarConnectionStatus,
   removeVisitCalendarEvents, startGoogleCalendarConnection, syncVisitCalendars,
 } from "../../services/social-planner-calendar.js";
+import {
+  completeAsanaConnection, disconnectAsana, getAsanaConnectionStatus, getAsanaSetup,
+  listAsanaCalendarTasks, saveAsanaProjectMappings, selectAsanaWorkspace, startAsanaConnection,
+} from "../../services/social-planner-asana.js";
 
 const base = "/api/v1/social-planner";
 
@@ -129,4 +133,23 @@ export function registerSocialPlannerRoutes(router) {
     }
   });
   router.delete(`${base}/calendar/google/connection`, accountWrite(({ env, session }) => disconnectGoogleCalendar({ env, session })));
+
+  router.get(`${base}/asana/status`, read(({ env, session }) => getAsanaConnectionStatus({ env, session })));
+  router.get(`${base}/asana/setup`, read(({ env, session }) => getAsanaSetup({ env, session })));
+  router.get(`${base}/asana/tasks`, read(({ env, session, url }) => listAsanaCalendarTasks({ env, session, searchParams: url.searchParams })));
+  router.post(`${base}/asana/connect`, accountWrite(({ request, env, session }) => startAsanaConnection({ request, env, session })));
+  router.get(`${base}/asana/callback`, async ({ request, env }) => {
+    const session = await getCurrentSocialPlannerSession({ request, env });
+    requireSocialPlannerPermission(session, SOCIAL_PLANNER_PERMISSIONS.read);
+    const origin = new URL(request.url).origin;
+    try {
+      await completeAsanaConnection({ request, env, session });
+      return Response.redirect(`${origin}/socialplanner/asana-calendar?asana=connected`, 302);
+    } catch {
+      return Response.redirect(`${origin}/socialplanner/asana-calendar?asana=error`, 302);
+    }
+  });
+  router.patch(`${base}/asana/workspace`, accountWrite(async ({ request, env, session }) => selectAsanaWorkspace({ env, session, input: await readJson(request) })));
+  router.patch(`${base}/asana/projects`, accountWrite(async ({ request, env, session }) => saveAsanaProjectMappings({ env, session, input: await readJson(request) })));
+  router.delete(`${base}/asana/connection`, accountWrite(({ env, session }) => disconnectAsana({ env, session })));
 }

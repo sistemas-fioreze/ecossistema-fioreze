@@ -3,13 +3,14 @@ import { marketingRepository } from "./marketing-repository";
 import { blogDrawer, blogFormInput, blogView, type BlogContext } from "./blog";
 import { visitsView, visitDrawer, visitFormInput, type VisitContext } from "./visits";
 import { overviewView } from "./overview";
-import type { BlogPost, CalendarConnectionStatus, Campaign, Category, ContentPillar, Hotel, SocialChannel, Story, StoryChannelInput, StoryFilters, StoryInput, StorySequence, User, Visit } from "./types";
+import { asanaCalendarView } from "./asana";
+import type { AsanaSetup, AsanaTask, BlogPost, CalendarConnectionStatus, Campaign, Category, ContentPillar, Hotel, SocialChannel, Story, StoryChannelInput, StoryFilters, StoryInput, StorySequence, User, Visit } from "./types";
 import { addDays, dateLabel, escapeHtml as e, formatLabels, fromIso, isoDate, objectiveLabels, option, priorityLabels, statusLabels, weekStart } from "./utils";
 
-type View = "overview" | "week" | "calendar" | "pending" | "visits-week" | "visits-calendar" | "visits-history" | "blog-schedule" | "blog-ideas" | "blog-published" | "campaigns" | "assets" | "hotels" | "categories" | "performance" | "users" | "settings";
+type View = "overview" | "week" | "calendar" | "pending" | "asana-calendar" | "visits-week" | "visits-calendar" | "visits-history" | "blog-schedule" | "blog-ideas" | "blog-published" | "campaigns" | "assets" | "hotels" | "categories" | "performance" | "users" | "settings";
 type PlannerSession = { user: { id: string; display_name: string; email: string }; permissions: string[]; access_level: "viewer" | "editor" | "admin"; auth_source: "social-planner" | "admin-master"; expires_at: string };
 type ManagedPlannerUser = { id: string; display_name: string; email: string; access_level: "viewer" | "editor" | "admin"; status: "active" | "disabled"; inherited_from_central: number };
-const views: Record<View, string> = { overview: "Visão Geral", week: "Redes · Semana", calendar: "Redes · Calendário", pending: "Redes · Pendências", "visits-week": "Visitas · Semana", "visits-calendar": "Visitas · Calendário", "visits-history": "Visitas · Histórico", "blog-schedule": "Blog · Cronograma", "blog-ideas": "Blog · Pautas", "blog-published": "Blog · Publicados", campaigns: "Campanhas", assets: "Banco de conteúdos", hotels: "Hotéis", categories: "Categorias", performance: "Desempenho", users: "Usuários", settings: "Configurações" };
+const views: Record<View, string> = { overview: "Visão Geral", week: "Redes · Semana", calendar: "Redes · Calendário", pending: "Redes · Pendências", "asana-calendar": "Calendário do Asana", "visits-week": "Visitas · Semana", "visits-calendar": "Visitas · Calendário", "visits-history": "Visitas · Histórico", "blog-schedule": "Blog · Cronograma", "blog-ideas": "Blog · Pautas", "blog-published": "Blog · Publicados", campaigns: "Campanhas", assets: "Banco de conteúdos", hotels: "Hotéis", categories: "Categorias", performance: "Desempenho", users: "Usuários", settings: "Configurações" };
 const today = isoDate(new Date());
 const CAMPAIGN_TIMELINE_DAYS = 35;
 const params = new URLSearchParams(location.search);
@@ -23,6 +24,7 @@ const state = {
   hotels: [] as Hotel[], categories: [] as Category[], pillars: [] as ContentPillar[], channels: [] as SocialChannel[], users: [] as User[], campaigns: [] as Campaign[], sequences: [] as StorySequence[], stories: [] as Story[], visits: [] as Visit[], posts: [] as BlogPost[],
   displayName: "Fioreze Marketing Planner", visitFilter: params.get("visit_hotel") || "all", blogFilters: { hotel_id: params.get("blog_hotel") || "all", status: params.get("blog_status") || "all", category_id: params.get("blog_category") || "all", author_user_id: params.get("blog_author") || "all", campaign_id: params.get("blog_campaign") || "all" } as Record<string, string>, blogMode: "list" as "list" | "calendar",
   calendar: { provider: "google", configured: false, connected: false, connection: null } as CalendarConnectionStatus,
+  asanaSetup: null as AsanaSetup | null, asanaTasks: [] as AsanaTask[], asanaHotelFilter: params.get("asana_hotel") || "all",
   session: null as PlannerSession | null, managedUsers: [] as ManagedPlannerUser[],
   loading: true, drawer: null as Story | "new" | null, visitDrawer: null as Visit | "new" | null, postDrawer: null as BlogPost | "new" | null, createDate: today, createHotel: "", saving: false,
 };
@@ -41,7 +43,7 @@ function icon(name: string): string {
     calendar: "calendar-days", grid: "layout-dashboard", check: "check", image: "image",
     flag: "pin", settings: "settings", hotel: "store", users: "users",
     tag: "bookmark", plus: "plus", left: "chevron-left", right: "chevron-right",
-    alert: "triangle-alert", close: "x",
+    alert: "triangle-alert", close: "x", asana: "calendar-range",
   };
   return `<i data-lucide="${names[name] || "layout-dashboard"}" aria-hidden="true"></i>`;
 }
@@ -56,7 +58,8 @@ function notify(message: string, error = false) {
 function route(view: View) {
   if (view === "visits-history" && state.view !== view) state.day = today;
   state.view = view; document.querySelector("#sidebar")?.classList.remove("mobile-open"); updateUrl();
-  if (["week", "calendar", "pending", "overview", "visits-week", "visits-calendar", "visits-history", "blog-schedule", "blog-ideas", "blog-published"].includes(view)) void loadData();
+  if (view === "asana-calendar") void loadAsanaData();
+  else if (["week", "calendar", "pending", "overview", "visits-week", "visits-calendar", "visits-history", "blog-schedule", "blog-ideas", "blog-published"].includes(view)) void loadData();
   else if (view === "users") void loadManagedUsers();
   else render();
 }
@@ -68,13 +71,14 @@ function updateUrl() {
   if (state.platformFilter !== "all") query.set("platform", state.platformFilter);
   if (state.campaignStart !== weekStart(today)) query.set("campaign_start", state.campaignStart);
   if (state.visitFilter !== "all") query.set("visit_hotel", state.visitFilter);
+  if (state.asanaHotelFilter !== "all") query.set("asana_hotel", state.asanaHotelFilter);
   for (const [key, urlKey] of [["hotel_id", "blog_hotel"], ["status", "blog_status"], ["category_id", "blog_category"], ["author_user_id", "blog_author"], ["campaign_id", "blog_campaign"]] as const) { if (state.blogFilters[key] && state.blogFilters[key] !== "all") query.set(urlKey, state.blogFilters[key]); }
   history.replaceState({}, "", `/socialplanner/${state.view}?${query}`);
 }
 function renderNavigation() {
   const groups = [
     ["Trabalho", [["overview", "Visão geral", "grid"]]],
-    ["Planejamento", [["week", "Cronograma", "calendar"], ["calendar", "Calendário", "calendar"], ["pending", "Pendências", "alert"]]],
+    ["Planejamento", [["week", "Cronograma", "calendar"], ["calendar", "Calendário", "calendar"], ["pending", "Pendências", "alert"], ["asana-calendar", "Calendário do Asana", "asana"]]],
     ["Produção", [["visits-week", "Visitas", "hotel"], ["visits-calendar", "Agenda de visitas", "calendar"], ["visits-history", "Histórico", "check"], ["blog-schedule", "Blog", "calendar"], ["blog-ideas", "Pautas", "grid"], ["blog-published", "Publicados", "check"]]],
     ["Conteúdo", [["assets", "Banco de conteúdos", "image"], ["campaigns", "Campanhas", "flag"], ["performance", "Desempenho", "grid"]]],
     ["Administração", [["hotels", "Hotéis", "hotel"], ["categories", "Categorias", "tag"], ["users", "Usuários", "users"], ["settings", "Configurações", "settings"]]],
@@ -114,6 +118,24 @@ async function loadManagedUsers() {
     state.managedUsers = result.users;
   } catch (error) { notify((error as Error).message, true); }
   finally { state.loading = false; render(); }
+}
+
+async function loadAsanaData() {
+  const version = ++loadVersion; state.loading = true; render();
+  try {
+    const focus = fromIso(state.day);
+    const start = isoDate(new Date(focus.getFullYear(), focus.getMonth(), 1));
+    const end = isoDate(new Date(focus.getFullYear(), focus.getMonth() + 1, 0));
+    const setup = await marketingRepository.asanaSetup();
+    if (version === loadVersion) state.asanaSetup = setup;
+    let tasks: AsanaTask[] = [];
+    if (setup.connected) {
+      try { tasks = await marketingRepository.asanaTasks(start, end, state.asanaHotelFilter); }
+      catch (error) { notify((error as Error).message, true); }
+    }
+    if (version === loadVersion) state.asanaTasks = tasks;
+  } catch (error) { notify((error as Error).message, true); }
+  finally { if (version === loadVersion) { state.loading = false; render(); } }
 }
 const platformOptions = [
   { id: "all", label: "Todas", short: "ALL" },
@@ -299,6 +321,7 @@ function render() {
   if (state.view.startsWith("visits-")) main.innerHTML = visitsView(visitContext());
   else if (state.view.startsWith("blog-")) main.innerHTML = blogView(blogContext());
   else if (state.view === "overview") main.innerHTML = overviewView(state.stories, state.visits, state.posts, state.hotels, today, state.week);
+  else if (state.view === "asana-calendar") main.innerHTML = asanaCalendarView({ setup: state.asanaSetup, tasks: state.asanaTasks, hotels: state.hotels, day: state.day, today, hotelFilter: state.asanaHotelFilter });
   else main.innerHTML = ({ week: weekView, calendar: calendarView, pending: pendingView, campaigns: campaignsView, assets: assetsView, hotels: hotelsView, categories: categoriesView, performance: performanceView, users: usersView, settings: settingsView } as Partial<Record<View, () => string>>)[state.view]?.() || "";
   hydrateIcons(main);
 }
@@ -479,6 +502,9 @@ document.addEventListener("click", async (event) => {
   if (action === "close-planner-password") { document.querySelector<HTMLDialogElement>("#plannerPasswordDialog")?.close(); return; }
   if (action === "connect-calendar") { try { const result = await marketingRepository.connectCalendar(); location.assign(result.authorization_url); } catch (error) { notify((error as Error).message, true); } return; }
   if (action === "disconnect-calendar") { if (!window.confirm("Desconectar sua agenda do Google Calendar?")) return; try { await marketingRepository.disconnectCalendar(); state.calendar = await marketingRepository.calendarStatus(); render(); notify("Agenda desconectada."); } catch (error) { notify((error as Error).message, true); } return; }
+  if (action === "connect-asana") { try { const result = await marketingRepository.connectAsana(); location.assign(result.authorization_url); } catch (error) { notify((error as Error).message, true); } return; }
+  if (action === "disconnect-asana") { if (!window.confirm("Desconectar sua conta do Asana deste Planner?")) return; try { await marketingRepository.disconnectAsana(); state.asanaSetup = await marketingRepository.asanaSetup(); state.asanaTasks = []; render(); notify("Conta do Asana desconectada."); } catch (error) { notify((error as Error).message, true); } return; }
+  if (["asana-prev-month", "asana-next-month", "asana-today"].includes(action || "")) { const date = action === "asana-today" ? fromIso(today) : fromIso(state.day); if (action !== "asana-today") { date.setDate(1); date.setMonth(date.getMonth() + (action === "asana-prev-month" ? -1 : 1)); } state.day = isoDate(date); state.week = weekStart(state.day); updateUrl(); void loadAsanaData(); return; }
   if (action === "close-drawer") closeDrawer();
   if (action === "open-linked-story") { try { const story = await repository.story(button.dataset.linkedStoryId!); openDrawer(story); } catch (error) { notify((error as Error).message, true); } return; }
   if (action === "new-visit" || action === "new-visit-day") { await openVisit(undefined, button.dataset.date || today); return; }
@@ -539,6 +565,7 @@ document.addEventListener("click", async (event) => {
 });
 document.addEventListener("change", (event) => {
   const target = event.target as HTMLInputElement | HTMLSelectElement;
+  if (target.id === "asanaHotelFilter") { state.asanaHotelFilter = target.value; updateUrl(); void loadAsanaData(); return; }
   if (target.dataset.visitFilter) { state.visitFilter = target.value; updateUrl(); render(); return; }
   if (target.dataset.blogFilter) { state.blogFilters[target.dataset.blogFilter] = target.value; updateUrl(); render(); return; }
   if (target.dataset.itemToggle && state.visitDrawer && state.visitDrawer !== "new") {
@@ -558,6 +585,15 @@ document.querySelector<HTMLInputElement>("#globalPlannerSearch")!.addEventListen
 drawer.addEventListener("submit", (event) => { const id = (event.target as HTMLElement).id; if (id === "storyForm") void saveDrawer(event); if (id === "visitForm") void saveVisitForm(event); if (id === "blogForm") void savePostForm(event); });
 document.addEventListener("submit", async (event) => {
   if ((event.target as HTMLElement).id === "plannerSettingsForm") { event.preventDefault(); const form = event.target as HTMLFormElement; const name = String(new FormData(form).get("display_name") || "").trim(); try { const saved = await marketingRepository.saveSettings(name); state.displayName = saved.display_name; document.querySelector<HTMLElement>("#plannerName")!.textContent = saved.display_name; document.title = saved.display_name; render(); notify("Nome atualizado."); } catch (error) { notify((error as Error).message, true); } return; }
+  if ((event.target as HTMLElement).id === "asanaWorkspaceForm") {
+    event.preventDefault(); const form = event.target as HTMLFormElement; const workspace = String(new FormData(form).get("workspace_gid") || "");
+    try { state.asanaSetup = await marketingRepository.selectAsanaWorkspace(workspace); notify("Workspace do Asana atualizado."); await loadAsanaData(); } catch (error) { notify((error as Error).message, true); } return;
+  }
+  if ((event.target as HTMLElement).id === "asanaProjectForm") {
+    event.preventDefault(); const form = event.target as HTMLFormElement;
+    const mappings = [...form.querySelectorAll<HTMLSelectElement>("[data-asana-hotel]")].map((select) => ({ hotel_id: select.dataset.asanaHotel || "", project_gid: select.value || null }));
+    try { state.asanaSetup = await marketingRepository.saveAsanaProjects(mappings); notify("Projetos das unidades atualizados."); await loadAsanaData(); } catch (error) { notify((error as Error).message, true); } return;
+  }
   if ((event.target as HTMLElement).id === "plannerUserForm") {
     event.preventDefault(); const form = event.target as HTMLFormElement; const dialog = form.closest<HTMLDialogElement>("dialog")!; const data = new FormData(form);
     const input = { display_name: String(data.get("display_name") || ""), email: String(data.get("email") || ""), access_level: String(data.get("access_level") || "editor"), status: String(data.get("status") || "active"), password: String(data.get("password") || "") };
@@ -632,9 +668,11 @@ async function initializePlanner() {
   if (state.view === "users" && !state.session?.permissions.includes("social-planner.users.manage")) state.view = "overview";
   [state.hotels, state.categories, state.pillars, state.channels, state.users, state.campaigns, state.sequences, { display_name: state.displayName }, state.calendar] = await Promise.all([repository.hotels(), repository.categories(), repository.pillars(), repository.channels(), repository.users(), repository.campaigns(), repository.sequences(), marketingRepository.settings(), marketingRepository.calendarStatus()]);
   document.querySelector<HTMLElement>("#plannerName")!.textContent = state.displayName; document.title = state.displayName;
-  if (state.view === "users") await loadManagedUsers(); else await loadData();
+  if (state.view === "users") await loadManagedUsers(); else if (state.view === "asana-calendar") await loadAsanaData(); else await loadData();
   if (params.get("calendar") === "connected") notify("Google Calendar conectado à sua conta.");
   if (params.get("calendar") === "error") notify("Não foi possível concluir a conexão com o Google Calendar.", true);
+  if (params.get("asana") === "connected") notify("Asana conectado à sua conta.");
+  if (params.get("asana") === "error") notify("Não foi possível concluir a conexão com o Asana.", true);
   if (planningAlerts()) notify(`${planningAlerts()} Story(s) de hoje ainda estão como Ideia.`);
 }
 void start();

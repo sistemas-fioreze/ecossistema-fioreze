@@ -9,6 +9,9 @@ const app = fs.readFileSync("social-planner/app.ts", "utf8");
 const visits = fs.readFileSync("social-planner/visits.ts", "utf8");
 const shell = fs.readFileSync("public/admin/social-planner/index.html", "utf8");
 const styles = fs.readFileSync("public/css/modules/social-planner/planner.css", "utf8");
+const asanaMigration = fs.readFileSync("migrations/0063_social_planner_asana.sql", "utf8");
+const asanaService = fs.readFileSync("src/services/social-planner-asana.js", "utf8");
+const asanaView = fs.readFileSync("social-planner/asana.ts", "utf8");
 
 test("Planner modela destinos sociais e reaproveitamento por conteudo", () => {
   assert.match(migration, /CREATE TABLE IF NOT EXISTS social_channels/);
@@ -63,4 +66,22 @@ test("Planner usa shell escuro integrado e filtra cronograma por rede", () => {
   assert.match(app, /YouTube/);
   assert.match(app, /Facebook/);
   assert.match(app, /data-platform/);
+});
+
+test("Asana conecta cada usuario e organiza os seis projetos por unidade", () => {
+  assert.match(asanaMigration, /social_planner_asana_connections/);
+  assert.match(asanaMigration, /PRIMARY KEY \(planner_user_id, hotel_id\)/);
+  for (const project of ["Hotel Fioreze Centro (hoteisfioreze)", "Hotel Fioreze Quero Quero", "Hotel Fioreze Primo", "Hotel Fioreze Chalés", "Hotel Müller & Fioreze", "Hotel Fioreze Origem"]) {
+    assert.ok(asanaMigration.includes(project));
+  }
+  assert.match(asanaService, /code_challenge_method", "S256"/);
+  assert.match(asanaService, /ASANA_CLIENT_SECRET/);
+  assert.match(asanaService, /AES-GCM/);
+  assert.match(asanaService, /projects\/\$\{encodeURIComponent\(projectGid\)\}\/tasks/);
+  assert.match(routes, /asana\/callback/);
+  assert.match(routes, /asana\/tasks/);
+  assert.match(app, /Calendário do Asana/);
+  assert.match(asanaView, /id="asanaHotelFilter"/);
+  assert.match(styles, /\.asana-calendar-grid/);
+  assert.doesNotMatch(app, /ASANA_CLIENT_SECRET|ASANA_TOKEN_KEY/);
 });
