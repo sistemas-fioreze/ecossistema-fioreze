@@ -5,6 +5,8 @@ O Marketing Planner é um módulo administrativo do Worker compartilhado, servid
 `app/social-planner/` e é compilada para o asset estático
 `app/public/js/modules/social-planner/planner.js` pelo esbuild já usado no
 repositório. Não usa uma aplicação separada nem credenciais no navegador.
+`/socialplanner` é um atalho no mesmo domínio para a visão geral e preserva
+os parâmetros de filtro na URL.
 
 ## Dados e segurança
 

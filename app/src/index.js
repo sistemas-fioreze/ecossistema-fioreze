@@ -66,6 +66,14 @@ async function handleRequest(request, env, ctx) {
   const url = new URL(request.url);
   const officialPortalHost = isGuestPortalPublicHost(request, env);
 
+  if (url.pathname === "/socialplanner" || url.pathname === "/socialplanner/") {
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      return servePublicNotFoundPage(request, env);
+    }
+    url.pathname = "/admin/social-planner/overview";
+    return Response.redirect(url.toString(), 308);
+  }
+
   if (isRetiredHumanDownloadPath(url.pathname)) {
     return servePublicNotFoundPage(request, env);
   }
