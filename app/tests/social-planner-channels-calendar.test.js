@@ -51,6 +51,12 @@ test("Planner usa shell escuro integrado e filtra cronograma por rede", () => {
   assert.match(styles, /\.upcoming-rail/);
   assert.match(styles, /\.workspace \{[^}]*border-top: 1px solid var\(--border\);[^}]*border-left: 1px solid var\(--border\);[^}]*border-top-left-radius: 14px/s);
   assert.match(styles, /\.topbar \{[^}]*border-bottom: 0/s);
+  assert.match(app, /CAMPAIGN_TIMELINE_DAYS = 35/);
+  assert.match(app, /campaign-period-bar/);
+  assert.match(app, /campaign-prev/);
+  assert.match(app, /Sem período definido/);
+  assert.match(styles, /\.campaign-timeline-header, \.campaign-timeline-row/);
+  assert.match(styles, /\.campaign-period-bar\[data-status="active"\]/);
   assert.match(app, /platformFilter/);
   assert.match(app, /Instagram/);
   assert.match(app, /TikTok/);

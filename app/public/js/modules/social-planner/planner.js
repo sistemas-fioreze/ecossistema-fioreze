@@ -241,6 +241,7 @@ function overviewView(stories, visits, posts, hotels, today2, week) {
 // social-planner/app.ts
 var views = { overview: "Vis\xE3o Geral", week: "Redes \xB7 Semana", calendar: "Redes \xB7 Calend\xE1rio", pending: "Redes \xB7 Pend\xEAncias", "visits-week": "Visitas \xB7 Semana", "visits-calendar": "Visitas \xB7 Calend\xE1rio", "visits-history": "Visitas \xB7 Hist\xF3rico", "blog-schedule": "Blog \xB7 Cronograma", "blog-ideas": "Blog \xB7 Pautas", "blog-published": "Blog \xB7 Publicados", campaigns: "Campanhas", assets: "Banco de conte\xFAdos", hotels: "Hot\xE9is", categories: "Categorias", performance: "Desempenho", users: "Usu\xE1rios", settings: "Configura\xE7\xF5es" };
 var today = isoDate(/* @__PURE__ */ new Date());
+var CAMPAIGN_TIMELINE_DAYS = 35;
 var params = new URLSearchParams(location.search);
 var initialWeek = /^\d{4}-\d{2}-\d{2}$/.test(params.get("week") || "") ? params.get("week") : today;
 var state = {
@@ -249,6 +250,7 @@ var state = {
   day: /^\d{4}-\d{2}-\d{2}$/.test(params.get("day") || "") ? params.get("day") : today,
   filters: { hotel_id: params.get("hotel") || "all", status: params.get("status") || "all", category_id: params.get("category") || "all", responsible_user_id: params.get("responsible") || "all", campaign_id: params.get("campaign") || "all", search: params.get("q") || "" },
   platformFilter: params.get("platform") || "all",
+  campaignStart: /^\d{4}-\d{2}-\d{2}$/.test(params.get("campaign_start") || "") ? weekStart(params.get("campaign_start")) : weekStart(today),
   hotels: [],
   categories: [],
   pillars: [],
@@ -333,6 +335,7 @@ function updateUrl() {
     if (value && value !== "all") query.set(urlKey, value);
   }
   if (state.platformFilter !== "all") query.set("platform", state.platformFilter);
+  if (state.campaignStart !== weekStart(today)) query.set("campaign_start", state.campaignStart);
   if (state.visitFilter !== "all") query.set("visit_hotel", state.visitFilter);
   for (const [key, urlKey] of [["hotel_id", "blog_hotel"], ["status", "blog_status"], ["category_id", "blog_category"], ["author_user_id", "blog_author"], ["campaign_id", "blog_campaign"]]) {
     if (state.blogFilters[key] && state.blogFilters[key] !== "all") query.set(urlKey, state.blogFilters[key]);
@@ -523,8 +526,37 @@ function pendingView() {
     return `<section class="section-card"><h2>${title} <span class="subtle">${items.length}</span></h2><div class="pending-list">${items.length ? items.map((story) => `<button class="pending-row" data-story-id="${escapeHtml(story.id)}"><strong>${escapeHtml(story.title)}</strong><small>${escapeHtml(state.hotels.find((h) => h.id === story.hotel_id)?.short_name)}</small><small>${escapeHtml(story.date)}</small><span class="status-pill" data-status="${story.status}">${statusLabels[story.status]}</span></button>`).join("") : '<p class="subtle">Nenhum item nesta categoria.</p>'}</div></section>`;
   }).join("")}`;
 }
+var campaignStatusLabels = { planned: "Planejada", active: "Ativa", completed: "Conclu\xEDda", cancelled: "Cancelada" };
+function campaignDateLabel(value, includeYear = false) {
+  return dateLabel(value, { day: "2-digit", month: "short", ...includeYear ? { year: "numeric" } : {} }).replaceAll(" de ", " ").replaceAll(".", "");
+}
 function campaignsView() {
-  return `<div class="page-heading"><div><p class="eyebrow">Conte\xFAdo</p><h1>Campanhas</h1><p class="subtle">Uma campanha conecta Stories, visitas e artigos em diferentes hot\xE9is.</p></div><button class="button primary" data-action="new-campaign">${icon("plus")} Nova campanha</button></div><div class="campaign-grid">${state.campaigns.map((campaign) => `<article class="campaign-card"><h2>${escapeHtml(campaign.name)}</h2><p>${escapeHtml(campaign.description || "Sem descri\xE7\xE3o")}</p><p>${escapeHtml(campaign.start_date || "Sem in\xEDcio")} \u2014 ${escapeHtml(campaign.end_date || "Sem fim")}</p><div class="campaign-stats"><span>${campaign.story_count} stories \xB7 ${campaign.published_count} publicados</span><span>${campaign.visit_count} visitas</span><span>${campaign.article_count} artigos</span><span>${campaign.hotel_count} hot\xE9is</span></div><button type="button" class="button" data-action="edit-campaign" data-campaign-id="${escapeHtml(campaign.id)}" style="margin-top:14px">Editar campanha</button></article>`).join("")}</div>${!state.campaigns.length ? '<div class="empty-state"><h2>Nenhuma campanha cadastrada.</h2><p>Crie uma campanha para conectar Stories, visitas e artigos.</p><button class="button primary" data-action="new-campaign">Nova campanha</button></div>' : ""}`;
+  const dates = Array.from({ length: CAMPAIGN_TIMELINE_DAYS }, (_, index) => addDays(state.campaignStart, index));
+  const rangeEnd = dates.at(-1);
+  const scheduled = state.campaigns.filter((campaign) => campaign.start_date && campaign.end_date);
+  const visible = scheduled.filter((campaign) => campaign.start_date <= rangeEnd && campaign.end_date >= state.campaignStart);
+  const unscheduled = state.campaigns.filter((campaign) => !campaign.start_date || !campaign.end_date);
+  const header = dates.map((date) => {
+    const day = fromIso(date).getDay();
+    const classes = ["campaign-date-cell", day === 0 || day === 6 ? "weekend" : "", date === today ? "today" : ""].filter(Boolean).join(" ");
+    return `<div class="${classes}" title="${escapeHtml(dateLabel(date, { dateStyle: "full" }))}"><small>${escapeHtml(dateLabel(date, { weekday: "short" }).replace(".", ""))}</small><strong>${escapeHtml(dateLabel(date, { day: "2-digit" }))}</strong></div>`;
+  }).join("");
+  const rows = visible.map((campaign) => {
+    const visibleStart = campaign.start_date < state.campaignStart ? state.campaignStart : campaign.start_date;
+    const visibleEnd = campaign.end_date > rangeEnd ? rangeEnd : campaign.end_date;
+    const offset = dates.indexOf(visibleStart);
+    const span = dates.indexOf(visibleEnd) - offset + 1;
+    const status = Object.hasOwn(campaignStatusLabels, campaign.status) ? campaign.status : "planned";
+    const cells = dates.map((date) => {
+      const day = fromIso(date).getDay();
+      return `<span class="campaign-track-cell ${day === 0 || day === 6 ? "weekend" : ""} ${date === today ? "today" : ""}" aria-hidden="true"></span>`;
+    }).join("");
+    const range2 = `${campaignDateLabel(campaign.start_date)} \u2013 ${campaignDateLabel(campaign.end_date, true)}`;
+    return `<div class="campaign-timeline-row"><button type="button" class="campaign-row-info" data-action="edit-campaign" data-campaign-id="${escapeHtml(campaign.id)}"><span class="campaign-status-dot" data-status="${escapeHtml(status)}"></span><span><strong>${escapeHtml(campaign.name)}</strong><small>${escapeHtml(range2)} \xB7 ${campaign.story_count + campaign.visit_count + campaign.article_count} entregas</small></span></button>${cells}<button type="button" class="campaign-period-bar" data-status="${escapeHtml(status)}" data-action="edit-campaign" data-campaign-id="${escapeHtml(campaign.id)}" style="--campaign-column:${offset + 2};--campaign-span:${span}" title="${escapeHtml(`${campaign.name} \xB7 ${range2}`)}"><span>${escapeHtml(campaign.name)}</span></button></div>`;
+  }).join("");
+  const unscheduledList = unscheduled.length ? `<section class="campaign-unscheduled"><div class="section-heading"><div><h2>Sem per\xEDodo definido</h2><p class="subtle">Complete as datas para posicionar estas campanhas na linha do tempo.</p></div></div>${unscheduled.map((campaign) => `<button type="button" class="campaign-unscheduled-row" data-action="edit-campaign" data-campaign-id="${escapeHtml(campaign.id)}"><span><strong>${escapeHtml(campaign.name)}</strong><small>${escapeHtml(campaign.description || "Sem descri\xE7\xE3o")}</small></span><span>${campaignStatusLabels[campaign.status] || "Planejada"}</span>${icon("right")}</button>`).join("")}</section>` : "";
+  const empty = !state.campaigns.length ? '<div class="empty-state"><h2>Nenhuma campanha cadastrada.</h2><p>Crie uma campanha para conectar Stories, visitas e artigos.</p><button class="button primary" data-action="new-campaign">Nova campanha</button></div>' : !visible.length ? '<div class="campaign-range-empty">Nenhuma campanha atravessa este per\xEDodo.</div>' : "";
+  return `<div class="page-heading"><div><p class="eyebrow">Conte\xFAdo</p><h1>Campanhas</h1><p class="subtle">Visualize dura\xE7\xE3o, sobreposi\xE7\xF5es e entregas ao longo do calend\xE1rio.</p></div><button class="button primary" data-action="new-campaign">${icon("plus")} Nova campanha</button></div><section class="campaign-timeline-shell"><div class="campaign-timeline-toolbar"><div><span>Per\xEDodo exibido</span><strong>${escapeHtml(campaignDateLabel(state.campaignStart))} \u2013 ${escapeHtml(campaignDateLabel(rangeEnd, true))}</strong><small>${visible.length} ${visible.length === 1 ? "campanha vis\xEDvel" : "campanhas vis\xEDveis"}</small></div><div class="campaign-range-actions"><button class="icon-button" type="button" data-action="campaign-prev" aria-label="Per\xEDodo anterior" title="Per\xEDodo anterior">${icon("left")}</button><button class="button" type="button" data-action="campaign-today">Hoje</button><button class="icon-button" type="button" data-action="campaign-next" aria-label="Pr\xF3ximo per\xEDodo" title="Pr\xF3ximo per\xEDodo">${icon("right")}</button></div></div><div class="campaign-timeline-scroll"><div class="campaign-timeline-grid"><div class="campaign-timeline-header"><div class="campaign-corner"><span>Campanha</span><small>Status e entregas</small></div>${header}</div>${rows}</div></div>${empty}</section>${unscheduledList}`;
 }
 function openCampaignDialog(campaign) {
   const existing = document.querySelector("#campaignDialog");
@@ -1114,6 +1146,12 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "new") openDrawer("new", state.view === "week" && (today < state.week || today > addDays(state.week, 6)) ? state.week : today);
   if (action === "new-cell") openDrawer("new", button.dataset.date, button.dataset.hotel);
+  if (action === "campaign-prev" || action === "campaign-next" || action === "campaign-today") {
+    state.campaignStart = action === "campaign-today" ? weekStart(today) : addDays(state.campaignStart, action === "campaign-prev" ? -28 : 28);
+    updateUrl();
+    render();
+    return;
+  }
   if (action === "prev-week" || action === "next-week" || action === "today") {
     state.week = action === "today" ? weekStart(today) : addDays(state.week, action === "prev-week" ? -7 : 7);
     state.day = state.week;
