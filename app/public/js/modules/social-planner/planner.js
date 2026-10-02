@@ -248,6 +248,7 @@ var state = {
   week: weekStart(initialWeek),
   day: /^\d{4}-\d{2}-\d{2}$/.test(params.get("day") || "") ? params.get("day") : today,
   filters: { hotel_id: params.get("hotel") || "all", status: params.get("status") || "all", category_id: params.get("category") || "all", responsible_user_id: params.get("responsible") || "all", campaign_id: params.get("campaign") || "all", search: params.get("q") || "" },
+  platformFilter: params.get("platform") || "all",
   hotels: [],
   categories: [],
   pillars: [],
@@ -283,23 +284,27 @@ var toast = document.querySelector("#toast");
 var toastTimer = 0;
 var loadVersion = 0;
 function icon(name) {
-  const paths = {
-    calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18"/>',
-    grid: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 9v12"/>',
-    check: '<path d="m4 12 5 5L20 6"/>',
-    image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="1"/><path d="m3 17 6-6 4 4 3-3 5 5"/>',
-    flag: '<path d="M4 21V4m0 1c5-4 11 4 16 0v11c-5 4-11-4-16 0"/>',
-    settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M19 5l-1.5 1.5m-11 11L5 19"/>',
-    hotel: '<path d="M4 21V5l8-3 8 3v16M4 21h16M9 21v-5h6v5M8 8h.01M12 8h.01M16 8h.01M8 12h.01M12 12h.01M16 12h.01"/>',
-    users: '<circle cx="9" cy="8" r="4"/><path d="M2 21v-2a7 7 0 0 1 14 0v2M17 4a4 4 0 0 1 0 8M18 15a6 6 0 0 1 4 6"/>',
-    tag: '<path d="M3 3h9l9 9-9 9-9-9V3Z"/><circle cx="8" cy="8" r="1"/>',
-    plus: '<path d="M12 4v16M4 12h16"/>',
-    left: '<path d="m15 18-6-6 6-6"/>',
-    right: '<path d="m9 18 6-6-6-6"/>',
-    alert: '<path d="M12 3 2 21h20L12 3Z"/><path d="M12 9v5m0 3h.01"/>',
-    close: '<path d="M5 5l14 14M19 5 5 19"/>'
+  const names = {
+    calendar: "calendar-days",
+    grid: "layout-dashboard",
+    check: "check",
+    image: "image",
+    flag: "pin",
+    settings: "settings",
+    hotel: "store",
+    users: "users",
+    tag: "bookmark",
+    plus: "plus",
+    left: "chevron-left",
+    right: "chevron-right",
+    alert: "triangle-alert",
+    close: "x"
   };
-  return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[name] || paths.grid}</svg>`;
+  return `<i data-lucide="${names[name] || "layout-dashboard"}" aria-hidden="true"></i>`;
+}
+function hydrateIcons(root = document) {
+  const lucide = globalThis.FiorezeLucide;
+  window.setTimeout(() => lucide?.createIcons({ icons: lucide.icons, root }), 0);
 }
 function notify(message, error = false) {
   toast.textContent = message;
@@ -327,6 +332,7 @@ function updateUrl() {
     const value = state.filters[key];
     if (value && value !== "all") query.set(urlKey, value);
   }
+  if (state.platformFilter !== "all") query.set("platform", state.platformFilter);
   if (state.visitFilter !== "all") query.set("visit_hotel", state.visitFilter);
   for (const [key, urlKey] of [["hotel_id", "blog_hotel"], ["status", "blog_status"], ["category_id", "blog_category"], ["author_user_id", "blog_author"], ["campaign_id", "blog_campaign"]]) {
     if (state.blogFilters[key] && state.blogFilters[key] !== "all") query.set(urlKey, state.blogFilters[key]);
@@ -335,17 +341,15 @@ function updateUrl() {
 }
 function renderNavigation() {
   const groups = [
-    ["", [["overview", "Vis\xE3o Geral", "grid"]]],
-    ["Redes Sociais", [["week", "Semana", "grid"], ["calendar", "Calend\xE1rio", "calendar"], ["pending", "Pend\xEAncias", "alert"]]],
-    ["Agenda de Hot\xE9is", [["visits-week", "Semana", "hotel"], ["visits-calendar", "Calend\xE1rio", "calendar"], ["visits-history", "Hist\xF3rico", "check"]]],
-    ["Blog", [["blog-schedule", "Cronograma", "calendar"], ["blog-ideas", "Pautas", "grid"], ["blog-published", "Publicados", "check"]]],
-    ["Conte\xFAdo", [["assets", "Banco de conte\xFAdos", "image"], ["campaigns", "Campanhas", "flag"]]],
-    ["An\xE1lise", [["performance", "Desempenho", "grid"]]],
+    ["Trabalho", [["overview", "Vis\xE3o geral", "grid"]]],
+    ["Planejamento", [["week", "Cronograma", "calendar"], ["calendar", "Calend\xE1rio", "calendar"], ["pending", "Pend\xEAncias", "alert"]]],
+    ["Produ\xE7\xE3o", [["visits-week", "Visitas", "hotel"], ["visits-calendar", "Agenda de visitas", "calendar"], ["visits-history", "Hist\xF3rico", "check"], ["blog-schedule", "Blog", "calendar"], ["blog-ideas", "Pautas", "grid"], ["blog-published", "Publicados", "check"]]],
+    ["Conte\xFAdo", [["assets", "Banco de conte\xFAdos", "image"], ["campaigns", "Campanhas", "flag"], ["performance", "Desempenho", "grid"]]],
     ["Administra\xE7\xE3o", [["hotels", "Hot\xE9is", "hotel"], ["categories", "Categorias", "tag"], ["users", "Usu\xE1rios", "users"], ["settings", "Configura\xE7\xF5es", "settings"]]]
   ];
   const visibleGroups = groups.map(([title, items]) => [title, items.filter(([key]) => key !== "users" || state.session?.permissions.includes("social-planner.users.manage"))]);
   document.querySelector("#navigation").innerHTML = visibleGroups.map(([title, items]) => `<div class="nav-group">${title ? `<span class="nav-heading">${title}</span>` : ""}${items.map(([key, label, symbol]) => `<a class="nav-link ${state.view === key ? "active" : ""}" href="/socialplanner/${key}" data-view="${key}" title="${label}">${icon(symbol)}<span class="nav-label">${label}</span></a>`).join("")}</div>`).join("");
-  document.querySelector("#viewTitle").textContent = views[state.view];
+  hydrateIcons(document.querySelector("#navigation"));
 }
 function dateRange() {
   if (["calendar", "visits-calendar", "blog-schedule"].includes(state.view)) {
@@ -398,9 +402,27 @@ async function loadManagedUsers() {
     render();
   }
 }
+var platformOptions = [
+  { id: "all", label: "Todas", short: "ALL" },
+  { id: "instagram", label: "Instagram", short: "IG" },
+  { id: "tiktok", label: "TikTok", short: "TT" },
+  { id: "youtube", label: "YouTube", short: "YT" },
+  { id: "facebook", label: "Facebook", short: "FB" }
+];
+function storyPlatforms(story) {
+  const fromChannels = (story.channels || []).map((channel) => channel.platform_key);
+  const raw = `${story.channel_ids || ""},${story.channel_names || ""}`.toLocaleLowerCase("pt-BR");
+  return [.../* @__PURE__ */ new Set([...fromChannels, ...platformOptions.filter((item) => item.id !== "all" && raw.includes(item.id)).map((item) => item.id)])];
+}
 function visibleStories() {
   const needle = state.filters.search.trim().toLocaleLowerCase("pt-BR");
-  return state.stories.filter((story) => !needle || [story.title, story.description, story.story_text, story.responsible_name].some((item) => item?.toLocaleLowerCase("pt-BR").includes(needle))).sort((a, b) => a.date.localeCompare(b.date) || a.hotel_id.localeCompare(b.hotel_id) || a.sort_order - b.sort_order || (a.planned_time || "").localeCompare(b.planned_time || ""));
+  return state.stories.filter((story) => (state.platformFilter === "all" || storyPlatforms(story).includes(state.platformFilter)) && (!needle || [story.title, story.description, story.story_text, story.responsible_name].some((item) => item?.toLocaleLowerCase("pt-BR").includes(needle)))).sort((a, b) => a.date.localeCompare(b.date) || a.hotel_id.localeCompare(b.hotel_id) || a.sort_order - b.sort_order || (a.planned_time || "").localeCompare(b.planned_time || ""));
+}
+function platformSelector() {
+  return `<div class="platform-selector" role="group" aria-label="Filtrar cronograma por rede">${platformOptions.map((platform) => {
+    const count = platform.id === "all" ? state.stories.length : state.stories.filter((story) => storyPlatforms(story).includes(platform.id)).length;
+    return `<button type="button" class="platform-option ${state.platformFilter === platform.id ? "active" : ""}" data-platform="${platform.id}" aria-pressed="${state.platformFilter === platform.id}"><span class="platform-mark ${platform.id}">${platform.short}</span><span>${platform.label}</span><strong>${count}</strong></button>`;
+  }).join("")}</div>`;
 }
 function selectedHotels() {
   return state.hotels.filter((hotel) => state.filters.hotel_id === "all" || state.filters.hotel_id === hotel.id);
@@ -423,14 +445,24 @@ function metricsHtml(stories) {
 function weekHeading() {
   const end = addDays(state.week, 6);
   const label = `${dateLabel(state.week, { day: "2-digit", month: "short" })} \u2014 ${dateLabel(end, { day: "2-digit", month: "short" })}`;
-  return `<div class="page-heading"><div><p class="eyebrow">Planejamento editorial</p><h1>Semana</h1><p class="subtle">Conte\xFAdos e seus destinos em todas as redes.</p></div><div class="heading-actions"><div class="week-nav"><button class="icon-button" data-action="prev-week" aria-label="Semana anterior">${icon("left")}</button><span class="week-label">${escapeHtml(label)}</span><button class="icon-button" data-action="next-week" aria-label="Pr\xF3xima semana">${icon("right")}</button></div><button class="button" data-action="today">Hoje</button><button class="button primary" data-action="new">${icon("plus")} Novo conte\xFAdo</button></div></div>`;
+  return `<div class="page-heading"><div><p class="eyebrow">Social Planner</p><h1>Cronograma de redes</h1><p class="subtle">Planeje, distribua e acompanhe os conte\xFAdos de todas as unidades.</p></div><div class="heading-actions"><div class="week-nav"><button class="icon-button" data-action="prev-week" aria-label="Semana anterior">${icon("left")}</button><span class="week-label">${escapeHtml(label)}</span><button class="icon-button" data-action="next-week" aria-label="Pr\xF3xima semana">${icon("right")}</button></div><button class="button" data-action="today">Hoje</button></div></div>`;
 }
 function card(story) {
   const category = state.categories.find((item) => item.id === story.category_id)?.name;
   const format = story.format ? formatLabels[story.format] : "";
   const members = story.sequence_group_id ? state.stories.filter((item) => item.sequence_group_id === story.sequence_group_id) : [];
   const sequence = story.sequence_group_id ? `<span class="sequence-badge">${story.sequence_position || members.indexOf(story) + 1}/${members.length}</span>` : "";
-  return `<article class="story-card" data-story-id="${escapeHtml(story.id)}" data-status="${story.status}" draggable="true" tabindex="0" role="button" aria-label="${escapeHtml(story.title)}, ${statusLabels[story.status]}"><div class="card-top"><span class="card-time">${escapeHtml(story.planned_time || "\u2014")}</span><span class="status-pill" data-status="${story.status}">${statusLabels[story.status]}</span></div>${story.thumbnail_url ? `<img class="card-thumb" src="${escapeHtml(story.thumbnail_url)}" alt="">` : ""}<div class="card-title">${escapeHtml(story.title)}</div><div class="card-meta">${story.channel_names ? `<span title="${escapeHtml(story.channel_names)}">${escapeHtml(story.channel_names)}</span>` : ""}${format ? `<span>${escapeHtml(format)}</span>` : ""}${category ? `<span>${escapeHtml(category)}</span>` : ""}</div><div class="card-footer"><span>${escapeHtml(story.responsible_name || "Sem respons\xE1vel")}</span>${sequence}</div></article>`;
+  const platforms = storyPlatforms(story).slice(0, 4);
+  return `<article class="story-card" data-story-id="${escapeHtml(story.id)}" data-status="${story.status}" draggable="true" tabindex="0" role="button" aria-label="${escapeHtml(story.title)}, ${statusLabels[story.status]}"><div class="card-top"><span class="card-time">${escapeHtml(story.planned_time || "\u2014")}</span><span class="platform-miniatures">${platforms.map((platform) => `<span class="platform-mini ${platform}">${platformOptions.find((item) => item.id === platform)?.short || platform.slice(0, 2).toUpperCase()}</span>`).join("")}</span></div>${story.thumbnail_url ? `<img class="card-thumb" src="${escapeHtml(story.thumbnail_url)}" alt="">` : ""}<div class="card-title">${escapeHtml(story.title)}</div><div class="card-meta">${format ? `<span>${escapeHtml(format)}</span>` : ""}${category ? `<span>${escapeHtml(category)}</span>` : ""}</div><div class="card-footer"><span class="status-pill" data-status="${story.status}">${statusLabels[story.status]}</span><span>${escapeHtml(story.responsible_name || "Sem respons\xE1vel")}</span>${sequence}</div></article>`;
+}
+function upcomingRail() {
+  const upcoming = state.stories.filter((story) => story.date >= today && story.status !== "cancelled").sort((a, b) => a.date.localeCompare(b.date) || (a.planned_time || "").localeCompare(b.planned_time || "")).slice(0, 6);
+  const visit = state.visits.filter((item) => item.date >= today && !["cancelled", "completed"].includes(item.status)).sort((a, b) => a.date.localeCompare(b.date) || (a.start_time || "").localeCompare(b.start_time || ""))[0];
+  return `<aside class="upcoming-rail" aria-label="Pr\xF3ximos compromissos"><div class="rail-header"><h2>Pr\xF3ximos</h2><button type="button" data-view="calendar">Ver todos</button></div><div class="rail-date">A partir de hoje</div><div class="rail-items">${upcoming.length ? upcoming.map((story) => {
+    const hotel = state.hotels.find((item) => item.id === story.hotel_id)?.short_name || "Fioreze";
+    const platform = storyPlatforms(story)[0] || "all";
+    return `<button type="button" class="rail-item" data-story-id="${escapeHtml(story.id)}"><span class="rail-time">${escapeHtml(story.date === today ? story.planned_time || "Hoje" : dateLabel(story.date, { day: "2-digit", month: "short" }))}</span><span class="platform-mini ${platform}">${platformOptions.find((item) => item.id === platform)?.short || "--"}</span><span><strong>${escapeHtml(story.title)}</strong><small>${escapeHtml(hotel)}</small></span><span class="status-pill" data-status="${story.status}">${statusLabels[story.status]}</span></button>`;
+  }).join("") : '<p class="rail-empty">Nenhum conte\xFAdo futuro neste per\xEDodo.</p>'}</div>${visit ? `<div class="rail-visit"><div class="rail-header"><h2>Visita agendada</h2><button type="button" data-view="visits-calendar">Ver agenda</button></div><button type="button" class="visit-preview" data-visit-id="${escapeHtml(visit.id)}"><span class="visit-date"><strong>${visit.date.slice(-2)}</strong>${escapeHtml(dateLabel(visit.date, { month: "short" }))}</span><span><strong>${escapeHtml(visit.title)}</strong><small>${escapeHtml(visit.start_time || "Hor\xE1rio livre")} \xB7 ${escapeHtml(visit.hotel_name)}</small></span></button></div>` : ""}</aside>`;
 }
 function weekView() {
   const stories = visibleStories();
@@ -463,14 +495,15 @@ function weekView() {
     const items = stories.filter((s) => s.hotel_id === hotel.id && s.date === state.day);
     return `<section class="mobile-hotel"><h3>${escapeHtml(hotel.short_name)} \xB7 ${escapeHtml(hotel.instagram_username)}</h3>${items.length ? items.map(card).join("") : '<p class="subtle">Nenhum story planejado.</p>'}<button class="cell-add" data-action="new-cell" data-hotel="${escapeHtml(hotel.id)}" data-date="${state.day}" aria-label="Adicionar story">+ Adicionar</button></section>`;
   }).join("")}</div>`;
-  return `${weekHeading()}${filtersHtml()}${metricsHtml(stories)}${alerts.length ? `<div class="notice-bar">${icon("alert")} ${escapeHtml(alerts.join(" \xB7 "))}</div>` : ""}${hotels.length ? `${board}${mobile}` : emptyState("Nenhum hotel corresponde ao filtro.")}`;
+  const content = `${filtersHtml()}${metricsHtml(stories)}${alerts.length ? `<div class="notice-bar">${icon("alert")} ${escapeHtml(alerts.join(" \xB7 "))}</div>` : ""}${hotels.length ? `${board}${mobile}` : emptyState("Nenhum hotel corresponde ao filtro.")}`;
+  return `${weekHeading()}${platformSelector()}<div class="schedule-layout"><div class="schedule-main">${content}</div>${upcomingRail()}</div>`;
 }
 function calendarView() {
   const date = fromIso(state.day), year = date.getFullYear(), month = date.getMonth();
   const first = new Date(year, month, 1), offset = (first.getDay() + 6) % 7;
   const start2 = isoDate(new Date(year, month, 1 - offset));
   const stories = visibleStories();
-  return `<div class="page-heading"><div><p class="eyebrow">Vis\xE3o mensal</p><h1>Calend\xE1rio</h1><p class="subtle">${escapeHtml(dateLabel(isoDate(first), { month: "long", year: "numeric" }))}</p></div><div class="heading-actions"><button class="button" data-action="prev-month">${icon("left")}</button><button class="button" data-action="next-month">${icon("right")}</button><button class="button primary" data-action="new">${icon("plus")} Novo story</button></div></div>${filtersHtml()}<div class="calendar-grid">${["Seg", "Ter", "Qua", "Qui", "Sex", "S\xE1b", "Dom"].map((day) => `<div class="calendar-weekday">${day}</div>`).join("")}${Array.from({ length: 42 }, (_, index) => {
+  return `<div class="page-heading"><div><p class="eyebrow">Planejamento editorial</p><h1>Calend\xE1rio</h1><p class="subtle">${escapeHtml(dateLabel(isoDate(first), { month: "long", year: "numeric" }))}</p></div><div class="heading-actions"><button class="button" data-action="prev-month">${icon("left")}</button><button class="button" data-action="next-month">${icon("right")}</button><button class="button primary" data-action="new">${icon("plus")} Novo conte\xFAdo</button></div></div>${platformSelector()}${filtersHtml()}<div class="calendar-grid">${["Seg", "Ter", "Qua", "Qui", "Sex", "S\xE1b", "Dom"].map((day) => `<div class="calendar-weekday">${day}</div>`).join("")}${Array.from({ length: 42 }, (_, index) => {
     const current = addDays(start2, index), items = stories.filter((s) => s.date === current);
     return `<div class="calendar-day ${fromIso(current).getMonth() !== month ? "outside" : ""}"><div class="calendar-date ${current === today ? "today" : ""}">${current.slice(-2)}</div>${items.slice(0, 4).map((story) => `<button class="calendar-story" data-story-id="${escapeHtml(story.id)}" title="${escapeHtml(story.title)}">${escapeHtml(story.planned_time || "")} ${escapeHtml(story.title)}</button>`).join("")}${items.length > 4 ? `<small>+${items.length - 4}</small>` : ""}</div>`;
   }).join("")}</div>`;
@@ -485,7 +518,7 @@ function pendingView() {
     ["Sem respons\xE1vel", (s) => !s.responsible_user_id && s.status !== "cancelled"],
     ["Programados para hoje", (s) => s.date === today && s.status === "scheduled"]
   ];
-  return `<div class="page-heading"><div><p class="eyebrow">Acompanhamento</p><h1>Pend\xEAncias</h1><p class="subtle">Itens dos \xFAltimos 30 dias e pr\xF3ximos 7 dias.</p></div><button class="button primary" data-action="new">${icon("plus")} Novo story</button></div>${filtersHtml()}${sections.map(([title, predicate]) => {
+  return `<div class="page-heading"><div><p class="eyebrow">Meu trabalho</p><h1>Pend\xEAncias</h1><p class="subtle">Itens dos \xFAltimos 30 dias e pr\xF3ximos 7 dias.</p></div><button class="button primary" data-action="new">${icon("plus")} Novo conte\xFAdo</button></div>${platformSelector()}${filtersHtml()}${sections.map(([title, predicate]) => {
     const items = stories.filter(predicate);
     return `<section class="section-card"><h2>${title} <span class="subtle">${items.length}</span></h2><div class="pending-list">${items.length ? items.map((story) => `<button class="pending-row" data-story-id="${escapeHtml(story.id)}"><strong>${escapeHtml(story.title)}</strong><small>${escapeHtml(state.hotels.find((h) => h.id === story.hotel_id)?.short_name)}</small><small>${escapeHtml(story.date)}</small><span class="status-pill" data-status="${story.status}">${statusLabels[story.status]}</span></button>`).join("") : '<p class="subtle">Nenhum item nesta categoria.</p>'}</div></section>`;
   }).join("")}`;
@@ -503,6 +536,7 @@ function openCampaignDialog(campaign) {
   dialog.querySelector("[name=name]").required = true;
   dialog.dataset.campaignId = campaign?.id || "";
   document.body.append(dialog);
+  hydrateIcons(dialog);
   dialog.showModal();
   dialog.querySelector("[name=name]")?.focus();
 }
@@ -514,6 +548,7 @@ function openPlannerUserDialog(user) {
   dialog.dataset.userId = user?.id || "";
   dialog.innerHTML = `<form id="plannerUserForm"><header><h2>${user ? "Editar usu\xE1rio" : "Novo usu\xE1rio"}</h2><button type="button" class="icon-button" data-action="close-planner-user" aria-label="Fechar">${icon("close")}</button></header><div class="form-grid">${field("display_name", "Nome", user?.display_name, "text", true)}${field("email", "E-mail", user?.email, "email", true)}${selectField2("access_level", "Acesso", user?.access_level || "editor", [{ id: "viewer", name: "Somente leitura" }, { id: "editor", name: "Editor" }, { id: "admin", name: "Administrador" }], true)}${user ? selectField2("status", "Status", user.status, [{ id: "active", name: "Ativo" }, { id: "disabled", name: "Desativado" }], true) : field("password", "Senha inicial", "", "password", true)}</div><footer><button type="button" class="button" data-action="close-planner-user">Cancelar</button><button class="button primary" type="submit">Salvar usu\xE1rio</button></footer></form>`;
   document.body.append(dialog);
+  hydrateIcons(dialog);
   dialog.showModal();
   dialog.querySelector("[name=display_name]")?.focus();
 }
@@ -527,6 +562,7 @@ function openPlannerPasswordDialog(userId) {
   dialog.dataset.userId = userId;
   dialog.innerHTML = `<form id="plannerPasswordForm"><header><h2>Redefinir senha</h2><button type="button" class="icon-button" data-action="close-planner-password" aria-label="Fechar">${icon("close")}</button></header><p class="subtle">${escapeHtml(user.display_name)}</p><div class="form-grid">${field("password", "Nova senha", "", "password", true)}</div><footer><button type="button" class="button" data-action="close-planner-password">Cancelar</button><button class="button primary" type="submit">Redefinir senha</button></footer></form>`;
   document.body.append(dialog);
+  hydrateIcons(dialog);
   dialog.showModal();
   dialog.querySelector("[name=password]")?.focus();
 }
@@ -563,14 +599,18 @@ function blogContext() {
 }
 function render() {
   renderNavigation();
+  const globalSearch = document.querySelector("#globalPlannerSearch");
+  if (globalSearch && globalSearch.value !== state.filters.search) globalSearch.value = state.filters.search;
   if (state.loading) {
     main.innerHTML = '<div class="loading-shell"><div class="skeleton title"></div><div class="skeleton toolbar"></div><div class="skeleton grid"></div></div>';
+    hydrateIcons(main);
     return;
   }
   if (state.view.startsWith("visits-")) main.innerHTML = visitsView(visitContext());
   else if (state.view.startsWith("blog-")) main.innerHTML = blogView(blogContext());
   else if (state.view === "overview") main.innerHTML = overviewView(state.stories, state.visits, state.posts, state.hotels, today, state.week);
   else main.innerHTML = { week: weekView, calendar: calendarView, pending: pendingView, campaigns: campaignsView, assets: assetsView, hotels: hotelsView, categories: categoriesView, performance: performanceView, users: usersView, settings: settingsView }[state.view]?.() || "";
+  hydrateIcons(main);
 }
 function accessLevelLabel(level) {
   return { viewer: "Leitura", editor: "Editor", admin: "Administrador" }[level];
@@ -582,6 +622,7 @@ function openDrawer(story, date = today, hotel = "") {
   state.createDate = date;
   state.createHotel = hotel;
   renderDrawer();
+  hydrateIcons(drawer);
   drawer.hidden = false;
   backdrop.hidden = false;
   document.body.style.overflow = "hidden";
@@ -606,6 +647,7 @@ async function openVisit(id, date = today) {
     state.createDate = date;
     state.visitDrawer = id ? await marketingRepository.visit(id) : "new";
     drawer.innerHTML = visitDrawerContent(state.visitDrawer === "new" ? null : state.visitDrawer);
+    hydrateIcons(drawer);
     drawer.hidden = false;
     backdrop.hidden = false;
     document.body.style.overflow = "hidden";
@@ -619,6 +661,7 @@ function openPost(post) {
   state.visitDrawer = null;
   state.postDrawer = post || "new";
   drawer.innerHTML = blogDrawer(post || null, blogContext());
+  hydrateIcons(drawer);
   drawer.hidden = false;
   backdrop.hidden = false;
   document.body.style.overflow = "hidden";
@@ -673,6 +716,7 @@ function renderDrawer() {
   mediaSection?.insertAdjacentHTML("beforeend", '<button type="button" class="button" data-action="choose-media" style="margin-top:10px">Escolher da biblioteca</button><div id="mediaChoices"></div>');
   if (story?.sequence_group_id) drawer.querySelector(".drawer-actions")?.insertAdjacentHTML("afterbegin", '<button type="button" class="button" data-action="duplicate-sequence">Duplicar sequ\xEAncia</button>');
   if (story) drawer.querySelector(".drawer-actions")?.insertAdjacentHTML("afterbegin", '<button type="button" class="button" data-action="move">Mover</button>');
+  hydrateIcons(drawer);
 }
 function formInput() {
   const form = drawer.querySelector("#storyForm");
@@ -750,6 +794,7 @@ async function refreshVisitDrawer() {
   state.visitDrawer = await marketingRepository.visit(state.visitDrawer.id);
   upsertVisit(state.visitDrawer);
   drawer.innerHTML = visitDrawerContent(state.visitDrawer);
+  hydrateIcons(drawer);
 }
 async function saveVisitForm(event) {
   event.preventDefault();
@@ -821,6 +866,13 @@ document.addEventListener("click", async (event) => {
   if (nav) {
     event.preventDefault();
     route(nav.dataset.view);
+    return;
+  }
+  const platform = target.closest("[data-platform]");
+  if (platform) {
+    state.platformFilter = platform.dataset.platform || "all";
+    updateUrl();
+    render();
     return;
   }
   const day = target.closest("[data-day]");
@@ -1220,6 +1272,18 @@ document.addEventListener("input", (event) => {
   replacement?.focus();
   if (cursor !== null) replacement?.setSelectionRange(cursor, cursor);
 });
+document.querySelector("#globalPlannerSearch").addEventListener("input", (event) => {
+  state.filters.search = event.target.value;
+  if (!["week", "calendar", "pending"].includes(state.view)) {
+    state.view = "week";
+    updateUrl();
+    void loadData();
+    return;
+  }
+  updateUrl();
+  render();
+  document.querySelector("#globalPlannerSearch")?.focus();
+});
 drawer.addEventListener("submit", (event) => {
   const id = event.target.id;
   if (id === "storyForm") void saveDrawer(event);
@@ -1291,6 +1355,10 @@ document.addEventListener("submit", async (event) => {
 });
 backdrop.addEventListener("click", closeDrawer);
 document.addEventListener("keydown", (event) => {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+    event.preventDefault();
+    document.querySelector("#globalPlannerSearch")?.focus();
+  }
   if (event.key === "Escape" && (state.drawer || state.visitDrawer || state.postDrawer)) closeDrawer();
   if ((event.key === "Enter" || event.key === " ") && event.target.matches(".story-card")) {
     event.preventDefault();
@@ -1393,6 +1461,7 @@ document.querySelector("#plannerLogout").addEventListener("click", async () => {
   plannerLoginForm.reset();
 });
 async function start() {
+  hydrateIcons(document);
   try {
     const response = await fetch("/api/v1/social-planner/session", { credentials: "same-origin" });
     if (response.status === 401) {
@@ -1413,6 +1482,7 @@ async function initializePlanner() {
   plannerLogin.hidden = true;
   plannerApp.hidden = false;
   document.querySelector("#currentUser").textContent = state.session?.user.display_name || "Marketing";
+  document.querySelector(".user-avatar").textContent = (state.session?.user.display_name || "M").slice(0, 1).toUpperCase();
   document.querySelector("#centralAdminLink").hidden = state.session?.auth_source !== "admin-master";
   if (state.view === "users" && !state.session?.permissions.includes("social-planner.users.manage")) state.view = "overview";
   [state.hotels, state.categories, state.pillars, state.channels, state.users, state.campaigns, state.sequences, { display_name: state.displayName }, state.calendar] = await Promise.all([apiStoryRepository.hotels(), apiStoryRepository.categories(), apiStoryRepository.pillars(), apiStoryRepository.channels(), apiStoryRepository.users(), apiStoryRepository.campaigns(), apiStoryRepository.sequences(), marketingRepository.settings(), marketingRepository.calendarStatus()]);

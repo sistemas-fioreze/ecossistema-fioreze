@@ -17,6 +17,7 @@ const state = {
   view: (location.pathname.split("/").filter(Boolean).at(-1) || "week") as View,
   week: weekStart(initialWeek), day: /^\d{4}-\d{2}-\d{2}$/.test(params.get("day") || "") ? params.get("day")! : today,
   filters: { hotel_id: params.get("hotel") || "all", status: params.get("status") || "all", category_id: params.get("category") || "all", responsible_user_id: params.get("responsible") || "all", campaign_id: params.get("campaign") || "all", search: params.get("q") || "" } as StoryFilters,
+  platformFilter: params.get("platform") || "all",
   hotels: [] as Hotel[], categories: [] as Category[], pillars: [] as ContentPillar[], channels: [] as SocialChannel[], users: [] as User[], campaigns: [] as Campaign[], sequences: [] as StorySequence[], stories: [] as Story[], visits: [] as Visit[], posts: [] as BlogPost[],
   displayName: "Fioreze Marketing Planner", visitFilter: params.get("visit_hotel") || "all", blogFilters: { hotel_id: params.get("blog_hotel") || "all", status: params.get("blog_status") || "all", category_id: params.get("blog_category") || "all", author_user_id: params.get("blog_author") || "all", campaign_id: params.get("blog_campaign") || "all" } as Record<string, string>, blogMode: "list" as "list" | "calendar",
   calendar: { provider: "google", configured: false, connected: false, connection: null } as CalendarConnectionStatus,
@@ -34,17 +35,17 @@ let toastTimer = 0;
 let loadVersion = 0;
 
 function icon(name: string): string {
-  const paths: Record<string, string> = {
-    calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18"/>',
-    grid: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 9v12"/>',
-    check: '<path d="m4 12 5 5L20 6"/>', image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="1"/><path d="m3 17 6-6 4 4 3-3 5 5"/>',
-    flag: '<path d="M4 21V4m0 1c5-4 11 4 16 0v11c-5 4-11-4-16 0"/>', settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M19 5l-1.5 1.5m-11 11L5 19"/>',
-    hotel: '<path d="M4 21V5l8-3 8 3v16M4 21h16M9 21v-5h6v5M8 8h.01M12 8h.01M16 8h.01M8 12h.01M12 12h.01M16 12h.01"/>',
-    users: '<circle cx="9" cy="8" r="4"/><path d="M2 21v-2a7 7 0 0 1 14 0v2M17 4a4 4 0 0 1 0 8M18 15a6 6 0 0 1 4 6"/>',
-    tag: '<path d="M3 3h9l9 9-9 9-9-9V3Z"/><circle cx="8" cy="8" r="1"/>', plus: '<path d="M12 4v16M4 12h16"/>',
-    left: '<path d="m15 18-6-6 6-6"/>', right: '<path d="m9 18 6-6-6-6"/>', alert: '<path d="M12 3 2 21h20L12 3Z"/><path d="M12 9v5m0 3h.01"/>', close: '<path d="M5 5l14 14M19 5 5 19"/>',
+  const names: Record<string, string> = {
+    calendar: "calendar-days", grid: "layout-dashboard", check: "check", image: "image",
+    flag: "pin", settings: "settings", hotel: "store", users: "users",
+    tag: "bookmark", plus: "plus", left: "chevron-left", right: "chevron-right",
+    alert: "triangle-alert", close: "x",
   };
-  return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[name] || paths.grid}</svg>`;
+  return `<i data-lucide="${names[name] || "layout-dashboard"}" aria-hidden="true"></i>`;
+}
+function hydrateIcons(root: ParentNode = document) {
+  const lucide = (globalThis as typeof globalThis & { FiorezeLucide?: { createIcons(input: unknown): void; icons: unknown } }).FiorezeLucide;
+  window.setTimeout(() => lucide?.createIcons({ icons: lucide.icons, root }), 0);
 }
 function notify(message: string, error = false) {
   toast.textContent = message; toast.classList.toggle("error", error); toast.hidden = false;
@@ -62,23 +63,22 @@ function updateUrl() {
   for (const [key, urlKey] of [["hotel_id", "hotel"], ["status", "status"], ["category_id", "category"], ["responsible_user_id", "responsible"], ["campaign_id", "campaign"], ["search", "q"]] as const) {
     const value = state.filters[key]; if (value && value !== "all") query.set(urlKey, value);
   }
+  if (state.platformFilter !== "all") query.set("platform", state.platformFilter);
   if (state.visitFilter !== "all") query.set("visit_hotel", state.visitFilter);
   for (const [key, urlKey] of [["hotel_id", "blog_hotel"], ["status", "blog_status"], ["category_id", "blog_category"], ["author_user_id", "blog_author"], ["campaign_id", "blog_campaign"]] as const) { if (state.blogFilters[key] && state.blogFilters[key] !== "all") query.set(urlKey, state.blogFilters[key]); }
   history.replaceState({}, "", `/socialplanner/${state.view}?${query}`);
 }
 function renderNavigation() {
   const groups = [
-    ["", [["overview", "Visão Geral", "grid"]]],
-    ["Redes Sociais", [["week", "Semana", "grid"], ["calendar", "Calendário", "calendar"], ["pending", "Pendências", "alert"]]],
-    ["Agenda de Hotéis", [["visits-week", "Semana", "hotel"], ["visits-calendar", "Calendário", "calendar"], ["visits-history", "Histórico", "check"]]],
-    ["Blog", [["blog-schedule", "Cronograma", "calendar"], ["blog-ideas", "Pautas", "grid"], ["blog-published", "Publicados", "check"]]],
-    ["Conteúdo", [["assets", "Banco de conteúdos", "image"], ["campaigns", "Campanhas", "flag"]]],
-    ["Análise", [["performance", "Desempenho", "grid"]]],
+    ["Trabalho", [["overview", "Visão geral", "grid"]]],
+    ["Planejamento", [["week", "Cronograma", "calendar"], ["calendar", "Calendário", "calendar"], ["pending", "Pendências", "alert"]]],
+    ["Produção", [["visits-week", "Visitas", "hotel"], ["visits-calendar", "Agenda de visitas", "calendar"], ["visits-history", "Histórico", "check"], ["blog-schedule", "Blog", "calendar"], ["blog-ideas", "Pautas", "grid"], ["blog-published", "Publicados", "check"]]],
+    ["Conteúdo", [["assets", "Banco de conteúdos", "image"], ["campaigns", "Campanhas", "flag"], ["performance", "Desempenho", "grid"]]],
     ["Administração", [["hotels", "Hotéis", "hotel"], ["categories", "Categorias", "tag"], ["users", "Usuários", "users"], ["settings", "Configurações", "settings"]]],
   ] as const;
   const visibleGroups = groups.map(([title, items]) => [title, items.filter(([key]) => key !== "users" || state.session?.permissions.includes("social-planner.users.manage"))] as const);
   document.querySelector<HTMLElement>("#navigation")!.innerHTML = visibleGroups.map(([title, items]) => `<div class="nav-group">${title ? `<span class="nav-heading">${title}</span>` : ""}${items.map(([key, label, symbol]) => `<a class="nav-link ${state.view === key ? "active" : ""}" href="/socialplanner/${key}" data-view="${key}" title="${label}">${icon(symbol)}<span class="nav-label">${label}</span></a>`).join("")}</div>`).join("");
-  document.querySelector<HTMLElement>("#viewTitle")!.textContent = views[state.view];
+  hydrateIcons(document.querySelector<HTMLElement>("#navigation")!);
 }
 function dateRange(): [string, string] {
   if (["calendar", "visits-calendar", "blog-schedule"].includes(state.view)) { const date = fromIso(state.day); return [isoDate(new Date(date.getFullYear(), date.getMonth(), 1)), isoDate(new Date(date.getFullYear(), date.getMonth() + 1, 0))]; }
@@ -112,10 +112,28 @@ async function loadManagedUsers() {
   } catch (error) { notify((error as Error).message, true); }
   finally { state.loading = false; render(); }
 }
+const platformOptions = [
+  { id: "all", label: "Todas", short: "ALL" },
+  { id: "instagram", label: "Instagram", short: "IG" },
+  { id: "tiktok", label: "TikTok", short: "TT" },
+  { id: "youtube", label: "YouTube", short: "YT" },
+  { id: "facebook", label: "Facebook", short: "FB" },
+] as const;
+function storyPlatforms(story: Story): string[] {
+  const fromChannels = (story.channels || []).map((channel) => channel.platform_key);
+  const raw = `${story.channel_ids || ""},${story.channel_names || ""}`.toLocaleLowerCase("pt-BR");
+  return [...new Set([...fromChannels, ...platformOptions.filter((item) => item.id !== "all" && raw.includes(item.id)).map((item) => item.id)])];
+}
 function visibleStories(): Story[] {
   const needle = state.filters.search.trim().toLocaleLowerCase("pt-BR");
-  return state.stories.filter((story) => !needle || [story.title, story.description, story.story_text, story.responsible_name].some((item) => item?.toLocaleLowerCase("pt-BR").includes(needle)))
+  return state.stories.filter((story) => (state.platformFilter === "all" || storyPlatforms(story).includes(state.platformFilter)) && (!needle || [story.title, story.description, story.story_text, story.responsible_name].some((item) => item?.toLocaleLowerCase("pt-BR").includes(needle))))
     .sort((a, b) => a.date.localeCompare(b.date) || a.hotel_id.localeCompare(b.hotel_id) || a.sort_order - b.sort_order || (a.planned_time || "").localeCompare(b.planned_time || ""));
+}
+function platformSelector(): string {
+  return `<div class="platform-selector" role="group" aria-label="Filtrar cronograma por rede">${platformOptions.map((platform) => {
+    const count = platform.id === "all" ? state.stories.length : state.stories.filter((story) => storyPlatforms(story).includes(platform.id)).length;
+    return `<button type="button" class="platform-option ${state.platformFilter === platform.id ? "active" : ""}" data-platform="${platform.id}" aria-pressed="${state.platformFilter === platform.id}"><span class="platform-mark ${platform.id}">${platform.short}</span><span>${platform.label}</span><strong>${count}</strong></button>`;
+  }).join("")}</div>`;
 }
 function selectedHotels(): Hotel[] { return state.hotels.filter((hotel) => state.filters.hotel_id === "all" || state.filters.hotel_id === hotel.id); }
 function filtersHtml(): string {
@@ -136,14 +154,26 @@ function metricsHtml(stories: Story[]): string {
 function weekHeading(): string {
   const end = addDays(state.week, 6);
   const label = `${dateLabel(state.week, { day: "2-digit", month: "short" })} — ${dateLabel(end, { day: "2-digit", month: "short" })}`;
-  return `<div class="page-heading"><div><p class="eyebrow">Planejamento editorial</p><h1>Semana</h1><p class="subtle">Conteúdos e seus destinos em todas as redes.</p></div><div class="heading-actions"><div class="week-nav"><button class="icon-button" data-action="prev-week" aria-label="Semana anterior">${icon("left")}</button><span class="week-label">${e(label)}</span><button class="icon-button" data-action="next-week" aria-label="Próxima semana">${icon("right")}</button></div><button class="button" data-action="today">Hoje</button><button class="button primary" data-action="new">${icon("plus")} Novo conteúdo</button></div></div>`;
+  return `<div class="page-heading"><div><p class="eyebrow">Social Planner</p><h1>Cronograma de redes</h1><p class="subtle">Planeje, distribua e acompanhe os conteúdos de todas as unidades.</p></div><div class="heading-actions"><div class="week-nav"><button class="icon-button" data-action="prev-week" aria-label="Semana anterior">${icon("left")}</button><span class="week-label">${e(label)}</span><button class="icon-button" data-action="next-week" aria-label="Próxima semana">${icon("right")}</button></div><button class="button" data-action="today">Hoje</button></div></div>`;
 }
 function card(story: Story): string {
   const category = state.categories.find((item) => item.id === story.category_id)?.name;
   const format = story.format ? formatLabels[story.format] : "";
   const members = story.sequence_group_id ? state.stories.filter((item) => item.sequence_group_id === story.sequence_group_id) : [];
   const sequence = story.sequence_group_id ? `<span class="sequence-badge">${story.sequence_position || members.indexOf(story) + 1}/${members.length}</span>` : "";
-  return `<article class="story-card" data-story-id="${e(story.id)}" data-status="${story.status}" draggable="true" tabindex="0" role="button" aria-label="${e(story.title)}, ${statusLabels[story.status]}"><div class="card-top"><span class="card-time">${e(story.planned_time || "—")}</span><span class="status-pill" data-status="${story.status}">${statusLabels[story.status]}</span></div>${story.thumbnail_url ? `<img class="card-thumb" src="${e(story.thumbnail_url)}" alt="">` : ""}<div class="card-title">${e(story.title)}</div><div class="card-meta">${story.channel_names ? `<span title="${e(story.channel_names)}">${e(story.channel_names)}</span>` : ""}${format ? `<span>${e(format)}</span>` : ""}${category ? `<span>${e(category)}</span>` : ""}</div><div class="card-footer"><span>${e(story.responsible_name || "Sem responsável")}</span>${sequence}</div></article>`;
+  const platforms = storyPlatforms(story).slice(0, 4);
+  return `<article class="story-card" data-story-id="${e(story.id)}" data-status="${story.status}" draggable="true" tabindex="0" role="button" aria-label="${e(story.title)}, ${statusLabels[story.status]}"><div class="card-top"><span class="card-time">${e(story.planned_time || "—")}</span><span class="platform-miniatures">${platforms.map((platform) => `<span class="platform-mini ${platform}">${platformOptions.find((item) => item.id === platform)?.short || platform.slice(0, 2).toUpperCase()}</span>`).join("")}</span></div>${story.thumbnail_url ? `<img class="card-thumb" src="${e(story.thumbnail_url)}" alt="">` : ""}<div class="card-title">${e(story.title)}</div><div class="card-meta">${format ? `<span>${e(format)}</span>` : ""}${category ? `<span>${e(category)}</span>` : ""}</div><div class="card-footer"><span class="status-pill" data-status="${story.status}">${statusLabels[story.status]}</span><span>${e(story.responsible_name || "Sem responsável")}</span>${sequence}</div></article>`;
+}
+function upcomingRail(): string {
+  const upcoming = state.stories.filter((story) => story.date >= today && story.status !== "cancelled")
+    .sort((a, b) => a.date.localeCompare(b.date) || (a.planned_time || "").localeCompare(b.planned_time || "")).slice(0, 6);
+  const visit = state.visits.filter((item) => item.date >= today && !["cancelled", "completed"].includes(item.status))
+    .sort((a, b) => a.date.localeCompare(b.date) || (a.start_time || "").localeCompare(b.start_time || ""))[0];
+  return `<aside class="upcoming-rail" aria-label="Próximos compromissos"><div class="rail-header"><h2>Próximos</h2><button type="button" data-view="calendar">Ver todos</button></div><div class="rail-date">A partir de hoje</div><div class="rail-items">${upcoming.length ? upcoming.map((story) => {
+    const hotel = state.hotels.find((item) => item.id === story.hotel_id)?.short_name || "Fioreze";
+    const platform = storyPlatforms(story)[0] || "all";
+    return `<button type="button" class="rail-item" data-story-id="${e(story.id)}"><span class="rail-time">${e(story.date === today ? story.planned_time || "Hoje" : dateLabel(story.date, { day: "2-digit", month: "short" }))}</span><span class="platform-mini ${platform}">${platformOptions.find((item) => item.id === platform)?.short || "--"}</span><span><strong>${e(story.title)}</strong><small>${e(hotel)}</small></span><span class="status-pill" data-status="${story.status}">${statusLabels[story.status]}</span></button>`;
+  }).join("") : '<p class="rail-empty">Nenhum conteúdo futuro neste período.</p>'}</div>${visit ? `<div class="rail-visit"><div class="rail-header"><h2>Visita agendada</h2><button type="button" data-view="visits-calendar">Ver agenda</button></div><button type="button" class="visit-preview" data-visit-id="${e(visit.id)}"><span class="visit-date"><strong>${visit.date.slice(-2)}</strong>${e(dateLabel(visit.date, { month: "short" }))}</span><span><strong>${e(visit.title)}</strong><small>${e(visit.start_time || "Horário livre")} · ${e(visit.hotel_name)}</small></span></button></div>` : ""}</aside>`;
 }
 function weekView(): string {
   const stories = visibleStories(); const hotels = selectedHotels();
@@ -162,14 +192,15 @@ function weekView(): string {
   const fullDays = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
   const board = `<div class="board-scroll"><div class="week-grid"><div class="grid-head hotel-head">Perfil / Hotel</div>${fullDays.map((name, index) => { const date = addDays(state.week, index); return `<div class="grid-head ${date === today ? "today" : ""}"><span>${name}</span><strong>${date.slice(-2)}</strong></div>`; }).join("")}${hotels.map((hotel) => `<div class="hotel-cell"><span class="avatar">${e(hotel.short_name.slice(0, 2).toUpperCase())}</span><strong>${e(hotel.short_name)}</strong><small>${e(hotel.instagram_username)}</small></div>${dayNames.map((_, index) => { const date = addDays(state.week, index); const items = stories.filter((s) => s.hotel_id === hotel.id && s.date === date); return `<div class="day-cell ${date === today ? "today" : ""} ${items.length ? "" : "empty"}" data-hotel="${e(hotel.id)}" data-date="${date}">${items.map(card).join("")}<button class="cell-add" data-action="new-cell" data-hotel="${e(hotel.id)}" data-date="${date}" aria-label="Adicionar story para ${e(hotel.short_name)} em ${date}" title="Novo story">+</button></div>`; }).join("")}`).join("")}</div></div>`;
   const mobile = `<div class="mobile-days">${dayNames.map((name, index) => { const date = addDays(state.week, index); return `<button class="${date === state.day ? "active" : ""}" data-day="${date}">${name}<br><strong>${date.slice(-2)}</strong></button>`; }).join("")}</div><div class="mobile-board">${hotels.map((hotel) => { const items = stories.filter((s) => s.hotel_id === hotel.id && s.date === state.day); return `<section class="mobile-hotel"><h3>${e(hotel.short_name)} · ${e(hotel.instagram_username)}</h3>${items.length ? items.map(card).join("") : '<p class="subtle">Nenhum story planejado.</p>'}<button class="cell-add" data-action="new-cell" data-hotel="${e(hotel.id)}" data-date="${state.day}" aria-label="Adicionar story">+ Adicionar</button></section>`; }).join("")}</div>`;
-  return `${weekHeading()}${filtersHtml()}${metricsHtml(stories)}${alerts.length ? `<div class="notice-bar">${icon("alert")} ${e(alerts.join(" · "))}</div>` : ""}${hotels.length ? `${board}${mobile}` : emptyState("Nenhum hotel corresponde ao filtro.")}`;
+  const content = `${filtersHtml()}${metricsHtml(stories)}${alerts.length ? `<div class="notice-bar">${icon("alert")} ${e(alerts.join(" · "))}</div>` : ""}${hotels.length ? `${board}${mobile}` : emptyState("Nenhum hotel corresponde ao filtro.")}`;
+  return `${weekHeading()}${platformSelector()}<div class="schedule-layout"><div class="schedule-main">${content}</div>${upcomingRail()}</div>`;
 }
 function calendarView(): string {
   const date = fromIso(state.day), year = date.getFullYear(), month = date.getMonth();
   const first = new Date(year, month, 1), offset = (first.getDay() + 6) % 7;
   const start = isoDate(new Date(year, month, 1 - offset));
   const stories = visibleStories();
-  return `<div class="page-heading"><div><p class="eyebrow">Visão mensal</p><h1>Calendário</h1><p class="subtle">${e(dateLabel(isoDate(first), { month: "long", year: "numeric" }))}</p></div><div class="heading-actions"><button class="button" data-action="prev-month">${icon("left")}</button><button class="button" data-action="next-month">${icon("right")}</button><button class="button primary" data-action="new">${icon("plus")} Novo story</button></div></div>${filtersHtml()}<div class="calendar-grid">${["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map((day) => `<div class="calendar-weekday">${day}</div>`).join("")}${Array.from({ length: 42 }, (_, index) => { const current = addDays(start, index), items = stories.filter((s) => s.date === current); return `<div class="calendar-day ${fromIso(current).getMonth() !== month ? "outside" : ""}"><div class="calendar-date ${current === today ? "today" : ""}">${current.slice(-2)}</div>${items.slice(0, 4).map((story) => `<button class="calendar-story" data-story-id="${e(story.id)}" title="${e(story.title)}">${e(story.planned_time || "")} ${e(story.title)}</button>`).join("")}${items.length > 4 ? `<small>+${items.length - 4}</small>` : ""}</div>`; }).join("")}</div>`;
+  return `<div class="page-heading"><div><p class="eyebrow">Planejamento editorial</p><h1>Calendário</h1><p class="subtle">${e(dateLabel(isoDate(first), { month: "long", year: "numeric" }))}</p></div><div class="heading-actions"><button class="button" data-action="prev-month">${icon("left")}</button><button class="button" data-action="next-month">${icon("right")}</button><button class="button primary" data-action="new">${icon("plus")} Novo conteúdo</button></div></div>${platformSelector()}${filtersHtml()}<div class="calendar-grid">${["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map((day) => `<div class="calendar-weekday">${day}</div>`).join("")}${Array.from({ length: 42 }, (_, index) => { const current = addDays(start, index), items = stories.filter((s) => s.date === current); return `<div class="calendar-day ${fromIso(current).getMonth() !== month ? "outside" : ""}"><div class="calendar-date ${current === today ? "today" : ""}">${current.slice(-2)}</div>${items.slice(0, 4).map((story) => `<button class="calendar-story" data-story-id="${e(story.id)}" title="${e(story.title)}">${e(story.planned_time || "")} ${e(story.title)}</button>`).join("")}${items.length > 4 ? `<small>+${items.length - 4}</small>` : ""}</div>`; }).join("")}</div>`;
 }
 function pendingView(): string {
   const stories = visibleStories();
@@ -180,7 +211,7 @@ function pendingView(): string {
     ["Sem responsável", (s) => !s.responsible_user_id && s.status !== "cancelled"],
     ["Programados para hoje", (s) => s.date === today && s.status === "scheduled"],
   ];
-  return `<div class="page-heading"><div><p class="eyebrow">Acompanhamento</p><h1>Pendências</h1><p class="subtle">Itens dos últimos 30 dias e próximos 7 dias.</p></div><button class="button primary" data-action="new">${icon("plus")} Novo story</button></div>${filtersHtml()}${sections.map(([title, predicate]) => { const items = stories.filter(predicate); return `<section class="section-card"><h2>${title} <span class="subtle">${items.length}</span></h2><div class="pending-list">${items.length ? items.map((story) => `<button class="pending-row" data-story-id="${e(story.id)}"><strong>${e(story.title)}</strong><small>${e(state.hotels.find((h) => h.id === story.hotel_id)?.short_name)}</small><small>${e(story.date)}</small><span class="status-pill" data-status="${story.status}">${statusLabels[story.status]}</span></button>`).join("") : '<p class="subtle">Nenhum item nesta categoria.</p>'}</div></section>`; }).join("")}`;
+  return `<div class="page-heading"><div><p class="eyebrow">Meu trabalho</p><h1>Pendências</h1><p class="subtle">Itens dos últimos 30 dias e próximos 7 dias.</p></div><button class="button primary" data-action="new">${icon("plus")} Novo conteúdo</button></div>${platformSelector()}${filtersHtml()}${sections.map(([title, predicate]) => { const items = stories.filter(predicate); return `<section class="section-card"><h2>${title} <span class="subtle">${items.length}</span></h2><div class="pending-list">${items.length ? items.map((story) => `<button class="pending-row" data-story-id="${e(story.id)}"><strong>${e(story.title)}</strong><small>${e(state.hotels.find((h) => h.id === story.hotel_id)?.short_name)}</small><small>${e(story.date)}</small><span class="status-pill" data-status="${story.status}">${statusLabels[story.status]}</span></button>`).join("") : '<p class="subtle">Nenhum item nesta categoria.</p>'}</div></section>`; }).join("")}`;
 }
 function campaignsView(): string {
   return `<div class="page-heading"><div><p class="eyebrow">Conteúdo</p><h1>Campanhas</h1><p class="subtle">Uma campanha conecta Stories, visitas e artigos em diferentes hotéis.</p></div><button class="button primary" data-action="new-campaign">${icon("plus")} Nova campanha</button></div><div class="campaign-grid">${state.campaigns.map((campaign) => `<article class="campaign-card"><h2>${e(campaign.name)}</h2><p>${e(campaign.description || "Sem descrição")}</p><p>${e(campaign.start_date || "Sem início")} — ${e(campaign.end_date || "Sem fim")}</p><div class="campaign-stats"><span>${campaign.story_count} stories · ${campaign.published_count} publicados</span><span>${campaign.visit_count} visitas</span><span>${campaign.article_count} artigos</span><span>${campaign.hotel_count} hotéis</span></div><button type="button" class="button" data-action="edit-campaign" data-campaign-id="${e(campaign.id)}" style="margin-top:14px">Editar campanha</button></article>`).join("")}</div>${!state.campaigns.length ? '<div class="empty-state"><h2>Nenhuma campanha cadastrada.</h2><p>Crie uma campanha para conectar Stories, visitas e artigos.</p><button class="button primary" data-action="new-campaign">Nova campanha</button></div>' : ""}`;
@@ -190,21 +221,21 @@ function openCampaignDialog(campaign?: Campaign) {
   const dialog = document.createElement("dialog"); dialog.id = "campaignDialog"; dialog.className = "campaign-dialog";
   dialog.innerHTML = `<form id="campaignForm"><header><h2>${campaign ? "Editar campanha" : "Nova campanha"}</h2><button type="button" class="icon-button" data-action="close-campaign" aria-label="Fechar">${icon("close")}</button></header><div class="form-grid">${field("name", "Nome", campaign?.name, "text", true)}${field("description", "Descrição", campaign?.description, "textarea", true)}${field("start_date", "Início", campaign?.start_date, "date")}${field("end_date", "Término", campaign?.end_date, "date")}${selectField("status", "Status", campaign?.status || "planned", [{ id: "planned", name: "Planejada" }, { id: "active", name: "Ativa" }, { id: "completed", name: "Concluída" }, { id: "cancelled", name: "Cancelada" }])}</div><footer><button type="button" class="button" data-action="close-campaign">Cancelar</button><button class="button primary" type="submit">Salvar campanha</button></footer></form>`;
   dialog.querySelector<HTMLInputElement>("[name=name]")!.required = true;
-  dialog.dataset.campaignId = campaign?.id || ""; document.body.append(dialog); dialog.showModal(); dialog.querySelector<HTMLInputElement>("[name=name]")?.focus();
+  dialog.dataset.campaignId = campaign?.id || ""; document.body.append(dialog); hydrateIcons(dialog); dialog.showModal(); dialog.querySelector<HTMLInputElement>("[name=name]")?.focus();
 }
 function openPlannerUserDialog(user?: ManagedPlannerUser) {
   document.querySelector<HTMLDialogElement>("#plannerUserDialog")?.remove();
   const dialog = document.createElement("dialog"); dialog.id = "plannerUserDialog"; dialog.className = "campaign-dialog";
   dialog.dataset.userId = user?.id || "";
   dialog.innerHTML = `<form id="plannerUserForm"><header><h2>${user ? "Editar usuário" : "Novo usuário"}</h2><button type="button" class="icon-button" data-action="close-planner-user" aria-label="Fechar">${icon("close")}</button></header><div class="form-grid">${field("display_name", "Nome", user?.display_name, "text", true)}${field("email", "E-mail", user?.email, "email", true)}${selectField("access_level", "Acesso", user?.access_level || "editor", [{ id: "viewer", name: "Somente leitura" }, { id: "editor", name: "Editor" }, { id: "admin", name: "Administrador" }], true)}${user ? selectField("status", "Status", user.status, [{ id: "active", name: "Ativo" }, { id: "disabled", name: "Desativado" }], true) : field("password", "Senha inicial", "", "password", true)}</div><footer><button type="button" class="button" data-action="close-planner-user">Cancelar</button><button class="button primary" type="submit">Salvar usuário</button></footer></form>`;
-  document.body.append(dialog); dialog.showModal(); dialog.querySelector<HTMLInputElement>("[name=display_name]")?.focus();
+  document.body.append(dialog); hydrateIcons(dialog); dialog.showModal(); dialog.querySelector<HTMLInputElement>("[name=display_name]")?.focus();
 }
 function openPlannerPasswordDialog(userId: string) {
   document.querySelector<HTMLDialogElement>("#plannerPasswordDialog")?.remove();
   const user = state.managedUsers.find((entry) => entry.id === userId); if (!user) return;
   const dialog = document.createElement("dialog"); dialog.id = "plannerPasswordDialog"; dialog.className = "campaign-dialog"; dialog.dataset.userId = userId;
   dialog.innerHTML = `<form id="plannerPasswordForm"><header><h2>Redefinir senha</h2><button type="button" class="icon-button" data-action="close-planner-password" aria-label="Fechar">${icon("close")}</button></header><p class="subtle">${e(user.display_name)}</p><div class="form-grid">${field("password", "Nova senha", "", "password", true)}</div><footer><button type="button" class="button" data-action="close-planner-password">Cancelar</button><button class="button primary" type="submit">Redefinir senha</button></footer></form>`;
-  document.body.append(dialog); dialog.showModal(); dialog.querySelector<HTMLInputElement>("[name=password]")?.focus();
+  document.body.append(dialog); hydrateIcons(dialog); dialog.showModal(); dialog.querySelector<HTMLInputElement>("[name=password]")?.focus();
 }
 function assetsView(): string { return `<div class="page-heading"><div><p class="eyebrow">Conteúdo</p><h1>Banco de conteúdos</h1><p class="subtle">Fotos e vídeos são acessados diretamente pelo editor de Stories.</p></div></div><div class="section-card"><h2>Biblioteca compartilhada</h2><p class="subtle">Ao editar um Story, selecione o hotel e use “Escolher mídia”. O Planner mostra apenas arquivos ativos da unidade escolhida.</p>${state.session?.auth_source === "admin-master" ? '<p><a class="button" href="/admin/portais/media/">Administrar biblioteca na Central</a></p>' : ""}</div>`; }
 function hotelsView(): string { return `<div class="page-heading"><div><p class="eyebrow">Administração</p><h1>Hotéis</h1><p class="subtle">Perfis incluídos no planejamento editorial.</p></div></div><div class="section-card"><div class="pending-list">${state.hotels.map((hotel) => `<div class="pending-row"><strong>${e(hotel.name)}</strong><small>${e(hotel.instagram_username)}</small><small>${hotel.active ? "Ativo" : "Inativo"}</small></div>`).join("")}</div></div>`; }
@@ -233,11 +264,14 @@ function visitContext(): VisitContext { return { visits: state.visits, hotels: s
 function blogContext(): BlogContext { return { posts: state.posts, hotels: state.hotels, categories: state.categories, users: state.users, campaigns: state.campaigns, day: state.day, today, view: state.view as BlogContext["view"], mode: state.blogMode, filters: state.blogFilters }; }
 function render() {
   renderNavigation();
-  if (state.loading) { main.innerHTML = '<div class="loading-shell"><div class="skeleton title"></div><div class="skeleton toolbar"></div><div class="skeleton grid"></div></div>'; return; }
+  const globalSearch = document.querySelector<HTMLInputElement>("#globalPlannerSearch");
+  if (globalSearch && globalSearch.value !== state.filters.search) globalSearch.value = state.filters.search;
+  if (state.loading) { main.innerHTML = '<div class="loading-shell"><div class="skeleton title"></div><div class="skeleton toolbar"></div><div class="skeleton grid"></div></div>'; hydrateIcons(main); return; }
   if (state.view.startsWith("visits-")) main.innerHTML = visitsView(visitContext());
   else if (state.view.startsWith("blog-")) main.innerHTML = blogView(blogContext());
   else if (state.view === "overview") main.innerHTML = overviewView(state.stories, state.visits, state.posts, state.hotels, today, state.week);
   else main.innerHTML = ({ week: weekView, calendar: calendarView, pending: pendingView, campaigns: campaignsView, assets: assetsView, hotels: hotelsView, categories: categoriesView, performance: performanceView, users: usersView, settings: settingsView } as Partial<Record<View, () => string>>)[state.view]?.() || "";
+  hydrateIcons(main);
 }
 
 function accessLevelLabel(level: ManagedPlannerUser["access_level"]): string {
@@ -247,7 +281,7 @@ function accessLevelLabel(level: ManagedPlannerUser["access_level"]): string {
 function openDrawer(story: Story | "new", date = today, hotel = "") {
   state.visitDrawer = null; state.postDrawer = null;
   state.drawer = story; state.createDate = date; state.createHotel = hotel;
-  renderDrawer(); drawer.hidden = false; backdrop.hidden = false;
+  renderDrawer(); hydrateIcons(drawer); drawer.hidden = false; backdrop.hidden = false;
   document.body.style.overflow = "hidden"; drawer.querySelector<HTMLInputElement>("input[name=title]")?.focus();
 }
 function closeDrawer() { state.drawer = null; state.visitDrawer = null; state.postDrawer = null; drawer.hidden = true; backdrop.hidden = true; document.body.style.overflow = ""; }
@@ -259,14 +293,14 @@ async function openVisit(id?: string, date = today) {
   try {
     state.drawer = null; state.postDrawer = null; state.createDate = date;
     state.visitDrawer = id ? await marketingRepository.visit(id) : "new";
-    drawer.innerHTML = visitDrawerContent(state.visitDrawer === "new" ? null : state.visitDrawer);
+    drawer.innerHTML = visitDrawerContent(state.visitDrawer === "new" ? null : state.visitDrawer); hydrateIcons(drawer);
     drawer.hidden = false; backdrop.hidden = false; document.body.style.overflow = "hidden";
     drawer.querySelector<HTMLInputElement>("[name=title]")?.focus();
   } catch (error) { notify((error as Error).message, true); }
 }
 function openPost(post?: BlogPost) {
   state.drawer = null; state.visitDrawer = null; state.postDrawer = post || "new";
-  drawer.innerHTML = blogDrawer(post || null, blogContext()); drawer.hidden = false; backdrop.hidden = false; document.body.style.overflow = "hidden";
+  drawer.innerHTML = blogDrawer(post || null, blogContext()); hydrateIcons(drawer); drawer.hidden = false; backdrop.hidden = false; document.body.style.overflow = "hidden";
   drawer.querySelector<HTMLInputElement>("[name=title]")?.focus();
 }
 function field(name: string, label: string, value: unknown, kind: "text" | "date" | "time" | "textarea" | "url" | "email" | "password" = "text", full = false): string {
@@ -317,6 +351,7 @@ function renderDrawer() {
   mediaSection?.insertAdjacentHTML("beforeend", '<button type="button" class="button" data-action="choose-media" style="margin-top:10px">Escolher da biblioteca</button><div id="mediaChoices"></div>');
   if (story?.sequence_group_id) drawer.querySelector(".drawer-actions")?.insertAdjacentHTML("afterbegin", '<button type="button" class="button" data-action="duplicate-sequence">Duplicar sequência</button>');
   if (story) drawer.querySelector(".drawer-actions")?.insertAdjacentHTML("afterbegin", '<button type="button" class="button" data-action="move">Mover</button>');
+  hydrateIcons(drawer);
 }
 function formInput(): StoryInput {
   const form = drawer.querySelector<HTMLFormElement>("#storyForm")!; const data = new FormData(form);
@@ -355,6 +390,7 @@ async function refreshVisitDrawer() {
   state.visitDrawer = await marketingRepository.visit(state.visitDrawer.id);
   upsertVisit(state.visitDrawer);
   drawer.innerHTML = visitDrawerContent(state.visitDrawer);
+  hydrateIcons(drawer);
 }
 async function saveVisitForm(event: SubmitEvent) {
   event.preventDefault(); if (state.saving) return;
@@ -400,6 +436,7 @@ function planningAlerts(): number { return visibleStories().filter((s) => s.date
 document.addEventListener("click", async (event) => {
   const target = event.target as HTMLElement;
   const nav = target.closest<HTMLAnchorElement>("[data-view]"); if (nav) { event.preventDefault(); route(nav.dataset.view as View); return; }
+  const platform = target.closest<HTMLButtonElement>("[data-platform]"); if (platform) { state.platformFilter = platform.dataset.platform || "all"; updateUrl(); render(); return; }
   const day = target.closest<HTMLButtonElement>("[data-day]"); if (day) { state.day = day.dataset.day!; updateUrl(); render(); return; }
   const visitElement = target.closest<HTMLElement>("[data-visit-id]"); if (visitElement && !target.closest("[data-action]")) { await openVisit(visitElement.dataset.visitId); return; }
   const postElement = target.closest<HTMLElement>("[data-post-id]"); if (postElement && !target.closest("[data-action]")) { const post = state.posts.find((item) => item.id === postElement.dataset.postId); if (post) openPost(post); return; }
@@ -483,6 +520,11 @@ document.addEventListener("change", (event) => {
   (state.filters as unknown as Record<string, string>)[target.dataset.filter] = target.value; updateUrl(); void loadData();
 });
 document.addEventListener("input", (event) => { const target = event.target as HTMLInputElement; if (target.dataset.filter !== "search") return; state.filters.search = target.value; updateUrl(); const active = document.activeElement as HTMLInputElement; const cursor = active.selectionStart; render(); const replacement = main.querySelector<HTMLInputElement>("[data-filter=search]"); replacement?.focus(); if (cursor !== null) replacement?.setSelectionRange(cursor, cursor); });
+document.querySelector<HTMLInputElement>("#globalPlannerSearch")!.addEventListener("input", (event) => {
+  state.filters.search = (event.target as HTMLInputElement).value;
+  if (!["week", "calendar", "pending"].includes(state.view)) { state.view = "week"; updateUrl(); void loadData(); return; }
+  updateUrl(); render(); document.querySelector<HTMLInputElement>("#globalPlannerSearch")?.focus();
+});
 drawer.addEventListener("submit", (event) => { const id = (event.target as HTMLElement).id; if (id === "storyForm") void saveDrawer(event); if (id === "visitForm") void saveVisitForm(event); if (id === "blogForm") void savePostForm(event); });
 document.addEventListener("submit", async (event) => {
   if ((event.target as HTMLElement).id === "plannerSettingsForm") { event.preventDefault(); const form = event.target as HTMLFormElement; const name = String(new FormData(form).get("display_name") || "").trim(); try { const saved = await marketingRepository.saveSettings(name); state.displayName = saved.display_name; document.querySelector<HTMLElement>("#plannerName")!.textContent = saved.display_name; document.title = saved.display_name; render(); notify("Nome atualizado."); } catch (error) { notify((error as Error).message, true); } return; }
@@ -506,7 +548,7 @@ document.addEventListener("submit", async (event) => {
   } catch (error) { notify((error as Error).message, true); }
 });
 backdrop.addEventListener("click", closeDrawer);
-document.addEventListener("keydown", (event) => { if (event.key === "Escape" && (state.drawer || state.visitDrawer || state.postDrawer)) closeDrawer(); if ((event.key === "Enter" || event.key === " ") && (event.target as HTMLElement).matches(".story-card")) { event.preventDefault(); const id = (event.target as HTMLElement).dataset.storyId; if (id) void repository.story(id).then(openDrawer).catch((error) => notify((error as Error).message, true)); } });
+document.addEventListener("keydown", (event) => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") { event.preventDefault(); document.querySelector<HTMLInputElement>("#globalPlannerSearch")?.focus(); } if (event.key === "Escape" && (state.drawer || state.visitDrawer || state.postDrawer)) closeDrawer(); if ((event.key === "Enter" || event.key === " ") && (event.target as HTMLElement).matches(".story-card")) { event.preventDefault(); const id = (event.target as HTMLElement).dataset.storyId; if (id) void repository.story(id).then(openDrawer).catch((error) => notify((error as Error).message, true)); } });
 document.addEventListener("dragstart", (event) => { const blog = (event.target as HTMLElement).closest<HTMLElement>(".kanban-card"); if (blog) { event.dataTransfer?.setData("application/x-fioreze-blog", blog.dataset.postId || ""); event.dataTransfer!.effectAllowed = "move"; return; } const card = (event.target as HTMLElement).closest<HTMLElement>(".story-card"); if (!card) return; event.dataTransfer?.setData("text/plain", card.dataset.storyId || ""); event.dataTransfer!.effectAllowed = "move"; card.classList.add("dragging"); });
 document.addEventListener("dragend", (event) => { (event.target as HTMLElement).closest<HTMLElement>(".story-card")?.classList.remove("dragging"); document.querySelectorAll(".drag-over").forEach((item) => item.classList.remove("drag-over")); });
 document.addEventListener("dragover", (event) => { const cell = (event.target as HTMLElement).closest<HTMLElement>(".day-cell, .kanban-column"); if (!cell) return; event.preventDefault(); cell.classList.add("drag-over"); });
@@ -539,6 +581,7 @@ document.querySelector<HTMLElement>("#plannerLogout")!.addEventListener("click",
 });
 
 async function start() {
+  hydrateIcons(document);
   try {
     const response = await fetch("/api/v1/social-planner/session", { credentials: "same-origin" });
     if (response.status === 401) {
@@ -554,6 +597,7 @@ async function start() {
 async function initializePlanner() {
   plannerLogin.hidden = true; plannerApp.hidden = false;
   document.querySelector<HTMLElement>("#currentUser")!.textContent = state.session?.user.display_name || "Marketing";
+  document.querySelector<HTMLElement>(".user-avatar")!.textContent = (state.session?.user.display_name || "M").slice(0, 1).toUpperCase();
   document.querySelector<HTMLElement>("#centralAdminLink")!.hidden = state.session?.auth_source !== "admin-master";
   if (state.view === "users" && !state.session?.permissions.includes("social-planner.users.manage")) state.view = "overview";
   [state.hotels, state.categories, state.pillars, state.channels, state.users, state.campaigns, state.sequences, { display_name: state.displayName }, state.calendar] = await Promise.all([repository.hotels(), repository.categories(), repository.pillars(), repository.channels(), repository.users(), repository.campaigns(), repository.sequences(), marketingRepository.settings(), marketingRepository.calendarStatus()]);

@@ -7,6 +7,8 @@ const routes = fs.readFileSync("src/modules/social-planner/routes.js", "utf8");
 const calendar = fs.readFileSync("src/services/social-planner-calendar.js", "utf8");
 const app = fs.readFileSync("social-planner/app.ts", "utf8");
 const visits = fs.readFileSync("social-planner/visits.ts", "utf8");
+const shell = fs.readFileSync("public/admin/social-planner/index.html", "utf8");
+const styles = fs.readFileSync("public/css/modules/social-planner/planner.css", "utf8");
 
 test("Planner modela destinos sociais e reaproveitamento por conteudo", () => {
   assert.match(migration, /CREATE TABLE IF NOT EXISTS social_channels/);
@@ -38,4 +40,19 @@ test("Google Calendar usa OAuth por usuario sem segredos no cliente", () => {
   assert.match(calendar, /GOOGLE_CALENDAR_CLIENT_SECRET/);
   assert.match(calendar, /AbortSignal\.timeout\(10_000\)/);
   assert.doesNotMatch(app, /GOOGLE_CALENDAR_CLIENT_SECRET|GOOGLE_CALENDAR_TOKEN_KEY/);
+});
+
+test("Planner usa shell escuro integrado e filtra cronograma por rede", () => {
+  assert.match(shell, /fioreze-social-planner-logo\.png/);
+  assert.match(shell, /id="globalPlannerSearch"/);
+  assert.match(shell, /lucide-erp\.min\.js/);
+  assert.match(styles, /color-scheme:\s*dark/);
+  assert.match(styles, /\.schedule-layout/);
+  assert.match(styles, /\.upcoming-rail/);
+  assert.match(app, /platformFilter/);
+  assert.match(app, /Instagram/);
+  assert.match(app, /TikTok/);
+  assert.match(app, /YouTube/);
+  assert.match(app, /Facebook/);
+  assert.match(app, /data-platform/);
 });
