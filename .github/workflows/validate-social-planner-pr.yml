@@ -1,0 +1,48 @@
+name: Validate Social Planner PR
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/validate-social-planner-pr.yml"
+      - "app/public/admin/**"
+      - "app/public/css/modules/admin/**"
+      - "app/public/js/modules/admin/**"
+      - "app/public/css/modules/social-planner/**"
+      - "app/public/js/modules/social-planner/**"
+      - "app/social-planner/**"
+      - "app/src/**"
+      - "app/scripts/**"
+      - "app/package.json"
+      - "app/package-lock.json"
+      - "app/wrangler.jsonc"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-social-planner-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - name: Baixar repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Validar aplicação
+        run: npm run validate

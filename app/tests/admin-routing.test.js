@@ -22,8 +22,14 @@ test("/socialplanner leva ao Marketing Planner no mesmo domínio e preserva filt
   const destination = new URL(response.headers.get("location"));
 
   assert.equal(response.status, 308);
-  assert.equal(destination.pathname, "/admin/social-planner/overview");
+  assert.equal(destination.pathname, "/socialplanner/overview");
   assert.equal(destination.search, "?week=2026-09-28&hotel=all");
+
+  const planner = await fetch("/socialplanner/overview", { redirect: "manual" });
+  const plannerHtml = await planner.text();
+  assert.equal(planner.status, 200);
+  assert.match(plannerHtml, /\/admin\/social-planner\//);
+
   assert.equal((await fetch("/socialplanner-extra", { redirect: "manual" })).status, 404);
 });
 

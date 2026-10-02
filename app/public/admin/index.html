@@ -19,22 +19,53 @@
   <body data-admin-section="home" data-admin-design="workspace">
     <main id="adminApp" class="admin-shell" data-state="loading">
       <section class="admin-login" data-view="login" hidden>
-        <form id="loginForm" class="admin-access-card" autocomplete="on">
-          <div class="brand-mark" aria-hidden="true"></div>
-          <p class="eyebrow">Ecossistema Fioreze</p>
-          <h1>Acesso administrativo</h1>
-          <label>
-            <span>E-mail</span>
-            <input id="loginEmail" name="email" type="email" autocomplete="username" placeholder="E-mail" required>
-          </label>
-          <label>
-            <span>Senha</span>
-            <input id="loginPassword" name="password" type="password" autocomplete="current-password" placeholder="Senha" required>
-          </label>
-          <div id="loginTurnstile" class="admin-turnstile" aria-label="Verificação de segurança" hidden></div>
-          <button id="loginButton" class="admin-primary-button" type="submit">Entrar</button>
-          <p id="loginError" class="admin-error" role="alert" aria-live="polite"></p>
-        </form>
+        <div class="admin-login-shell">
+          <aside id="loginContextPanel" class="admin-login-context" aria-hidden="true">
+            <div class="admin-login-context-brand">
+              <span class="admin-login-context-monogram" aria-hidden="true">F</span>
+              <span>
+                <strong>Fioreze</strong>
+                <small>Marketing Planner</small>
+              </span>
+            </div>
+            <div class="admin-login-context-copy">
+              <p>Planejamento de conteúdo</p>
+              <h2>Uma visão clara da semana de Marketing.</h2>
+              <span>Organize Stories, visitas, campanhas e pautas em um único espaço de trabalho.</span>
+            </div>
+            <div class="admin-login-preview" aria-hidden="true">
+              <div class="admin-login-preview-head">
+                <span>Esta semana</span>
+                <small>Marketing Fioreze</small>
+              </div>
+              <div class="admin-login-preview-grid">
+                <article><i></i><strong>Stories</strong><span>Planejados e prontos</span></article>
+                <article><i></i><strong>Visitas</strong><span>Captação nos hotéis</span></article>
+                <article><i></i><strong>Conteúdo</strong><span>Campanhas e blog</span></article>
+              </div>
+            </div>
+            <p class="admin-login-context-foot">Uso interno · Rede Fioreze</p>
+          </aside>
+
+          <form id="loginForm" class="admin-access-card" autocomplete="on">
+            <div class="brand-mark" aria-hidden="true"></div>
+            <p id="loginEyebrow" class="eyebrow">Ecossistema Fioreze</p>
+            <h1 id="loginTitle">Acesso administrativo</h1>
+            <p id="loginSubtitle" class="admin-login-subtitle">Entre com sua conta para continuar.</p>
+            <label>
+              <span>E-mail</span>
+              <input id="loginEmail" name="email" type="email" autocomplete="username" placeholder="seuemail@hoteisfioreze.com.br" required>
+            </label>
+            <label>
+              <span>Senha</span>
+              <input id="loginPassword" name="password" type="password" autocomplete="current-password" placeholder="Digite sua senha" required>
+            </label>
+            <div id="loginTurnstile" class="admin-turnstile" aria-label="Verificação de segurança" hidden></div>
+            <button id="loginButton" class="admin-primary-button" type="submit">Entrar</button>
+            <p id="loginError" class="admin-error" role="alert" aria-live="polite"></p>
+            <p class="admin-login-meta">Ambiente interno e protegido do Ecossistema Fioreze.</p>
+          </form>
+        </div>
       </section>
 
       <section class="admin-dashboard" data-view="dashboard" hidden>

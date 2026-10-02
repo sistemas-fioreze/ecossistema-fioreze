@@ -71,8 +71,15 @@ async function handleRequest(request, env, ctx) {
     if (request.method !== "GET" && request.method !== "HEAD") {
       return servePublicNotFoundPage(request, env);
     }
-    url.pathname = "/admin/social-planner/overview";
+    url.pathname = "/socialplanner/overview";
     return Response.redirect(url.toString(), 308);
+  }
+
+  if (url.pathname.startsWith("/socialplanner/")) {
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      return servePublicNotFoundPage(request, env);
+    }
+    return serveAsset(request, env, "/admin/social-planner/");
   }
 
   if (isRetiredHumanDownloadPath(url.pathname)) {
@@ -429,6 +436,7 @@ function isPublicHtmlNotFound(pathname, shortLinkHost) {
 function isAdminRequestPath(pathname) {
   return (
     pathname.startsWith("/admin/")
+    || pathname.startsWith("/socialplanner/")
     || pathname.startsWith("/erp/")
     || Boolean(parseUnitErpRoute(pathname))
   );
