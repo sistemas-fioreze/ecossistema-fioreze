@@ -1,4 +1,4 @@
-import { all, first, run } from "../../core/database.js";
+import { all, batch, first, run, statement } from "../../core/database.js";
 import { badRequest, notFoundError } from "../../core/errors.js";
 import { createPublicId } from "../../core/identifiers.js";
 
@@ -98,23 +98,61 @@ async function saveRow(env, table, fields, input, id, kind) {
 
 const visitSelect = `SELECT v.*, v.responsible_planner_user_id AS responsible_user_id,
   h.short_name AS hotel_name, u.display_name AS responsible_name,
+  (SELECT GROUP_CONCAT(a.planner_user_id, ',') FROM marketing_visit_assignees a
+    WHERE a.visit_id = v.id) AS responsible_user_ids_csv,
+  (SELECT GROUP_CONCAT(au.display_name, ' · ') FROM marketing_visit_assignees a
+    JOIN social_planner_users au ON au.id = a.planner_user_id WHERE a.visit_id = v.id) AS responsible_names,
   (SELECT COUNT(*) FROM marketing_visit_items i WHERE i.visit_id = v.id) AS item_count,
   (SELECT COUNT(*) FROM marketing_visit_items i WHERE i.visit_id = v.id AND i.completed = 1) AS completed_item_count
   FROM marketing_hotel_visits v JOIN social_planner_hotels h ON h.hotel_id = v.hotel_id
   LEFT JOIN social_planner_users u ON u.id = v.responsible_planner_user_id`;
 export async function listVisits(env, query) {
-  const q = filters(query, { hotel_id: "v.hotel_id", status: "v.status", responsible_user_id: "v.responsible_planner_user_id", campaign_id: "v.campaign_id" }, period(query, "v.date"));
-  return all(env, `${visitSelect} WHERE ${q.where.join(" AND ")} ORDER BY v.date, v.start_time, v.created_at LIMIT 2000`, q.params);
+  const q = filters(query, { hotel_id: "v.hotel_id", status: "v.status", campaign_id: "v.campaign_id" }, period(query, "v.date"));
+  const responsibleUserId = query.get("responsible_user_id");
+  if (responsibleUserId && responsibleUserId !== "all") {
+    q.where.push("EXISTS (SELECT 1 FROM marketing_visit_assignees va WHERE va.visit_id = v.id AND va.planner_user_id = ?)");
+    q.params.push(text(responsibleUserId, "responsible_user_id", 160, true));
+  }
+  return (await all(env, `${visitSelect} WHERE ${q.where.join(" AND ")} ORDER BY v.date, v.start_time, v.created_at LIMIT 2000`, q.params)).map(normalizeVisitRow);
 }
 export async function getVisit(env, id) {
-  const visit = await first(env, `${visitSelect} WHERE v.id = ?`, [id]);
+  const visit = normalizeVisitRow(await first(env, `${visitSelect} WHERE v.id = ?`, [id]));
   if (!visit) throw notFoundError("Visita não encontrada.");
+  visit.assignees = await all(env, `SELECT u.id, u.display_name AS name
+    FROM marketing_visit_assignees a JOIN social_planner_users u ON u.id = a.planner_user_id
+    WHERE a.visit_id = ? ORDER BY u.display_name`, [id]);
   visit.items = await all(env, "SELECT * FROM marketing_visit_items WHERE visit_id = ? ORDER BY sort_order, created_at", [id]);
   visit.media_assets = await all(env, "SELECT m.id, m.public_url, m.mime_type, m.alt_text FROM marketing_visit_media vm JOIN media_assets m ON m.id = vm.media_asset_id WHERE vm.visit_id = ?", [id]);
   visit.stories = await all(env, "SELECT id, title, date, status FROM social_stories WHERE source_visit_id = ? ORDER BY date, planned_time, sort_order", [id]);
+  visit.calendar_events = await all(env, `SELECT m.planner_user_id, u.display_name AS user_name,
+      m.sync_status, m.last_synced_at, m.last_error
+    FROM marketing_visit_calendar_events m
+    JOIN social_planner_users u ON u.id = m.planner_user_id
+    WHERE m.visit_id = ? ORDER BY u.display_name`, [id]);
   return visit;
 }
-export const saveVisit = (env, input, id = null) => saveRow(env, "marketing_hotel_visits", visitFields, input, id, "visit");
+export async function saveVisit(env, input, id = null) {
+  const hasAssignees = Object.hasOwn(input || {}, "responsible_user_ids");
+  const responsibleUserIds = hasAssignees ? normalizeResponsibleUserIds(input.responsible_user_ids) : null;
+  if (responsibleUserIds) {
+    for (const userId of responsibleUserIds) {
+      if (!await first(env, "SELECT id FROM social_planner_users WHERE id = ? AND status = 'active'", [userId])) throw badRequest("Responsável inválido.");
+    }
+  }
+  const baseInput = { ...input };
+  delete baseInput.responsible_user_ids;
+  if (hasAssignees) baseInput.responsible_user_id = responsibleUserIds[0] || null;
+  const saved = await saveRow(env, "marketing_hotel_visits", visitFields, baseInput, id, "visit");
+  if (hasAssignees) {
+    await batch(env, [
+      statement(env, "DELETE FROM marketing_visit_assignees WHERE visit_id = ?", [saved.id]),
+      ...responsibleUserIds.map((userId) => statement(env, "INSERT INTO marketing_visit_assignees (visit_id, planner_user_id) VALUES (?, ?)", [saved.id, userId])),
+    ]);
+  } else if (!id && saved.responsible_user_id) {
+    await run(env, "INSERT OR IGNORE INTO marketing_visit_assignees (visit_id, planner_user_id) VALUES (?, ?)", [saved.id, saved.responsible_user_id]);
+  }
+  return getVisit(env, saved.id);
+}
 export async function deleteVisit(env, id) { const result = await run(env, "DELETE FROM marketing_hotel_visits WHERE id = ?", [id]); if (!result.meta?.changes) throw notFoundError("Visita não encontrada."); return { deleted: true }; }
 
 export async function saveVisitItem(env, visitId, input, id = null) {
@@ -162,3 +200,17 @@ export async function deletePost(env, id) { const result = await run(env, "DELET
 
 export async function getSettings(env) { const row = await first(env, "SELECT setting_value FROM marketing_planner_settings WHERE setting_key = 'display_name'"); return { display_name: row?.setting_value || "Fioreze Marketing Planner" }; }
 export async function saveSettings(env, input) { const name = text(input?.display_name, "Nome", 100, true); await run(env, "UPDATE marketing_planner_settings SET setting_value = ?, updated_at = ? WHERE setting_key = 'display_name'", [name, new Date().toISOString()]); return { display_name: name }; }
+
+function normalizeResponsibleUserIds(value) {
+  if (!Array.isArray(value) || value.length > 20) throw badRequest("Responsáveis inválidos.");
+  const ids = value.map((entry) => text(entry, "Responsável", 160, true));
+  if (new Set(ids).size !== ids.length) throw badRequest("Um responsável foi selecionado mais de uma vez.");
+  return ids;
+}
+
+function normalizeVisitRow(row) {
+  if (!row) return null;
+  row.responsible_user_ids = row.responsible_user_ids_csv ? row.responsible_user_ids_csv.split(",") : [];
+  delete row.responsible_user_ids_csv;
+  return row;
+}

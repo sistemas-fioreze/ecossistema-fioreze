@@ -40,6 +40,11 @@ export async function listPillars(env) {
   return all(env, `SELECT id, name, active, sort_order FROM social_content_pillars WHERE active = 1 ORDER BY sort_order, name`);
 }
 
+export async function listChannels(env) {
+  return all(env, `SELECT id, platform_key, platform_name, placement_key, display_name, sort_order
+    FROM social_channels WHERE active = 1 ORDER BY sort_order, display_name`);
+}
+
 export async function listUsers(env) {
   return all(env, `SELECT id, display_name AS name FROM social_planner_users WHERE status = 'active' ORDER BY display_name`);
 }
@@ -100,7 +105,61 @@ export async function listStories(env, query) {
 export async function getStory(env, id) {
   const row = await first(env, `${storySelect()} WHERE s.id = ?`, [id]);
   if (!row) throw notFoundError("Story não encontrado.");
+  row.channels = await all(env, `SELECT sc.channel_id, c.platform_key, c.platform_name, c.placement_key,
+      c.display_name, sc.source_channel_id, sc.adapted_text, sc.planned_at, sc.status,
+      sc.published_at, sc.published_url
+    FROM social_story_channels sc
+    JOIN social_channels c ON c.id = sc.channel_id
+    WHERE sc.story_id = ?
+    ORDER BY c.sort_order, c.display_name`, [id]);
   return row;
+}
+
+export async function saveStoryChannels(env, storyId, input) {
+  if (!await first(env, "SELECT id FROM social_stories WHERE id = ?", [storyId])) throw notFoundError("Conteúdo não encontrado.");
+  if (!Array.isArray(input) || input.length > 20) throw badRequest("Destinos de publicação inválidos.");
+  const normalized = [];
+  const selected = new Set();
+  for (const entry of input) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw badRequest("Destino de publicação inválido.");
+    const channelId = requiredText(entry.channel_id, "Canal", 80);
+    if (selected.has(channelId)) throw badRequest("O mesmo canal não pode ser adicionado duas vezes.");
+    selected.add(channelId);
+    if (!await first(env, "SELECT id FROM social_channels WHERE id = ? AND active = 1", [channelId])) throw badRequest("Canal inválido.");
+    const status = entry.status || "idea";
+    if (!statuses.has(status)) throw badRequest("Status do canal inválido.");
+    const sourceChannelId = entry.source_channel_id ? requiredText(entry.source_channel_id, "Canal de origem", 80) : null;
+    const plannedAt = entry.planned_at ? requiredLocalDateTime(entry.planned_at, "Agendamento") : null;
+    const publishedAt = entry.published_at ? requiredIsoDateTime(entry.published_at, "Publicação") : null;
+    const publishedUrl = optionalText(entry.published_url, "URL publicada", 1000);
+    if (publishedUrl && !/^https:\/\//i.test(publishedUrl)) throw badRequest("A URL publicada deve usar HTTPS.");
+    normalized.push({
+      channel_id: channelId,
+      source_channel_id: sourceChannelId,
+      adapted_text: optionalText(entry.adapted_text, "Texto adaptado", 4000),
+      planned_at: plannedAt,
+      status,
+      published_at: publishedAt,
+      published_url: publishedUrl,
+    });
+  }
+  for (const entry of normalized) {
+    if (entry.source_channel_id && (!selected.has(entry.source_channel_id) || entry.source_channel_id === entry.channel_id)) {
+      throw badRequest("O canal de origem deve ser outro destino selecionado neste conteúdo.");
+    }
+  }
+  const now = new Date().toISOString();
+  await batch(env, [
+    statement(env, "DELETE FROM social_story_channels WHERE story_id = ?", [storyId]),
+    ...normalized.map((entry) => statement(env, `INSERT INTO social_story_channels (
+      story_id, channel_id, source_channel_id, adapted_text, planned_at, status,
+      published_at, published_url, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+      storyId, entry.channel_id, entry.source_channel_id, entry.adapted_text,
+      entry.planned_at, entry.status, entry.published_at, entry.published_url, now, now,
+    ])),
+  ]);
+  return getStory(env, storyId);
 }
 
 export async function saveStory(env, input, id = null) {
@@ -189,10 +248,22 @@ export async function duplicateSequence(env, id) {
   const now = new Date().toISOString();
   const statements = [statement(env, "INSERT INTO social_story_sequences (id, title, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?)", [newId, `${source.title} (cópia)`, source.description, now, now])];
   for (const story of originals) {
+    const newStoryId = createPublicId("story");
     const apiFields = storyFields.filter((field) => field !== "published_at" && field !== "published_url");
     const fields = apiFields.map((field) => field === "responsible_user_id" ? "responsible_planner_user_id" : field);
     const values = apiFields.map((field) => field === "sequence_group_id" ? newId : field === "title" ? `${story.title} (cópia)` : field === "status" ? "idea" : story[field]);
-    statements.push(statement(env, `INSERT INTO social_stories (id, ${fields.join(", ")}, created_at, updated_at) VALUES (?, ${fields.map(() => "?").join(", ")}, ?, ?)`, [createPublicId("story"), ...values, now, now]));
+    statements.push(statement(env, `INSERT INTO social_stories (id, ${fields.join(", ")}, created_at, updated_at) VALUES (?, ${fields.map(() => "?").join(", ")}, ?, ?)`, [newStoryId, ...values, now, now]));
+    const channels = await all(env, `SELECT channel_id, source_channel_id, adapted_text, planned_at
+      FROM social_story_channels WHERE story_id = ?`, [story.id]);
+    for (const channel of channels) {
+      statements.push(statement(env, `INSERT INTO social_story_channels (
+          story_id, channel_id, source_channel_id, adapted_text, planned_at, status,
+          published_at, published_url, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, 'idea', NULL, NULL, ?, ?)`, [
+        newStoryId, channel.channel_id, channel.source_channel_id, channel.adapted_text,
+        channel.planned_at, now, now,
+      ]));
+    }
   }
   await batch(env, statements);
   return { sequence: await first(env, "SELECT * FROM social_story_sequences WHERE id = ?", [newId]), stories: await all(env, `${storySelect()} WHERE s.sequence_group_id = ? ORDER BY s.sequence_position`, [newId]) };
@@ -202,7 +273,11 @@ function storySelect() {
   return `SELECT s.*, s.responsible_planner_user_id AS responsible_user_id,
     m.public_url AS asset_url, m.mime_type AS asset_type,
     CASE WHEN m.mime_type LIKE 'image/%' THEN m.public_url ELSE NULL END AS thumbnail_url,
-    u.display_name AS responsible_name, q.title AS sequence_title
+    u.display_name AS responsible_name, q.title AS sequence_title,
+    (SELECT GROUP_CONCAT(c.display_name, ' · ') FROM social_story_channels sc
+      JOIN social_channels c ON c.id = sc.channel_id WHERE sc.story_id = s.id) AS channel_names,
+    (SELECT GROUP_CONCAT(sc.channel_id, ',') FROM social_story_channels sc
+      WHERE sc.story_id = s.id) AS channel_ids
     FROM social_stories s LEFT JOIN media_assets m ON m.id = s.media_asset_id
     LEFT JOIN social_planner_users u ON u.id = s.responsible_planner_user_id
     LEFT JOIN social_story_sequences q ON q.id = s.sequence_group_id`;
@@ -257,6 +332,14 @@ function optionalText(value, label, max) {
   if (value == null || value === "") return null;
   if (typeof value !== "string" || value.trim().length > max) throw badRequest(`${label} inválido.`);
   return value.trim() || null;
+}
+function requiredLocalDateTime(value, label) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(value)) throw badRequest(`${label} inválido.`);
+  return value.length === 16 ? `${value}:00` : value;
+}
+function requiredIsoDateTime(value, label) {
+  if (typeof value !== "string" || Number.isNaN(Date.parse(value))) throw badRequest(`${label} inválido.`);
+  return new Date(value).toISOString();
 }
 async function assertExists(env, table, column, id, label) {
   if (!await first(env, `SELECT ${column} FROM ${table} WHERE ${column} = ?`, [id])) throw badRequest(`${label} inválido.`);

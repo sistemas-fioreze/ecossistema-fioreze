@@ -1,11 +1,13 @@
-import type { Campaign, Category, ContentPillar, Hotel, Story, StoryFilters, StoryInput, StorySequence, User } from "./types";
+import type { Campaign, Category, ContentPillar, Hotel, SocialChannel, Story, StoryChannelInput, StoryFilters, StoryInput, StorySequence, User } from "./types";
 
 export interface StoryRepository {
   hotels(): Promise<Hotel[]>; categories(): Promise<Category[]>; pillars(): Promise<ContentPillar[]>;
+  channels(): Promise<SocialChannel[]>;
   users(): Promise<User[]>; campaigns(): Promise<Campaign[]>; sequences(): Promise<StorySequence[]>;
   stories(start: string, end: string, filters: StoryFilters): Promise<Story[]>;
   story(id: string): Promise<Story>;
   create(input: StoryInput): Promise<Story>; update(id: string, input: StoryInput): Promise<Story>; remove(id: string): Promise<void>;
+  saveChannels(id: string, channels: StoryChannelInput[]): Promise<Story>;
   createCampaign(input: Partial<Campaign>): Promise<Campaign>; updateCampaign(id: string, input: Partial<Campaign>): Promise<Campaign>;
   createSequence(title: string): Promise<StorySequence>; moveSequence(id: string, hotel_id: string, date: string): Promise<void>;
   duplicateSequence(id: string): Promise<{ sequence: StorySequence; stories: Story[] }>;
@@ -25,7 +27,7 @@ export async function request<T>(path: string, method = "GET", body?: unknown): 
 
 export const apiStoryRepository: StoryRepository = {
   hotels: () => request("/hotels"), categories: () => request("/categories"),
-  pillars: () => request("/pillars"), users: () => request("/users"),
+  pillars: () => request("/pillars"), channels: () => request("/channels"), users: () => request("/users"),
   campaigns: () => request("/campaigns"), sequences: () => request("/sequences"),
   stories: (start, end, filters) => {
     const params = new URLSearchParams({ start_date: start, end_date: end });
@@ -38,6 +40,7 @@ export const apiStoryRepository: StoryRepository = {
   create: (input) => request("/stories", "POST", input),
   update: (id, input) => request(`/stories/${encodeURIComponent(id)}`, "PATCH", input),
   remove: (id) => request(`/stories/${encodeURIComponent(id)}`, "DELETE"),
+  saveChannels: (id, channels) => request(`/stories/${encodeURIComponent(id)}/channels`, "PATCH", { channels }),
   createCampaign: (input) => request("/campaigns", "POST", input),
   updateCampaign: (id, input) => request(`/campaigns/${encodeURIComponent(id)}`, "PATCH", input),
   createSequence: (title) => request("/sequences", "POST", { title }),

@@ -110,16 +110,20 @@ Os estados internos ficam em inglês; a UI tem labels em português. Story: `ide
 
 ## 6. API atual
 
+> Atualização de 2026-10-02: a base autenticada atual é `/api/v1/social-planner`. Usuários comuns possuem identidade própria do Planner; somente o administrador mestre da Central atravessa para esse módulo. Referências antigas a `/api/v1/admin/social-planner` e ao uso direto de `admin_users` abaixo devem ser lidas como histórico da primeira implementação.
+
 Base: `/api/v1/admin/social-planner`. Todas as rotas exigem sessão administrativa. Leitura requer `social-planner.read`; mutação requer `social-planner.write` e `assertAdminMutationAllowed`. Respostas usam o envelope comum `ok`/`data`. O cliente adiciona `x-fioreze-admin-action: erp-admin` nas mutações, conforme padrão existente.
 
 | Recurso | Endpoints |
 | --- | --- |
 | Referências | `GET /hotels`, `/categories`, `/pillars`, `/users` |
+| Canais | `GET /channels`, `PATCH /stories/:id/channels` |
 | Campanhas | `GET /campaigns`, `POST /campaigns`, `PATCH /campaigns/:id` |
 | Sequências | `GET /sequences`, `POST /sequences`, `PATCH /sequences/:id/move`, `POST /sequences/:id/duplicate` |
 | Stories | `GET /stories`, `GET /stories/:id`, `POST /stories`, `PATCH /stories/:id`, `DELETE /stories/:id` |
 | Configuração | `GET /settings`, `PATCH /settings` |
 | Visitas | `GET /visits`, `GET /visits/:id`, `POST /visits`, `PATCH /visits/:id`, `DELETE /visits/:id` |
+| Google Calendar | `GET /calendar/status`, `POST /calendar/google/connect`, `GET /calendar/google/callback`, `DELETE /calendar/google/connection`, `POST /visits/:id/calendar-sync` |
 | Checklist | `POST /visits/:id/items`, `PATCH /visits/:id/items/:itemId`, `DELETE /visits/:id/items/:itemId` |
 | Mídia de visita | `POST /visits/:id/media`, `DELETE /visits/:id/media/:mediaId` |
 | Blog | `GET /blog-posts`, `GET /blog-posts/:id`, `POST /blog-posts`, `PATCH /blog-posts/:id`, `DELETE /blog-posts/:id` |
@@ -136,6 +140,9 @@ O caminho da view é `/admin/social-planner/<view>`. A query preserva `week`, `d
 
 ### Redes Sociais
 
+- Um registro de conteúdo-base pode ter vários destinos em `social_story_channels`: Instagram Feed, Stories e Reels; TikTok; YouTube Shorts e vídeos; Facebook Feed e Reels; LinkedIn; Pinterest; Threads; X; Google Business Profile e WhatsApp Status.
+- Cada destino guarda seu próprio texto adaptado, horário, estado e URL publicada. `source_channel_id` registra que uma versão reaproveita outro destino, sem duplicar o conteúdo-base.
+
 - Semana: matriz hotel × segunda–domingo, cabeçalhos/coluna de hotéis sticky, cards compactos com horário, estado, título, formato, categoria, responsável e miniatura quando existe. No celular vira seletor de dia e lista por hotel.
 - Filtros, busca, indicadores da semana e alertas simples de lacuna, ideia para hoje, falta de responsável/mídia e volume alto.
 - Criar/editar no drawer lateral; título, hotel e data são a base obrigatória. Contém planejamento, texto, CTA, campanha, mídia, visita de origem, publicação e observações.
@@ -143,6 +150,9 @@ O caminho da view é `/admin/social-planner/<view>`. A query preserva `week`, `d
 - Calendário mensal, Pendências, duplicação, marcação de estado e exclusão com confirmação.
 
 ### Agenda de Hotéis
+
+- Uma visita aceita vários responsáveis por `marketing_visit_assignees`. O campo legado de responsável único continua preenchido com o primeiro selecionado para compatibilidade.
+- Cada usuário conecta a própria conta Google. A sincronização cria ou atualiza a visita somente nas agendas dos responsáveis conectados; remover a pessoa da visita remove o evento correspondente.
 
 - Semana, calendário mensal e histórico; cartões exibem hotel, horário, responsável, objetivo e status.
 - Drawer de visita com título, data, horas, hotel, responsável, campanha, prioridade, status, descrição e notas.
@@ -166,6 +176,24 @@ A home reúne Stories de hoje, próxima visita/tarefas, artigos próximos, totai
 - Há validações de payload e integridade referencial no backend; mudanças no modelo precisam de migration revisável e testes que cubram o contrato.
 
 ## 9. Como executar e verificar
+
+### Google Calendar
+
+Cadastre um cliente OAuth do tipo aplicação Web e autorize o callback exato do ambiente:
+
+```text
+https://SEU-DOMINIO/api/v1/social-planner/calendar/google/callback
+```
+
+Configure como segredos do Worker, sem colocá-los em `wrangler.jsonc` ou no frontend:
+
+```text
+GOOGLE_CALENDAR_CLIENT_ID
+GOOGLE_CALENDAR_CLIENT_SECRET
+GOOGLE_CALENDAR_TOKEN_KEY
+```
+
+`GOOGLE_CALENDAR_TOKEN_KEY` deve ser um segredo aleatório longo e estável. Ele deriva a chave AES-GCM usada para cifrar tokens no D1. Se os três valores não estiverem presentes, a tela mantém a integração desabilitada sem afetar visitas. O fluxo usa `state`, PKCE, acesso offline e refresh token por usuário. Para o teste completo, conecte duas contas de teste, atribua ambas a uma visita, sincronize e confirme que cada calendário recebe somente as visitas atribuídas ao respectivo usuário.
 
 Dentro de `app/`:
 

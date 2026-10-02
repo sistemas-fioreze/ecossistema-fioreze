@@ -15,13 +15,18 @@ import { readJson } from "../../core/validation.js";
 import { ok } from "../../core/responses.js";
 import {
   createSequence, deleteStory, duplicateSequence, getStory, listCampaigns, listCategories, listHotels,
-  listPillars, listPlannerMedia, listSequences, listStories, listUsers, moveSequence, saveCampaign, saveStory,
+  listChannels, listPillars, listPlannerMedia, listSequences, listStories, listUsers, moveSequence, saveCampaign,
+  saveStory, saveStoryChannels,
 } from "./repository.js";
 import {
   deletePost, deleteVisit, deleteVisitItem, getPost, getSettings, getVisit,
   linkVisitMedia, listPosts, listVisits, savePost, saveSettings, saveVisit,
   saveVisitItem, unlinkVisitMedia,
 } from "./marketing-repository.js";
+import {
+  completeGoogleCalendarConnection, disconnectGoogleCalendar, getCalendarConnectionStatus,
+  removeVisitCalendarEvents, startGoogleCalendarConnection, syncVisitCalendars,
+} from "../../services/social-planner-calendar.js";
 
 const base = "/api/v1/social-planner";
 
@@ -50,10 +55,17 @@ export function registerSocialPlannerRoutes(router) {
     assertAdminMutationAllowed(context);
     return ok(await handler({ ...context, session }), { status });
   };
+  const accountWrite = (handler) => async (context) => {
+    const session = await getCurrentSocialPlannerSession(context);
+    requireSocialPlannerPermission(session, SOCIAL_PLANNER_PERMISSIONS.read);
+    assertAdminMutationAllowed(context);
+    return ok(await handler({ ...context, session }));
+  };
 
   router.get(`${base}/hotels`, read(({ env }) => listHotels(env)));
   router.get(`${base}/categories`, read(({ env }) => listCategories(env)));
   router.get(`${base}/pillars`, read(({ env }) => listPillars(env)));
+  router.get(`${base}/channels`, read(({ env }) => listChannels(env)));
   router.get(`${base}/users`, read(({ env }) => listUsers(env)));
   router.get(`${base}/user-management`, read(({ env, session }) => listSocialPlannerUsers({ env, session })));
   router.post(`${base}/user-management`, write(({ request, env, session }) => createSocialPlannerUser({ request, env, session }), 201));
@@ -71,14 +83,27 @@ export function registerSocialPlannerRoutes(router) {
   router.get(`${base}/stories/:id`, read(({ env, params }) => getStory(env, params.id)));
   router.post(`${base}/stories`, write(async ({ env, request }) => saveStory(env, await readJson(request)), 201));
   router.patch(`${base}/stories/:id`, write(async ({ env, request, params }) => saveStory(env, await readJson(request), params.id)));
+  router.patch(`${base}/stories/:id/channels`, write(async ({ env, request, params }) => saveStoryChannels(env, params.id, (await readJson(request)).channels)));
   router.delete(`${base}/stories/:id`, write(({ env, params }) => deleteStory(env, params.id)));
   router.get(`${base}/settings`, read(({ env }) => getSettings(env)));
   router.patch(`${base}/settings`, write(async ({ env, request }) => saveSettings(env, await readJson(request))));
   router.get(`${base}/visits`, read(({ env, url }) => listVisits(env, url.searchParams)));
   router.get(`${base}/visits/:id`, read(({ env, params }) => getVisit(env, params.id)));
-  router.post(`${base}/visits`, write(async ({ env, request }) => saveVisit(env, await readJson(request)), 201));
-  router.patch(`${base}/visits/:id`, write(async ({ env, request, params }) => saveVisit(env, await readJson(request), params.id)));
-  router.delete(`${base}/visits/:id`, write(({ env, params }) => deleteVisit(env, params.id)));
+  router.post(`${base}/visits`, write(async ({ env, request, ctx }) => {
+    const visit = await saveVisit(env, await readJson(request));
+    ctx?.waitUntil(syncVisitCalendars({ env, visitId: visit.id }));
+    return visit;
+  }, 201));
+  router.patch(`${base}/visits/:id`, write(async ({ env, request, params, ctx }) => {
+    const visit = await saveVisit(env, await readJson(request), params.id);
+    ctx?.waitUntil(syncVisitCalendars({ env, visitId: visit.id }));
+    return visit;
+  }));
+  router.delete(`${base}/visits/:id`, write(async ({ env, params }) => {
+    await removeVisitCalendarEvents({ env, visitId: params.id });
+    return deleteVisit(env, params.id);
+  }));
+  router.post(`${base}/visits/:id/calendar-sync`, write(({ env, params }) => syncVisitCalendars({ env, visitId: params.id })));
   router.post(`${base}/visits/:id/items`, write(async ({ env, request, params }) => saveVisitItem(env, params.id, await readJson(request)), 201));
   router.patch(`${base}/visits/:id/items/:itemId`, write(async ({ env, request, params }) => saveVisitItem(env, params.id, await readJson(request), params.itemId)));
   router.delete(`${base}/visits/:id/items/:itemId`, write(({ env, params }) => deleteVisitItem(env, params.id, params.itemId)));
@@ -89,4 +114,19 @@ export function registerSocialPlannerRoutes(router) {
   router.post(`${base}/blog-posts`, write(async ({ env, request }) => savePost(env, await readJson(request)), 201));
   router.patch(`${base}/blog-posts/:id`, write(async ({ env, request, params }) => savePost(env, await readJson(request), params.id)));
   router.delete(`${base}/blog-posts/:id`, write(({ env, params }) => deletePost(env, params.id)));
+
+  router.get(`${base}/calendar/status`, read(({ env, session }) => getCalendarConnectionStatus({ env, session })));
+  router.post(`${base}/calendar/google/connect`, accountWrite(({ request, env, session }) => startGoogleCalendarConnection({ request, env, session })));
+  router.get(`${base}/calendar/google/callback`, async ({ request, env }) => {
+    const session = await getCurrentSocialPlannerSession({ request, env });
+    requireSocialPlannerPermission(session, SOCIAL_PLANNER_PERMISSIONS.read);
+    const origin = new URL(request.url).origin;
+    try {
+      await completeGoogleCalendarConnection({ request, env, session });
+      return Response.redirect(`${origin}/socialplanner/settings?calendar=connected`, 302);
+    } catch {
+      return Response.redirect(`${origin}/socialplanner/settings?calendar=error`, 302);
+    }
+  });
+  router.delete(`${base}/calendar/google/connection`, accountWrite(({ env, session }) => disconnectGoogleCalendar({ env, session })));
 }

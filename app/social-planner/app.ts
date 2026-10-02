@@ -3,7 +3,7 @@ import { marketingRepository } from "./marketing-repository";
 import { blogDrawer, blogFormInput, blogView, type BlogContext } from "./blog";
 import { visitsView, visitDrawer, visitFormInput, type VisitContext } from "./visits";
 import { overviewView } from "./overview";
-import type { BlogPost, Campaign, Category, ContentPillar, Hotel, Story, StoryFilters, StoryInput, StorySequence, User, Visit } from "./types";
+import type { BlogPost, CalendarConnectionStatus, Campaign, Category, ContentPillar, Hotel, SocialChannel, Story, StoryChannelInput, StoryFilters, StoryInput, StorySequence, User, Visit } from "./types";
 import { addDays, dateLabel, escapeHtml as e, formatLabels, fromIso, isoDate, objectiveLabels, option, priorityLabels, statusLabels, weekStart } from "./utils";
 
 type View = "overview" | "week" | "calendar" | "pending" | "visits-week" | "visits-calendar" | "visits-history" | "blog-schedule" | "blog-ideas" | "blog-published" | "campaigns" | "assets" | "hotels" | "categories" | "performance" | "users" | "settings";
@@ -17,8 +17,9 @@ const state = {
   view: (location.pathname.split("/").filter(Boolean).at(-1) || "week") as View,
   week: weekStart(initialWeek), day: /^\d{4}-\d{2}-\d{2}$/.test(params.get("day") || "") ? params.get("day")! : today,
   filters: { hotel_id: params.get("hotel") || "all", status: params.get("status") || "all", category_id: params.get("category") || "all", responsible_user_id: params.get("responsible") || "all", campaign_id: params.get("campaign") || "all", search: params.get("q") || "" } as StoryFilters,
-  hotels: [] as Hotel[], categories: [] as Category[], pillars: [] as ContentPillar[], users: [] as User[], campaigns: [] as Campaign[], sequences: [] as StorySequence[], stories: [] as Story[], visits: [] as Visit[], posts: [] as BlogPost[],
+  hotels: [] as Hotel[], categories: [] as Category[], pillars: [] as ContentPillar[], channels: [] as SocialChannel[], users: [] as User[], campaigns: [] as Campaign[], sequences: [] as StorySequence[], stories: [] as Story[], visits: [] as Visit[], posts: [] as BlogPost[],
   displayName: "Fioreze Marketing Planner", visitFilter: params.get("visit_hotel") || "all", blogFilters: { hotel_id: params.get("blog_hotel") || "all", status: params.get("blog_status") || "all", category_id: params.get("blog_category") || "all", author_user_id: params.get("blog_author") || "all", campaign_id: params.get("blog_campaign") || "all" } as Record<string, string>, blogMode: "list" as "list" | "calendar",
+  calendar: { provider: "google", configured: false, connected: false, connection: null } as CalendarConnectionStatus,
   session: null as PlannerSession | null, managedUsers: [] as ManagedPlannerUser[],
   loading: true, drawer: null as Story | "new" | null, visitDrawer: null as Visit | "new" | null, postDrawer: null as BlogPost | "new" | null, createDate: today, createHotel: "", saving: false,
 };
@@ -120,11 +121,11 @@ function selectedHotels(): Hotel[] { return state.hotels.filter((hotel) => state
 function filtersHtml(): string {
   const f = state.filters;
   const select = (key: keyof StoryFilters, label: string, values: { id: string; name: string }[]) => `<select data-filter="${key}" aria-label="${label}">${option("all", label, f[key])}${values.map((item) => option(item.id, item.name, f[key])).join("")}</select>`;
-  return `<div class="filter-panel">${select("hotel_id", "Todos os hotéis", state.hotels)}${select("status", "Todos os status", Object.entries(statusLabels).map(([id, name]) => ({ id, name })))}${select("category_id", "Todas as categorias", state.categories)}${select("responsible_user_id", "Todos os responsáveis", state.users)}${select("campaign_id", "Todas as campanhas", state.campaigns)}<input type="search" data-filter="search" value="${e(f.search)}" placeholder="Pesquisar stories" aria-label="Pesquisar stories"></div>`;
+  return `<div class="filter-panel">${select("hotel_id", "Todos os hotéis", state.hotels)}${select("status", "Todos os status", Object.entries(statusLabels).map(([id, name]) => ({ id, name })))}${select("category_id", "Todas as categorias", state.categories)}${select("responsible_user_id", "Todos os responsáveis", state.users)}${select("campaign_id", "Todas as campanhas", state.campaigns)}<input type="search" data-filter="search" value="${e(f.search)}" placeholder="Pesquisar conteúdos" aria-label="Pesquisar conteúdos"></div>`;
 }
 function metricsHtml(stories: Story[]): string {
   const counts = [
-    ["Stories planejados", stories.filter((s) => s.status !== "cancelled").length, ""],
+    ["Conteúdos planejados", stories.filter((s) => s.status !== "cancelled").length, ""],
     ["Prontos", stories.filter((s) => s.status === "ready" || s.status === "scheduled").length, "ready"],
     ["Em produção", stories.filter((s) => s.status === "producing").length, "producing"],
     ["Pendentes", stories.filter((s) => ["idea", "to_produce", "approval"].includes(s.status)).length, "pending"],
@@ -135,14 +136,14 @@ function metricsHtml(stories: Story[]): string {
 function weekHeading(): string {
   const end = addDays(state.week, 6);
   const label = `${dateLabel(state.week, { day: "2-digit", month: "short" })} — ${dateLabel(end, { day: "2-digit", month: "short" })}`;
-  return `<div class="page-heading"><div><p class="eyebrow">Planejamento editorial</p><h1>Semana</h1><p class="subtle">Stories planejados para cada perfil da rede.</p></div><div class="heading-actions"><div class="week-nav"><button class="icon-button" data-action="prev-week" aria-label="Semana anterior">${icon("left")}</button><span class="week-label">${e(label)}</span><button class="icon-button" data-action="next-week" aria-label="Próxima semana">${icon("right")}</button></div><button class="button" data-action="today">Hoje</button><button class="button primary" data-action="new">${icon("plus")} Novo story</button></div></div>`;
+  return `<div class="page-heading"><div><p class="eyebrow">Planejamento editorial</p><h1>Semana</h1><p class="subtle">Conteúdos e seus destinos em todas as redes.</p></div><div class="heading-actions"><div class="week-nav"><button class="icon-button" data-action="prev-week" aria-label="Semana anterior">${icon("left")}</button><span class="week-label">${e(label)}</span><button class="icon-button" data-action="next-week" aria-label="Próxima semana">${icon("right")}</button></div><button class="button" data-action="today">Hoje</button><button class="button primary" data-action="new">${icon("plus")} Novo conteúdo</button></div></div>`;
 }
 function card(story: Story): string {
   const category = state.categories.find((item) => item.id === story.category_id)?.name;
   const format = story.format ? formatLabels[story.format] : "";
   const members = story.sequence_group_id ? state.stories.filter((item) => item.sequence_group_id === story.sequence_group_id) : [];
   const sequence = story.sequence_group_id ? `<span class="sequence-badge">${story.sequence_position || members.indexOf(story) + 1}/${members.length}</span>` : "";
-  return `<article class="story-card" data-story-id="${e(story.id)}" data-status="${story.status}" draggable="true" tabindex="0" role="button" aria-label="${e(story.title)}, ${statusLabels[story.status]}"><div class="card-top"><span class="card-time">${e(story.planned_time || "—")}</span><span class="status-pill" data-status="${story.status}">${statusLabels[story.status]}</span></div>${story.thumbnail_url ? `<img class="card-thumb" src="${e(story.thumbnail_url)}" alt="">` : ""}<div class="card-title">${e(story.title)}</div><div class="card-meta">${format ? `<span>${e(format)}</span>` : ""}${category ? `<span>${e(category)}</span>` : ""}</div><div class="card-footer"><span>${e(story.responsible_name || "Sem responsável")}</span>${sequence}</div></article>`;
+  return `<article class="story-card" data-story-id="${e(story.id)}" data-status="${story.status}" draggable="true" tabindex="0" role="button" aria-label="${e(story.title)}, ${statusLabels[story.status]}"><div class="card-top"><span class="card-time">${e(story.planned_time || "—")}</span><span class="status-pill" data-status="${story.status}">${statusLabels[story.status]}</span></div>${story.thumbnail_url ? `<img class="card-thumb" src="${e(story.thumbnail_url)}" alt="">` : ""}<div class="card-title">${e(story.title)}</div><div class="card-meta">${story.channel_names ? `<span title="${e(story.channel_names)}">${e(story.channel_names)}</span>` : ""}${format ? `<span>${e(format)}</span>` : ""}${category ? `<span>${e(category)}</span>` : ""}</div><div class="card-footer"><span>${e(story.responsible_name || "Sem responsável")}</span>${sequence}</div></article>`;
 }
 function weekView(): string {
   const stories = visibleStories(); const hotels = selectedHotels();
@@ -213,8 +214,21 @@ function usersView(): string {
   if (!state.session?.permissions.includes("social-planner.users.manage")) return `<div class="empty-state"><h2>Acesso restrito</h2><p>Somente administradores do Planner gerenciam usuários.</p></div>`;
   return `<div class="page-heading"><div><p class="eyebrow">Administração</p><h1>Usuários do Planner</h1><p class="subtle">Estas contas acessam somente o Marketing Planner.</p></div><button class="button primary" data-action="new-planner-user">${icon("plus")} Novo usuário</button></div><section class="section-card"><div class="user-management-list">${state.managedUsers.map((user) => `<div class="user-management-row" data-planner-user-id="${e(user.id)}"><strong>${e(user.display_name)}</strong><small>${e(user.email)}</small><span>${accessLevelLabel(user.access_level)}</span><span>${user.status === "active" ? "Ativo" : "Desativado"}</span><div class="user-management-actions">${user.inherited_from_central ? '<span class="status-pill">Mestre da Central</span>' : `<button class="button" data-action="edit-planner-user" data-user-id="${e(user.id)}">Editar</button><button class="button" data-action="reset-planner-password" data-user-id="${e(user.id)}">Senha</button>`}</div></div>`).join("")}</div></section>`;
 }
-function settingsView(): string { return `<div class="page-heading"><div><p class="eyebrow">Administração</p><h1>Configurações</h1><p class="subtle">Identidade e sessão do Marketing Planner.</p></div></div><section class="section-card"><h2>Nome da aplicação</h2><form id="plannerSettingsForm" class="settings-form"><label><span>Nome exibido</span><input name="display_name" value="${e(state.displayName)}" maxlength="100" required></label><button class="button primary" type="submit">Salvar nome</button></form></section><section class="section-card"><h2>Acesso separado</h2><p class="subtle">Usuários comuns entram exclusivamente no Planner. Apenas o administrador mestre pode atravessar a sessão da Central.</p></section>`; }
-function emptyState(message: string): string { return `<div class="empty-state"><h2>${e(message)}</h2><p>Crie um Story para começar o planejamento.</p><button class="button primary" data-action="new">Novo story</button></div>`; }
+function settingsView(): string {
+  const connection = state.calendar.connection;
+  const calendarAction = !state.calendar.configured
+    ? '<button class="button" disabled>Configuração pendente</button>'
+    : state.calendar.connected
+      ? '<button class="button danger" data-action="disconnect-calendar">Desconectar</button>'
+      : '<button class="button primary" data-action="connect-calendar">Conectar minha agenda</button>';
+  const calendarDescription = !state.calendar.configured
+    ? "Adicione as credenciais OAuth do Google no ambiente para liberar a conexão individual."
+    : state.calendar.connected
+      ? `Agenda conectada a ${e(connection?.account_email || "conta Google")}. Somente visitas atribuídas a você serão sincronizadas.`
+      : "Conecte sua conta pessoal. Cada usuário recebe apenas as visitas em que foi marcado como responsável.";
+  return `<div class="page-heading"><div><p class="eyebrow">Administração</p><h1>Configurações</h1><p class="subtle">Identidade, sessão e integrações pessoais.</p></div></div><section class="section-card"><h2>Nome da aplicação</h2><form id="plannerSettingsForm" class="settings-form"><label><span>Nome exibido</span><input name="display_name" value="${e(state.displayName)}" maxlength="100" required></label><button class="button primary" type="submit">Salvar nome</button></form></section><section class="section-card calendar-settings"><div><h2>Google Calendar</h2><p class="subtle">${calendarDescription}</p>${connection?.last_error ? `<p class="calendar-error">${e(connection.last_error)}</p>` : ""}</div>${calendarAction}</section><section class="section-card"><h2>Acesso separado</h2><p class="subtle">Usuários comuns entram exclusivamente no Planner. Apenas o administrador mestre pode atravessar a sessão da Central.</p></section>`;
+}
+function emptyState(message: string): string { return `<div class="empty-state"><h2>${e(message)}</h2><p>Crie um conteúdo e escolha onde ele será publicado.</p><button class="button primary" data-action="new">Novo conteúdo</button></div>`; }
 function visitContext(): VisitContext { return { visits: state.visits, hotels: state.hotels, categories: state.categories, users: state.users, campaigns: state.campaigns, week: state.week, day: state.day, today, filter: state.visitFilter, view: state.view as VisitContext["view"] }; }
 function blogContext(): BlogContext { return { posts: state.posts, hotels: state.hotels, categories: state.categories, users: state.users, campaigns: state.campaigns, day: state.day, today, view: state.view as BlogContext["view"], mode: state.blogMode, filters: state.blogFilters }; }
 function render() {
@@ -262,6 +276,35 @@ function field(name: string, label: string, value: unknown, kind: "text" | "date
 function selectField(name: string, label: string, value: string | null, values: { id: string; name: string }[], required = false): string {
   return `<label><span>${label}${required ? " *" : ""}</span><select name="${name}" ${required ? "required" : ""}>${required ? option("", "Selecione", value || "") : option("", "Não definido", value || "")}${value && !values.some((item) => item.id === value) ? option(value, "Vínculo existente", value) : ""}${values.map((item) => option(item.id, item.name, value || "")).join("")}</select></label>`;
 }
+function channelPlanner(story: Story | null): string {
+  const existing = new Map((story?.channels || []).map((channel) => [channel.channel_id, channel]));
+  const defaultId = story ? null : "instagram-feed";
+  const statusOptions = Object.entries(statusLabels).map(([id, name]) => ({ id, name }));
+  const sourceOptions = state.channels.map((channel) => ({ id: channel.id, name: channel.display_name }));
+  return `<section class="drawer-section"><div class="section-heading"><div><h3>Canais e reaproveitamento</h3><p class="drawer-hint">Selecione os destinos e adapte somente o que mudar em cada rede.</p></div></div><div class="channel-planner">${state.channels.map((channel) => {
+    const linked = existing.get(channel.id);
+    const selected = Boolean(linked || channel.id === defaultId);
+    const plannedAt = linked?.planned_at || (selected && story?.date ? `${story.date}T${story.planned_time || "12:00"}` : "");
+    return `<article class="channel-row" data-channel-row="${e(channel.id)}"><label class="channel-toggle"><input type="checkbox" name="channel_selected" value="${e(channel.id)}" ${selected ? "checked" : ""}><span><strong>${e(channel.display_name)}</strong><small>${e(channel.platform_name)} · ${e(channel.placement_key)}</small></span></label><div class="channel-fields"><label><span>Agendar</span><input type="datetime-local" name="channel_planned_${e(channel.id)}" value="${e(plannedAt)}"></label><label><span>Status</span><select name="channel_status_${e(channel.id)}">${statusOptions.map((item) => option(item.id, item.name, linked?.status || story?.status || "idea")).join("")}</select></label><label><span>Reaproveitar de</span><select name="channel_source_${e(channel.id)}">${option("", "Conteúdo original", linked?.source_channel_id || "")}${sourceOptions.filter((item) => item.id !== channel.id).map((item) => option(item.id, item.name, linked?.source_channel_id || "")).join("")}</select></label><label class="full"><span>Texto adaptado</span><textarea name="channel_text_${e(channel.id)}" placeholder="Use somente quando este canal precisar de outra legenda ou roteiro">${e(linked?.adapted_text)}</textarea></label></div></article>`;
+  }).join("")}</div></section>`;
+}
+function channelFormInput(form: HTMLFormElement): StoryChannelInput[] {
+  const data = new FormData(form);
+  const selected = new Set(data.getAll("channel_selected").map(String));
+  return [...selected].map((id) => {
+    const text = (name: string) => String(data.get(`${name}_${id}`) || "").trim() || null;
+    const source = text("channel_source");
+    return {
+      channel_id: id,
+      source_channel_id: source && selected.has(source) ? source : null,
+      adapted_text: text("channel_text"),
+      planned_at: text("channel_planned"),
+      status: (text("channel_status") || "idea") as StoryChannelInput["status"],
+      published_at: null,
+      published_url: null,
+    };
+  });
+}
 function renderDrawer() {
   const story = state.drawer === "new" ? null : state.drawer;
   if (!state.drawer) return;
@@ -269,7 +312,7 @@ function renderDrawer() {
   const objectiveOptions = Object.entries(objectiveLabels).map(([id, name]) => ({ id, name }));
   const statusOptions = Object.entries(statusLabels).map(([id, name]) => ({ id, name }));
   const priorityOptions = Object.entries(priorityLabels).map(([id, name]) => ({ id, name }));
-  drawer.innerHTML = `<div class="drawer-header"><div><small>${story ? "Editar story" : "Novo story"}</small><h2 id="drawerTitle">${e(story?.title || "Planejar Story")}</h2></div><button class="icon-button" data-action="close-drawer" aria-label="Fechar">${icon("close")}</button></div><form id="storyForm"><div class="drawer-body"><section class="drawer-section"><h3>Planejamento</h3><div class="form-grid">${selectField("hotel_id", "Hotel", story?.hotel_id || state.createHotel, state.hotels, true)}${field("date", "Data", story?.date || state.createDate, "date")}${field("planned_time", "Horário planejado", story?.planned_time, "time")}${selectField("status", "Status", story?.status || "idea", statusOptions)}${selectField("priority", "Prioridade", story?.priority || "normal", priorityOptions)}</div></section><section class="drawer-section"><h3>Conteúdo</h3><div class="form-grid">${field("title", "Título interno", story?.title, "text", true)}${field("description", "Descrição / ideia", story?.description, "textarea", true)}${field("story_text", "Texto sugerido", story?.story_text, "textarea", true)}${selectField("category_id", "Categoria", story?.category_id || null, state.categories)}${selectField("content_pillar_id", "Pilar de conteúdo", story?.content_pillar_id || null, state.pillars)}${selectField("format", "Formato", story?.format || null, formatOptions)}${selectField("objective", "Objetivo", story?.objective || null, objectiveOptions)}${field("cta", "CTA", story?.cta)}${field("link", "Link", story?.link, "url", true)}</div></section><section class="drawer-section"><h3>Mídia</h3><div class="form-grid">${field("media_asset_id", "ID da mídia na biblioteca", story?.media_asset_id, "text", true)}</div><p class="drawer-hint">O arquivo é armazenado na biblioteca R2 existente e pode ser reutilizado em outros Stories.</p>${story?.thumbnail_url ? `<img src="${e(story.thumbnail_url)}" alt="Prévia da mídia" style="max-height:100px;border-radius:7px;margin-top:10px">` : ""}</section><section class="drawer-section"><h3>Responsável</h3><div class="form-grid">${selectField("responsible_user_id", "Pessoa responsável", story?.responsible_user_id || null, state.users)}</div></section><section class="drawer-section"><h3>Publicação</h3><div class="form-grid">${selectField("campaign_id", "Campanha", story?.campaign_id || null, state.campaigns)}${field("published_at", "Publicado em (ISO)", story?.published_at)}${field("published_url", "URL publicada", story?.published_url, "url", true)}</div></section><section class="drawer-section"><h3>Sequência</h3><div class="form-grid">${selectField("sequence_group_id", "Grupo", story?.sequence_group_id || null, state.sequences.map((sequence) => ({ id: sequence.id, name: sequence.title })))}${field("sequence_position", "Posição", story?.sequence_position)}</div><button type="button" class="button" data-action="new-sequence" style="margin-top:10px">Criar sequência</button></section><section class="drawer-section"><h3>Origem</h3><div class="form-grid">${selectField("source_visit_id", "Visita de captação", story?.source_visit_id || null, state.visits.filter((visit) => visit.hotel_id === (story?.hotel_id || state.createHotel)).map((visit) => ({ id: visit.id, name: `${visit.date} · ${visit.title}` })))}</div></section><section class="drawer-section"><h3>Informações adicionais</h3><div class="form-grid">${field("notes", "Observações", story?.notes, "textarea", true)}</div></section><div id="deleteConfirm"></div></div><div class="drawer-actions">${story ? `<button type="button" class="button" data-action="duplicate">Duplicar</button><button type="button" class="button" data-action="mark-ready">Pronto</button><button type="button" class="button" data-action="mark-published">Publicado</button><button type="button" class="button danger" data-action="delete">Excluir</button>` : ""}<button type="submit" class="button primary">${state.saving ? "Salvando..." : "Salvar story"}</button></div></form>`;
+  drawer.innerHTML = `<div class="drawer-header"><div><small>${story ? "Editar conteúdo" : "Novo conteúdo"}</small><h2 id="drawerTitle">${e(story?.title || "Planejar conteúdo")}</h2></div><button class="icon-button" data-action="close-drawer" aria-label="Fechar">${icon("close")}</button></div><form id="storyForm"><div class="drawer-body"><section class="drawer-section"><h3>Planejamento</h3><div class="form-grid">${selectField("hotel_id", "Hotel", story?.hotel_id || state.createHotel, state.hotels, true)}${field("date", "Data", story?.date || state.createDate, "date")}${field("planned_time", "Horário planejado", story?.planned_time, "time")}${selectField("status", "Status geral", story?.status || "idea", statusOptions)}${selectField("priority", "Prioridade", story?.priority || "normal", priorityOptions)}</div></section><section class="drawer-section"><h3>Conteúdo-base</h3><div class="form-grid">${field("title", "Título interno", story?.title, "text", true)}${field("description", "Descrição / ideia", story?.description, "textarea", true)}${field("story_text", "Texto ou roteiro principal", story?.story_text, "textarea", true)}${selectField("category_id", "Categoria", story?.category_id || null, state.categories)}${selectField("content_pillar_id", "Pilar de conteúdo", story?.content_pillar_id || null, state.pillars)}${selectField("format", "Formato", story?.format || null, formatOptions)}${selectField("objective", "Objetivo", story?.objective || null, objectiveOptions)}${field("cta", "CTA", story?.cta)}${field("link", "Link", story?.link, "url", true)}</div></section>${channelPlanner(story)}<section class="drawer-section"><h3>Mídia</h3><div class="form-grid">${field("media_asset_id", "ID da mídia na biblioteca", story?.media_asset_id, "text", true)}</div><p class="drawer-hint">O mesmo arquivo pode ser reaproveitado nos destinos selecionados.</p>${story?.thumbnail_url ? `<img src="${e(story.thumbnail_url)}" alt="Prévia da mídia" style="max-height:100px;border-radius:7px;margin-top:10px">` : ""}</section><section class="drawer-section"><h3>Responsável</h3><div class="form-grid">${selectField("responsible_user_id", "Pessoa responsável", story?.responsible_user_id || null, state.users)}</div></section><section class="drawer-section"><h3>Publicação principal</h3><div class="form-grid">${selectField("campaign_id", "Campanha", story?.campaign_id || null, state.campaigns)}${field("published_at", "Publicado em (ISO)", story?.published_at)}${field("published_url", "URL publicada", story?.published_url, "url", true)}</div></section><section class="drawer-section"><h3>Sequência</h3><div class="form-grid">${selectField("sequence_group_id", "Grupo", story?.sequence_group_id || null, state.sequences.map((sequence) => ({ id: sequence.id, name: sequence.title })))}${field("sequence_position", "Posição", story?.sequence_position)}</div><button type="button" class="button" data-action="new-sequence" style="margin-top:10px">Criar sequência</button></section><section class="drawer-section"><h3>Origem</h3><div class="form-grid">${selectField("source_visit_id", "Visita de captação", story?.source_visit_id || null, state.visits.filter((visit) => visit.hotel_id === (story?.hotel_id || state.createHotel)).map((visit) => ({ id: visit.id, name: `${visit.date} · ${visit.title}` })))}</div></section><section class="drawer-section"><h3>Informações adicionais</h3><div class="form-grid">${field("notes", "Observações", story?.notes, "textarea", true)}</div></section><div id="deleteConfirm"></div></div><div class="drawer-actions">${story ? `<button type="button" class="button" data-action="duplicate">Duplicar</button><button type="button" class="button" data-action="mark-ready">Pronto</button><button type="button" class="button" data-action="mark-published">Publicado</button><button type="button" class="button danger" data-action="delete">Excluir</button>` : ""}<button type="submit" class="button primary">${state.saving ? "Salvando..." : "Salvar conteúdo"}</button></div></form>`;
   const mediaSection = drawer.querySelector<HTMLElement>(".drawer-section:nth-of-type(3)");
   mediaSection?.insertAdjacentHTML("beforeend", '<button type="button" class="button" data-action="choose-media" style="margin-top:10px">Escolher da biblioteca</button><div id="mediaChoices"></div>');
   if (story?.sequence_group_id) drawer.querySelector(".drawer-actions")?.insertAdjacentHTML("afterbegin", '<button type="button" class="button" data-action="duplicate-sequence">Duplicar sequência</button>');
@@ -287,10 +330,14 @@ async function saveDrawer(event: SubmitEvent) {
   event.preventDefault(); if (state.saving) return;
   const form = event.target as HTMLFormElement; if (!form.reportValidity()) return;
   state.saving = true; const existing = state.drawer && state.drawer !== "new" ? state.drawer : null;
-  try { const saved = existing ? await repository.update(existing.id, formInput()) : await repository.create(formInput());
+  try {
+    const channels = channelFormInput(form);
+    if (!channels.length) throw new Error("Selecione pelo menos um canal de publicação.");
+    const baseSaved = existing ? await repository.update(existing.id, formInput()) : await repository.create(formInput());
+    const saved = await repository.saveChannels(baseSaved.id, channels);
     state.stories = existing ? state.stories.map((story) => story.id === saved.id ? saved : story) : [...state.stories, saved];
     if (existing?.campaign_id || saved.campaign_id) { try { state.campaigns = await repository.campaigns(); } catch { /* refresh on next visit */ } }
-    closeDrawer(); render(); notify(existing ? "Story atualizado." : "Story criado.");
+    closeDrawer(); render(); notify(existing ? "Conteúdo atualizado." : "Conteúdo criado.");
   } catch (error) { notify((error as Error).message, true); }
   finally { state.saving = false; }
 }
@@ -356,7 +403,7 @@ document.addEventListener("click", async (event) => {
   const day = target.closest<HTMLButtonElement>("[data-day]"); if (day) { state.day = day.dataset.day!; updateUrl(); render(); return; }
   const visitElement = target.closest<HTMLElement>("[data-visit-id]"); if (visitElement && !target.closest("[data-action]")) { await openVisit(visitElement.dataset.visitId); return; }
   const postElement = target.closest<HTMLElement>("[data-post-id]"); if (postElement && !target.closest("[data-action]")) { const post = state.posts.find((item) => item.id === postElement.dataset.postId); if (post) openPost(post); return; }
-  const storyElement = target.closest<HTMLElement>("[data-story-id]"); if (storyElement && !target.closest("[data-action]")) { const story = state.stories.find((item) => item.id === storyElement.dataset.storyId); if (story) openDrawer(story); return; }
+  const storyElement = target.closest<HTMLElement>("[data-story-id]"); if (storyElement && !target.closest("[data-action]")) { try { openDrawer(await repository.story(storyElement.dataset.storyId!)); } catch (error) { notify((error as Error).message, true); } return; }
   const button = target.closest<HTMLElement>("[data-action]"); if (!button) return;
   const action = button.dataset.action;
   if (action === "new-planner-user") { openPlannerUserDialog(); return; }
@@ -364,6 +411,8 @@ document.addEventListener("click", async (event) => {
   if (action === "reset-planner-password") { openPlannerPasswordDialog(button.dataset.userId || ""); return; }
   if (action === "close-planner-user") { document.querySelector<HTMLDialogElement>("#plannerUserDialog")?.close(); return; }
   if (action === "close-planner-password") { document.querySelector<HTMLDialogElement>("#plannerPasswordDialog")?.close(); return; }
+  if (action === "connect-calendar") { try { const result = await marketingRepository.connectCalendar(); location.assign(result.authorization_url); } catch (error) { notify((error as Error).message, true); } return; }
+  if (action === "disconnect-calendar") { if (!window.confirm("Desconectar sua agenda do Google Calendar?")) return; try { await marketingRepository.disconnectCalendar(); state.calendar = await marketingRepository.calendarStatus(); render(); notify("Agenda desconectada."); } catch (error) { notify((error as Error).message, true); } return; }
   if (action === "close-drawer") closeDrawer();
   if (action === "open-linked-story") { try { const story = await repository.story(button.dataset.linkedStoryId!); openDrawer(story); } catch (error) { notify((error as Error).message, true); } return; }
   if (action === "new-visit" || action === "new-visit-day") { await openVisit(undefined, button.dataset.date || today); return; }
@@ -380,6 +429,7 @@ document.addEventListener("click", async (event) => {
   if (currentVisit && action === "delete-visit-item") { if (!window.confirm("Excluir este item do checklist?")) return; try { await marketingRepository.deleteItem(currentVisit.id, button.dataset.itemId!); await refreshVisitDrawer(); notify("Item excluído."); } catch (error) { notify((error as Error).message, true); } return; }
   if (currentVisit && action === "link-visit-media") { const id = drawer.querySelector<HTMLInputElement>("[name=new_media_id]")?.value.trim(); if (!id) return; try { await marketingRepository.linkMedia(currentVisit.id, id); await refreshVisitDrawer(); notify("Mídia vinculada."); } catch (error) { notify((error as Error).message, true); } return; }
   if (currentVisit && action === "unlink-visit-media") { try { await marketingRepository.unlinkMedia(currentVisit.id, button.dataset.mediaId!); await refreshVisitDrawer(); notify("Vínculo removido."); } catch (error) { notify((error as Error).message, true); } return; }
+  if (currentVisit && action === "sync-visit-calendar") { try { const result = await marketingRepository.syncVisitCalendar(currentVisit.id); await refreshVisitDrawer(); notify(`${result.synced} agenda(s) sincronizada(s).${result.skipped ? ` ${result.skipped} responsável(is) sem conexão.` : ""}`); } catch (error) { notify((error as Error).message, true); } return; }
   if (currentVisit && action === "delete-visit") { drawer.querySelector<HTMLElement>("#deleteConfirm")!.innerHTML = `<div class="dialog-inline">Excluir esta visita e seu checklist?<br><button type="button" class="button danger" data-action="confirm-delete-visit">Confirmar exclusão</button><button type="button" class="button" data-action="cancel-marketing-delete">Cancelar</button></div>`; return; }
   if (currentVisit && action === "confirm-delete-visit") { try { await marketingRepository.deleteVisit(currentVisit.id); state.visits = state.visits.filter((item) => item.id !== currentVisit.id); closeDrawer(); render(); notify("Visita excluída."); } catch (error) { notify((error as Error).message, true); } return; }
   const currentPost = state.postDrawer && state.postDrawer !== "new" ? state.postDrawer : null;
@@ -395,7 +445,7 @@ document.addEventListener("click", async (event) => {
   const current = state.drawer && state.drawer !== "new" ? state.drawer : null;
   if (current && action === "mark-ready") await patchStory(current, { status: "ready" }, "Marcado como pronto.");
   if (current && action === "mark-published") await patchStory(current, { status: "published", published_at: new Date().toISOString() }, "Marcado como publicado.");
-  if (current && action === "duplicate") { const copy = { ...current, title: `${current.title} (cópia)`, status: "idea" as const, published_at: null, published_url: null, sequence_group_id: null, sequence_position: null }; try { const created = await repository.create(copy); state.stories.push(created); render(); notify("Story duplicado."); openDrawer(created); } catch (error) { notify((error as Error).message, true); } }
+  if (current && action === "duplicate") { const copy = { ...current, title: `${current.title} (cópia)`, status: "idea" as const, published_at: null, published_url: null, sequence_group_id: null, sequence_position: null }; try { const created = await repository.create(copy); const saved = await repository.saveChannels(created.id, (current.channels || []).map((channel) => ({ ...channel, status: "idea", published_at: null, published_url: null }))); state.stories.push(saved); render(); notify("Conteúdo duplicado."); openDrawer(saved); } catch (error) { notify((error as Error).message, true); } }
   if (current && action === "duplicate-sequence" && current.sequence_group_id) { try { const result = await repository.duplicateSequence(current.sequence_group_id); state.sequences.push(result.sequence); state.stories.push(...result.stories); render(); notify("Sequência duplicada."); closeDrawer(); } catch (error) { notify((error as Error).message, true); } }
   if (current && action === "move") { drawer.querySelector<HTMLInputElement>("[name=date]")?.focus(); drawer.scrollTo({ top: 0, behavior: "smooth" }); }
   if (action === "choose-media") {
@@ -456,7 +506,7 @@ document.addEventListener("submit", async (event) => {
   } catch (error) { notify((error as Error).message, true); }
 });
 backdrop.addEventListener("click", closeDrawer);
-document.addEventListener("keydown", (event) => { if (event.key === "Escape" && (state.drawer || state.visitDrawer || state.postDrawer)) closeDrawer(); if ((event.key === "Enter" || event.key === " ") && (event.target as HTMLElement).matches(".story-card")) { event.preventDefault(); const story = state.stories.find((item) => item.id === (event.target as HTMLElement).dataset.storyId); if (story) openDrawer(story); } });
+document.addEventListener("keydown", (event) => { if (event.key === "Escape" && (state.drawer || state.visitDrawer || state.postDrawer)) closeDrawer(); if ((event.key === "Enter" || event.key === " ") && (event.target as HTMLElement).matches(".story-card")) { event.preventDefault(); const id = (event.target as HTMLElement).dataset.storyId; if (id) void repository.story(id).then(openDrawer).catch((error) => notify((error as Error).message, true)); } });
 document.addEventListener("dragstart", (event) => { const blog = (event.target as HTMLElement).closest<HTMLElement>(".kanban-card"); if (blog) { event.dataTransfer?.setData("application/x-fioreze-blog", blog.dataset.postId || ""); event.dataTransfer!.effectAllowed = "move"; return; } const card = (event.target as HTMLElement).closest<HTMLElement>(".story-card"); if (!card) return; event.dataTransfer?.setData("text/plain", card.dataset.storyId || ""); event.dataTransfer!.effectAllowed = "move"; card.classList.add("dragging"); });
 document.addEventListener("dragend", (event) => { (event.target as HTMLElement).closest<HTMLElement>(".story-card")?.classList.remove("dragging"); document.querySelectorAll(".drag-over").forEach((item) => item.classList.remove("drag-over")); });
 document.addEventListener("dragover", (event) => { const cell = (event.target as HTMLElement).closest<HTMLElement>(".day-cell, .kanban-column"); if (!cell) return; event.preventDefault(); cell.classList.add("drag-over"); });
@@ -506,9 +556,11 @@ async function initializePlanner() {
   document.querySelector<HTMLElement>("#currentUser")!.textContent = state.session?.user.display_name || "Marketing";
   document.querySelector<HTMLElement>("#centralAdminLink")!.hidden = state.session?.auth_source !== "admin-master";
   if (state.view === "users" && !state.session?.permissions.includes("social-planner.users.manage")) state.view = "overview";
-  [state.hotels, state.categories, state.pillars, state.users, state.campaigns, state.sequences, { display_name: state.displayName }] = await Promise.all([repository.hotels(), repository.categories(), repository.pillars(), repository.users(), repository.campaigns(), repository.sequences(), marketingRepository.settings()]);
+  [state.hotels, state.categories, state.pillars, state.channels, state.users, state.campaigns, state.sequences, { display_name: state.displayName }, state.calendar] = await Promise.all([repository.hotels(), repository.categories(), repository.pillars(), repository.channels(), repository.users(), repository.campaigns(), repository.sequences(), marketingRepository.settings(), marketingRepository.calendarStatus()]);
   document.querySelector<HTMLElement>("#plannerName")!.textContent = state.displayName; document.title = state.displayName;
   if (state.view === "users") await loadManagedUsers(); else await loadData();
+  if (params.get("calendar") === "connected") notify("Google Calendar conectado à sua conta.");
+  if (params.get("calendar") === "error") notify("Não foi possível concluir a conexão com o Google Calendar.", true);
   if (planningAlerts()) notify(`${planningAlerts()} Story(s) de hoje ainda estão como Ideia.`);
 }
 void start();

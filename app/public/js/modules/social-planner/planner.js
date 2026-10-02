@@ -15,6 +15,7 @@ var apiStoryRepository = {
   hotels: () => request("/hotels"),
   categories: () => request("/categories"),
   pillars: () => request("/pillars"),
+  channels: () => request("/channels"),
   users: () => request("/users"),
   campaigns: () => request("/campaigns"),
   sequences: () => request("/sequences"),
@@ -29,6 +30,7 @@ var apiStoryRepository = {
   create: (input) => request("/stories", "POST", input),
   update: (id, input) => request(`/stories/${encodeURIComponent(id)}`, "PATCH", input),
   remove: (id) => request(`/stories/${encodeURIComponent(id)}`, "DELETE"),
+  saveChannels: (id, channels) => request(`/stories/${encodeURIComponent(id)}/channels`, "PATCH", { channels }),
   createCampaign: (input) => request("/campaigns", "POST", input),
   updateCampaign: (id, input) => request(`/campaigns/${encodeURIComponent(id)}`, "PATCH", input),
   createSequence: (title) => request("/sequences", "POST", { title }),
@@ -59,6 +61,10 @@ var marketingRepository = {
   deleteItem: (visitId, id) => request(`/visits/${encodeURIComponent(visitId)}/items/${encodeURIComponent(id)}`, "DELETE"),
   linkMedia: (visitId, media_asset_id) => request(`/visits/${encodeURIComponent(visitId)}/media`, "POST", { media_asset_id }),
   unlinkMedia: (visitId, mediaId) => request(`/visits/${encodeURIComponent(visitId)}/media/${encodeURIComponent(mediaId)}`, "DELETE"),
+  calendarStatus: () => request("/calendar/status"),
+  connectCalendar: () => request("/calendar/google/connect", "POST", {}),
+  disconnectCalendar: () => request("/calendar/google/connection", "DELETE"),
+  syncVisitCalendar: (visitId) => request(`/visits/${encodeURIComponent(visitId)}/calendar-sync`, "POST", {}),
   posts: (start2, end, filters = {}) => request(range("/blog-posts", start2, end, filters)),
   post: (id) => request(`/blog-posts/${encodeURIComponent(id)}`),
   createPost: (input) => request("/blog-posts", "POST", input),
@@ -167,7 +173,7 @@ function blogFormInput(form) {
 // social-planner/visits.ts
 var visitLabels = { planned: "Planejada", confirmed: "Confirmada", in_progress: "Em andamento", completed: "Conclu\xEDda", cancelled: "Cancelada" };
 function visitCard(visit) {
-  return `<button class="visit-card" data-visit-id="${escapeHtml(visit.id)}"><span class="visit-time">${escapeHtml(visit.start_time || "Hor\xE1rio livre")}${visit.end_time ? `\u2013${escapeHtml(visit.end_time)}` : ""}</span><strong>${escapeHtml(visit.hotel_name)}</strong><span>${escapeHtml(visit.title)}</span><small>${escapeHtml(visit.responsible_name || "Sem respons\xE1vel")} \xB7 ${visitLabels[visit.status]}</small>${visit.item_count ? `<small>Checklist ${visit.completed_item_count}/${visit.item_count}</small>` : ""}</button>`;
+  return `<button class="visit-card" data-visit-id="${escapeHtml(visit.id)}"><span class="visit-time">${escapeHtml(visit.start_time || "Hor\xE1rio livre")}${visit.end_time ? `\u2013${escapeHtml(visit.end_time)}` : ""}</span><strong>${escapeHtml(visit.hotel_name)}</strong><span>${escapeHtml(visit.title)}</span><small>${escapeHtml(visit.responsible_names || visit.responsible_name || "Sem respons\xE1veis")} \xB7 ${visitLabels[visit.status]}</small>${visit.item_count ? `<small>Checklist ${visit.completed_item_count}/${visit.item_count}</small>` : ""}</button>`;
 }
 function filterBar2(ctx) {
   return `<div class="filter-panel"><select data-visit-filter="hotel" aria-label="Filtrar hotel">${option("all", "Todos os hot\xE9is", ctx.filter)}${ctx.hotels.map((h) => option(h.id, h.short_name, ctx.filter)).join("")}</select></div>`;
@@ -196,10 +202,16 @@ function visitDrawer(visit, ctx, createDate) {
   const statuses = Object.entries(visitLabels).map(([id, name]) => ({ id, name }));
   const priorities = [{ id: "low", name: "Baixa" }, { id: "normal", name: "Normal" }, { id: "high", name: "Alta" }, { id: "urgent", name: "Urgente" }];
   const items = visit?.items || [];
-  return `<div class="drawer-header"><div><small>${visit ? "Editar visita" : "Nova visita"}</small><h2 id="drawerTitle">${escapeHtml(visit?.title || "Agendar capta\xE7\xE3o")}</h2></div><button class="icon-button" data-action="close-drawer" aria-label="Fechar">\xD7</button></div><form id="visitForm"><div class="drawer-body"><section class="drawer-section"><h3>Planejamento</h3><div class="form-grid">${inputField("title", "Objetivo principal / t\xEDtulo", visit?.title, "text", true, true)}${selectField("hotel_id", "Hotel", visit?.hotel_id, ctx.hotels, true)}${inputField("date", "Data", visit?.date || createDate, "date", false, true)}${inputField("start_time", "In\xEDcio", visit?.start_time, "time")}${inputField("end_time", "T\xE9rmino", visit?.end_time, "time")}${selectField("status", "Status", visit?.status || "planned", statuses, true)}${selectField("priority", "Prioridade", visit?.priority || "normal", priorities, true)}${selectField("responsible_user_id", "Respons\xE1vel", visit?.responsible_user_id, ctx.users)}${selectField("campaign_id", "Campanha", visit?.campaign_id, ctx.campaigns)}</div></section><section class="drawer-section"><h3>Detalhes</h3><div class="form-grid">${inputField("description", "Descri\xE7\xE3o", visit?.description, "textarea", true)}${inputField("notes", "Observa\xE7\xF5es", visit?.notes, "textarea", true)}</div></section>${visit ? `<section class="drawer-section"><h3>Checklist de capta\xE7\xE3o <span class="subtle">${visit.completed_item_count}/${visit.item_count}</span></h3><div class="visit-checklist">${items.map((item) => `<div class="checklist-row"><label><input type="checkbox" data-item-toggle="${escapeHtml(item.id)}" ${item.completed ? "checked" : ""}><span>${escapeHtml(item.title)}</span></label><small>${escapeHtml(item.content_type || "")}${item.required ? " \xB7 Necess\xE1rio" : ""}</small><button type="button" class="icon-button" data-action="delete-visit-item" data-item-id="${escapeHtml(item.id)}" aria-label="Excluir item">\xD7</button></div>`).join("") || '<p class="subtle">Adicione o que precisa ser captado.</p>'}</div><div class="form-grid compact">${inputField("new_item_title", "Novo item", "", "text", true)}${inputField("new_item_type", "Tipo de conte\xFAdo", "")}${selectField("new_item_category", "Categoria", null, ctx.categories)}</div><button type="button" class="button" data-action="add-visit-item">+ Adicionar item</button></section><section class="drawer-section"><h3>M\xEDdias captadas</h3><div class="visit-media">${(visit.media_assets || []).map((asset) => `<div class="media-link"><a href="${escapeHtml(asset.public_url)}" target="_blank" rel="noopener">${escapeHtml(asset.alt_text || asset.id)}</a><button type="button" class="icon-button" data-action="unlink-visit-media" data-media-id="${escapeHtml(asset.id)}" aria-label="Remover v\xEDnculo">\xD7</button></div>`).join("") || '<p class="subtle">Nenhuma m\xEDdia vinculada.</p>'}</div>${inputField("new_media_id", "ID da m\xEDdia existente", "", "text", true)}<button type="button" class="button" data-action="link-visit-media">Vincular m\xEDdia</button></section>` : '<p class="drawer-hint">Salve a visita para criar o checklist e vincular m\xEDdias.</p>'}<div id="deleteConfirm"></div></div><div class="drawer-actions">${visit ? '<button type="button" class="button danger" data-action="delete-visit">Excluir</button>' : ""}<button type="submit" class="button primary">Salvar visita</button></div></form>`;
+  const selected = new Set(visit?.responsible_user_ids || []);
+  const assignees = `<fieldset class="assignee-picker"><legend>Respons\xE1veis</legend><p class="drawer-hint">A visita entra na agenda conectada de cada pessoa selecionada.</p><div class="assignee-grid">${ctx.users.map((user) => `<label><input type="checkbox" name="responsible_user_ids" value="${escapeHtml(user.id)}" ${selected.has(user.id) ? "checked" : ""}><span>${escapeHtml(user.name)}</span></label>`).join("") || '<p class="subtle">Nenhum usu\xE1rio ativo.</p>'}</div></fieldset>`;
+  const calendarRows = (visit?.calendar_events || []).map((event) => `<li><span><strong>${escapeHtml(event.user_name)}</strong><small>${escapeHtml(event.last_synced_at ? `Atualizado em ${new Date(event.last_synced_at).toLocaleString("pt-BR")}` : "Aguardando sincroniza\xE7\xE3o")}</small></span><span class="calendar-sync-status ${escapeHtml(event.sync_status)}">${escapeHtml(event.sync_status === "synced" ? "Sincronizado" : event.sync_status === "failed" ? "Falhou" : event.sync_status === "removed" ? "Removido" : "Pendente")}</span>${event.last_error ? `<small class="calendar-error">${escapeHtml(event.last_error)}</small>` : ""}</li>`).join("");
+  const calendar = visit ? `<section class="drawer-section"><div class="section-heading"><div><h3>Agendas dos respons\xE1veis</h3><p class="drawer-hint">Somente usu\xE1rios com Google Calendar conectado recebem o evento.</p></div><button type="button" class="button" data-action="sync-visit-calendar">Sincronizar agora</button></div>${calendarRows ? `<ul class="calendar-sync-list">${calendarRows}</ul>` : '<p class="subtle">Nenhuma agenda sincronizada ainda.</p>'}</section>` : "";
+  return `<div class="drawer-header"><div><small>${visit ? "Editar visita" : "Nova visita"}</small><h2 id="drawerTitle">${escapeHtml(visit?.title || "Agendar capta\xE7\xE3o")}</h2></div><button class="icon-button" data-action="close-drawer" aria-label="Fechar">\xD7</button></div><form id="visitForm"><div class="drawer-body"><section class="drawer-section"><h3>Planejamento</h3><div class="form-grid">${inputField("title", "Objetivo principal / t\xEDtulo", visit?.title, "text", true, true)}${selectField("hotel_id", "Hotel", visit?.hotel_id, ctx.hotels, true)}${inputField("date", "Data", visit?.date || createDate, "date", false, true)}${inputField("start_time", "In\xEDcio", visit?.start_time, "time")}${inputField("end_time", "T\xE9rmino", visit?.end_time, "time")}${selectField("status", "Status", visit?.status || "planned", statuses, true)}${selectField("priority", "Prioridade", visit?.priority || "normal", priorities, true)}${selectField("campaign_id", "Campanha", visit?.campaign_id, ctx.campaigns)}</div>${assignees}</section><section class="drawer-section"><h3>Detalhes</h3><div class="form-grid">${inputField("description", "Descri\xE7\xE3o", visit?.description, "textarea", true)}${inputField("notes", "Observa\xE7\xF5es", visit?.notes, "textarea", true)}</div></section>${calendar}${visit ? `<section class="drawer-section"><h3>Checklist de capta\xE7\xE3o <span class="subtle">${visit.completed_item_count}/${visit.item_count}</span></h3><div class="visit-checklist">${items.map((item) => `<div class="checklist-row"><label><input type="checkbox" data-item-toggle="${escapeHtml(item.id)}" ${item.completed ? "checked" : ""}><span>${escapeHtml(item.title)}</span></label><small>${escapeHtml(item.content_type || "")}${item.required ? " \xB7 Necess\xE1rio" : ""}</small><button type="button" class="icon-button" data-action="delete-visit-item" data-item-id="${escapeHtml(item.id)}" aria-label="Excluir item">\xD7</button></div>`).join("") || '<p class="subtle">Adicione o que precisa ser captado.</p>'}</div><div class="form-grid compact">${inputField("new_item_title", "Novo item", "", "text", true)}${inputField("new_item_type", "Tipo de conte\xFAdo", "")}${selectField("new_item_category", "Categoria", null, ctx.categories)}</div><button type="button" class="button" data-action="add-visit-item">+ Adicionar item</button></section><section class="drawer-section"><h3>M\xEDdias captadas</h3><div class="visit-media">${(visit.media_assets || []).map((asset) => `<div class="media-link"><a href="${escapeHtml(asset.public_url)}" target="_blank" rel="noopener">${escapeHtml(asset.alt_text || asset.id)}</a><button type="button" class="icon-button" data-action="unlink-visit-media" data-media-id="${escapeHtml(asset.id)}" aria-label="Remover v\xEDnculo">\xD7</button></div>`).join("") || '<p class="subtle">Nenhuma m\xEDdia vinculada.</p>'}</div>${inputField("new_media_id", "ID da m\xEDdia existente", "", "text", true)}<button type="button" class="button" data-action="link-visit-media">Vincular m\xEDdia</button></section>` : '<p class="drawer-hint">Salve a visita para criar o checklist e vincular m\xEDdias.</p>'}<div id="deleteConfirm"></div></div><div class="drawer-actions">${visit ? '<button type="button" class="button danger" data-action="delete-visit">Excluir</button>' : ""}<button type="submit" class="button primary">Salvar visita</button></div></form>`;
 }
 function visitFormInput(form) {
-  return formValues(form, ["hotel_id", "date", "start_time", "end_time", "title", "description", "responsible_user_id", "status", "priority", "campaign_id", "notes"]);
+  const input = formValues(form, ["hotel_id", "date", "start_time", "end_time", "title", "description", "status", "priority", "campaign_id", "notes"]);
+  input.responsible_user_ids = new FormData(form).getAll("responsible_user_ids").map(String);
+  return input;
 }
 
 // social-planner/overview.ts
@@ -239,6 +251,7 @@ var state = {
   hotels: [],
   categories: [],
   pillars: [],
+  channels: [],
   users: [],
   campaigns: [],
   sequences: [],
@@ -249,6 +262,7 @@ var state = {
   visitFilter: params.get("visit_hotel") || "all",
   blogFilters: { hotel_id: params.get("blog_hotel") || "all", status: params.get("blog_status") || "all", category_id: params.get("blog_category") || "all", author_user_id: params.get("blog_author") || "all", campaign_id: params.get("blog_campaign") || "all" },
   blogMode: "list",
+  calendar: { provider: "google", configured: false, connected: false, connection: null },
   session: null,
   managedUsers: [],
   loading: true,
@@ -394,11 +408,11 @@ function selectedHotels() {
 function filtersHtml() {
   const f = state.filters;
   const select = (key, label, values) => `<select data-filter="${key}" aria-label="${label}">${option("all", label, f[key])}${values.map((item) => option(item.id, item.name, f[key])).join("")}</select>`;
-  return `<div class="filter-panel">${select("hotel_id", "Todos os hot\xE9is", state.hotels)}${select("status", "Todos os status", Object.entries(statusLabels).map(([id, name]) => ({ id, name })))}${select("category_id", "Todas as categorias", state.categories)}${select("responsible_user_id", "Todos os respons\xE1veis", state.users)}${select("campaign_id", "Todas as campanhas", state.campaigns)}<input type="search" data-filter="search" value="${escapeHtml(f.search)}" placeholder="Pesquisar stories" aria-label="Pesquisar stories"></div>`;
+  return `<div class="filter-panel">${select("hotel_id", "Todos os hot\xE9is", state.hotels)}${select("status", "Todos os status", Object.entries(statusLabels).map(([id, name]) => ({ id, name })))}${select("category_id", "Todas as categorias", state.categories)}${select("responsible_user_id", "Todos os respons\xE1veis", state.users)}${select("campaign_id", "Todas as campanhas", state.campaigns)}<input type="search" data-filter="search" value="${escapeHtml(f.search)}" placeholder="Pesquisar conte\xFAdos" aria-label="Pesquisar conte\xFAdos"></div>`;
 }
 function metricsHtml(stories) {
   const counts = [
-    ["Stories planejados", stories.filter((s) => s.status !== "cancelled").length, ""],
+    ["Conte\xFAdos planejados", stories.filter((s) => s.status !== "cancelled").length, ""],
     ["Prontos", stories.filter((s) => s.status === "ready" || s.status === "scheduled").length, "ready"],
     ["Em produ\xE7\xE3o", stories.filter((s) => s.status === "producing").length, "producing"],
     ["Pendentes", stories.filter((s) => ["idea", "to_produce", "approval"].includes(s.status)).length, "pending"],
@@ -409,14 +423,14 @@ function metricsHtml(stories) {
 function weekHeading() {
   const end = addDays(state.week, 6);
   const label = `${dateLabel(state.week, { day: "2-digit", month: "short" })} \u2014 ${dateLabel(end, { day: "2-digit", month: "short" })}`;
-  return `<div class="page-heading"><div><p class="eyebrow">Planejamento editorial</p><h1>Semana</h1><p class="subtle">Stories planejados para cada perfil da rede.</p></div><div class="heading-actions"><div class="week-nav"><button class="icon-button" data-action="prev-week" aria-label="Semana anterior">${icon("left")}</button><span class="week-label">${escapeHtml(label)}</span><button class="icon-button" data-action="next-week" aria-label="Pr\xF3xima semana">${icon("right")}</button></div><button class="button" data-action="today">Hoje</button><button class="button primary" data-action="new">${icon("plus")} Novo story</button></div></div>`;
+  return `<div class="page-heading"><div><p class="eyebrow">Planejamento editorial</p><h1>Semana</h1><p class="subtle">Conte\xFAdos e seus destinos em todas as redes.</p></div><div class="heading-actions"><div class="week-nav"><button class="icon-button" data-action="prev-week" aria-label="Semana anterior">${icon("left")}</button><span class="week-label">${escapeHtml(label)}</span><button class="icon-button" data-action="next-week" aria-label="Pr\xF3xima semana">${icon("right")}</button></div><button class="button" data-action="today">Hoje</button><button class="button primary" data-action="new">${icon("plus")} Novo conte\xFAdo</button></div></div>`;
 }
 function card(story) {
   const category = state.categories.find((item) => item.id === story.category_id)?.name;
   const format = story.format ? formatLabels[story.format] : "";
   const members = story.sequence_group_id ? state.stories.filter((item) => item.sequence_group_id === story.sequence_group_id) : [];
   const sequence = story.sequence_group_id ? `<span class="sequence-badge">${story.sequence_position || members.indexOf(story) + 1}/${members.length}</span>` : "";
-  return `<article class="story-card" data-story-id="${escapeHtml(story.id)}" data-status="${story.status}" draggable="true" tabindex="0" role="button" aria-label="${escapeHtml(story.title)}, ${statusLabels[story.status]}"><div class="card-top"><span class="card-time">${escapeHtml(story.planned_time || "\u2014")}</span><span class="status-pill" data-status="${story.status}">${statusLabels[story.status]}</span></div>${story.thumbnail_url ? `<img class="card-thumb" src="${escapeHtml(story.thumbnail_url)}" alt="">` : ""}<div class="card-title">${escapeHtml(story.title)}</div><div class="card-meta">${format ? `<span>${escapeHtml(format)}</span>` : ""}${category ? `<span>${escapeHtml(category)}</span>` : ""}</div><div class="card-footer"><span>${escapeHtml(story.responsible_name || "Sem respons\xE1vel")}</span>${sequence}</div></article>`;
+  return `<article class="story-card" data-story-id="${escapeHtml(story.id)}" data-status="${story.status}" draggable="true" tabindex="0" role="button" aria-label="${escapeHtml(story.title)}, ${statusLabels[story.status]}"><div class="card-top"><span class="card-time">${escapeHtml(story.planned_time || "\u2014")}</span><span class="status-pill" data-status="${story.status}">${statusLabels[story.status]}</span></div>${story.thumbnail_url ? `<img class="card-thumb" src="${escapeHtml(story.thumbnail_url)}" alt="">` : ""}<div class="card-title">${escapeHtml(story.title)}</div><div class="card-meta">${story.channel_names ? `<span title="${escapeHtml(story.channel_names)}">${escapeHtml(story.channel_names)}</span>` : ""}${format ? `<span>${escapeHtml(format)}</span>` : ""}${category ? `<span>${escapeHtml(category)}</span>` : ""}</div><div class="card-footer"><span>${escapeHtml(story.responsible_name || "Sem respons\xE1vel")}</span>${sequence}</div></article>`;
 }
 function weekView() {
   const stories = visibleStories();
@@ -533,10 +547,13 @@ function usersView() {
   return `<div class="page-heading"><div><p class="eyebrow">Administra\xE7\xE3o</p><h1>Usu\xE1rios do Planner</h1><p class="subtle">Estas contas acessam somente o Marketing Planner.</p></div><button class="button primary" data-action="new-planner-user">${icon("plus")} Novo usu\xE1rio</button></div><section class="section-card"><div class="user-management-list">${state.managedUsers.map((user) => `<div class="user-management-row" data-planner-user-id="${escapeHtml(user.id)}"><strong>${escapeHtml(user.display_name)}</strong><small>${escapeHtml(user.email)}</small><span>${accessLevelLabel(user.access_level)}</span><span>${user.status === "active" ? "Ativo" : "Desativado"}</span><div class="user-management-actions">${user.inherited_from_central ? '<span class="status-pill">Mestre da Central</span>' : `<button class="button" data-action="edit-planner-user" data-user-id="${escapeHtml(user.id)}">Editar</button><button class="button" data-action="reset-planner-password" data-user-id="${escapeHtml(user.id)}">Senha</button>`}</div></div>`).join("")}</div></section>`;
 }
 function settingsView() {
-  return `<div class="page-heading"><div><p class="eyebrow">Administra\xE7\xE3o</p><h1>Configura\xE7\xF5es</h1><p class="subtle">Identidade e sess\xE3o do Marketing Planner.</p></div></div><section class="section-card"><h2>Nome da aplica\xE7\xE3o</h2><form id="plannerSettingsForm" class="settings-form"><label><span>Nome exibido</span><input name="display_name" value="${escapeHtml(state.displayName)}" maxlength="100" required></label><button class="button primary" type="submit">Salvar nome</button></form></section><section class="section-card"><h2>Acesso separado</h2><p class="subtle">Usu\xE1rios comuns entram exclusivamente no Planner. Apenas o administrador mestre pode atravessar a sess\xE3o da Central.</p></section>`;
+  const connection = state.calendar.connection;
+  const calendarAction = !state.calendar.configured ? '<button class="button" disabled>Configura\xE7\xE3o pendente</button>' : state.calendar.connected ? '<button class="button danger" data-action="disconnect-calendar">Desconectar</button>' : '<button class="button primary" data-action="connect-calendar">Conectar minha agenda</button>';
+  const calendarDescription = !state.calendar.configured ? "Adicione as credenciais OAuth do Google no ambiente para liberar a conex\xE3o individual." : state.calendar.connected ? `Agenda conectada a ${escapeHtml(connection?.account_email || "conta Google")}. Somente visitas atribu\xEDdas a voc\xEA ser\xE3o sincronizadas.` : "Conecte sua conta pessoal. Cada usu\xE1rio recebe apenas as visitas em que foi marcado como respons\xE1vel.";
+  return `<div class="page-heading"><div><p class="eyebrow">Administra\xE7\xE3o</p><h1>Configura\xE7\xF5es</h1><p class="subtle">Identidade, sess\xE3o e integra\xE7\xF5es pessoais.</p></div></div><section class="section-card"><h2>Nome da aplica\xE7\xE3o</h2><form id="plannerSettingsForm" class="settings-form"><label><span>Nome exibido</span><input name="display_name" value="${escapeHtml(state.displayName)}" maxlength="100" required></label><button class="button primary" type="submit">Salvar nome</button></form></section><section class="section-card calendar-settings"><div><h2>Google Calendar</h2><p class="subtle">${calendarDescription}</p>${connection?.last_error ? `<p class="calendar-error">${escapeHtml(connection.last_error)}</p>` : ""}</div>${calendarAction}</section><section class="section-card"><h2>Acesso separado</h2><p class="subtle">Usu\xE1rios comuns entram exclusivamente no Planner. Apenas o administrador mestre pode atravessar a sess\xE3o da Central.</p></section>`;
 }
 function emptyState(message) {
-  return `<div class="empty-state"><h2>${escapeHtml(message)}</h2><p>Crie um Story para come\xE7ar o planejamento.</p><button class="button primary" data-action="new">Novo story</button></div>`;
+  return `<div class="empty-state"><h2>${escapeHtml(message)}</h2><p>Crie um conte\xFAdo e escolha onde ele ser\xE1 publicado.</p><button class="button primary" data-action="new">Novo conte\xFAdo</button></div>`;
 }
 function visitContext() {
   return { visits: state.visits, hotels: state.hotels, categories: state.categories, users: state.users, campaigns: state.campaigns, week: state.week, day: state.day, today, filter: state.visitFilter, view: state.view };
@@ -615,6 +632,35 @@ function field(name, label, value, kind = "text", full = false) {
 function selectField2(name, label, value, values, required = false) {
   return `<label><span>${label}${required ? " *" : ""}</span><select name="${name}" ${required ? "required" : ""}>${required ? option("", "Selecione", value || "") : option("", "N\xE3o definido", value || "")}${value && !values.some((item) => item.id === value) ? option(value, "V\xEDnculo existente", value) : ""}${values.map((item) => option(item.id, item.name, value || "")).join("")}</select></label>`;
 }
+function channelPlanner(story) {
+  const existing = new Map((story?.channels || []).map((channel) => [channel.channel_id, channel]));
+  const defaultId = story ? null : "instagram-feed";
+  const statusOptions = Object.entries(statusLabels).map(([id, name]) => ({ id, name }));
+  const sourceOptions = state.channels.map((channel) => ({ id: channel.id, name: channel.display_name }));
+  return `<section class="drawer-section"><div class="section-heading"><div><h3>Canais e reaproveitamento</h3><p class="drawer-hint">Selecione os destinos e adapte somente o que mudar em cada rede.</p></div></div><div class="channel-planner">${state.channels.map((channel) => {
+    const linked = existing.get(channel.id);
+    const selected = Boolean(linked || channel.id === defaultId);
+    const plannedAt = linked?.planned_at || (selected && story?.date ? `${story.date}T${story.planned_time || "12:00"}` : "");
+    return `<article class="channel-row" data-channel-row="${escapeHtml(channel.id)}"><label class="channel-toggle"><input type="checkbox" name="channel_selected" value="${escapeHtml(channel.id)}" ${selected ? "checked" : ""}><span><strong>${escapeHtml(channel.display_name)}</strong><small>${escapeHtml(channel.platform_name)} \xB7 ${escapeHtml(channel.placement_key)}</small></span></label><div class="channel-fields"><label><span>Agendar</span><input type="datetime-local" name="channel_planned_${escapeHtml(channel.id)}" value="${escapeHtml(plannedAt)}"></label><label><span>Status</span><select name="channel_status_${escapeHtml(channel.id)}">${statusOptions.map((item) => option(item.id, item.name, linked?.status || story?.status || "idea")).join("")}</select></label><label><span>Reaproveitar de</span><select name="channel_source_${escapeHtml(channel.id)}">${option("", "Conte\xFAdo original", linked?.source_channel_id || "")}${sourceOptions.filter((item) => item.id !== channel.id).map((item) => option(item.id, item.name, linked?.source_channel_id || "")).join("")}</select></label><label class="full"><span>Texto adaptado</span><textarea name="channel_text_${escapeHtml(channel.id)}" placeholder="Use somente quando este canal precisar de outra legenda ou roteiro">${escapeHtml(linked?.adapted_text)}</textarea></label></div></article>`;
+  }).join("")}</div></section>`;
+}
+function channelFormInput(form) {
+  const data = new FormData(form);
+  const selected = new Set(data.getAll("channel_selected").map(String));
+  return [...selected].map((id) => {
+    const text = (name) => String(data.get(`${name}_${id}`) || "").trim() || null;
+    const source = text("channel_source");
+    return {
+      channel_id: id,
+      source_channel_id: source && selected.has(source) ? source : null,
+      adapted_text: text("channel_text"),
+      planned_at: text("channel_planned"),
+      status: text("channel_status") || "idea",
+      published_at: null,
+      published_url: null
+    };
+  });
+}
 function renderDrawer() {
   const story = state.drawer === "new" ? null : state.drawer;
   if (!state.drawer) return;
@@ -622,7 +668,7 @@ function renderDrawer() {
   const objectiveOptions = Object.entries(objectiveLabels).map(([id, name]) => ({ id, name }));
   const statusOptions = Object.entries(statusLabels).map(([id, name]) => ({ id, name }));
   const priorityOptions = Object.entries(priorityLabels).map(([id, name]) => ({ id, name }));
-  drawer.innerHTML = `<div class="drawer-header"><div><small>${story ? "Editar story" : "Novo story"}</small><h2 id="drawerTitle">${escapeHtml(story?.title || "Planejar Story")}</h2></div><button class="icon-button" data-action="close-drawer" aria-label="Fechar">${icon("close")}</button></div><form id="storyForm"><div class="drawer-body"><section class="drawer-section"><h3>Planejamento</h3><div class="form-grid">${selectField2("hotel_id", "Hotel", story?.hotel_id || state.createHotel, state.hotels, true)}${field("date", "Data", story?.date || state.createDate, "date")}${field("planned_time", "Hor\xE1rio planejado", story?.planned_time, "time")}${selectField2("status", "Status", story?.status || "idea", statusOptions)}${selectField2("priority", "Prioridade", story?.priority || "normal", priorityOptions)}</div></section><section class="drawer-section"><h3>Conte\xFAdo</h3><div class="form-grid">${field("title", "T\xEDtulo interno", story?.title, "text", true)}${field("description", "Descri\xE7\xE3o / ideia", story?.description, "textarea", true)}${field("story_text", "Texto sugerido", story?.story_text, "textarea", true)}${selectField2("category_id", "Categoria", story?.category_id || null, state.categories)}${selectField2("content_pillar_id", "Pilar de conte\xFAdo", story?.content_pillar_id || null, state.pillars)}${selectField2("format", "Formato", story?.format || null, formatOptions)}${selectField2("objective", "Objetivo", story?.objective || null, objectiveOptions)}${field("cta", "CTA", story?.cta)}${field("link", "Link", story?.link, "url", true)}</div></section><section class="drawer-section"><h3>M\xEDdia</h3><div class="form-grid">${field("media_asset_id", "ID da m\xEDdia na biblioteca", story?.media_asset_id, "text", true)}</div><p class="drawer-hint">O arquivo \xE9 armazenado na biblioteca R2 existente e pode ser reutilizado em outros Stories.</p>${story?.thumbnail_url ? `<img src="${escapeHtml(story.thumbnail_url)}" alt="Pr\xE9via da m\xEDdia" style="max-height:100px;border-radius:7px;margin-top:10px">` : ""}</section><section class="drawer-section"><h3>Respons\xE1vel</h3><div class="form-grid">${selectField2("responsible_user_id", "Pessoa respons\xE1vel", story?.responsible_user_id || null, state.users)}</div></section><section class="drawer-section"><h3>Publica\xE7\xE3o</h3><div class="form-grid">${selectField2("campaign_id", "Campanha", story?.campaign_id || null, state.campaigns)}${field("published_at", "Publicado em (ISO)", story?.published_at)}${field("published_url", "URL publicada", story?.published_url, "url", true)}</div></section><section class="drawer-section"><h3>Sequ\xEAncia</h3><div class="form-grid">${selectField2("sequence_group_id", "Grupo", story?.sequence_group_id || null, state.sequences.map((sequence) => ({ id: sequence.id, name: sequence.title })))}${field("sequence_position", "Posi\xE7\xE3o", story?.sequence_position)}</div><button type="button" class="button" data-action="new-sequence" style="margin-top:10px">Criar sequ\xEAncia</button></section><section class="drawer-section"><h3>Origem</h3><div class="form-grid">${selectField2("source_visit_id", "Visita de capta\xE7\xE3o", story?.source_visit_id || null, state.visits.filter((visit) => visit.hotel_id === (story?.hotel_id || state.createHotel)).map((visit) => ({ id: visit.id, name: `${visit.date} \xB7 ${visit.title}` })))}</div></section><section class="drawer-section"><h3>Informa\xE7\xF5es adicionais</h3><div class="form-grid">${field("notes", "Observa\xE7\xF5es", story?.notes, "textarea", true)}</div></section><div id="deleteConfirm"></div></div><div class="drawer-actions">${story ? `<button type="button" class="button" data-action="duplicate">Duplicar</button><button type="button" class="button" data-action="mark-ready">Pronto</button><button type="button" class="button" data-action="mark-published">Publicado</button><button type="button" class="button danger" data-action="delete">Excluir</button>` : ""}<button type="submit" class="button primary">${state.saving ? "Salvando..." : "Salvar story"}</button></div></form>`;
+  drawer.innerHTML = `<div class="drawer-header"><div><small>${story ? "Editar conte\xFAdo" : "Novo conte\xFAdo"}</small><h2 id="drawerTitle">${escapeHtml(story?.title || "Planejar conte\xFAdo")}</h2></div><button class="icon-button" data-action="close-drawer" aria-label="Fechar">${icon("close")}</button></div><form id="storyForm"><div class="drawer-body"><section class="drawer-section"><h3>Planejamento</h3><div class="form-grid">${selectField2("hotel_id", "Hotel", story?.hotel_id || state.createHotel, state.hotels, true)}${field("date", "Data", story?.date || state.createDate, "date")}${field("planned_time", "Hor\xE1rio planejado", story?.planned_time, "time")}${selectField2("status", "Status geral", story?.status || "idea", statusOptions)}${selectField2("priority", "Prioridade", story?.priority || "normal", priorityOptions)}</div></section><section class="drawer-section"><h3>Conte\xFAdo-base</h3><div class="form-grid">${field("title", "T\xEDtulo interno", story?.title, "text", true)}${field("description", "Descri\xE7\xE3o / ideia", story?.description, "textarea", true)}${field("story_text", "Texto ou roteiro principal", story?.story_text, "textarea", true)}${selectField2("category_id", "Categoria", story?.category_id || null, state.categories)}${selectField2("content_pillar_id", "Pilar de conte\xFAdo", story?.content_pillar_id || null, state.pillars)}${selectField2("format", "Formato", story?.format || null, formatOptions)}${selectField2("objective", "Objetivo", story?.objective || null, objectiveOptions)}${field("cta", "CTA", story?.cta)}${field("link", "Link", story?.link, "url", true)}</div></section>${channelPlanner(story)}<section class="drawer-section"><h3>M\xEDdia</h3><div class="form-grid">${field("media_asset_id", "ID da m\xEDdia na biblioteca", story?.media_asset_id, "text", true)}</div><p class="drawer-hint">O mesmo arquivo pode ser reaproveitado nos destinos selecionados.</p>${story?.thumbnail_url ? `<img src="${escapeHtml(story.thumbnail_url)}" alt="Pr\xE9via da m\xEDdia" style="max-height:100px;border-radius:7px;margin-top:10px">` : ""}</section><section class="drawer-section"><h3>Respons\xE1vel</h3><div class="form-grid">${selectField2("responsible_user_id", "Pessoa respons\xE1vel", story?.responsible_user_id || null, state.users)}</div></section><section class="drawer-section"><h3>Publica\xE7\xE3o principal</h3><div class="form-grid">${selectField2("campaign_id", "Campanha", story?.campaign_id || null, state.campaigns)}${field("published_at", "Publicado em (ISO)", story?.published_at)}${field("published_url", "URL publicada", story?.published_url, "url", true)}</div></section><section class="drawer-section"><h3>Sequ\xEAncia</h3><div class="form-grid">${selectField2("sequence_group_id", "Grupo", story?.sequence_group_id || null, state.sequences.map((sequence) => ({ id: sequence.id, name: sequence.title })))}${field("sequence_position", "Posi\xE7\xE3o", story?.sequence_position)}</div><button type="button" class="button" data-action="new-sequence" style="margin-top:10px">Criar sequ\xEAncia</button></section><section class="drawer-section"><h3>Origem</h3><div class="form-grid">${selectField2("source_visit_id", "Visita de capta\xE7\xE3o", story?.source_visit_id || null, state.visits.filter((visit) => visit.hotel_id === (story?.hotel_id || state.createHotel)).map((visit) => ({ id: visit.id, name: `${visit.date} \xB7 ${visit.title}` })))}</div></section><section class="drawer-section"><h3>Informa\xE7\xF5es adicionais</h3><div class="form-grid">${field("notes", "Observa\xE7\xF5es", story?.notes, "textarea", true)}</div></section><div id="deleteConfirm"></div></div><div class="drawer-actions">${story ? `<button type="button" class="button" data-action="duplicate">Duplicar</button><button type="button" class="button" data-action="mark-ready">Pronto</button><button type="button" class="button" data-action="mark-published">Publicado</button><button type="button" class="button danger" data-action="delete">Excluir</button>` : ""}<button type="submit" class="button primary">${state.saving ? "Salvando..." : "Salvar conte\xFAdo"}</button></div></form>`;
   const mediaSection = drawer.querySelector(".drawer-section:nth-of-type(3)");
   mediaSection?.insertAdjacentHTML("beforeend", '<button type="button" class="button" data-action="choose-media" style="margin-top:10px">Escolher da biblioteca</button><div id="mediaChoices"></div>');
   if (story?.sequence_group_id) drawer.querySelector(".drawer-actions")?.insertAdjacentHTML("afterbegin", '<button type="button" class="button" data-action="duplicate-sequence">Duplicar sequ\xEAncia</button>');
@@ -646,7 +692,10 @@ async function saveDrawer(event) {
   state.saving = true;
   const existing = state.drawer && state.drawer !== "new" ? state.drawer : null;
   try {
-    const saved = existing ? await apiStoryRepository.update(existing.id, formInput()) : await apiStoryRepository.create(formInput());
+    const channels = channelFormInput(form);
+    if (!channels.length) throw new Error("Selecione pelo menos um canal de publica\xE7\xE3o.");
+    const baseSaved = existing ? await apiStoryRepository.update(existing.id, formInput()) : await apiStoryRepository.create(formInput());
+    const saved = await apiStoryRepository.saveChannels(baseSaved.id, channels);
     state.stories = existing ? state.stories.map((story) => story.id === saved.id ? saved : story) : [...state.stories, saved];
     if (existing?.campaign_id || saved.campaign_id) {
       try {
@@ -656,7 +705,7 @@ async function saveDrawer(event) {
     }
     closeDrawer();
     render();
-    notify(existing ? "Story atualizado." : "Story criado.");
+    notify(existing ? "Conte\xFAdo atualizado." : "Conte\xFAdo criado.");
   } catch (error) {
     notify(error.message, true);
   } finally {
@@ -794,8 +843,11 @@ document.addEventListener("click", async (event) => {
   }
   const storyElement = target.closest("[data-story-id]");
   if (storyElement && !target.closest("[data-action]")) {
-    const story = state.stories.find((item) => item.id === storyElement.dataset.storyId);
-    if (story) openDrawer(story);
+    try {
+      openDrawer(await apiStoryRepository.story(storyElement.dataset.storyId));
+    } catch (error) {
+      notify(error.message, true);
+    }
     return;
   }
   const button = target.closest("[data-action]");
@@ -820,6 +872,27 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "close-planner-password") {
     document.querySelector("#plannerPasswordDialog")?.close();
+    return;
+  }
+  if (action === "connect-calendar") {
+    try {
+      const result = await marketingRepository.connectCalendar();
+      location.assign(result.authorization_url);
+    } catch (error) {
+      notify(error.message, true);
+    }
+    return;
+  }
+  if (action === "disconnect-calendar") {
+    if (!window.confirm("Desconectar sua agenda do Google Calendar?")) return;
+    try {
+      await marketingRepository.disconnectCalendar();
+      state.calendar = await marketingRepository.calendarStatus();
+      render();
+      notify("Agenda desconectada.");
+    } catch (error) {
+      notify(error.message, true);
+    }
     return;
   }
   if (action === "close-drawer") closeDrawer();
@@ -918,6 +991,16 @@ document.addEventListener("click", async (event) => {
     }
     return;
   }
+  if (currentVisit && action === "sync-visit-calendar") {
+    try {
+      const result = await marketingRepository.syncVisitCalendar(currentVisit.id);
+      await refreshVisitDrawer();
+      notify(`${result.synced} agenda(s) sincronizada(s).${result.skipped ? ` ${result.skipped} respons\xE1vel(is) sem conex\xE3o.` : ""}`);
+    } catch (error) {
+      notify(error.message, true);
+    }
+    return;
+  }
   if (currentVisit && action === "delete-visit") {
     drawer.querySelector("#deleteConfirm").innerHTML = `<div class="dialog-inline">Excluir esta visita e seu checklist?<br><button type="button" class="button danger" data-action="confirm-delete-visit">Confirmar exclus\xE3o</button><button type="button" class="button" data-action="cancel-marketing-delete">Cancelar</button></div>`;
     return;
@@ -1001,10 +1084,11 @@ document.addEventListener("click", async (event) => {
     const copy = { ...current, title: `${current.title} (c\xF3pia)`, status: "idea", published_at: null, published_url: null, sequence_group_id: null, sequence_position: null };
     try {
       const created = await apiStoryRepository.create(copy);
-      state.stories.push(created);
+      const saved = await apiStoryRepository.saveChannels(created.id, (current.channels || []).map((channel) => ({ ...channel, status: "idea", published_at: null, published_url: null })));
+      state.stories.push(saved);
       render();
-      notify("Story duplicado.");
-      openDrawer(created);
+      notify("Conte\xFAdo duplicado.");
+      openDrawer(saved);
     } catch (error) {
       notify(error.message, true);
     }
@@ -1210,8 +1294,8 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && (state.drawer || state.visitDrawer || state.postDrawer)) closeDrawer();
   if ((event.key === "Enter" || event.key === " ") && event.target.matches(".story-card")) {
     event.preventDefault();
-    const story = state.stories.find((item) => item.id === event.target.dataset.storyId);
-    if (story) openDrawer(story);
+    const id = event.target.dataset.storyId;
+    if (id) void apiStoryRepository.story(id).then(openDrawer).catch((error) => notify(error.message, true));
   }
 });
 document.addEventListener("dragstart", (event) => {
@@ -1331,11 +1415,13 @@ async function initializePlanner() {
   document.querySelector("#currentUser").textContent = state.session?.user.display_name || "Marketing";
   document.querySelector("#centralAdminLink").hidden = state.session?.auth_source !== "admin-master";
   if (state.view === "users" && !state.session?.permissions.includes("social-planner.users.manage")) state.view = "overview";
-  [state.hotels, state.categories, state.pillars, state.users, state.campaigns, state.sequences, { display_name: state.displayName }] = await Promise.all([apiStoryRepository.hotels(), apiStoryRepository.categories(), apiStoryRepository.pillars(), apiStoryRepository.users(), apiStoryRepository.campaigns(), apiStoryRepository.sequences(), marketingRepository.settings()]);
+  [state.hotels, state.categories, state.pillars, state.channels, state.users, state.campaigns, state.sequences, { display_name: state.displayName }, state.calendar] = await Promise.all([apiStoryRepository.hotels(), apiStoryRepository.categories(), apiStoryRepository.pillars(), apiStoryRepository.channels(), apiStoryRepository.users(), apiStoryRepository.campaigns(), apiStoryRepository.sequences(), marketingRepository.settings(), marketingRepository.calendarStatus()]);
   document.querySelector("#plannerName").textContent = state.displayName;
   document.title = state.displayName;
   if (state.view === "users") await loadManagedUsers();
   else await loadData();
+  if (params.get("calendar") === "connected") notify("Google Calendar conectado \xE0 sua conta.");
+  if (params.get("calendar") === "error") notify("N\xE3o foi poss\xEDvel concluir a conex\xE3o com o Google Calendar.", true);
   if (planningAlerts()) notify(`${planningAlerts()} Story(s) de hoje ainda est\xE3o como Ideia.`);
 }
 void start();

@@ -1,5 +1,5 @@
 import { request } from "./repository";
-import type { BlogInput, BlogPost, Visit, VisitInput, VisitItem } from "./types";
+import type { BlogInput, BlogPost, CalendarConnectionStatus, Visit, VisitInput, VisitItem } from "./types";
 
 function range(path: string, start?: string, end?: string, filters: Record<string, string> = {}) {
   const query = new URLSearchParams();
@@ -20,6 +20,10 @@ export const marketingRepository = {
   deleteItem: (visitId: string, id: string) => request(`/visits/${encodeURIComponent(visitId)}/items/${encodeURIComponent(id)}`, "DELETE"),
   linkMedia: (visitId: string, media_asset_id: string) => request<Visit>(`/visits/${encodeURIComponent(visitId)}/media`, "POST", { media_asset_id }),
   unlinkMedia: (visitId: string, mediaId: string) => request(`/visits/${encodeURIComponent(visitId)}/media/${encodeURIComponent(mediaId)}`, "DELETE"),
+  calendarStatus: () => request<CalendarConnectionStatus>("/calendar/status"),
+  connectCalendar: () => request<{ authorization_url: string; expires_at: string }>("/calendar/google/connect", "POST", {}),
+  disconnectCalendar: () => request<{ disconnected: boolean }>("/calendar/google/connection", "DELETE"),
+  syncVisitCalendar: (visitId: string) => request<{ configured: boolean; synced: number; failed: number; skipped: number }>(`/visits/${encodeURIComponent(visitId)}/calendar-sync`, "POST", {}),
   posts: (start?: string, end?: string, filters: Record<string, string> = {}) => request<BlogPost[]>(range("/blog-posts", start, end, filters)),
   post: (id: string) => request<BlogPost>(`/blog-posts/${encodeURIComponent(id)}`),
   createPost: (input: BlogInput) => request<BlogPost>("/blog-posts", "POST", input),
