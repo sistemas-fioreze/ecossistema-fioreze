@@ -1,5 +1,5 @@
 // social-planner/repository.ts
-var base = "/api/v1/admin/social-planner";
+var base = "/api/v1/social-planner";
 async function request(path, method = "GET", body) {
   const response = await fetch(`${base}${path}`, {
     method,
@@ -227,7 +227,7 @@ function overviewView(stories, visits, posts, hotels, today2, week) {
 }
 
 // social-planner/app.ts
-var views = { overview: "Vis\xE3o Geral", week: "Redes \xB7 Semana", calendar: "Redes \xB7 Calend\xE1rio", pending: "Redes \xB7 Pend\xEAncias", "visits-week": "Visitas \xB7 Semana", "visits-calendar": "Visitas \xB7 Calend\xE1rio", "visits-history": "Visitas \xB7 Hist\xF3rico", "blog-schedule": "Blog \xB7 Cronograma", "blog-ideas": "Blog \xB7 Pautas", "blog-published": "Blog \xB7 Publicados", campaigns: "Campanhas", assets: "Banco de conte\xFAdos", hotels: "Hot\xE9is", categories: "Categorias", performance: "Desempenho", settings: "Configura\xE7\xF5es" };
+var views = { overview: "Vis\xE3o Geral", week: "Redes \xB7 Semana", calendar: "Redes \xB7 Calend\xE1rio", pending: "Redes \xB7 Pend\xEAncias", "visits-week": "Visitas \xB7 Semana", "visits-calendar": "Visitas \xB7 Calend\xE1rio", "visits-history": "Visitas \xB7 Hist\xF3rico", "blog-schedule": "Blog \xB7 Cronograma", "blog-ideas": "Blog \xB7 Pautas", "blog-published": "Blog \xB7 Publicados", campaigns: "Campanhas", assets: "Banco de conte\xFAdos", hotels: "Hot\xE9is", categories: "Categorias", performance: "Desempenho", users: "Usu\xE1rios", settings: "Configura\xE7\xF5es" };
 var today = isoDate(/* @__PURE__ */ new Date());
 var params = new URLSearchParams(location.search);
 var initialWeek = /^\d{4}-\d{2}-\d{2}$/.test(params.get("week") || "") ? params.get("week") : today;
@@ -249,6 +249,8 @@ var state = {
   visitFilter: params.get("visit_hotel") || "all",
   blogFilters: { hotel_id: params.get("blog_hotel") || "all", status: params.get("blog_status") || "all", category_id: params.get("blog_category") || "all", author_user_id: params.get("blog_author") || "all", campaign_id: params.get("blog_campaign") || "all" },
   blogMode: "list",
+  session: null,
+  managedUsers: [],
   loading: true,
   drawer: null,
   visitDrawer: null,
@@ -300,6 +302,7 @@ function route(view) {
   document.querySelector("#sidebar")?.classList.remove("mobile-open");
   updateUrl();
   if (["week", "calendar", "pending", "overview", "visits-week", "visits-calendar", "visits-history", "blog-schedule", "blog-ideas", "blog-published"].includes(view)) void loadData();
+  else if (view === "users") void loadManagedUsers();
   else render();
 }
 function updateUrl() {
@@ -314,7 +317,7 @@ function updateUrl() {
   for (const [key, urlKey] of [["hotel_id", "blog_hotel"], ["status", "blog_status"], ["category_id", "blog_category"], ["author_user_id", "blog_author"], ["campaign_id", "blog_campaign"]]) {
     if (state.blogFilters[key] && state.blogFilters[key] !== "all") query.set(urlKey, state.blogFilters[key]);
   }
-  history.replaceState({}, "", `/admin/social-planner/${state.view}?${query}`);
+  history.replaceState({}, "", `/socialplanner/${state.view}?${query}`);
 }
 function renderNavigation() {
   const groups = [
@@ -326,8 +329,8 @@ function renderNavigation() {
     ["An\xE1lise", [["performance", "Desempenho", "grid"]]],
     ["Administra\xE7\xE3o", [["hotels", "Hot\xE9is", "hotel"], ["categories", "Categorias", "tag"], ["users", "Usu\xE1rios", "users"], ["settings", "Configura\xE7\xF5es", "settings"]]]
   ];
-  const targets = { users: "/admin/usuarios/" };
-  document.querySelector("#navigation").innerHTML = groups.map(([title, items]) => `<div class="nav-group">${title ? `<span class="nav-heading">${title}</span>` : ""}${items.map(([key, label, symbol]) => `<a class="nav-link ${state.view === key ? "active" : ""}" href="${targets[key] || `/admin/social-planner/${key}`}" ${targets[key] ? "" : `data-view="${key}"`} title="${label}">${icon(symbol)}<span class="nav-label">${label}</span></a>`).join("")}</div>`).join("");
+  const visibleGroups = groups.map(([title, items]) => [title, items.filter(([key]) => key !== "users" || state.session?.permissions.includes("social-planner.users.manage"))]);
+  document.querySelector("#navigation").innerHTML = visibleGroups.map(([title, items]) => `<div class="nav-group">${title ? `<span class="nav-heading">${title}</span>` : ""}${items.map(([key, label, symbol]) => `<a class="nav-link ${state.view === key ? "active" : ""}" href="/socialplanner/${key}" data-view="${key}" title="${label}">${icon(symbol)}<span class="nav-label">${label}</span></a>`).join("")}</div>`).join("");
   document.querySelector("#viewTitle").textContent = views[state.view];
 }
 function dateRange() {
@@ -366,6 +369,19 @@ async function loadData() {
       state.loading = false;
       render();
     }
+  }
+}
+async function loadManagedUsers() {
+  state.loading = true;
+  render();
+  try {
+    const result = await request("/user-management");
+    state.managedUsers = result.users;
+  } catch (error) {
+    notify(error.message, true);
+  } finally {
+    state.loading = false;
+    render();
   }
 }
 function visibleStories() {
@@ -476,8 +492,32 @@ function openCampaignDialog(campaign) {
   dialog.showModal();
   dialog.querySelector("[name=name]")?.focus();
 }
+function openPlannerUserDialog(user) {
+  document.querySelector("#plannerUserDialog")?.remove();
+  const dialog = document.createElement("dialog");
+  dialog.id = "plannerUserDialog";
+  dialog.className = "campaign-dialog";
+  dialog.dataset.userId = user?.id || "";
+  dialog.innerHTML = `<form id="plannerUserForm"><header><h2>${user ? "Editar usu\xE1rio" : "Novo usu\xE1rio"}</h2><button type="button" class="icon-button" data-action="close-planner-user" aria-label="Fechar">${icon("close")}</button></header><div class="form-grid">${field("display_name", "Nome", user?.display_name, "text", true)}${field("email", "E-mail", user?.email, "email", true)}${selectField2("access_level", "Acesso", user?.access_level || "editor", [{ id: "viewer", name: "Somente leitura" }, { id: "editor", name: "Editor" }, { id: "admin", name: "Administrador" }], true)}${user ? selectField2("status", "Status", user.status, [{ id: "active", name: "Ativo" }, { id: "disabled", name: "Desativado" }], true) : field("password", "Senha inicial", "", "password", true)}</div><footer><button type="button" class="button" data-action="close-planner-user">Cancelar</button><button class="button primary" type="submit">Salvar usu\xE1rio</button></footer></form>`;
+  document.body.append(dialog);
+  dialog.showModal();
+  dialog.querySelector("[name=display_name]")?.focus();
+}
+function openPlannerPasswordDialog(userId) {
+  document.querySelector("#plannerPasswordDialog")?.remove();
+  const user = state.managedUsers.find((entry) => entry.id === userId);
+  if (!user) return;
+  const dialog = document.createElement("dialog");
+  dialog.id = "plannerPasswordDialog";
+  dialog.className = "campaign-dialog";
+  dialog.dataset.userId = userId;
+  dialog.innerHTML = `<form id="plannerPasswordForm"><header><h2>Redefinir senha</h2><button type="button" class="icon-button" data-action="close-planner-password" aria-label="Fechar">${icon("close")}</button></header><p class="subtle">${escapeHtml(user.display_name)}</p><div class="form-grid">${field("password", "Nova senha", "", "password", true)}</div><footer><button type="button" class="button" data-action="close-planner-password">Cancelar</button><button class="button primary" type="submit">Redefinir senha</button></footer></form>`;
+  document.body.append(dialog);
+  dialog.showModal();
+  dialog.querySelector("[name=password]")?.focus();
+}
 function assetsView() {
-  return `<div class="page-heading"><div><p class="eyebrow">Conte\xFAdo</p><h1>Banco de conte\xFAdos</h1><p class="subtle">A biblioteca de m\xEDdia existente permite reutilizar fotos e v\xEDdeos.</p></div></div><div class="section-card"><h2>Biblioteca de m\xEDdia</h2><p class="subtle">Escolha arquivos na Central de Portais e associe o ID da m\xEDdia ao Story no painel de edi\xE7\xE3o.</p><p><a class="button" href="/admin/portais/media/">Abrir biblioteca de m\xEDdia</a></p></div>`;
+  return `<div class="page-heading"><div><p class="eyebrow">Conte\xFAdo</p><h1>Banco de conte\xFAdos</h1><p class="subtle">Fotos e v\xEDdeos s\xE3o acessados diretamente pelo editor de Stories.</p></div></div><div class="section-card"><h2>Biblioteca compartilhada</h2><p class="subtle">Ao editar um Story, selecione o hotel e use \u201CEscolher m\xEDdia\u201D. O Planner mostra apenas arquivos ativos da unidade escolhida.</p>${state.session?.auth_source === "admin-master" ? '<p><a class="button" href="/admin/portais/media/">Administrar biblioteca na Central</a></p>' : ""}</div>`;
 }
 function hotelsView() {
   return `<div class="page-heading"><div><p class="eyebrow">Administra\xE7\xE3o</p><h1>Hot\xE9is</h1><p class="subtle">Perfis inclu\xEDdos no planejamento editorial.</p></div></div><div class="section-card"><div class="pending-list">${state.hotels.map((hotel) => `<div class="pending-row"><strong>${escapeHtml(hotel.name)}</strong><small>${escapeHtml(hotel.instagram_username)}</small><small>${hotel.active ? "Ativo" : "Inativo"}</small></div>`).join("")}</div></div>`;
@@ -488,8 +528,12 @@ function categoriesView() {
 function performanceView() {
   return `<div class="page-heading"><div><p class="eyebrow">An\xE1lise</p><h1>Desempenho</h1><p class="subtle">Esta \xE1rea receber\xE1 m\xE9tricas quando a integra\xE7\xE3o de dados do Instagram estiver dispon\xEDvel.</p></div></div><div class="section-card"><h2>An\xE1lise em prepara\xE7\xE3o</h2><p class="subtle">O planejamento e os estados de publica\xE7\xE3o j\xE1 s\xE3o registrados. M\xE9tricas de alcance e engajamento dependem de uma integra\xE7\xE3o autorizada com o Instagram.</p></div>`;
 }
+function usersView() {
+  if (!state.session?.permissions.includes("social-planner.users.manage")) return `<div class="empty-state"><h2>Acesso restrito</h2><p>Somente administradores do Planner gerenciam usu\xE1rios.</p></div>`;
+  return `<div class="page-heading"><div><p class="eyebrow">Administra\xE7\xE3o</p><h1>Usu\xE1rios do Planner</h1><p class="subtle">Estas contas acessam somente o Marketing Planner.</p></div><button class="button primary" data-action="new-planner-user">${icon("plus")} Novo usu\xE1rio</button></div><section class="section-card"><div class="user-management-list">${state.managedUsers.map((user) => `<div class="user-management-row" data-planner-user-id="${escapeHtml(user.id)}"><strong>${escapeHtml(user.display_name)}</strong><small>${escapeHtml(user.email)}</small><span>${accessLevelLabel(user.access_level)}</span><span>${user.status === "active" ? "Ativo" : "Desativado"}</span><div class="user-management-actions">${user.inherited_from_central ? '<span class="status-pill">Mestre da Central</span>' : `<button class="button" data-action="edit-planner-user" data-user-id="${escapeHtml(user.id)}">Editar</button><button class="button" data-action="reset-planner-password" data-user-id="${escapeHtml(user.id)}">Senha</button>`}</div></div>`).join("")}</div></section>`;
+}
 function settingsView() {
-  return `<div class="page-heading"><div><p class="eyebrow">Administra\xE7\xE3o</p><h1>Configura\xE7\xF5es</h1><p class="subtle">Identidade do Marketing Planner e acesso \xE0 administra\xE7\xE3o central.</p></div></div><section class="section-card"><h2>Nome da aplica\xE7\xE3o</h2><form id="plannerSettingsForm" class="settings-form"><label><span>Nome exibido</span><input name="display_name" value="${escapeHtml(state.displayName)}" maxlength="100" required></label><button class="button primary" type="submit">Salvar nome</button></form></section><section class="section-card"><h2>Usu\xE1rios e permiss\xF5es</h2><p class="subtle">O acesso usa os perfis administrativos da plataforma.</p><a class="button" href="/admin/configuracoes/">Abrir administra\xE7\xE3o central</a></section>`;
+  return `<div class="page-heading"><div><p class="eyebrow">Administra\xE7\xE3o</p><h1>Configura\xE7\xF5es</h1><p class="subtle">Identidade e sess\xE3o do Marketing Planner.</p></div></div><section class="section-card"><h2>Nome da aplica\xE7\xE3o</h2><form id="plannerSettingsForm" class="settings-form"><label><span>Nome exibido</span><input name="display_name" value="${escapeHtml(state.displayName)}" maxlength="100" required></label><button class="button primary" type="submit">Salvar nome</button></form></section><section class="section-card"><h2>Acesso separado</h2><p class="subtle">Usu\xE1rios comuns entram exclusivamente no Planner. Apenas o administrador mestre pode atravessar a sess\xE3o da Central.</p></section>`;
 }
 function emptyState(message) {
   return `<div class="empty-state"><h2>${escapeHtml(message)}</h2><p>Crie um Story para come\xE7ar o planejamento.</p><button class="button primary" data-action="new">Novo story</button></div>`;
@@ -509,7 +553,10 @@ function render() {
   if (state.view.startsWith("visits-")) main.innerHTML = visitsView(visitContext());
   else if (state.view.startsWith("blog-")) main.innerHTML = blogView(blogContext());
   else if (state.view === "overview") main.innerHTML = overviewView(state.stories, state.visits, state.posts, state.hotels, today, state.week);
-  else main.innerHTML = { week: weekView, calendar: calendarView, pending: pendingView, campaigns: campaignsView, assets: assetsView, hotels: hotelsView, categories: categoriesView, performance: performanceView, settings: settingsView }[state.view]?.() || "";
+  else main.innerHTML = { week: weekView, calendar: calendarView, pending: pendingView, campaigns: campaignsView, assets: assetsView, hotels: hotelsView, categories: categoriesView, performance: performanceView, users: usersView, settings: settingsView }[state.view]?.() || "";
+}
+function accessLevelLabel(level) {
+  return { viewer: "Leitura", editor: "Editor", admin: "Administrador" }[level];
 }
 function openDrawer(story, date = today, hotel = "") {
   state.visitDrawer = null;
@@ -754,6 +801,27 @@ document.addEventListener("click", async (event) => {
   const button = target.closest("[data-action]");
   if (!button) return;
   const action = button.dataset.action;
+  if (action === "new-planner-user") {
+    openPlannerUserDialog();
+    return;
+  }
+  if (action === "edit-planner-user") {
+    const user = state.managedUsers.find((entry) => entry.id === button.dataset.userId);
+    if (user) openPlannerUserDialog(user);
+    return;
+  }
+  if (action === "reset-planner-password") {
+    openPlannerPasswordDialog(button.dataset.userId || "");
+    return;
+  }
+  if (action === "close-planner-user") {
+    document.querySelector("#plannerUserDialog")?.close();
+    return;
+  }
+  if (action === "close-planner-password") {
+    document.querySelector("#plannerPasswordDialog")?.close();
+    return;
+  }
   if (action === "close-drawer") closeDrawer();
   if (action === "open-linked-story") {
     try {
@@ -966,7 +1034,7 @@ document.addEventListener("click", async (event) => {
     }
     choices.innerHTML = '<p class="drawer-hint">Carregando m\xEDdia...</p>';
     try {
-      const response = await fetch(`/api/v1/admin/media?hotel_id=${encodeURIComponent(hotelId)}&limit=24`, { credentials: "same-origin" });
+      const response = await fetch(`/api/v1/social-planner/media?hotel_id=${encodeURIComponent(hotelId)}`, { credentials: "same-origin" });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error?.message || "Biblioteca indispon\xEDvel para este hotel.");
       const assets = payload.data.assets;
@@ -1091,6 +1159,36 @@ document.addEventListener("submit", async (event) => {
     }
     return;
   }
+  if (event.target.id === "plannerUserForm") {
+    event.preventDefault();
+    const form = event.target;
+    const dialog2 = form.closest("dialog");
+    const data2 = new FormData(form);
+    const input2 = { display_name: String(data2.get("display_name") || ""), email: String(data2.get("email") || ""), access_level: String(data2.get("access_level") || "editor"), status: String(data2.get("status") || "active"), password: String(data2.get("password") || "") };
+    try {
+      dialog2.dataset.userId ? await request(`/user-management/${encodeURIComponent(dialog2.dataset.userId)}`, "PATCH", input2) : await request("/user-management", "POST", input2);
+      dialog2.close();
+      await loadManagedUsers();
+      notify("Usu\xE1rio salvo.");
+    } catch (error) {
+      notify(error.message, true);
+    }
+    return;
+  }
+  if (event.target.id === "plannerPasswordForm") {
+    event.preventDefault();
+    const form = event.target;
+    const dialog2 = form.closest("dialog");
+    const password = String(new FormData(form).get("password") || "");
+    try {
+      await request(`/user-management/${encodeURIComponent(dialog2.dataset.userId || "")}/password`, "PATCH", { password });
+      dialog2.close();
+      notify("Senha redefinida e sess\xF5es anteriores encerradas.");
+    } catch (error) {
+      notify(error.message, true);
+    }
+    return;
+  }
   if (event.target.id !== "campaignForm") return;
   event.preventDefault();
   const dialog = document.querySelector("#campaignDialog");
@@ -1176,25 +1274,68 @@ document.addEventListener("drop", (event) => {
 });
 document.querySelector("#collapseSidebar").addEventListener("click", () => document.querySelector("#sidebar").classList.toggle("collapsed"));
 document.querySelector("#openSidebar").addEventListener("click", () => document.querySelector("#sidebar").classList.toggle("mobile-open"));
+var plannerApp = document.querySelector("#plannerApp");
+var plannerLogin = document.querySelector("#plannerLogin");
+var plannerLoginForm = document.querySelector("#plannerLoginForm");
+var plannerLoginError = document.querySelector("#plannerLoginError");
+plannerLoginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  plannerLoginError.hidden = true;
+  const submit = plannerLoginForm.querySelector("button[type=submit]");
+  submit.disabled = true;
+  const data = new FormData(plannerLoginForm);
+  try {
+    const response = await fetch("/api/v1/social-planner/login", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json", "x-fioreze-admin-action": "erp-admin" }, body: JSON.stringify({ email: data.get("email"), password: data.get("password") }) });
+    const payload = await response.json();
+    if (!response.ok || !payload.ok) throw new Error(payload.error?.message || "N\xE3o foi poss\xEDvel entrar.");
+    state.session = payload.data;
+    await initializePlanner();
+  } catch (error) {
+    plannerLoginError.textContent = error.message;
+    plannerLoginError.hidden = false;
+  } finally {
+    submit.disabled = false;
+  }
+});
+document.querySelector("#plannerLogout").addEventListener("click", async () => {
+  if (state.session?.auth_source === "admin-master") {
+    location.assign("/admin/");
+    return;
+  }
+  await fetch("/api/v1/social-planner/logout", { method: "POST", credentials: "same-origin", headers: { "x-fioreze-admin-action": "erp-admin" } });
+  state.session = null;
+  plannerApp.hidden = true;
+  plannerLogin.hidden = false;
+  plannerLoginForm.reset();
+});
 async function start() {
   try {
-    const response = await fetch("/api/v1/admin/session", { credentials: "same-origin" });
+    const response = await fetch("/api/v1/social-planner/session", { credentials: "same-origin" });
     if (response.status === 401) {
-      const returnPath = `${location.pathname}${location.search}${location.hash}`;
-      location.assign(`/admin/?next=${encodeURIComponent(returnPath)}`);
+      plannerApp.hidden = true;
+      plannerLogin.hidden = false;
       return;
     }
     const payload = await response.json();
-    if (!payload.ok || !payload.data.permissions.includes("social-planner.read")) throw new Error("Acesso ao Social Planner n\xE3o liberado para este usu\xE1rio.");
-    document.querySelector("#currentUser").textContent = payload.data.user?.display_name || "Marketing";
-    [state.hotels, state.categories, state.pillars, state.users, state.campaigns, state.sequences, { display_name: state.displayName }] = await Promise.all([apiStoryRepository.hotels(), apiStoryRepository.categories(), apiStoryRepository.pillars(), apiStoryRepository.users(), apiStoryRepository.campaigns(), apiStoryRepository.sequences(), marketingRepository.settings()]);
-    document.querySelector("#plannerName").textContent = state.displayName;
-    document.title = state.displayName;
-    await loadData();
-    if (planningAlerts()) notify(`${planningAlerts()} Story(s) de hoje ainda est\xE3o como Ideia.`);
+    if (!payload.ok || !payload.data.permissions.includes("social-planner.read")) throw new Error("Acesso ao Marketing Planner n\xE3o liberado.");
+    state.session = payload.data;
+    await initializePlanner();
   } catch (error) {
     state.loading = false;
-    main.innerHTML = `<div class="empty-state"><h2>N\xE3o foi poss\xEDvel abrir o planner</h2><p>${escapeHtml(error.message)}</p><a class="button" href="/admin/">Voltar \xE0 Central</a></div>`;
+    main.innerHTML = `<div class="empty-state"><h2>N\xE3o foi poss\xEDvel abrir o planner</h2><p>${escapeHtml(error.message)}</p><a class="button" href="/socialplanner/overview">Tentar novamente</a></div>`;
   }
+}
+async function initializePlanner() {
+  plannerLogin.hidden = true;
+  plannerApp.hidden = false;
+  document.querySelector("#currentUser").textContent = state.session?.user.display_name || "Marketing";
+  document.querySelector("#centralAdminLink").hidden = state.session?.auth_source !== "admin-master";
+  if (state.view === "users" && !state.session?.permissions.includes("social-planner.users.manage")) state.view = "overview";
+  [state.hotels, state.categories, state.pillars, state.users, state.campaigns, state.sequences, { display_name: state.displayName }] = await Promise.all([apiStoryRepository.hotels(), apiStoryRepository.categories(), apiStoryRepository.pillars(), apiStoryRepository.users(), apiStoryRepository.campaigns(), apiStoryRepository.sequences(), marketingRepository.settings()]);
+  document.querySelector("#plannerName").textContent = state.displayName;
+  document.title = state.displayName;
+  if (state.view === "users") await loadManagedUsers();
+  else await loadData();
+  if (planningAlerts()) notify(`${planningAlerts()} Story(s) de hoje ainda est\xE3o como Ideia.`);
 }
 void start();

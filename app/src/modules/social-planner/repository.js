@@ -16,6 +16,22 @@ export async function listHotels(env) {
     FROM social_planner_hotels WHERE active = 1 ORDER BY sort_order, display_name`);
 }
 
+export async function listPlannerMedia(env, hotelId) {
+  const normalizedHotelId = requiredText(hotelId, "Hotel", 100);
+  await assertExists(env, "social_planner_hotels", "hotel_id", normalizedHotelId, "Hotel");
+  const assets = await all(
+    env,
+    `SELECT id, hotel_id, module_key, public_url, alt_text, mime_type,
+            original_filename, created_at, updated_at
+       FROM media_assets
+      WHERE hotel_id = ? AND status = 'active'
+      ORDER BY created_at DESC
+      LIMIT 60`,
+    [normalizedHotelId],
+  );
+  return { assets };
+}
+
 export async function listCategories(env) {
   return all(env, `SELECT id, name, active, sort_order FROM social_categories WHERE active = 1 ORDER BY sort_order, name`);
 }
@@ -25,7 +41,7 @@ export async function listPillars(env) {
 }
 
 export async function listUsers(env) {
-  return all(env, `SELECT id, display_name AS name FROM admin_users WHERE status = 'active' ORDER BY display_name`);
+  return all(env, `SELECT id, display_name AS name FROM social_planner_users WHERE status = 'active' ORDER BY display_name`);
 }
 
 export async function listCampaigns(env) {
@@ -69,7 +85,7 @@ export async function listStories(env, query) {
   if (start > end || (Date.parse(end) - Date.parse(start)) / 86400000 > 92) throw badRequest("Período inválido ou superior a 93 dias.");
   const where = ["s.date BETWEEN ? AND ?"];
   const params = [start, end];
-  const filterMap = { hotel_id: "s.hotel_id", status: "s.status", category_id: "s.category_id", responsible_user_id: "s.responsible_user_id", campaign_id: "s.campaign_id" };
+  const filterMap = { hotel_id: "s.hotel_id", status: "s.status", category_id: "s.category_id", responsible_user_id: "s.responsible_planner_user_id", campaign_id: "s.campaign_id" };
   for (const [key, column] of Object.entries(filterMap)) {
     const value = query.get(key);
     if (value && value !== "all") {
@@ -93,7 +109,7 @@ export async function saveStory(env, input, id = null) {
   if (patch.category_id) await assertExists(env, "social_categories", "id", patch.category_id, "Categoria");
   if (patch.content_pillar_id) await assertExists(env, "social_content_pillars", "id", patch.content_pillar_id, "Pilar");
   if (patch.campaign_id) await assertExists(env, "social_campaigns", "id", patch.campaign_id, "Campanha");
-  if (patch.responsible_user_id) await assertExists(env, "admin_users", "id", patch.responsible_user_id, "Responsável");
+  if (patch.responsible_planner_user_id) await assertExists(env, "social_planner_users", "id", patch.responsible_planner_user_id, "Responsável");
   if (patch.sequence_group_id) await assertExists(env, "social_story_sequences", "id", patch.sequence_group_id, "Sequência");
   if (patch.source_visit_id || (id && patch.hotel_id)) {
     const current = id ? await getStory(env, id) : null;
@@ -173,8 +189,9 @@ export async function duplicateSequence(env, id) {
   const now = new Date().toISOString();
   const statements = [statement(env, "INSERT INTO social_story_sequences (id, title, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?)", [newId, `${source.title} (cópia)`, source.description, now, now])];
   for (const story of originals) {
-    const fields = storyFields.filter((field) => field !== "published_at" && field !== "published_url");
-    const values = fields.map((field) => field === "sequence_group_id" ? newId : field === "title" ? `${story.title} (cópia)` : field === "status" ? "idea" : story[field]);
+    const apiFields = storyFields.filter((field) => field !== "published_at" && field !== "published_url");
+    const fields = apiFields.map((field) => field === "responsible_user_id" ? "responsible_planner_user_id" : field);
+    const values = apiFields.map((field) => field === "sequence_group_id" ? newId : field === "title" ? `${story.title} (cópia)` : field === "status" ? "idea" : story[field]);
     statements.push(statement(env, `INSERT INTO social_stories (id, ${fields.join(", ")}, created_at, updated_at) VALUES (?, ${fields.map(() => "?").join(", ")}, ?, ?)`, [createPublicId("story"), ...values, now, now]));
   }
   await batch(env, statements);
@@ -182,11 +199,12 @@ export async function duplicateSequence(env, id) {
 }
 
 function storySelect() {
-  return `SELECT s.*, m.public_url AS asset_url, m.mime_type AS asset_type,
+  return `SELECT s.*, s.responsible_planner_user_id AS responsible_user_id,
+    m.public_url AS asset_url, m.mime_type AS asset_type,
     CASE WHEN m.mime_type LIKE 'image/%' THEN m.public_url ELSE NULL END AS thumbnail_url,
     u.display_name AS responsible_name, q.title AS sequence_title
     FROM social_stories s LEFT JOIN media_assets m ON m.id = s.media_asset_id
-    LEFT JOIN admin_users u ON u.id = s.responsible_user_id
+    LEFT JOIN social_planner_users u ON u.id = s.responsible_planner_user_id
     LEFT JOIN social_story_sequences q ON q.id = s.sequence_group_id`;
 }
 
@@ -217,7 +235,9 @@ function normalizeStory(input, creating) {
         if (patch[key] && !/^https:\/\//i.test(patch[key])) throw badRequest("Links devem usar HTTPS.");
       }
     } else {
-      patch[key] = value == null || value === "" ? null : requiredText(value, key, 160);
+      const normalized = value == null || value === "" ? null : requiredText(value, key, 160);
+      if (key === "responsible_user_id") patch.responsible_planner_user_id = normalized;
+      else patch[key] = normalized;
     }
   }
   if (creating && (!patch.hotel_id || !patch.date || !patch.title)) throw badRequest("Título, hotel e data são obrigatórios.");

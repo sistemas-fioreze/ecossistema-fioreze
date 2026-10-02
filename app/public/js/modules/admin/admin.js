@@ -57,7 +57,7 @@ const auth = createAdminAuthView({
     const next = new URLSearchParams(window.location.search).get("next");
     if (next) {
       const target = new URL(next, window.location.origin);
-      if (target.origin === window.location.origin && target.pathname.startsWith("/admin/social-planner/")) {
+      if (target.origin === window.location.origin && target.pathname.startsWith("/socialplanner/")) {
         window.location.assign(`${target.pathname}${target.search}${target.hash}`);
         return;
       }
@@ -181,11 +181,11 @@ function buildSystems(session) {
       href: "/admin/portais/",
     });
   }
-  if (getPermissions(session).includes("social-planner.read")) {
+  if (session?.user?.is_master) {
     systems.push({
       title: "Fioreze Marketing Planner",
       description: "Redes sociais, visitas aos hotéis e blog",
-      href: "/admin/social-planner/overview",
+      href: "/socialplanner/overview",
     });
   }
   systems.push({

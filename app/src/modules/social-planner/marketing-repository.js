@@ -9,7 +9,7 @@ const blogStatuses = new Set(["idea", "briefing", "writing", "review", "ready", 
 const priorities = new Set(["low", "normal", "high", "urgent"]);
 const visitFields = ["hotel_id", "date", "start_time", "end_time", "title", "description", "responsible_user_id", "status", "priority", "campaign_id", "notes", "completed_at"];
 const postFields = ["title", "slug", "summary", "briefing", "category_id", "hotel_id", "campaign_id", "author_user_id", "main_keyword", "secondary_keywords", "meta_description", "planned_publish_date", "status", "published_at", "published_url", "notes"];
-const refs = { hotel_id: ["social_planner_hotels", "hotel_id"], responsible_user_id: ["admin_users", "id"], author_user_id: ["admin_users", "id"], campaign_id: ["social_campaigns", "id"], category_id: ["social_categories", "id"] };
+const refs = { hotel_id: ["social_planner_hotels", "hotel_id"], responsible_planner_user_id: ["social_planner_users", "id"], author_planner_user_id: ["social_planner_users", "id"], campaign_id: ["social_campaigns", "id"], category_id: ["social_categories", "id"] };
 
 function date(value, label) {
   if (typeof value !== "string" || !datePattern.test(value) || Number.isNaN(Date.parse(`${value}T12:00:00Z`)) || new Date(`${value}T12:00:00Z`).toISOString().slice(0, 10) !== value) throw badRequest(`${label} inválida.`);
@@ -51,7 +51,12 @@ function normalize(input, fields, kind) {
     else if (key === "priority") { if (!priorities.has(value)) throw badRequest("Prioridade inválida."); patch[key] = value; }
     else if (key === "slug") { if (typeof value !== "string" || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value) || value.length > 160) throw badRequest("Slug inválido."); patch[key] = value; }
     else if (key === "published_url") { patch[key] = text(value, key, 1000); if (patch[key] && !/^https:\/\//i.test(patch[key])) throw badRequest("A URL publicada deve usar HTTPS."); }
-    else patch[key] = text(value, key, ["description", "briefing", "notes"].includes(key) ? 10000 : key === "summary" ? 4000 : 500, key === "title" || (kind === "visit" && key === "hotel_id"));
+    else {
+      const normalized = text(value, key, ["description", "briefing", "notes"].includes(key) ? 10000 : key === "summary" ? 4000 : 500, key === "title" || (kind === "visit" && key === "hotel_id"));
+      if (key === "responsible_user_id") patch.responsible_planner_user_id = normalized;
+      else if (key === "author_user_id") patch.author_planner_user_id = normalized;
+      else patch[key] = normalized;
+    }
   }
   return patch;
 }
@@ -91,13 +96,14 @@ async function saveRow(env, table, fields, input, id, kind) {
   return kind === "visit" ? getVisit(env, id) : getPost(env, id);
 }
 
-const visitSelect = `SELECT v.*, h.short_name AS hotel_name, u.display_name AS responsible_name,
+const visitSelect = `SELECT v.*, v.responsible_planner_user_id AS responsible_user_id,
+  h.short_name AS hotel_name, u.display_name AS responsible_name,
   (SELECT COUNT(*) FROM marketing_visit_items i WHERE i.visit_id = v.id) AS item_count,
   (SELECT COUNT(*) FROM marketing_visit_items i WHERE i.visit_id = v.id AND i.completed = 1) AS completed_item_count
   FROM marketing_hotel_visits v JOIN social_planner_hotels h ON h.hotel_id = v.hotel_id
-  LEFT JOIN admin_users u ON u.id = v.responsible_user_id`;
+  LEFT JOIN social_planner_users u ON u.id = v.responsible_planner_user_id`;
 export async function listVisits(env, query) {
-  const q = filters(query, { hotel_id: "v.hotel_id", status: "v.status", responsible_user_id: "v.responsible_user_id", campaign_id: "v.campaign_id" }, period(query, "v.date"));
+  const q = filters(query, { hotel_id: "v.hotel_id", status: "v.status", responsible_user_id: "v.responsible_planner_user_id", campaign_id: "v.campaign_id" }, period(query, "v.date"));
   return all(env, `${visitSelect} WHERE ${q.where.join(" AND ")} ORDER BY v.date, v.start_time, v.created_at LIMIT 2000`, q.params);
 }
 export async function getVisit(env, id) {
@@ -141,12 +147,13 @@ export async function linkVisitMedia(env, visitId, mediaId) {
 }
 export async function unlinkVisitMedia(env, visitId, mediaId) { await getVisit(env, visitId); await run(env, "DELETE FROM marketing_visit_media WHERE visit_id = ? AND media_asset_id = ?", [visitId, mediaId]); return { deleted: true }; }
 
-const postSelect = `SELECT p.*, h.short_name AS hotel_name, u.display_name AS author_name FROM marketing_blog_posts p
-  LEFT JOIN social_planner_hotels h ON h.hotel_id = p.hotel_id LEFT JOIN admin_users u ON u.id = p.author_user_id`;
+const postSelect = `SELECT p.*, p.author_planner_user_id AS author_user_id,
+  h.short_name AS hotel_name, u.display_name AS author_name FROM marketing_blog_posts p
+  LEFT JOIN social_planner_hotels h ON h.hotel_id = p.hotel_id LEFT JOIN social_planner_users u ON u.id = p.author_planner_user_id`;
 export async function listPosts(env, query) {
   const q = { where: [], params: [] };
   if (query.get("start_date") || query.get("end_date")) Object.assign(q, period(query, "p.planned_publish_date"));
-  filters(query, { hotel_id: "p.hotel_id", status: "p.status", category_id: "p.category_id", author_user_id: "p.author_user_id", campaign_id: "p.campaign_id" }, q);
+  filters(query, { hotel_id: "p.hotel_id", status: "p.status", category_id: "p.category_id", author_user_id: "p.author_planner_user_id", campaign_id: "p.campaign_id" }, q);
   return all(env, `${postSelect} ${q.where.length ? `WHERE ${q.where.join(" AND ")}` : ""} ORDER BY p.planned_publish_date IS NULL, p.planned_publish_date, p.updated_at DESC LIMIT 1000`, q.params);
 }
 export async function getPost(env, id) { const post = await first(env, `${postSelect} WHERE p.id = ?`, [id]); if (!post) throw notFoundError("Artigo não encontrado."); return post; }

@@ -1,4 +1,4 @@
-import { apiStoryRepository as repository } from "./repository";
+import { apiStoryRepository as repository, request as plannerRequest } from "./repository";
 import { marketingRepository } from "./marketing-repository";
 import { blogDrawer, blogFormInput, blogView, type BlogContext } from "./blog";
 import { visitsView, visitDrawer, visitFormInput, type VisitContext } from "./visits";
@@ -6,8 +6,10 @@ import { overviewView } from "./overview";
 import type { BlogPost, Campaign, Category, ContentPillar, Hotel, Story, StoryFilters, StoryInput, StorySequence, User, Visit } from "./types";
 import { addDays, dateLabel, escapeHtml as e, formatLabels, fromIso, isoDate, objectiveLabels, option, priorityLabels, statusLabels, weekStart } from "./utils";
 
-type View = "overview" | "week" | "calendar" | "pending" | "visits-week" | "visits-calendar" | "visits-history" | "blog-schedule" | "blog-ideas" | "blog-published" | "campaigns" | "assets" | "hotels" | "categories" | "performance" | "settings";
-const views: Record<View, string> = { overview: "Visão Geral", week: "Redes · Semana", calendar: "Redes · Calendário", pending: "Redes · Pendências", "visits-week": "Visitas · Semana", "visits-calendar": "Visitas · Calendário", "visits-history": "Visitas · Histórico", "blog-schedule": "Blog · Cronograma", "blog-ideas": "Blog · Pautas", "blog-published": "Blog · Publicados", campaigns: "Campanhas", assets: "Banco de conteúdos", hotels: "Hotéis", categories: "Categorias", performance: "Desempenho", settings: "Configurações" };
+type View = "overview" | "week" | "calendar" | "pending" | "visits-week" | "visits-calendar" | "visits-history" | "blog-schedule" | "blog-ideas" | "blog-published" | "campaigns" | "assets" | "hotels" | "categories" | "performance" | "users" | "settings";
+type PlannerSession = { user: { id: string; display_name: string; email: string }; permissions: string[]; access_level: "viewer" | "editor" | "admin"; auth_source: "social-planner" | "admin-master"; expires_at: string };
+type ManagedPlannerUser = { id: string; display_name: string; email: string; access_level: "viewer" | "editor" | "admin"; status: "active" | "disabled"; inherited_from_central: number };
+const views: Record<View, string> = { overview: "Visão Geral", week: "Redes · Semana", calendar: "Redes · Calendário", pending: "Redes · Pendências", "visits-week": "Visitas · Semana", "visits-calendar": "Visitas · Calendário", "visits-history": "Visitas · Histórico", "blog-schedule": "Blog · Cronograma", "blog-ideas": "Blog · Pautas", "blog-published": "Blog · Publicados", campaigns: "Campanhas", assets: "Banco de conteúdos", hotels: "Hotéis", categories: "Categorias", performance: "Desempenho", users: "Usuários", settings: "Configurações" };
 const today = isoDate(new Date());
 const params = new URLSearchParams(location.search);
 const initialWeek = /^\d{4}-\d{2}-\d{2}$/.test(params.get("week") || "") ? params.get("week")! : today;
@@ -17,6 +19,7 @@ const state = {
   filters: { hotel_id: params.get("hotel") || "all", status: params.get("status") || "all", category_id: params.get("category") || "all", responsible_user_id: params.get("responsible") || "all", campaign_id: params.get("campaign") || "all", search: params.get("q") || "" } as StoryFilters,
   hotels: [] as Hotel[], categories: [] as Category[], pillars: [] as ContentPillar[], users: [] as User[], campaigns: [] as Campaign[], sequences: [] as StorySequence[], stories: [] as Story[], visits: [] as Visit[], posts: [] as BlogPost[],
   displayName: "Fioreze Marketing Planner", visitFilter: params.get("visit_hotel") || "all", blogFilters: { hotel_id: params.get("blog_hotel") || "all", status: params.get("blog_status") || "all", category_id: params.get("blog_category") || "all", author_user_id: params.get("blog_author") || "all", campaign_id: params.get("blog_campaign") || "all" } as Record<string, string>, blogMode: "list" as "list" | "calendar",
+  session: null as PlannerSession | null, managedUsers: [] as ManagedPlannerUser[],
   loading: true, drawer: null as Story | "new" | null, visitDrawer: null as Visit | "new" | null, postDrawer: null as BlogPost | "new" | null, createDate: today, createHotel: "", saving: false,
 };
 if (!Object.hasOwn(views, state.view)) state.view = "overview";
@@ -49,7 +52,9 @@ function notify(message: string, error = false) {
 function route(view: View) {
   if (view === "visits-history" && state.view !== view) state.day = today;
   state.view = view; document.querySelector("#sidebar")?.classList.remove("mobile-open"); updateUrl();
-  if (["week", "calendar", "pending", "overview", "visits-week", "visits-calendar", "visits-history", "blog-schedule", "blog-ideas", "blog-published"].includes(view)) void loadData(); else render();
+  if (["week", "calendar", "pending", "overview", "visits-week", "visits-calendar", "visits-history", "blog-schedule", "blog-ideas", "blog-published"].includes(view)) void loadData();
+  else if (view === "users") void loadManagedUsers();
+  else render();
 }
 function updateUrl() {
   const query = new URLSearchParams(); query.set("week", state.week); query.set("day", state.day);
@@ -58,7 +63,7 @@ function updateUrl() {
   }
   if (state.visitFilter !== "all") query.set("visit_hotel", state.visitFilter);
   for (const [key, urlKey] of [["hotel_id", "blog_hotel"], ["status", "blog_status"], ["category_id", "blog_category"], ["author_user_id", "blog_author"], ["campaign_id", "blog_campaign"]] as const) { if (state.blogFilters[key] && state.blogFilters[key] !== "all") query.set(urlKey, state.blogFilters[key]); }
-  history.replaceState({}, "", `/admin/social-planner/${state.view}?${query}`);
+  history.replaceState({}, "", `/socialplanner/${state.view}?${query}`);
 }
 function renderNavigation() {
   const groups = [
@@ -70,8 +75,8 @@ function renderNavigation() {
     ["Análise", [["performance", "Desempenho", "grid"]]],
     ["Administração", [["hotels", "Hotéis", "hotel"], ["categories", "Categorias", "tag"], ["users", "Usuários", "users"], ["settings", "Configurações", "settings"]]],
   ] as const;
-  const targets: Record<string, string> = { users: "/admin/usuarios/" };
-  document.querySelector<HTMLElement>("#navigation")!.innerHTML = groups.map(([title, items]) => `<div class="nav-group">${title ? `<span class="nav-heading">${title}</span>` : ""}${items.map(([key, label, symbol]) => `<a class="nav-link ${state.view === key ? "active" : ""}" href="${targets[key] || `/admin/social-planner/${key}`}" ${targets[key] ? "" : `data-view="${key}"`} title="${label}">${icon(symbol)}<span class="nav-label">${label}</span></a>`).join("")}</div>`).join("");
+  const visibleGroups = groups.map(([title, items]) => [title, items.filter(([key]) => key !== "users" || state.session?.permissions.includes("social-planner.users.manage"))] as const);
+  document.querySelector<HTMLElement>("#navigation")!.innerHTML = visibleGroups.map(([title, items]) => `<div class="nav-group">${title ? `<span class="nav-heading">${title}</span>` : ""}${items.map(([key, label, symbol]) => `<a class="nav-link ${state.view === key ? "active" : ""}" href="/socialplanner/${key}" data-view="${key}" title="${label}">${icon(symbol)}<span class="nav-label">${label}</span></a>`).join("")}</div>`).join("");
   document.querySelector<HTMLElement>("#viewTitle")!.textContent = views[state.view];
 }
 function dateRange(): [string, string] {
@@ -97,6 +102,14 @@ async function loadData() {
   }
   catch (error) { notify((error as Error).message, true); }
   finally { if (version === loadVersion) { state.loading = false; render(); } }
+}
+async function loadManagedUsers() {
+  state.loading = true; render();
+  try {
+    const result = await plannerRequest<{ users: ManagedPlannerUser[] }>("/user-management");
+    state.managedUsers = result.users;
+  } catch (error) { notify((error as Error).message, true); }
+  finally { state.loading = false; render(); }
 }
 function visibleStories(): Story[] {
   const needle = state.filters.search.trim().toLocaleLowerCase("pt-BR");
@@ -178,11 +191,29 @@ function openCampaignDialog(campaign?: Campaign) {
   dialog.querySelector<HTMLInputElement>("[name=name]")!.required = true;
   dialog.dataset.campaignId = campaign?.id || ""; document.body.append(dialog); dialog.showModal(); dialog.querySelector<HTMLInputElement>("[name=name]")?.focus();
 }
-function assetsView(): string { return `<div class="page-heading"><div><p class="eyebrow">Conteúdo</p><h1>Banco de conteúdos</h1><p class="subtle">A biblioteca de mídia existente permite reutilizar fotos e vídeos.</p></div></div><div class="section-card"><h2>Biblioteca de mídia</h2><p class="subtle">Escolha arquivos na Central de Portais e associe o ID da mídia ao Story no painel de edição.</p><p><a class="button" href="/admin/portais/media/">Abrir biblioteca de mídia</a></p></div>`; }
+function openPlannerUserDialog(user?: ManagedPlannerUser) {
+  document.querySelector<HTMLDialogElement>("#plannerUserDialog")?.remove();
+  const dialog = document.createElement("dialog"); dialog.id = "plannerUserDialog"; dialog.className = "campaign-dialog";
+  dialog.dataset.userId = user?.id || "";
+  dialog.innerHTML = `<form id="plannerUserForm"><header><h2>${user ? "Editar usuário" : "Novo usuário"}</h2><button type="button" class="icon-button" data-action="close-planner-user" aria-label="Fechar">${icon("close")}</button></header><div class="form-grid">${field("display_name", "Nome", user?.display_name, "text", true)}${field("email", "E-mail", user?.email, "email", true)}${selectField("access_level", "Acesso", user?.access_level || "editor", [{ id: "viewer", name: "Somente leitura" }, { id: "editor", name: "Editor" }, { id: "admin", name: "Administrador" }], true)}${user ? selectField("status", "Status", user.status, [{ id: "active", name: "Ativo" }, { id: "disabled", name: "Desativado" }], true) : field("password", "Senha inicial", "", "password", true)}</div><footer><button type="button" class="button" data-action="close-planner-user">Cancelar</button><button class="button primary" type="submit">Salvar usuário</button></footer></form>`;
+  document.body.append(dialog); dialog.showModal(); dialog.querySelector<HTMLInputElement>("[name=display_name]")?.focus();
+}
+function openPlannerPasswordDialog(userId: string) {
+  document.querySelector<HTMLDialogElement>("#plannerPasswordDialog")?.remove();
+  const user = state.managedUsers.find((entry) => entry.id === userId); if (!user) return;
+  const dialog = document.createElement("dialog"); dialog.id = "plannerPasswordDialog"; dialog.className = "campaign-dialog"; dialog.dataset.userId = userId;
+  dialog.innerHTML = `<form id="plannerPasswordForm"><header><h2>Redefinir senha</h2><button type="button" class="icon-button" data-action="close-planner-password" aria-label="Fechar">${icon("close")}</button></header><p class="subtle">${e(user.display_name)}</p><div class="form-grid">${field("password", "Nova senha", "", "password", true)}</div><footer><button type="button" class="button" data-action="close-planner-password">Cancelar</button><button class="button primary" type="submit">Redefinir senha</button></footer></form>`;
+  document.body.append(dialog); dialog.showModal(); dialog.querySelector<HTMLInputElement>("[name=password]")?.focus();
+}
+function assetsView(): string { return `<div class="page-heading"><div><p class="eyebrow">Conteúdo</p><h1>Banco de conteúdos</h1><p class="subtle">Fotos e vídeos são acessados diretamente pelo editor de Stories.</p></div></div><div class="section-card"><h2>Biblioteca compartilhada</h2><p class="subtle">Ao editar um Story, selecione o hotel e use “Escolher mídia”. O Planner mostra apenas arquivos ativos da unidade escolhida.</p>${state.session?.auth_source === "admin-master" ? '<p><a class="button" href="/admin/portais/media/">Administrar biblioteca na Central</a></p>' : ""}</div>`; }
 function hotelsView(): string { return `<div class="page-heading"><div><p class="eyebrow">Administração</p><h1>Hotéis</h1><p class="subtle">Perfis incluídos no planejamento editorial.</p></div></div><div class="section-card"><div class="pending-list">${state.hotels.map((hotel) => `<div class="pending-row"><strong>${e(hotel.name)}</strong><small>${e(hotel.instagram_username)}</small><small>${hotel.active ? "Ativo" : "Inativo"}</small></div>`).join("")}</div></div>`; }
 function categoriesView(): string { return `<div class="page-heading"><div><p class="eyebrow">Administração</p><h1>Categorias</h1><p class="subtle">Categorias disponíveis para classificar Stories.</p></div></div><div class="section-card"><div class="category-list">${state.categories.map((category) => `<span>${e(category.name)}</span>`).join("")}</div></div>`; }
 function performanceView(): string { return `<div class="page-heading"><div><p class="eyebrow">Análise</p><h1>Desempenho</h1><p class="subtle">Esta área receberá métricas quando a integração de dados do Instagram estiver disponível.</p></div></div><div class="section-card"><h2>Análise em preparação</h2><p class="subtle">O planejamento e os estados de publicação já são registrados. Métricas de alcance e engajamento dependem de uma integração autorizada com o Instagram.</p></div>`; }
-function settingsView(): string { return `<div class="page-heading"><div><p class="eyebrow">Administração</p><h1>Configurações</h1><p class="subtle">Identidade do Marketing Planner e acesso à administração central.</p></div></div><section class="section-card"><h2>Nome da aplicação</h2><form id="plannerSettingsForm" class="settings-form"><label><span>Nome exibido</span><input name="display_name" value="${e(state.displayName)}" maxlength="100" required></label><button class="button primary" type="submit">Salvar nome</button></form></section><section class="section-card"><h2>Usuários e permissões</h2><p class="subtle">O acesso usa os perfis administrativos da plataforma.</p><a class="button" href="/admin/configuracoes/">Abrir administração central</a></section>`; }
+function usersView(): string {
+  if (!state.session?.permissions.includes("social-planner.users.manage")) return `<div class="empty-state"><h2>Acesso restrito</h2><p>Somente administradores do Planner gerenciam usuários.</p></div>`;
+  return `<div class="page-heading"><div><p class="eyebrow">Administração</p><h1>Usuários do Planner</h1><p class="subtle">Estas contas acessam somente o Marketing Planner.</p></div><button class="button primary" data-action="new-planner-user">${icon("plus")} Novo usuário</button></div><section class="section-card"><div class="user-management-list">${state.managedUsers.map((user) => `<div class="user-management-row" data-planner-user-id="${e(user.id)}"><strong>${e(user.display_name)}</strong><small>${e(user.email)}</small><span>${accessLevelLabel(user.access_level)}</span><span>${user.status === "active" ? "Ativo" : "Desativado"}</span><div class="user-management-actions">${user.inherited_from_central ? '<span class="status-pill">Mestre da Central</span>' : `<button class="button" data-action="edit-planner-user" data-user-id="${e(user.id)}">Editar</button><button class="button" data-action="reset-planner-password" data-user-id="${e(user.id)}">Senha</button>`}</div></div>`).join("")}</div></section>`;
+}
+function settingsView(): string { return `<div class="page-heading"><div><p class="eyebrow">Administração</p><h1>Configurações</h1><p class="subtle">Identidade e sessão do Marketing Planner.</p></div></div><section class="section-card"><h2>Nome da aplicação</h2><form id="plannerSettingsForm" class="settings-form"><label><span>Nome exibido</span><input name="display_name" value="${e(state.displayName)}" maxlength="100" required></label><button class="button primary" type="submit">Salvar nome</button></form></section><section class="section-card"><h2>Acesso separado</h2><p class="subtle">Usuários comuns entram exclusivamente no Planner. Apenas o administrador mestre pode atravessar a sessão da Central.</p></section>`; }
 function emptyState(message: string): string { return `<div class="empty-state"><h2>${e(message)}</h2><p>Crie um Story para começar o planejamento.</p><button class="button primary" data-action="new">Novo story</button></div>`; }
 function visitContext(): VisitContext { return { visits: state.visits, hotels: state.hotels, categories: state.categories, users: state.users, campaigns: state.campaigns, week: state.week, day: state.day, today, filter: state.visitFilter, view: state.view as VisitContext["view"] }; }
 function blogContext(): BlogContext { return { posts: state.posts, hotels: state.hotels, categories: state.categories, users: state.users, campaigns: state.campaigns, day: state.day, today, view: state.view as BlogContext["view"], mode: state.blogMode, filters: state.blogFilters }; }
@@ -192,7 +223,11 @@ function render() {
   if (state.view.startsWith("visits-")) main.innerHTML = visitsView(visitContext());
   else if (state.view.startsWith("blog-")) main.innerHTML = blogView(blogContext());
   else if (state.view === "overview") main.innerHTML = overviewView(state.stories, state.visits, state.posts, state.hotels, today, state.week);
-  else main.innerHTML = ({ week: weekView, calendar: calendarView, pending: pendingView, campaigns: campaignsView, assets: assetsView, hotels: hotelsView, categories: categoriesView, performance: performanceView, settings: settingsView } as Partial<Record<View, () => string>>)[state.view]?.() || "";
+  else main.innerHTML = ({ week: weekView, calendar: calendarView, pending: pendingView, campaigns: campaignsView, assets: assetsView, hotels: hotelsView, categories: categoriesView, performance: performanceView, users: usersView, settings: settingsView } as Partial<Record<View, () => string>>)[state.view]?.() || "";
+}
+
+function accessLevelLabel(level: ManagedPlannerUser["access_level"]): string {
+  return ({ viewer: "Leitura", editor: "Editor", admin: "Administrador" })[level];
 }
 
 function openDrawer(story: Story | "new", date = today, hotel = "") {
@@ -220,7 +255,7 @@ function openPost(post?: BlogPost) {
   drawer.innerHTML = blogDrawer(post || null, blogContext()); drawer.hidden = false; backdrop.hidden = false; document.body.style.overflow = "hidden";
   drawer.querySelector<HTMLInputElement>("[name=title]")?.focus();
 }
-function field(name: string, label: string, value: unknown, kind: "text" | "date" | "time" | "textarea" | "url" = "text", full = false): string {
+function field(name: string, label: string, value: unknown, kind: "text" | "date" | "time" | "textarea" | "url" | "email" | "password" = "text", full = false): string {
   const escaped = e(value); const required = ["title", "hotel_id", "date"].includes(name) ? "required" : "";
   return `<label class="${full ? "full" : ""}"><span>${label}${required ? " *" : ""}</span>${kind === "textarea" ? `<textarea name="${name}">${escaped}</textarea>` : `<input name="${name}" type="${kind}" value="${escaped}" ${required}>`}</label>`;
 }
@@ -324,6 +359,11 @@ document.addEventListener("click", async (event) => {
   const storyElement = target.closest<HTMLElement>("[data-story-id]"); if (storyElement && !target.closest("[data-action]")) { const story = state.stories.find((item) => item.id === storyElement.dataset.storyId); if (story) openDrawer(story); return; }
   const button = target.closest<HTMLElement>("[data-action]"); if (!button) return;
   const action = button.dataset.action;
+  if (action === "new-planner-user") { openPlannerUserDialog(); return; }
+  if (action === "edit-planner-user") { const user = state.managedUsers.find((entry) => entry.id === button.dataset.userId); if (user) openPlannerUserDialog(user); return; }
+  if (action === "reset-planner-password") { openPlannerPasswordDialog(button.dataset.userId || ""); return; }
+  if (action === "close-planner-user") { document.querySelector<HTMLDialogElement>("#plannerUserDialog")?.close(); return; }
+  if (action === "close-planner-password") { document.querySelector<HTMLDialogElement>("#plannerPasswordDialog")?.close(); return; }
   if (action === "close-drawer") closeDrawer();
   if (action === "open-linked-story") { try { const story = await repository.story(button.dataset.linkedStoryId!); openDrawer(story); } catch (error) { notify((error as Error).message, true); } return; }
   if (action === "new-visit" || action === "new-visit-day") { await openVisit(undefined, button.dataset.date || today); return; }
@@ -364,7 +404,7 @@ document.addEventListener("click", async (event) => {
     if (!hotelId) { notify("Selecione um hotel primeiro.", true); return; }
     choices.innerHTML = '<p class="drawer-hint">Carregando mídia...</p>';
     try {
-      const response = await fetch(`/api/v1/admin/media?hotel_id=${encodeURIComponent(hotelId)}&limit=24`, { credentials: "same-origin" });
+      const response = await fetch(`/api/v1/social-planner/media?hotel_id=${encodeURIComponent(hotelId)}`, { credentials: "same-origin" });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error?.message || "Biblioteca indisponível para este hotel.");
       const assets = payload.data.assets as { id: string; public_url: string; alt_text: string | null; original_filename: string | null; mime_type: string }[];
@@ -396,6 +436,15 @@ document.addEventListener("input", (event) => { const target = event.target as H
 drawer.addEventListener("submit", (event) => { const id = (event.target as HTMLElement).id; if (id === "storyForm") void saveDrawer(event); if (id === "visitForm") void saveVisitForm(event); if (id === "blogForm") void savePostForm(event); });
 document.addEventListener("submit", async (event) => {
   if ((event.target as HTMLElement).id === "plannerSettingsForm") { event.preventDefault(); const form = event.target as HTMLFormElement; const name = String(new FormData(form).get("display_name") || "").trim(); try { const saved = await marketingRepository.saveSettings(name); state.displayName = saved.display_name; document.querySelector<HTMLElement>("#plannerName")!.textContent = saved.display_name; document.title = saved.display_name; render(); notify("Nome atualizado."); } catch (error) { notify((error as Error).message, true); } return; }
+  if ((event.target as HTMLElement).id === "plannerUserForm") {
+    event.preventDefault(); const form = event.target as HTMLFormElement; const dialog = form.closest<HTMLDialogElement>("dialog")!; const data = new FormData(form);
+    const input = { display_name: String(data.get("display_name") || ""), email: String(data.get("email") || ""), access_level: String(data.get("access_level") || "editor"), status: String(data.get("status") || "active"), password: String(data.get("password") || "") };
+    try { dialog.dataset.userId ? await plannerRequest(`/user-management/${encodeURIComponent(dialog.dataset.userId)}`, "PATCH", input) : await plannerRequest("/user-management", "POST", input); dialog.close(); await loadManagedUsers(); notify("Usuário salvo."); } catch (error) { notify((error as Error).message, true); } return;
+  }
+  if ((event.target as HTMLElement).id === "plannerPasswordForm") {
+    event.preventDefault(); const form = event.target as HTMLFormElement; const dialog = form.closest<HTMLDialogElement>("dialog")!; const password = String(new FormData(form).get("password") || "");
+    try { await plannerRequest(`/user-management/${encodeURIComponent(dialog.dataset.userId || "")}/password`, "PATCH", { password }); dialog.close(); notify("Senha redefinida e sessões anteriores encerradas."); } catch (error) { notify((error as Error).message, true); } return;
+  }
   if ((event.target as HTMLElement).id !== "campaignForm") return;
   event.preventDefault();
   const dialog = document.querySelector<HTMLDialogElement>("#campaignDialog")!;
@@ -416,22 +465,50 @@ document.addEventListener("drop", (event) => { const element = event.target as H
 document.querySelector<HTMLElement>("#collapseSidebar")!.addEventListener("click", () => document.querySelector("#sidebar")!.classList.toggle("collapsed"));
 document.querySelector<HTMLElement>("#openSidebar")!.addEventListener("click", () => document.querySelector("#sidebar")!.classList.toggle("mobile-open"));
 
+const plannerApp = document.querySelector<HTMLElement>("#plannerApp")!;
+const plannerLogin = document.querySelector<HTMLElement>("#plannerLogin")!;
+const plannerLoginForm = document.querySelector<HTMLFormElement>("#plannerLoginForm")!;
+const plannerLoginError = document.querySelector<HTMLElement>("#plannerLoginError")!;
+
+plannerLoginForm.addEventListener("submit", async (event) => {
+  event.preventDefault(); plannerLoginError.hidden = true;
+  const submit = plannerLoginForm.querySelector<HTMLButtonElement>("button[type=submit]")!; submit.disabled = true;
+  const data = new FormData(plannerLoginForm);
+  try {
+    const response = await fetch("/api/v1/social-planner/login", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json", "x-fioreze-admin-action": "erp-admin" }, body: JSON.stringify({ email: data.get("email"), password: data.get("password") }) });
+    const payload = await response.json(); if (!response.ok || !payload.ok) throw new Error(payload.error?.message || "Não foi possível entrar.");
+    state.session = payload.data as PlannerSession; await initializePlanner();
+  } catch (error) { plannerLoginError.textContent = (error as Error).message; plannerLoginError.hidden = false; }
+  finally { submit.disabled = false; }
+});
+
+document.querySelector<HTMLElement>("#plannerLogout")!.addEventListener("click", async () => {
+  if (state.session?.auth_source === "admin-master") { location.assign("/admin/"); return; }
+  await fetch("/api/v1/social-planner/logout", { method: "POST", credentials: "same-origin", headers: { "x-fioreze-admin-action": "erp-admin" } });
+  state.session = null; plannerApp.hidden = true; plannerLogin.hidden = false; plannerLoginForm.reset();
+});
+
 async function start() {
   try {
-    const response = await fetch("/api/v1/admin/session", { credentials: "same-origin" });
+    const response = await fetch("/api/v1/social-planner/session", { credentials: "same-origin" });
     if (response.status === 401) {
-      const returnPath = `${location.pathname}${location.search}${location.hash}`;
-      location.assign(`/admin/?next=${encodeURIComponent(returnPath)}`);
+      plannerApp.hidden = true; plannerLogin.hidden = false;
       return;
     }
     const payload = await response.json();
-    if (!payload.ok || !payload.data.permissions.includes("social-planner.read")) throw new Error("Acesso ao Social Planner não liberado para este usuário.");
-    document.querySelector<HTMLElement>("#currentUser")!.textContent = payload.data.user?.display_name || "Marketing";
-    [state.hotels, state.categories, state.pillars, state.users, state.campaigns, state.sequences, { display_name: state.displayName }] = await Promise.all([repository.hotels(), repository.categories(), repository.pillars(), repository.users(), repository.campaigns(), repository.sequences(), marketingRepository.settings()]);
-    document.querySelector<HTMLElement>("#plannerName")!.textContent = state.displayName;
-    document.title = state.displayName;
-    await loadData();
-    if (planningAlerts()) notify(`${planningAlerts()} Story(s) de hoje ainda estão como Ideia.`);
-  } catch (error) { state.loading = false; main.innerHTML = `<div class="empty-state"><h2>Não foi possível abrir o planner</h2><p>${e((error as Error).message)}</p><a class="button" href="/admin/">Voltar à Central</a></div>`; }
+    if (!payload.ok || !payload.data.permissions.includes("social-planner.read")) throw new Error("Acesso ao Marketing Planner não liberado.");
+    state.session = payload.data as PlannerSession; await initializePlanner();
+  } catch (error) { state.loading = false; main.innerHTML = `<div class="empty-state"><h2>Não foi possível abrir o planner</h2><p>${e((error as Error).message)}</p><a class="button" href="/socialplanner/overview">Tentar novamente</a></div>`; }
+}
+
+async function initializePlanner() {
+  plannerLogin.hidden = true; plannerApp.hidden = false;
+  document.querySelector<HTMLElement>("#currentUser")!.textContent = state.session?.user.display_name || "Marketing";
+  document.querySelector<HTMLElement>("#centralAdminLink")!.hidden = state.session?.auth_source !== "admin-master";
+  if (state.view === "users" && !state.session?.permissions.includes("social-planner.users.manage")) state.view = "overview";
+  [state.hotels, state.categories, state.pillars, state.users, state.campaigns, state.sequences, { display_name: state.displayName }] = await Promise.all([repository.hotels(), repository.categories(), repository.pillars(), repository.users(), repository.campaigns(), repository.sequences(), marketingRepository.settings()]);
+  document.querySelector<HTMLElement>("#plannerName")!.textContent = state.displayName; document.title = state.displayName;
+  if (state.view === "users") await loadManagedUsers(); else await loadData();
+  if (planningAlerts()) notify(`${planningAlerts()} Story(s) de hoje ainda estão como Ideia.`);
 }
 void start();

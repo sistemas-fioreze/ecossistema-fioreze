@@ -71,7 +71,14 @@ async function handleRequest(request, env, ctx) {
     if (request.method !== "GET" && request.method !== "HEAD") {
       return servePublicNotFoundPage(request, env);
     }
-    url.pathname = "/admin/social-planner/overview";
+    url.pathname = "/socialplanner/overview";
+    return Response.redirect(url.toString(), 308);
+  }
+
+  if (url.pathname === "/admin/social-planner" || url.pathname.startsWith("/admin/social-planner/")) {
+    if (request.method !== "GET" && request.method !== "HEAD") return servePublicNotFoundPage(request, env);
+    const legacySuffix = url.pathname.replace(/^\/admin\/social-planner\/?/, "");
+    url.pathname = `/socialplanner/${legacySuffix || "overview"}`;
     return Response.redirect(url.toString(), 308);
   }
 
@@ -190,8 +197,10 @@ function isDirectAsset(pathname) {
 }
 
 function resolveAdminAssetPath(pathname) {
+  if (pathname === "/socialplanner" || pathname.startsWith("/socialplanner/")) {
+    return { assetPath: "/admin/social-planner/" };
+  }
   const routes = [
-    { canonical: "/admin/social-planner/", assetPath: "/admin/social-planner/" },
     { canonical: "/admin/portais/portal-hospede/", assetPath: "/admin/portais/" },
     { canonical: "/admin/portais/unidades/", assetPath: "/admin/portais/" },
     { canonical: "/admin/portais/media/", assetPath: "/admin/portais/" },

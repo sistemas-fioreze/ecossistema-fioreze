@@ -11,7 +11,7 @@ export interface StoryRepository {
   duplicateSequence(id: string): Promise<{ sequence: StorySequence; stories: Story[] }>;
 }
 
-const base = "/api/v1/admin/social-planner";
+const base = "/api/v1/social-planner";
 export async function request<T>(path: string, method = "GET", body?: unknown): Promise<T> {
   const response = await fetch(`${base}${path}`, {
     method, credentials: "same-origin",

@@ -162,9 +162,10 @@ INSERT OR IGNORE INTO admin_permissions (id, permission_key, module_key, descrip
   ('perm-admin-roles-permissions', 'admin.roles.permissions', 'admin', 'Alterar permissoes de perfis administrativos ficticios.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z'),
   ('perm-admin-audit-read', 'admin.audit.read', 'admin', 'Visualizar auditoria administrativa ficticia.', '2026-07-12T00:00:00.000Z', '2026-07-12T00:00:00.000Z');
 
-INSERT INTO admin_users (id, display_name, email, password_hash, password_strategy, status, force_password_change, created_at, updated_at) VALUES
-  ('user-demo-admin', 'Usuario Admin Demo', 'admin-demo@example.invalid', 'pbkdf2$sha256$100000$ZmlvcmV6ZS1hZG1pbi1kZW1vLXNhbHQtMjAyNg==$QPM6b/QnKHhfCwYXFU9kCd7KpgtlsLdGDELeiM9Ulgw=', 'pbkdf2', 'active', 0, '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z')
+INSERT INTO admin_users (id, user_number, display_name, email, password_hash, password_strategy, status, force_password_change, created_at, updated_at) VALUES
+  ('user-demo-admin', 1, 'Usuario Admin Demo', 'admin-demo@example.invalid', 'pbkdf2$sha256$100000$ZmlvcmV6ZS1hZG1pbi1kZW1vLXNhbHQtMjAyNg==$QPM6b/QnKHhfCwYXFU9kCd7KpgtlsLdGDELeiM9Ulgw=', 'pbkdf2', 'active', 0, '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z')
 ON CONFLICT(id) DO UPDATE SET
+  user_number = excluded.user_number,
   display_name = excluded.display_name,
   email = excluded.email,
   password_hash = excluded.password_hash,
@@ -172,6 +173,16 @@ ON CONFLICT(id) DO UPDATE SET
   status = excluded.status,
   force_password_change = excluded.force_password_change,
   updated_at = excluded.updated_at;
+
+INSERT OR IGNORE INTO social_planner_users (
+  id, display_name, email, password_hash, password_strategy, access_level,
+  status, admin_user_id, created_at, updated_at
+)
+SELECT
+  'spusr-master', display_name, email, NULL, NULL, 'admin',
+  'active', id, '2026-07-04T00:00:00.000Z', '2026-07-04T00:00:00.000Z'
+FROM admin_users
+WHERE user_number = 1;
 
 INSERT OR IGNORE INTO admin_user_roles (user_id, role_id, created_at) VALUES
   ('user-demo-admin', 'role-demo-manager', '2026-07-04T00:00:00.000Z'),
@@ -219,7 +230,3 @@ INSERT OR IGNORE INTO order_items (id, order_id, hotel_id, module_key, catalog_i
 
 INSERT OR IGNORE INTO order_status_history (id, order_id, hotel_id, module_key, status, note, actor_user_id, created_at) VALUES
   ('order-hist-demo-muller-001', 'order-demo-muller-001', 'muller-fioreze', 'room-service', 'received', 'Seed ficticio local.', NULL, '2026-07-04T00:00:00.000Z');
-
-INSERT OR IGNORE INTO admin_role_permissions (role_id, permission_id, created_at)
-SELECT 'role-demo-manager', id, CURRENT_TIMESTAMP FROM admin_permissions
-WHERE permission_key IN ('social-planner.read', 'social-planner.write');
