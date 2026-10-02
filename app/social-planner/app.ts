@@ -43,7 +43,7 @@ function icon(name: string): string {
     calendar: "calendar-days", grid: "layout-dashboard", check: "check", image: "image",
     flag: "pin", settings: "settings", hotel: "store", users: "users",
     tag: "bookmark", plus: "plus", left: "chevron-left", right: "chevron-right",
-    alert: "triangle-alert", close: "x", asana: "calendar-range",
+    alert: "triangle-alert", close: "x", asana: "calendar-days",
   };
   return `<i data-lucide="${names[name] || "layout-dashboard"}" aria-hidden="true"></i>`;
 }
