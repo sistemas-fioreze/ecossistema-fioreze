@@ -17,6 +17,8 @@ let section = currentSection();
 document.body.dataset.adminSection = section;
 let currentSession = null;
 
+applyLoginContext();
+
 const els = {
   welcomeTitle: document.getElementById("welcomeTitle"),
   welcomeSubtitle: document.getElementById("welcomeSubtitle"),
@@ -57,7 +59,7 @@ const auth = createAdminAuthView({
     const next = new URLSearchParams(window.location.search).get("next");
     if (next) {
       const target = new URL(next, window.location.origin);
-      if (target.origin === window.location.origin && target.pathname.startsWith("/admin/social-planner/")) {
+      if (target.origin === window.location.origin && isSocialPlannerPath(target.pathname)) {
         window.location.assign(`${target.pathname}${target.search}${target.hash}`);
         return;
       }
@@ -78,6 +80,42 @@ window.addEventListener("fioreze:admin-refresh", (event) => {
   event.preventDefault();
   Promise.resolve(renderLauncher(currentSession)).finally(() => event.detail?.complete?.());
 });
+
+function applyLoginContext() {
+  const next = new URLSearchParams(window.location.search).get("next");
+  if (!next) return;
+
+  let target;
+  try {
+    target = new URL(next, window.location.origin);
+  } catch {
+    return;
+  }
+
+  if (target.origin !== window.location.origin || !isSocialPlannerPath(target.pathname)) return;
+
+  document.body.dataset.loginContext = "social-planner";
+  document.title = "Fioreze Marketing Planner";
+
+  const panel = document.getElementById("loginContextPanel");
+  const eyebrow = document.getElementById("loginEyebrow");
+  const title = document.getElementById("loginTitle");
+  const subtitle = document.getElementById("loginSubtitle");
+
+  panel?.setAttribute("aria-hidden", "false");
+  if (eyebrow) eyebrow.textContent = "Fioreze Marketing Planner";
+  if (title) title.textContent = "Bem-vindo de volta";
+  if (subtitle) subtitle.textContent = "Acesse o planejamento de Marketing da Rede Fioreze.";
+}
+
+function isSocialPlannerPath(pathname) {
+  return (
+    pathname === "/socialplanner"
+    || pathname === "/socialplanner/"
+    || pathname.startsWith("/socialplanner/")
+    || pathname.startsWith("/admin/social-planner/")
+  );
+}
 
 function handleAdminNavigation(event) {
   const link = event.target.closest("a[href]");
