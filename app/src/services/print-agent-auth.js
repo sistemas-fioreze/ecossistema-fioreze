@@ -1,6 +1,5 @@
-import { first, run } from "../core/database.js";
+import { first } from "../core/database.js";
 import { unauthorized } from "../core/errors.js";
-import { requestNow } from "../core/time.js";
 
 const TOKEN_BYTES = 32;
 
@@ -43,12 +42,6 @@ export async function requirePrintAgent({ request, env }) {
     [tokenHash],
   );
   if (!device) throw unauthorized("Agente de impressao nao autenticado.");
-  const now = requestNow({ request, env });
-  await run(
-    env,
-    `UPDATE printer_devices SET last_seen_at = ?, updated_at = ? WHERE id = ?`,
-    [now, now, device.id],
-  );
   return device;
 }
 

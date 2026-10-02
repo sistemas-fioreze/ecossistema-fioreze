@@ -156,6 +156,30 @@ export async function getHotelModule(env, hotelId, moduleKey) {
   );
 }
 
+export async function resolvePublicModuleTenant(env, slug, moduleKey) {
+  const hotel = await getHotelBySlug(env, slug);
+  if (!hotel || hotel.status !== "active") throw notFoundError("Hotel nao encontrado ou indisponivel.");
+  const module = await getHotelModule(env, hotel.id, moduleKey);
+  if (!module || !module.enabled || !module.is_public) throw notFoundError("Modulo indisponivel para este hotel.");
+  return {
+    hotel_id: hotel.id,
+    slug: hotel.slug,
+    name: hotel.name,
+    short_name: hotel.short_name,
+    timezone: hotel.timezone,
+    locale: hotel.locale,
+    currency: hotel.currency,
+    status: hotel.status,
+    module,
+  };
+}
+
+export function requireTenantPublicModule(tenant, moduleKey) {
+  const module = tenant.modules?.find((entry) => entry.module_key === moduleKey && entry.enabled);
+  if (!module) throw notFoundError("Modulo indisponivel para este hotel.");
+  return module;
+}
+
 export async function getNavigation(env, hotelId) {
   return all(
     env,

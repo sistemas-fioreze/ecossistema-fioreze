@@ -7,7 +7,7 @@ import {
   renderGuestNavigation,
   syncGuestHeader,
 } from "./guest-navigation.js";
-import { loadModule } from "./module-loader.js";
+import { loadModule } from "./module-loader.js?v=20260909-1";
 import { formatRoomServiceHours } from "./service-hours.js";
 import { setupLucideIcons } from "./lucide-icons.js";
 import { resolveModuleFromPath, resolveSlugFromPath } from "./tenant.js";

@@ -29,12 +29,13 @@ export function logout() {
   return adminApi("/api/v1/admin/room-service/logout", { method: "POST", body: {} }).catch(() => null);
 }
 
-export function listOrders({ hotelId, status, q, date } = {}) {
+export function listOrders({ hotelId, status, q, date, createdAfter } = {}) {
   const params = new URLSearchParams();
   if (hotelId) params.set("hotel_id", hotelId);
   if (status) params.set("status", status);
   if (q) params.set("q", q);
   if (date) params.set("date", date);
+  if (createdAfter) params.set("created_after", createdAfter);
   return adminApi(`/api/v1/admin/room-service/orders?${params.toString()}`);
 }
 
@@ -129,6 +130,10 @@ export function updateOrderPreferences(body) {
 
 export function getPrinting({ hotelId } = {}) {
   return adminApi(`/api/v1/admin/room-service/printing?${hotelParams(hotelId)}`);
+}
+
+export function getPrintingStatus({ hotelId } = {}) {
+  return adminApi(`/api/v1/admin/room-service/printing/status?${hotelParams(hotelId)}`);
 }
 
 export function updatePrinting(body) {

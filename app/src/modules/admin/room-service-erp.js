@@ -257,6 +257,7 @@ export async function getRoomServiceErpBilling({ env, session, url }) {
       session,
       url: urlWithHotel(url, hotelId),
       permissionKey: session.permissions.includes(BILLING_PERMISSION) ? BILLING_PERMISSION : READ_PERMISSION,
+      limit: 5000,
     })
   ).orders;
   const billable = orders.filter((order) => order.status === "delivered");
@@ -269,6 +270,7 @@ export async function getRoomServiceErpBilling({ env, session, url }) {
       revenue_cents: totalCents,
       average_ticket_cents: billable.length ? Math.round(totalCents / billable.length) : 0,
     },
+    orders,
     exports: {
       csv_ready: true,
       xlsx_ready: false,

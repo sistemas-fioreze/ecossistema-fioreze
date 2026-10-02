@@ -5,6 +5,7 @@ import { filterCatalog, flattenCatalog, formatMoney, getCatalogItemMap, normaliz
 import { describeServiceStatus, evaluateServiceStatus } from "./service-status.js";
 import { clearGuestProfile, readGuestProfile, writeGuestProfile } from "./guest-profile.js";
 import { applyBranding, sanitizePublicAssetUrl } from "../../core/theme.js";
+import { lucideIcon } from "../../core/lucide-icons.js";
 import {
   bindCatalogMediaViewer,
   renderCatalogMediaViewer,
@@ -40,10 +41,10 @@ export async function render(container, context) {
     status: null,
     orderAttemptKey: null,
     rememberedGuest: null,
+    guestDetailsCollapsed: false,
     isSubmitting: false,
     cartOpen: false,
     statusTimer: null,
-    recentStatusTimer: null,
     selectedProductId: null,
     selectedProductQuantity: 1,
     selectedProductNote: "",
@@ -95,8 +96,7 @@ export async function render(container, context) {
     renderRoomOptions(container, state);
     restoreGuestProfile(container, state);
     renderCart(container, state);
-    await refreshRecentOrders(container, state);
-    state.recentStatusTimer = window.setInterval(() => refreshRecentOrders(container, state), 30000);
+    renderRecentOrders(container, state, readRecentOrders(state));
   } catch (error) {
     renderCatalogError(container, error);
   }
@@ -107,7 +107,6 @@ export async function render(container, context) {
     document.body.classList.remove("catalog-detail-open");
     window.removeEventListener("fioreze:portal-search", headerSearch);
     if (state.statusTimer) window.clearInterval(state.statusTimer);
-    if (state.recentStatusTimer) window.clearInterval(state.recentStatusTimer);
   };
 }
 
@@ -122,42 +121,72 @@ function renderStaticShell({ embedded = false } = {}) {
 
             <section class="rs-cart-panel" data-cart-panel aria-label="Resumo do pedido">
               <form class="rs-order-form" data-order-form>
-                <label class="rs-icon-field">
-                  <span class="sr-only">Nome</span>
-                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM5 21a7 7 0 0 1 14 0"/></svg>
-                  <input name="guest_name" autocomplete="name" maxlength="120" placeholder="Nome" required>
-                </label>
-                <label class="rs-icon-field">
-                  <span class="sr-only">Celular ou WhatsApp opcional</span>
-                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 5a2 2 0 0 1 2-2h3.28a1 1 0 0 1 .95.68l1.5 4.5a1 1 0 0 1-.5 1.2l-2.26 1.14a11 11 0 0 0 5.51 5.51l1.14-2.26a1 1 0 0 1 1.2-.5l4.5 1.5a1 1 0 0 1 .68.95V19a2 2 0 0 1-2 2h-1C9.72 21 3 14.28 3 6Z"/></svg>
-                  <input name="guest_phone" autocomplete="tel" inputmode="tel" maxlength="40" placeholder="Celular / WhatsApp (Opcional)">
-                </label>
-                <label class="rs-icon-field">
-                  <span class="sr-only">Número da acomodação</span>
-                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 21h18M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16M9 8h.01M15 8h.01M9 12h.01M15 12h.01M9 16h.01M15 16h.01"/></svg>
-                  <input name="room_code" list="rs-room-options" autocomplete="off" maxlength="40" placeholder="Número da acomodação" required>
-                  <datalist id="rs-room-options" data-room-options></datalist>
-                </label>
-                <label class="rs-icon-field rs-textarea-field" data-order-note-field>
-                  <span class="sr-only">Observação do pedido</span>
-                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M7 8h10M7 12h6M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H8l-4 4Z"/></svg>
-                  <textarea name="notes" rows="3" maxlength="500" placeholder="Observação do pedido (opcional)"></textarea>
-                </label>
-                <label class="rs-icon-field">
-                  <span class="sr-only">Local de entrega</span>
-                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
-                  <select name="delivery_location">
-                    <option value="Acomodação">Entrega na Acomodação</option>
-                    <option value="Recepção">Consumo na Recepção</option>
-                  </select>
-                </label>
-                <div class="rs-remember-guest">
-                  <label>
-                    <input type="checkbox" name="remember_guest" checked>
-                    <span>Lembrar meus dados neste dispositivo</span>
+                <section class="rs-guest-details" data-guest-details data-collapsed="false" aria-label="Dados da entrega">
+                  <header class="rs-guest-details-header">
+                    <div>
+                      <span data-guest-details-eyebrow>Dados da entrega</span>
+                      <strong data-guest-details-title>Informe seus dados</strong>
+                    </div>
+                    <button type="button" data-guest-details-toggle hidden aria-expanded="true" aria-controls="rs-guest-primary-fields rs-guest-secondary-fields" aria-label="Recolher dados da entrega" title="Recolher dados da entrega">
+                      ${lucideIcon("chevron-down")}
+                    </button>
+                  </header>
+
+                  <div class="rs-guest-details-summary" data-guest-details-summary aria-hidden="true">
+                    <div class="rs-guest-details-summary-inner">
+                      <span data-guest-summary-phone-row hidden>${lucideIcon("phone")}<span data-guest-summary-phone></span></span>
+                      <span>${lucideIcon("bed-double")}<span data-guest-summary-room></span></span>
+                      <span>${lucideIcon("map-pin")}<span data-guest-summary-location></span></span>
+                    </div>
+                  </div>
+
+                  <div class="rs-guest-details-fields" id="rs-guest-primary-fields" data-guest-details-fields aria-hidden="false">
+                    <div class="rs-guest-details-fields-inner">
+                      <label class="rs-icon-field">
+                        <span class="sr-only">Nome</span>
+                        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM5 21a7 7 0 0 1 14 0"/></svg>
+                        <input name="guest_name" autocomplete="name" maxlength="120" placeholder="Nome" required>
+                      </label>
+                      <label class="rs-icon-field">
+                        <span class="sr-only">Celular ou WhatsApp opcional</span>
+                        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 5a2 2 0 0 1 2-2h3.28a1 1 0 0 1 .95.68l1.5 4.5a1 1 0 0 1-.5 1.2l-2.26 1.14a11 11 0 0 0 5.51 5.51l1.14-2.26a1 1 0 0 1 1.2-.5l4.5 1.5a1 1 0 0 1 .68.95V19a2 2 0 0 1-2 2h-1C9.72 21 3 14.28 3 6Z"/></svg>
+                        <input name="guest_phone" autocomplete="tel" inputmode="tel" maxlength="40" placeholder="Celular / WhatsApp (Opcional)">
+                      </label>
+                      <label class="rs-icon-field">
+                        <span class="sr-only">Número da acomodação</span>
+                        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 21h18M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16M9 8h.01M15 8h.01M9 12h.01M15 12h.01M9 16h.01M15 16h.01"/></svg>
+                        <input name="room_code" list="rs-room-options" autocomplete="off" maxlength="40" placeholder="Número da acomodação" required>
+                        <datalist id="rs-room-options" data-room-options></datalist>
+                      </label>
+                    </div>
+                  </div>
+
+                  <label class="rs-icon-field rs-textarea-field" data-order-note-field>
+                    <span class="sr-only">Observação do pedido</span>
+                    <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M7 8h10M7 12h6M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H8l-4 4Z"/></svg>
+                    <textarea name="notes" rows="3" maxlength="500" placeholder="Observação do pedido (opcional)"></textarea>
                   </label>
-                  <button type="button" data-forget-guest hidden>Esquecer dados salvos</button>
-                </div>
+
+                  <div class="rs-guest-details-fields" id="rs-guest-secondary-fields" data-guest-details-fields aria-hidden="false">
+                    <div class="rs-guest-details-fields-inner">
+                      <label class="rs-icon-field">
+                        <span class="sr-only">Local de entrega</span>
+                        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                        <select name="delivery_location">
+                          <option value="Acomodação">Entrega na Acomodação</option>
+                          <option value="Recepção">Consumo na Recepção</option>
+                        </select>
+                      </label>
+                      <div class="rs-remember-guest">
+                        <label>
+                          <input type="checkbox" name="remember_guest" checked>
+                          <span>Lembrar meus dados neste dispositivo</span>
+                        </label>
+                        <button type="button" data-forget-guest hidden>Esquecer dados salvos</button>
+                      </div>
+                    </div>
+                  </div>
+                </section>
 
                 <h2 class="rs-order-title">
                   <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M16 11V7a4 4 0 0 0-8 0v4M5 9h14l1 12H4Z"/></svg>
@@ -298,6 +327,11 @@ function bindStaticActions(container, state) {
       return;
     }
 
+    if (event.target.closest("[data-guest-details-toggle]")) {
+      toggleGuestDetails(container, state);
+      return;
+    }
+
     if (event.target.closest("[data-forget-guest]")) {
       forgetGuestProfile(container, state);
       return;
@@ -319,10 +353,17 @@ function bindStaticActions(container, state) {
     renderCatalog(container, state);
   });
 
-  container.querySelector("[data-order-form]").addEventListener("submit", async (event) => {
+  const orderForm = container.querySelector("[data-order-form]");
+  orderForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     await submitOrder(container, state, event.currentTarget);
   });
+  const syncGuestDetails = (event) => {
+    if (!["guest_name", "guest_phone", "room_code", "delivery_location"].includes(event.target?.name)) return;
+    syncGuestDetailsDisclosure(container, state);
+  };
+  orderForm.addEventListener("input", syncGuestDetails);
+  orderForm.addEventListener("change", syncGuestDetails);
 
   container.addEventListener("keydown", (event) => {
     const productCard = event.target.closest("[data-rs-product]");
@@ -944,7 +985,7 @@ async function submitOrder(container, state, form) {
     closeOrderReview(container);
     renderCart(container, state);
     toggleCart(container, state, false);
-    await refreshRecentOrders(container, state, { justSent: true });
+    renderRecentOrders(container, state, readRecentOrders(state), { justSent: true });
     showModal(container, "Pedido enviado", "A unidade já recebeu sua solicitação.", { success: true });
   } catch (error) {
     status.classList.add("error");
@@ -965,6 +1006,8 @@ function restoreGuestProfile(container, state) {
   const forgetButton = form.querySelector("[data-forget-guest]");
   if (!profile) {
     if (forgetButton) forgetButton.hidden = true;
+    state.guestDetailsCollapsed = false;
+    syncGuestDetailsDisclosure(container, state);
     return;
   }
   form.elements.guest_name.value = profile.guest_name;
@@ -974,6 +1017,7 @@ function restoreGuestProfile(container, state) {
   }
   form.elements.remember_guest.checked = true;
   if (forgetButton) forgetButton.hidden = false;
+  syncGuestDetailsDisclosure(container, state, { collapseWhenReady: true });
 }
 
 function persistGuestProfile(container, state, profile) {
@@ -989,6 +1033,7 @@ function persistGuestProfile(container, state, profile) {
 function forgetGuestProfile(container, state) {
   clearGuestProfile({ hotelId: state.bootstrap.hotel_id });
   state.rememberedGuest = null;
+  state.guestDetailsCollapsed = false;
   const form = container.querySelector("[data-order-form]");
   if (!form) return;
   form.elements.guest_name.value = "";
@@ -996,6 +1041,76 @@ function forgetGuestProfile(container, state) {
   form.elements.room_code.value = "";
   form.elements.remember_guest.checked = false;
   form.querySelector("[data-forget-guest]").hidden = true;
+  syncGuestDetailsDisclosure(container, state);
+}
+
+function toggleGuestDetails(container, state) {
+  const form = container.querySelector("[data-order-form]");
+  if (!form) return;
+  const summary = summarizeGuestDetails(readGuestDetails(form));
+  if (!summary.ready) return;
+  state.guestDetailsCollapsed = !state.guestDetailsCollapsed;
+  syncGuestDetailsDisclosure(container, state);
+}
+
+function syncGuestDetailsDisclosure(container, state, { collapseWhenReady = false } = {}) {
+  const form = container.querySelector("[data-order-form]");
+  const details = container.querySelector("[data-guest-details]");
+  if (!form || !details) return;
+
+  const summary = summarizeGuestDetails(readGuestDetails(form));
+  if (collapseWhenReady && summary.ready) state.guestDetailsCollapsed = true;
+  if (!summary.ready) state.guestDetailsCollapsed = false;
+  const collapsed = Boolean(summary.ready && state.guestDetailsCollapsed);
+
+  details.classList.toggle("is-collapsed", collapsed);
+  details.dataset.collapsed = String(collapsed);
+  setText(container, "[data-guest-details-eyebrow]", collapsed ? "Dados salvos" : "Dados da entrega");
+  setText(container, "[data-guest-details-title]", summary.guest_name || "Informe seus dados");
+  setText(container, "[data-guest-summary-phone]", summary.guest_phone);
+  setText(container, "[data-guest-summary-room]", summary.room_label);
+  setText(container, "[data-guest-summary-location]", summary.delivery_label);
+
+  const phoneRow = details.querySelector("[data-guest-summary-phone-row]");
+  if (phoneRow) phoneRow.hidden = !summary.guest_phone;
+  const compactSummary = details.querySelector("[data-guest-details-summary]");
+  compactSummary?.setAttribute("aria-hidden", String(!collapsed));
+
+  details.querySelectorAll("[data-guest-details-fields]").forEach((fields) => {
+    fields.setAttribute("aria-hidden", String(collapsed));
+    fields.toggleAttribute("inert", collapsed);
+  });
+
+  const toggle = details.querySelector("[data-guest-details-toggle]");
+  if (!toggle) return;
+  toggle.hidden = !summary.ready;
+  toggle.setAttribute("aria-expanded", String(!collapsed));
+  const label = collapsed ? "Expandir dados da entrega" : "Recolher dados da entrega";
+  toggle.setAttribute("aria-label", label);
+  toggle.title = label;
+}
+
+function readGuestDetails(form) {
+  return {
+    guest_name: form.elements.guest_name?.value,
+    guest_phone: form.elements.guest_phone?.value,
+    room_code: form.elements.room_code?.value,
+    delivery_location: form.elements.delivery_location?.value,
+  };
+}
+
+function summarizeGuestDetails(details = {}) {
+  const guestName = String(details.guest_name || "").trim();
+  const guestPhone = String(details.guest_phone || "").trim();
+  const roomCode = String(details.room_code || "").trim();
+  const deliveryLocation = String(details.delivery_location || "Acomodação").trim();
+  return {
+    ready: Boolean(guestName && roomCode),
+    guest_name: guestName,
+    guest_phone: guestPhone,
+    room_label: roomCode ? `Acomodação ${roomCode}` : "",
+    delivery_label: deliveryLocation === "Recepção" ? "Consumo na Recepção" : "Entrega na Acomodação",
+  };
 }
 
 function renderOrderReview(container, state, form, snapshot, data) {
@@ -1178,29 +1293,6 @@ function rememberRecentOrder(state, order, trackingKey) {
   }, ...current]);
 }
 
-async function refreshRecentOrders(container, state, { justSent = false } = {}) {
-  const stored = readRecentOrders(state);
-  if (!stored.length) {
-    renderRecentOrders(container, state, [], { justSent });
-    return;
-  }
-  const refreshed = (await Promise.all(stored.map(async (entry) => {
-    try {
-      const response = await fetch(
-        `/api/v1/public/hotels/${encodeURIComponent(state.slug)}/room-service/orders/${encodeURIComponent(entry.public_id)}/status`,
-        { headers: { accept: "application/json", "X-Order-Tracking-Key": entry.tracking_key } },
-      );
-      if (response.status === 404) return null;
-      const payload = await response.json();
-      return response.ok && payload?.ok ? { ...entry, ...payload.data } : entry;
-    } catch {
-      return entry;
-    }
-  }))).filter(Boolean);
-  writeRecentOrders(state, refreshed);
-  renderRecentOrders(container, state, refreshed, { justSent });
-}
-
 function renderRecentOrders(container, state, orders, { justSent = false } = {}) {
   const section = container.querySelector("[data-recent-orders]");
   if (!section) return;
@@ -1305,6 +1397,7 @@ export const internalsForTests = {
   clampDetailQuantity,
   renderProductOptions,
   renderGuestAccountNotice,
+  summarizeGuestDetails,
   submitOrder,
   syncSubmitButton,
   updateServiceStatus,

@@ -1,9 +1,7 @@
 import { all } from "../../core/database.js";
-import { notFoundError } from "../../core/errors.js";
 import { ok } from "../../core/responses.js";
-import { resolveTenantBySlug } from "../../core/tenant.js";
+import { requireTenantPublicModule, resolvePublicModuleTenant, resolveTenantBySlug } from "../../core/tenant.js";
 import { requestNow } from "../../core/time.js";
-import { requireEnabledModule } from "../../middleware/require-module.js";
 import { recordPublicPortalVisit } from "../../services/public-analytics.js";
 import { loadPublicBlog } from "../../services/public-portal-feeds.js";
 
@@ -69,7 +67,7 @@ async function getPortalEvents({ request, env, params }) {
 }
 
 async function getPortalBlog({ env, params }) {
-  const tenant = await requirePublicPortal(env, params.hotel_slug);
+  const tenant = await requirePublicPortal(env, params.hotel_slug, { full: true });
   try {
     const posts = await loadPublicBlog({ feedUrl: tenant.settings["portal.blog_feed_url"] });
     return ok({ hotel_id: tenant.hotel_id, posts, available: true }, { cacheControl: "public, max-age=300" });
@@ -78,10 +76,10 @@ async function getPortalBlog({ env, params }) {
   }
 }
 
-async function requirePublicPortal(env, slug) {
+async function requirePublicPortal(env, slug, { full = false } = {}) {
+  if (!full) return resolvePublicModuleTenant(env, slug, MODULE_KEY);
   const tenant = await resolveTenantBySlug(env, slug);
-  const module = await requireEnabledModule(env, tenant.hotel_id, MODULE_KEY);
-  if (!module.is_public) throw notFoundError("Modulo indisponivel para este hotel.");
+  requireTenantPublicModule(tenant, MODULE_KEY);
   return tenant;
 }
 
@@ -94,7 +92,8 @@ function listPublishedPages(env, hotelId) {
         AND module_key = ?
         AND status = 'published'
         AND archived_at IS NULL
-      ORDER BY sort_order, title`,
+      ORDER BY sort_order, title
+      LIMIT 100`,
     [hotelId, MODULE_KEY],
   );
 }
@@ -129,7 +128,8 @@ async function listEventOccurrences(env, events) {
     `SELECT id, event_id, starts_at, ends_at, timezone
        FROM event_occurrences
       WHERE event_id IN (${placeholders})
-      ORDER BY starts_at`,
+      ORDER BY starts_at
+      LIMIT 240`,
     events.map((event) => event.id),
   );
   const grouped = new Map();
@@ -172,7 +172,8 @@ function listPublicInformation(env, hotelId) {
        FROM hotel_information
       WHERE hotel_id = ?
         AND is_public = 1
-      ORDER BY sort_order, title`,
+      ORDER BY sort_order, title
+      LIMIT 100`,
     [hotelId],
   );
 }

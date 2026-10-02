@@ -381,6 +381,7 @@ export default {
       return withSecurityHeaders(
         fail(500, "internal_error", "Erro interno local da plataforma.", undefined, {
           requestId: crypto.randomUUID(),
+          headers: { "retry-after": "60" },
         }),
         {
           embed: pathname.startsWith("/embed/"),

@@ -547,11 +547,12 @@ function renderEventList(state) {
 function renderEventCard(event, bootstrap) {
   const imageUrl = sanitizePublicAssetUrl(event.image_url);
   const category = event.category || "Evento";
+  const contentKind = isEventInformation(event) ? "INFORMAÇÃO" : "EVENTO";
   return `
-    <button type="button" class="event-blog-card" data-event-open="${escapeHtml(event.id)}">
-      <span class="event-card-media">${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(event.image_alt || "")}" loading="lazy">` : icon("calendar")}</span>
+    <button type="button" class="event-blog-card${imageUrl ? " has-image" : " no-image"}" data-event-open="${escapeHtml(event.id)}">
+      ${imageUrl ? `<span class="event-card-media"><img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(event.image_alt || "")}" loading="lazy"></span>` : ""}
       <span class="event-card-copy">
-        <small class="event-card-pill">EVENTO · ${escapeHtml(formatEventDay(event, bootstrap))}</small>
+        <small class="event-card-pill">${contentKind} · ${escapeHtml(formatEventDay(event, bootstrap))}</small>
         <strong>${escapeHtml(event.title)}</strong>
         ${event.summary ? `<span class="event-card-summary">${escapeHtml(event.summary)}</span>` : ""}
         <span class="event-card-foot"><b>${escapeHtml(category)}${formatEventTime(event, bootstrap) ? ` · ${escapeHtml(formatEventTime(event, bootstrap))}` : ""}</b><em>Abrir</em></span>
@@ -634,11 +635,8 @@ function renderEventDetail(state) {
       <button type="button" class="fixed-header-back" data-event-close aria-label="Voltar">${icon("chevron-back")}<span>Voltar</span></button>
       <main class="event-detail-page">
         <div class="event-detail-layout">
-          <section class="event-detail-main">
-            <div class="detail-hero-media">
-              ${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(event.image_alt || "")}">` : `<span>${icon("calendar")}</span>`}
-              <i></i><h1>${escapeHtml(event.title)}</h1>
-            </div>
+          <section class="event-detail-main${imageUrl ? " has-image" : " no-image"}">
+            ${imageUrl ? `<div class="detail-hero-media"><img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(event.image_alt || "")}"><i></i><h1>${escapeHtml(event.title)}</h1></div>` : `<h1 class="event-detail-plain-title">${escapeHtml(event.title)}</h1>`}
             <p class="event-detail-date">${escapeHtml(formatEventDay(event, state.bootstrap).toUpperCase())}${formatEventTime(event, state.bootstrap) ? ` · ${escapeHtml(formatEventTime(event, state.bootstrap).toUpperCase())}` : ""}</p>
             ${event.summary ? `<p class="event-detail-summary">${escapeHtml(event.summary)}</p>` : ""}
             ${body ? `<div class="event-detail-body">${String(body).split(/\n+/).filter(Boolean).map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("")}</div>` : ""}
@@ -754,6 +752,7 @@ function getModuleDescription(module, bootstrap) {
 export function getNextFeaturedEvent(events = [], now = Date.now()) {
   let next = null;
   for (const event of events) {
+    if (isEventInformation(event)) continue;
     for (const occurrence of eventSchedule(event)) {
       const startsAt = Date.parse(occurrence.starts_at);
       if (!Number.isFinite(startsAt) || startsAt < now) continue;
@@ -768,6 +767,10 @@ export function getNextFeaturedEvent(events = [], now = Date.now()) {
     timezone: next.occurrence.timezone || next.event.timezone,
     occurrences: [next.occurrence],
   };
+}
+
+function isEventInformation(event) {
+  return normalizeFilter(event?.category) === "informacao";
 }
 
 function filteredEvents(state) {

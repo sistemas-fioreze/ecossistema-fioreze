@@ -1,4 +1,14 @@
 import { iconMarkup } from "./icon-system.js";
+import { getPrintingStatus } from "./api.js";
+
+let printStatusRoot = null;
+let observedHotelId = "";
+let observedRemotePrinting = null;
+let remotePrintFailureCount = 0;
+let remotePrintRetryAt = 0;
+
+const REMOTE_PRINT_POLL_BASE_DELAY_MS = 30_000;
+const REMOTE_PRINT_POLL_MAX_BACKOFF_MS = 5 * 60_000;
 
 export const desktop = {
   get isElectron() {
@@ -27,6 +37,16 @@ export const desktop = {
   },
   printAgentStatus() {
     return window.fiorezeDesktop?.getPrintAgentStatus?.() || Promise.resolve(null);
+  },
+  observePrintServer({ hotelId, printing } = {}) {
+    const nextHotelId = String(hotelId || "").trim();
+    if (nextHotelId !== observedHotelId) {
+      remotePrintFailureCount = 0;
+      remotePrintRetryAt = 0;
+    }
+    observedHotelId = nextHotelId;
+    observedRemotePrinting = printing || null;
+    if (printStatusRoot && this.isElectron) void syncDesktopPrintStatus(printStatusRoot, { refreshRemote: false });
   },
   restartPrintAgent() {
     return window.fiorezeDesktop?.restartPrintAgent?.() || Promise.resolve({ ok: false, action: "browser" });
@@ -96,9 +116,12 @@ export async function setupDesktopControls(root = document) {
     root.getElementById("desktopClose")?.addEventListener("click", () => desktop.close());
   }
   root.getElementById("desktopReload")?.addEventListener("click", () => desktop.reload());
+  printStatusRoot = root;
   installDesktopPrintStatus(root);
-  syncDesktopPrintStatus(root);
-  window.setInterval(() => syncDesktopPrintStatus(root), 10_000);
+  syncDesktopPrintStatus(root, { refreshRemote: true });
+  window.setInterval(() => {
+    if (!document.hidden) syncDesktopPrintStatus(root, { refreshRemote: true });
+  }, 30_000);
   installDesktopUpdater(root);
 }
 
@@ -191,23 +214,71 @@ function updateIcon() {
   return iconMarkup("download");
 }
 
-async function syncDesktopPrintStatus(root) {
+async function syncDesktopPrintStatus(root, { refreshRemote = false } = {}) {
   const button = root.getElementById("desktopPrintManager");
   if (!button) return;
   try {
-    const status = await desktop.printAgentStatus();
-    const configured = isPrintServerComputer(status);
-    const state = status?.running ? "online" : configured ? "offline" : "not-configured";
+    const status = await resolveDesktopPrintStatus({ refreshRemote });
+    const localServer = isPrintServerComputer(status);
+    const state = status?.running ? "online" : status?.server_configured || localServer ? "offline" : "not-configured";
     button.dataset.state = state;
     button.title = status?.running
-      ? `Impressao conectada: ${status.printer_name || "impressora configurada"}`
-      : configured
-        ? "Consultar o servidor de impressao deste computador"
+      ? `${status.remote ? "Servidor de impressao online" : "Impressao conectada"}: ${status.printer_name || "impressora configurada"}`
+      : status?.server_configured || localServer
+        ? status?.remote ? "Consultar o servidor de impressao da unidade" : "Consultar o servidor de impressao deste computador"
         : "Consultar o status da impressao";
     renderDesktopPrintStatus(root, status);
   } catch {
     button.dataset.state = "offline";
   }
+}
+
+async function resolveDesktopPrintStatus({ refreshRemote = false } = {}) {
+  const local = await desktop.printAgentStatus().catch(() => null);
+  if (isPrintServerComputer(local)) {
+    return { ...local, is_local_server: true, server_configured: true, remote: false };
+  }
+  if (refreshRemote && observedHotelId) {
+    if (Date.now() < remotePrintRetryAt) return remotePrintStatus(local, observedRemotePrinting);
+    try {
+      observedRemotePrinting = (await getPrintingStatus({ hotelId: observedHotelId })).data;
+      remotePrintFailureCount = 0;
+      remotePrintRetryAt = 0;
+    } catch (error) {
+      // Keep the last server observation when a transient request fails.
+      if (error.status >= 500 || error.status === 429) {
+        remotePrintFailureCount = Math.min(remotePrintFailureCount + 1, 4);
+        const retryDelay = Math.min(
+          REMOTE_PRINT_POLL_MAX_BACKOFF_MS,
+          REMOTE_PRINT_POLL_BASE_DELAY_MS * (2 ** (remotePrintFailureCount - 1)),
+        );
+        remotePrintRetryAt = Date.now() + retryDelay;
+      }
+    }
+  }
+  return remotePrintStatus(local, observedRemotePrinting);
+}
+
+function remotePrintStatus(local, printing) {
+  const device = printing?.device || null;
+  const connection = device?.connection_status || (device ? "offline" : "not_configured");
+  const running = Boolean(device && connection === "online");
+  return {
+    ...(local || {}),
+    configured: false,
+    is_local_server: false,
+    server_configured: Boolean(device),
+    remote: true,
+    running,
+    status: !printing?.enabled ? "disabled" : connection,
+    message: printing?.message || (device ? "O servidor de impressão não respondeu recentemente." : "Nenhum servidor de impressão está vinculado à unidade."),
+    hotel_id: printing?.hotel_id || observedHotelId,
+    device_id: device?.id || "",
+    device_name: device?.name || "Nenhum servidor vinculado",
+    printer_name: device?.printer_name || "Não informada",
+    app_version: device?.app_version || "-",
+    updated_at: device?.last_seen_at || device?.updated_at || printing?.observed_at || null,
+  };
 }
 
 function installDesktopPrintStatus(root) {
@@ -263,14 +334,15 @@ function installDesktopPrintStatus(root) {
 
 function renderDesktopPrintStatus(root, status = {}) {
   const configured = isPrintServerComputer(status);
+  const serverConfigured = Boolean(configured || status?.server_configured);
   const running = Boolean(status?.running);
   const pill = root.getElementById("desktopPrintStatusPill");
   const message = root.getElementById("desktopPrintStatusMessage");
   const restart = root.getElementById("desktopPrintRestart");
   const values = {
     desktopPrintRole: configured ? "Servidor de impressão" : "Somente ERP",
-    desktopPrintDevice: status?.device_name || "Este computador",
-    desktopPrintPrinter: configured ? status?.printer_name || "Não informada" : "Não configurada",
+    desktopPrintDevice: status?.device_name || (configured ? "Este computador" : "Nenhum servidor vinculado"),
+    desktopPrintPrinter: serverConfigured ? status?.printer_name || "Não informada" : "Não configurada",
     desktopPrintVersion: status?.app_version || "-",
     desktopPrintUpdatedAt: formatDesktopTimestamp(status?.updated_at),
   };
@@ -279,20 +351,25 @@ function renderDesktopPrintStatus(root, status = {}) {
     if (element) element.textContent = value;
   });
   if (pill) {
-    pill.className = `desktop-print-status-pill ${running ? "online" : configured ? "offline" : "erp-only"}`;
-    pill.textContent = running ? "Online" : configured ? "Sem resposta" : "Somente ERP";
+    pill.className = `desktop-print-status-pill ${running ? "online" : serverConfigured ? "offline" : "erp-only"}`;
+    pill.textContent = running ? "Online" : status?.status === "paused" ? "Pausado" : serverConfigured ? "Sem resposta" : "Não configurado";
   }
   if (message) {
     message.textContent = running
       ? status?.message || "Aguardando novos pedidos."
-      : configured
+      : serverConfigured
         ? status?.message || "O servidor de impressão não respondeu recentemente."
-        : "Nenhum servidor de impressão será iniciado neste computador.";
+        : status?.message || "Nenhum servidor de impressão está vinculado à unidade.";
   }
   if (restart) restart.disabled = !configured;
+  const hint = root.getElementById("desktopPrintStatusHint");
+  if (hint) hint.textContent = configured
+    ? "Este computador executa o agente e pode reiniciá-lo localmente."
+    : "Status recebido do computador servidor. Este ERP não inicia outro agente de impressão.";
 }
 
 function isPrintServerComputer(status = {}) {
+  if (typeof status?.is_local_server === "boolean") return status.is_local_server;
   if (typeof status?.configured === "boolean") return status.configured;
   return Boolean(status?.running || status?.device_id || status?.hotel_id);
 }

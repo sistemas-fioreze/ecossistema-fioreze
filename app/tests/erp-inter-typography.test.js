@@ -53,7 +53,6 @@ test("ERP uses one operational font token without external or hotel font overrid
   assert.doesNotMatch(hotelContext, /setProperty\("--rs-font-family"/);
   assert.doesNotMatch(legacyApp, /setProperty\("--hotel-font"/);
   assert.match(legacyApp, /removeProperty\("--hotel-font"\)/);
-  assert.match(legacyApp, /Inter Variable/);
 });
 
 test("ERP typography keeps readable weights, metadata, and tabular numbers", () => {

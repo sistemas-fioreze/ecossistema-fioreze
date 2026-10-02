@@ -87,7 +87,7 @@ test("Electron wrapper is thin, hardened, and does not duplicate backend access"
   assert.match(adapter, /if \(search\) workspace\.append\(search\)/);
   assert.match(adapter, /if \(feedback\) workspace\.append\(feedback\)/);
   assert.doesNotMatch(adapter, /label\.textContent = status\?\.running \? "Impressao online"/);
-  assert.match(adapter, /Nenhum servidor de impressão será iniciado neste computador/);
+  assert.match(adapter, /Este ERP não inicia outro agente de impressão/);
   assert.doesNotMatch(adapter, /openPrintManager/);
   assert.ok(packageJson.build.files.includes("window-chrome.cjs"));
 
@@ -149,12 +149,12 @@ test("settings stays available outside the ERP sidebar", () => {
   assert.doesNotMatch(legacyApp, /\["btnTabAdmin", "Sistema"\]/);
   assert.match(legacyApp, /switchTab\("admin", \{ allowHidden: true \}\)/);
   assert.match(legacyApp, /function switchTab\(route, \{ allowHidden = false \} = \{\}\)/);
-  assert.match(entrypoint, /desktop-adapter\.js\?v=20260814-6/);
-  assert.match(entrypoint, /icon-system\.js\?v=20260814-6/);
-  assert.match(entrypoint, /legacy-app\.js\?v=20260820-6/);
-  assert.match(html, /design-system-v5\.css\?v=20260820-2/);
+  assert.match(entrypoint, /desktop-adapter\.js\?v=\d{8}-\d+/);
+  assert.match(entrypoint, /icon-system\.js\?v=\d{8}-\d+/);
+  assert.match(entrypoint, /legacy-app\.js\?v=\d{8}-\d+/);
+  assert.match(html, /design-system-v5\.css\?v=\d{8}-\d+/);
   assert.match(html, /lucide-erp\.min\.js\?v=1\.27\.0/);
-  assert.match(html, /app\.js\?v=20260821-1/);
+  assert.match(html, /app\.js\?v=\d{8}-\d+/);
 });
 
 test("collapsed ERP navigation keeps the active item on a centered square tile", () => {

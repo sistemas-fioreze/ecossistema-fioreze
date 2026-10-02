@@ -39,14 +39,16 @@ export async function listAdminHotels({ env, session }) {
   };
 }
 
-export async function listAdminOrders({ env, session, url, permissionKey = READ_PERMISSION }) {
+export async function listAdminOrders({ env, session, url, permissionKey = READ_PERMISSION, limit = 100 }) {
   requirePermission(session, permissionKey);
   const hotelId = optionalString(url.searchParams.get("hotel_id"), "hotel_id", { max: 80 });
   const status = optionalString(url.searchParams.get("status"), "status", { max: 40 });
   const search = optionalString(url.searchParams.get("q"), "q", { max: 120 });
   const date = validateLocalDate(url.searchParams.get("date"));
+  const createdAfter = validateIsoInstant(url.searchParams.get("created_after"), "created_after");
 
   const hotelIds = hotelId ? [hotelId] : session.hotel_ids;
+  const rowLimit = Number.isInteger(limit) && limit > 0 && limit <= 5000 ? limit : 100;
   if (hotelId) requireAdminHotelAccess(session, hotelId);
   if (!hotelIds.length) return { orders: [] };
 
@@ -80,30 +82,26 @@ export async function listAdminOrders({ env, session, url, permissionKey = READ_
     params.push(like, like, like);
   }
 
+  if (createdAfter) {
+    filters.push("o.created_at > ?");
+    params.push(createdAfter);
+  }
+
   const rows = await all(
     env,
     `SELECT o.id, o.public_id, o.hotel_id, h.name AS hotel_name,
-            h.timezone, o.module_key, o.origin, o.room_code, o.guest_name,
+            h.timezone, o.module_key, o.origin, o.room_code, o.guest_name, o.notes,
             o.currency, o.subtotal_cents, o.total_cents, o.status,
             o.preparation_mode, o.scheduled_for, o.created_at, o.updated_at,
-            (
-              SELECT COUNT(*)
-                FROM orders sequence
-               WHERE sequence.hotel_id = o.hotel_id
-                 AND sequence.module_key = o.module_key
-                 AND (
-                   sequence.created_at < o.created_at
-                   OR (sequence.created_at = o.created_at AND sequence.id <= o.id)
-                 )
-            ) AS display_number,
+            o.display_number,
             COUNT(oi.id) AS item_count
        FROM orders o
        JOIN hotels h ON h.id = o.hotel_id
        LEFT JOIN order_items oi ON oi.order_id = o.id
       WHERE ${filters.join(" AND ")}
       GROUP BY o.id
-      ORDER BY o.created_at DESC
-      LIMIT 100`,
+      ORDER BY o.created_at DESC, o.id DESC
+      LIMIT ${rowLimit}`,
     params,
   );
 
@@ -348,16 +346,7 @@ async function loadOrderDetail(env, orderId, hotelIds) {
             o.guest_name, o.notes, o.currency, o.subtotal_cents,
             o.discount_cents, o.total_cents, o.status, o.created_at,
             o.updated_at, o.cancelled_at, o.preparation_mode, o.scheduled_for,
-            (
-              SELECT COUNT(*)
-                FROM orders sequence
-               WHERE sequence.hotel_id = o.hotel_id
-                 AND sequence.module_key = o.module_key
-                 AND (
-                   sequence.created_at < o.created_at
-                   OR (sequence.created_at = o.created_at AND sequence.id <= o.id)
-                 )
-            ) AS display_number
+            o.display_number
        FROM orders o
        JOIN hotels h ON h.id = o.hotel_id
       WHERE o.id = ?
@@ -422,6 +411,8 @@ function formatOrderListRow(row) {
     origin: row.origin,
     room_code: row.room_code,
     guest_name: row.guest_name,
+    notes: row.notes || null,
+    delivery_location: parseDelivery(row.notes, row.room_code).location,
     currency: row.currency,
     subtotal_cents: row.subtotal_cents,
     total_cents: row.total_cents,
@@ -558,6 +549,14 @@ function validateLocalDate(value) {
     throw badRequest("date invalida.");
   }
   return normalized;
+}
+
+function validateIsoInstant(value, label) {
+  const normalized = String(value || "").trim();
+  if (!normalized) return "";
+  const instant = new Date(normalized);
+  if (Number.isNaN(instant.getTime())) throw badRequest(`${label} deve ser uma data ISO valida.`);
+  return instant.toISOString();
 }
 
 function localDayUtcRange(dateKey, timezone) {

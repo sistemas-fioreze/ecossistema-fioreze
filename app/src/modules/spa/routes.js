@@ -1,17 +1,14 @@
 import { all, first } from "../../core/database.js";
 import { notFoundError } from "../../core/errors.js";
 import { ok } from "../../core/responses.js";
-import { resolveTenantBySlug } from "../../core/tenant.js";
-import { requireEnabledModule } from "../../middleware/require-module.js";
+import { resolvePublicModuleTenant } from "../../core/tenant.js";
 
 const MODULE_KEY = "spa";
 const SPA_LOCATION_TEXT = "Localizado no Hotel Müller & Fioreze, em Gramado.";
 
 export function registerSpaRoutes(router) {
   router.get("/api/v1/public/hotels/:hotel_slug/spa/services", async ({ env, params }) => {
-    const tenant = await resolveTenantBySlug(env, params.hotel_slug);
-    const module = await requireEnabledModule(env, tenant.hotel_id, MODULE_KEY);
-    if (!module.is_public) throw notFoundError("Modulo indisponivel para este hotel.");
+    const tenant = await resolvePublicModuleTenant(env, params.hotel_slug, MODULE_KEY);
 
     const [profile, services] = await Promise.all([
       loadActiveSpaProfile(env),
@@ -27,7 +24,7 @@ export function registerSpaRoutes(router) {
         profile: formatSpaProfile(profile),
         services,
       },
-      { cacheControl: "no-store" },
+      { cacheControl: "public, max-age=60, stale-while-revalidate=300" },
     );
   });
 }
@@ -64,7 +61,8 @@ function listActiveSpaServices(env) {
         AND ma.status = 'active'
       WHERE s.status = 'active'
         AND s.archived_at IS NULL
-      ORDER BY s.sort_order, s.name`,
+      ORDER BY s.sort_order, s.name
+      LIMIT 200`,
   );
 }
 
