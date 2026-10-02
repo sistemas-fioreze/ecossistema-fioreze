@@ -23,7 +23,7 @@ const ACCESS_LEVELS = new Set(["viewer", "editor", "admin"]);
 
 export async function loginSocialPlanner({ request, env }) {
   const payload = await readJson(request);
-  const email = normalizeEmail(payload.email);
+  const email = normalizeLoginIdentifier(payload.email);
   const password = requireString(payload.password, "password", { max: 300 });
   const user = await first(
     env,
@@ -35,10 +35,10 @@ export async function loginSocialPlanner({ request, env }) {
     [email],
   );
   if (!user || user.status !== "active" || user.password_strategy !== "pbkdf2") {
-    throw unauthorized("E-mail ou senha invalidos.");
+    throw unauthorized("Usuario ou senha invalidos.");
   }
   if (!(await verifyPassword(password, user.password_hash))) {
-    throw unauthorized("E-mail ou senha invalidos.");
+    throw unauthorized("Usuario ou senha invalidos.");
   }
 
   const token = createSessionToken();
@@ -267,6 +267,12 @@ function normalizeEmail(value) {
   const email = requireString(value, "email", { min: 5, max: 180 }).trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw badRequest("E-mail invalido.");
   return email;
+}
+
+function normalizeLoginIdentifier(value) {
+  const identifier = requireString(value, "email", { min: 3, max: 180 }).trim().toLowerCase();
+  if (/^[a-z0-9._-]{3,64}$/.test(identifier)) return `${identifier}@hoteisfioreze.com.br`;
+  return normalizeEmail(identifier);
 }
 
 function normalizeAccessLevel(value) {

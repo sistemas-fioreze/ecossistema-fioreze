@@ -62,6 +62,10 @@ test("frontend usa somente APIs e URLs proprias do Planner", () => {
   assert.doesNotMatch(app, /fetch\("\/api\/v1\/admin\/session"/);
   assert.match(shell, /id="plannerLoginForm"/);
   assert.match(shell, /conta exclusiva do Planner/);
+  assert.match(shell, /Usuário ou e-mail/);
+  const auth = fs.readFileSync("src/services/social-planner-auth.js", "utf8");
+  assert.match(auth, /normalizeLoginIdentifier\(payload\.email\)/);
+  assert.match(auth, /@hoteisfioreze\.com\.br/);
   assert.match(central, /if \(session\?\.user\?\.is_master\)/);
   assert.match(central, /href: "\/socialplanner\/overview"/);
   assert.doesNotMatch(central, /href: "\/admin\/social-planner\/overview"/);
