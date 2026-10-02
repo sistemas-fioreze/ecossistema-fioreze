@@ -3051,3 +3051,421 @@ body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-short-links-t
     padding: 14px 12px 28px;
   }
 }
+
+
+/* Social Planner authentication context */
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-shell {
+  width: min(360px, 100%);
+  min-width: 0;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-context {
+  display: none;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-subtitle {
+  width: min(292px, 100%);
+  margin: -2px auto 6px;
+  color: var(--workspace-muted);
+  font-size: 0.82rem;
+  line-height: 1.55;
+  text-align: center;
+}
+
+body[data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-meta {
+  width: min(292px, 100%);
+  margin: 2px auto 0;
+  color: var(--workspace-faint);
+  font-size: 0.68rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] {
+  --admin-primary: #513b2d;
+  --admin-primary-hover: #684d3d;
+  --admin-primary-soft: #f4f0e5;
+  --admin-accent: #c1a94c;
+  --workspace-ink: #282522;
+  --workspace-muted: #756f69;
+  --workspace-faint: #a49d95;
+  --workspace-canvas: #f7f7f5;
+  --workspace-line: #e7e5e4;
+  --workspace-line-strong: #d9d4cc;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-shell {
+  background: #f7f7f5;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login {
+  padding: clamp(18px, 4vw, 52px);
+  background:
+    radial-gradient(circle at 12% 16%, rgba(193, 169, 76, 0.14), transparent 28rem),
+    radial-gradient(circle at 88% 88%, rgba(81, 59, 45, 0.08), transparent 24rem),
+    #f7f7f5;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-shell {
+  width: min(980px, 100%);
+  min-height: min(620px, calc(100dvh - 72px));
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(380px, 0.92fr);
+  overflow: hidden;
+  border: 1px solid #e8e3dc;
+  border-radius: 28px;
+  background: #fff;
+  box-shadow: 0 28px 80px rgba(55, 43, 34, 0.13);
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-context {
+  position: relative;
+  isolation: isolate;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 42px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 90% 8%, rgba(193, 169, 76, 0.34), transparent 18rem),
+    linear-gradient(145deg, #5a4334 0%, #463126 100%);
+  color: #fff;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-context::before,
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-context::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-context::before {
+  width: 340px;
+  height: 340px;
+  right: -170px;
+  top: 150px;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-context::after {
+  width: 220px;
+  height: 220px;
+  left: -110px;
+  bottom: -80px;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-context-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-context-monogram {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #fff;
+  color: #513b2d;
+  font-family: Georgia, serif;
+  font-size: 26px;
+  line-height: 1;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-context-brand > span:last-child {
+  display: grid;
+  gap: 2px;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-context-brand strong {
+  font-family: Georgia, serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-context-brand small {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-context-copy {
+  width: min(430px, 100%);
+  margin: auto 0 34px;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-context-copy p {
+  margin: 0 0 13px;
+  color: #d9c477;
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-context-copy h2 {
+  margin: 0;
+  max-width: 390px;
+  color: #fff;
+  font-size: clamp(2rem, 3.4vw, 3rem);
+  font-weight: 650;
+  letter-spacing: -0.055em;
+  line-height: 1.03;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-context-copy > span {
+  display: block;
+  max-width: 410px;
+  margin-top: 18px;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.88rem;
+  line-height: 1.65;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-preview {
+  display: grid;
+  gap: 13px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.075);
+  backdrop-filter: blur(8px);
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-preview-head small {
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 0.62rem;
+  font-weight: 650;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-preview-grid article {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+  min-height: 88px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.09);
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-preview-grid i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #d7c16f;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-preview-grid strong {
+  overflow: hidden;
+  color: #fff;
+  font-size: 0.73rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-preview-grid span {
+  color: rgba(255, 255, 255, 0.54);
+  font-size: 0.62rem;
+  line-height: 1.4;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-context-foot {
+  margin: 18px 0 0;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 0.62rem;
+  letter-spacing: 0.05em;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card {
+  width: min(390px, 100%);
+  min-height: 0;
+  align-items: stretch;
+  justify-content: center;
+  gap: 13px;
+  margin: auto;
+  padding: 48px 38px;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card .brand-mark {
+  width: 180px;
+  height: 68px;
+  justify-self: start;
+  align-self: flex-start;
+  margin: 0 0 14px;
+  background-size: contain;
+  background-position: left center;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card .eyebrow {
+  margin: 0;
+  color: #9d8745;
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-align: left;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card h1 {
+  margin: 1px 0 0;
+  color: #282522;
+  font-size: 2rem;
+  font-weight: 690;
+  letter-spacing: -0.045em;
+  line-height: 1.06;
+  text-align: left;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-subtitle {
+  width: 100%;
+  margin: 0 0 10px;
+  color: #756f69;
+  font-size: 0.83rem;
+  text-align: left;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card label {
+  width: 100%;
+  gap: 7px;
+  color: #514b46;
+  font-size: 0.72rem;
+  font-weight: 750;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card label > span {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip: auto;
+  clip-path: none;
+  white-space: normal;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card input {
+  min-height: 50px;
+  border-color: #ddd8d0;
+  border-radius: 10px;
+  padding: 0 14px;
+  background: #fff;
+  font-size: 0.86rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card input::placeholder {
+  color: #aaa39b;
+  font-weight: 500;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card input:focus {
+  border-color: #9f8535;
+  box-shadow: 0 0 0 3px rgba(193, 169, 76, 0.16);
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card .admin-primary-button {
+  width: 100%;
+  min-height: 50px;
+  margin-top: 5px;
+  border-radius: 10px;
+  background: #513b2d;
+  font-size: 0.86rem;
+  transition: transform 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card .admin-primary-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: #684d3d;
+  box-shadow: 0 8px 20px rgba(81, 59, 45, 0.18);
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-meta {
+  width: 100%;
+  margin-top: 2px;
+  color: #aaa39b;
+  font-size: 0.65rem;
+  text-align: left;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-error {
+  min-height: 18px;
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-turnstile {
+  width: 100%;
+  display: flex;
+  justify-content: flex-start;
+}
+
+@media (max-width: 820px) {
+  body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login {
+    padding: 22px;
+  }
+
+  body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-shell {
+    width: min(440px, 100%);
+    min-height: 0;
+    grid-template-columns: 1fr;
+    border-radius: 22px;
+  }
+
+  body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-context {
+    display: none;
+  }
+
+  body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card {
+    width: 100%;
+    padding: 42px 34px;
+  }
+}
+
+@media (max-width: 520px) {
+  body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login {
+    padding: 0;
+    background: #fff;
+  }
+
+  body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-login-shell {
+    width: 100%;
+    min-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card {
+    padding: max(30px, env(safe-area-inset-top)) 24px max(30px, env(safe-area-inset-bottom));
+  }
+
+  body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card .brand-mark {
+    width: 160px;
+    height: 60px;
+  }
+
+  body[data-login-context="social-planner"][data-admin-design="workspace"][data-admin-shell="erp"] .admin-access-card h1 {
+    font-size: 1.7rem;
+  }
+}
