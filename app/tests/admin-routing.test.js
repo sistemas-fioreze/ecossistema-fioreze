@@ -16,6 +16,17 @@ test("GET /admin redireciona uma unica vez para /admin/", async () => {
   assert.notEqual(redirectUrl.pathname, "/admin");
 });
 
+test("/socialplanner leva ao Marketing Planner no mesmo domínio e preserva filtros", async () => {
+  const { fetch } = createWorkerTestContext();
+  const response = await fetch("/socialplanner?week=2026-09-28&hotel=all", { redirect: "manual" });
+  const destination = new URL(response.headers.get("location"));
+
+  assert.equal(response.status, 308);
+  assert.equal(destination.pathname, "/admin/social-planner/overview");
+  assert.equal(destination.search, "?week=2026-09-28&hotel=all");
+  assert.equal((await fetch("/socialplanner-extra", { redirect: "manual" })).status, 404);
+});
+
 test("GET /admin/ entrega central de acesso administrativo", async () => {
   const { fetch } = createWorkerTestContext();
   const response = await fetch("/admin/", { redirect: "manual" });

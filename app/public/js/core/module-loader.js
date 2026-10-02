@@ -1,6 +1,6 @@
 const MODULE_LOADERS = {
   "guest-portal": () => import("./portal-home.js"),
-  "room-service": () => import("../modules/room-service/index.js"),
+  "room-service": () => import("../modules/room-service/index.js?v=20260909-1"),
   emporio: () => import("../modules/emporio/index.js"),
   "romantic-packages": () => import("../modules/romantic-packages/index.js"),
   spa: () => import("../modules/spa/index.js"),

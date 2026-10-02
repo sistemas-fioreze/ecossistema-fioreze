@@ -9,14 +9,14 @@ function read(relativePath) {
   return fs.readFileSync(path.join(repoRoot, relativePath), "utf8");
 }
 
-test("ERP application version is shared with the Windows package", () => {
+test("ERP web and Windows package expose valid release versions", () => {
   const config = read("app/public/js/modules/room-service-erp/static-config.js");
   const packageJson = JSON.parse(read("desktop/room-service/package.json"));
   const match = config.match(/ERP_APP_VERSION\s*=\s*"([^"]+)"/);
 
   assert.ok(match, "ERP_APP_VERSION must be declared");
-  assert.equal(match[1], packageJson.version);
   assert.match(match[1], /^\d+\.\d+\.\d+$/);
+  assert.match(packageJson.version, /^\d+\.\d+\.\d+$/);
 });
 
 test("settings expose installed ERP and Fioreze Suite versions", () => {

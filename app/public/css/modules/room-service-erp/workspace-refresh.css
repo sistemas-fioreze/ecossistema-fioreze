@@ -167,7 +167,6 @@ body[data-erp="room-service"] .erp-stat-icon {
 }
 
 .quick-setting-panel input[type="range"],
-.erp-appearance-scale input[type="range"],
 .erp-notification-settings input[type="range"] {
   accent-color: var(--accent);
 }

@@ -1420,7 +1420,6 @@ async function saveShortLink(event) {
   event.preventDefault();
   const form = els.shortLinksForm;
   const body = {
-    hotel_id: form.elements.hotel_id.value,
     internal_name: form.elements.internal_name.value,
     destination_url: form.elements.destination_url.value,
     status: form.elements.status.value,
@@ -1428,7 +1427,10 @@ async function saveShortLink(event) {
     expires_at: fromLocalDateTime(form.elements.expires_at.value),
     notes: form.elements.notes.value,
   };
-  if (!currentShortLink) body.slug = form.elements.slug.value;
+  if (!currentShortLink) {
+    body.hotel_id = form.elements.hotel_id.value;
+    body.slug = form.elements.slug.value;
+  }
 
   try {
     await adminApi(currentShortLink ? `/api/v1/admin/short-links/${encodeURIComponent(currentShortLink.id)}` : "/api/v1/admin/short-links", {

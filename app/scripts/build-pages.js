@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { build } from "esbuild";
+import { buildSocialPlanner } from "./build-social-planner.js";
 
 const DEFAULT_OUTPUT = "pages/dist";
 
@@ -12,6 +13,7 @@ export async function buildPages({ root = process.cwd(), outputDir = DEFAULT_OUT
   const resolvedOutput = path.resolve(projectRoot, outputDir);
 
   await assertBuildInputs({ projectRoot, publicDir, entryPoint, resolvedOutput });
+  await buildSocialPlanner({ root: projectRoot });
   await fs.rm(resolvedOutput, { recursive: true, force: true });
   await fs.mkdir(resolvedOutput, { recursive: true });
   await fs.cp(publicDir, resolvedOutput, { recursive: true });

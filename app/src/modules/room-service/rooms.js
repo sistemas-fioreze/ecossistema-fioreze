@@ -7,7 +7,8 @@ export async function listPublicRoomServiceRooms(env, hotelId) {
        FROM rooms
       WHERE hotel_id = ?
         AND status = 'active'
-      ORDER BY sort_order, code`,
+      ORDER BY sort_order, code
+      LIMIT 500`,
     [hotelId],
   );
 }

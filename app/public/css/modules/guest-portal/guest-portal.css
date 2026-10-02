@@ -1821,6 +1821,10 @@ a.home-landscape-card:hover {
   padding: 18px;
 }
 
+.event-blog-card.no-image .event-card-copy {
+  padding: 22px 20px;
+}
+
 .event-card-pill {
   width: fit-content;
   display: inline-flex;
@@ -2218,6 +2222,19 @@ a.home-landscape-card:hover {
   font-size: 1.75rem;
   line-height: 1.08;
   text-shadow: 0 3px 14px rgba(0, 0, 0, 0.68);
+}
+
+.event-detail-plain-title {
+  max-width: 20ch;
+  margin: 0 8px;
+  color: var(--guest-ink);
+  font-size: clamp(1.8rem, 7vw, 2.45rem);
+  font-weight: 700;
+  line-height: 1.12;
+}
+
+.event-detail-main.no-image .event-detail-date {
+  margin-top: 18px;
 }
 
 .event-detail-date {
@@ -2663,6 +2680,11 @@ a.home-landscape-card:hover {
     bottom: 30px;
     left: 32px;
     max-width: 14ch;
+    font-size: 2.4rem;
+  }
+
+  .event-detail-plain-title {
+    max-width: 18ch;
     font-size: 2.4rem;
   }
 

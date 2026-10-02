@@ -15,6 +15,7 @@ import { serveDesktopRelease, servePrintAgentRelease } from "./modules/desktop-r
 import { serveInternalDownloadCenter, serveInternalInstaller } from "./modules/internal-downloads.js";
 import { archiveExpiredPortalEvents } from "./services/portal-event-lifecycle.js";
 import { registerPrintAgentRoutes } from "./modules/print-agent/routes.js";
+import { registerSocialPlannerRoutes } from "./modules/social-planner/routes.js";
 import {
   isGuestPortalPublicHost,
   isRetiredCustomPortalPath,
@@ -49,6 +50,7 @@ registerAdminRoutes(router);
 registerAdminPasskeyRoutes(router);
 registerEmbedRoutes(router);
 registerPrintAgentRoutes(router);
+registerSocialPlannerRoutes(router);
 
 router.get("/media/:id", async ({ request, env, params }) => servePublicMedia({ request, env, params }));
 router.head("/media/:id", async ({ request, env, params }) => servePublicMedia({ request, env, params, head: true }));
@@ -63,6 +65,14 @@ router.head("/portal-content/:hotel_slug/:page_slug", async ({ env, params }) =>
 async function handleRequest(request, env, ctx) {
   const url = new URL(request.url);
   const officialPortalHost = isGuestPortalPublicHost(request, env);
+
+  if (url.pathname === "/socialplanner" || url.pathname === "/socialplanner/") {
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      return servePublicNotFoundPage(request, env);
+    }
+    url.pathname = "/admin/social-planner/overview";
+    return Response.redirect(url.toString(), 308);
+  }
 
   if (isRetiredHumanDownloadPath(url.pathname)) {
     return servePublicNotFoundPage(request, env);
@@ -180,6 +190,7 @@ function isDirectAsset(pathname) {
 
 function resolveAdminAssetPath(pathname) {
   const routes = [
+    { canonical: "/admin/social-planner/", assetPath: "/admin/social-planner/" },
     { canonical: "/admin/portais/portal-hospede/", assetPath: "/admin/portais/" },
     { canonical: "/admin/portais/unidades/", assetPath: "/admin/portais/" },
     { canonical: "/admin/portais/media/", assetPath: "/admin/portais/" },
@@ -370,6 +381,7 @@ export default {
       return withSecurityHeaders(
         fail(500, "internal_error", "Erro interno local da plataforma.", undefined, {
           requestId: crypto.randomUUID(),
+          headers: { "retry-after": "60" },
         }),
         {
           embed: pathname.startsWith("/embed/"),

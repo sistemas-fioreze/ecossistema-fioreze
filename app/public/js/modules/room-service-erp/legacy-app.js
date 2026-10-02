@@ -43,12 +43,20 @@ import {
   updateSchedule,
   uploadErpMedia,
   uploadOwnAvatar,
-} from "./api.js";
-import { desktop } from "./desktop-adapter.js";
+} from "./api.js?v=20260909-1";
+import { desktop } from "./desktop-adapter.js?v=20260909-2";
 import { setupHelpCenter } from "./help.js?v=20260820-5";
 import { iconMarkup } from "./icon-system.js";
 import { buildInterfaceViewport } from "./interface-viewport.js";
 import { bindPdvCheckoutActions, bindPdvDropTarget, bindPdvProductDrag } from "./pdv-actions.js";
+import {
+  buildPdvOrderItems,
+  createPdvCartLineKey,
+  describeOrderItemOptions,
+  describePdvSelectedOptions,
+  normalizePdvOptionDefinitions,
+  validatePdvSelectedOptions,
+} from "./pdv-options.js";
 import { getErpSearchContext } from "./search-context.js?v=20260820-1";
 import { ERP_APP_VERSION } from "./static-config.js";
 import { applyBrandTokens } from "./theme.js";
@@ -75,6 +83,9 @@ const NEXT_STATUS = {
   sent: "printed",
   printed: "delivered",
 };
+
+const ORDER_POLL_BASE_DELAY_MS = 30_000;
+const ORDER_POLL_MAX_BACKOFF_MS = 5 * 60_000;
 
 const state = {
   session: null,
@@ -109,6 +120,8 @@ const state = {
   notifications: [],
   knownOrderIds: new Set(),
   orderPollTimer: null,
+  orderPollInFlight: false,
+  orderPollFailureCount: 0,
   notificationSoundEnabled: localStorage.getItem("fioreze-erp-notification-sound") !== "false",
   notificationVolume: clampNumber(localStorage.getItem("fioreze-erp-notification-volume"), 0, 100, 70),
   interfaceScale: clampNumber(localStorage.getItem("fioreze-erp-interface-scale"), 85, 115, 100),
@@ -130,6 +143,7 @@ const ERP_KEYBOARD_SHORTCUTS = Object.freeze({
 let notificationAudioContext = null;
 let loginUserLookupTimer = null;
 let loginUserLookupSequence = 0;
+let routeMotionSequence = 0;
 
 const toastRegion = document.createElement("div");
 toastRegion.className = "legacy-toast-region";
@@ -926,7 +940,6 @@ function renderSettingsHome() {
     permissions.has("room-service.settings.manage") ? settingsCard("printing", "printer", "Impressão", "Computadores, impressoras e comprovantes") : "",
     permissions.has("room-service.users.manage") ? settingsCard("users", "users", "Usuários do ERP", "Acessos e permissões da equipe") : "",
     settingsCard("account", "account", "Minha conta", "Perfil e senha"),
-    settingsCard("appearance", "palette", "Aparência", "Marca e escala da interface"),
     settingsCard("notifications", "bell", "Notificações", "Som e volume dos alertas"),
     settingsCard("version", "version", "Versão do aplicativo", "ERP, Fioreze Suite e atualizações"),
   ].filter(Boolean);
@@ -1028,21 +1041,23 @@ function renderAccountSettings() {
   return `<nav class="erp-settings-breadcrumb" aria-label="Navegação das configurações"><button type="button" data-settings-view="home">Configurações</button>${settingsIcon("chevron")}<strong>Minha conta</strong></nav><section class="erp-settings-detail erp-account-settings"><article class="erp-account-card"><div class="erp-profile-avatar">${avatar ? `<img src="${escapeAttr(avatar)}" alt="Foto de perfil" class="erp-profile-avatar">` : escapeHtml(initials)}</div><div class="erp-account-summary"><p class="erp-panel-title">${escapeHtml(displayName)}</p><p class="erp-v3-subtitle">${operational ? `Código ${Number(user.user_code || 0)} · ${escapeHtml(displayHotelName(state.context?.hotel))}` : "Administrador geral"}</p>${operational ? '<form id="accountAvatarForm" class="erp-avatar-form"><input id="accountAvatarFile" class="erp-visually-hidden" type="file" accept="image/jpeg,image/png,image/webp,image/avif" required><div class="erp-avatar-actions"><label for="accountAvatarFile" class="admin-secondary-btn erp-file-picker">Escolher foto</label><button id="accountAvatarSave" type="submit" class="admin-primary-btn" disabled>Salvar foto</button></div><span id="accountAvatarFileName" class="erp-file-name" hidden></span><button id="removeOwnAvatarButton" type="button" class="erp-remove-avatar">Remover foto atual</button></form>' : ""}</div></article>${operational ? '<form id="accountPasswordForm" class="erp-form erp-password-form"><div><p class="erp-panel-title">Alterar senha</p><p class="erp-v3-subtitle">Use no mínimo 4 caracteres.</p></div><label>Senha atual<input name="current_password" type="password" required autocomplete="current-password"></label><label>Nova senha<input name="new_password" type="password" required minlength="4" autocomplete="new-password"></label><label>Confirmar nova senha<input name="confirm_password" type="password" required minlength="4" autocomplete="new-password"></label><div class="erp-form-actions"><button type="submit" class="admin-primary-btn">Atualizar senha</button></div></form>' : ""}</section>`;
 }
 
-function renderAppearanceSettings() {
-  const branding = state.context?.branding || {};
-  return `<button type="button" class="erp-back" data-settings-view="home">${settingsIcon("back")} Configuracoes</button><section class="erp-settings-detail"><div><p class="erp-panel-title">Aparencia da unidade</p><p class="erp-v3-subtitle">Identidade visual aplicada ao ERP.</p></div><div class="erp-settings-grid"><article class="erp-panel"><span class="erp-stat-label">Cor primaria</span><div style="width:52px;height:52px;border-radius:8px;background:var(--brand-primary);margin-top:12px"></div></article><article class="erp-panel"><span class="erp-stat-label">Tipografia operacional</span><strong class="erp-stat-value erp-ui-font-name">Inter Variable</strong></article><article class="erp-panel erp-appearance-scale"><span class="erp-stat-label">Escala da interface</span><strong>${state.interfaceScale}%</strong><input id="settingsScaleRange" type="range" min="85" max="115" step="5" value="${state.interfaceScale}"></article></div></section>`;
-}
-
 function renderNotificationSettings() {
   return `<button type="button" class="erp-back" data-settings-view="home">${settingsIcon("back")} Configuracoes</button><section class="erp-settings-detail"><div><p class="erp-panel-title">Notificacoes</p><p class="erp-v3-subtitle">Alertas de novos pedidos.</p></div><article class="erp-panel erp-notification-settings"><div><strong>Som de novo pedido</strong><small>${state.notificationSoundEnabled ? "Ativado" : "Silenciado"}</small></div><button type="button" class="admin-secondary-btn" data-toggle-notification-sound>${state.notificationSoundEnabled ? "Silenciar" : "Ativar"}</button><label>Volume <b>${state.notificationVolume}%</b><input id="settingsNotificationVolume" type="range" min="0" max="100" step="5" value="${state.notificationVolume}"></label><button type="button" class="admin-secondary-btn" data-test-notification-sound>Testar som</button></article></section>`;
 }
 
 function renderApplicationVersionSettings() {
   const versions = state.applicationVersions || createInitialApplicationVersions();
+  const suiteInstalled = Boolean(versions.suite?.installed);
   const checkedAt = versions.checkedAt
     ? `Última verificação em ${formatDate(versions.checkedAt)}`
     : "As versões instaladas são consultadas neste computador.";
-  return `<nav class="erp-settings-breadcrumb" aria-label="Navegação das configurações"><button type="button" data-settings-view="home">Configurações</button>${settingsIcon("chevron")}<strong>Versão do aplicativo</strong></nav><section class="erp-settings-detail erp-version-settings"><header class="erp-settings-section-head"><div><p class="erp-panel-title">Versão do aplicativo</p><p class="erp-v3-subtitle">Acompanhe o ERP e o Fioreze Suite instalados neste computador.</p></div><button id="checkApplicationUpdatesButton" type="button" class="admin-primary-btn erp-version-check" ${versions.checking ? 'disabled aria-busy="true"' : ""}>${settingsIcon("refresh")} ${versions.checking ? "Verificando..." : "Verificar atualizações"}</button></header><div class="erp-version-list" aria-live="polite">${applicationVersionCard({ icon: "desktop", title: "Fioreze ERP", product: versions.erp })}${applicationVersionCard({ icon: "suite", title: "Fioreze Suite", product: versions.suite })}</div>${versions.error ? `<p class="erp-version-error" role="status">${escapeHtml(versions.error)}</p>` : ""}<p class="erp-version-last-check">${escapeHtml(checkedAt)}</p></section>`;
+  const description = suiteInstalled
+    ? "Acompanhe o ERP e o Fioreze Suite instalados neste computador."
+    : "Acompanhe a versão do ERP instalada neste computador.";
+  const suiteCard = suiteInstalled
+    ? applicationVersionCard({ icon: "suite", title: "Fioreze Suite", product: versions.suite })
+    : "";
+  return `<nav class="erp-settings-breadcrumb" aria-label="Navegação das configurações"><button type="button" data-settings-view="home">Configurações</button>${settingsIcon("chevron")}<strong>Versão do aplicativo</strong></nav><section class="erp-settings-detail erp-version-settings"><header class="erp-settings-section-head"><div><p class="erp-panel-title">Versão do aplicativo</p><p class="erp-v3-subtitle">${description}</p></div><button id="checkApplicationUpdatesButton" type="button" class="admin-primary-btn erp-version-check" ${versions.checking ? 'disabled aria-busy="true"' : ""}>${settingsIcon("refresh")} ${versions.checking ? "Verificando..." : "Verificar atualizações"}</button></header><div class="erp-version-list" aria-live="polite">${applicationVersionCard({ icon: "desktop", title: "Fioreze ERP", product: versions.erp })}${suiteCard}</div>${versions.error ? `<p class="erp-version-error" role="status">${escapeHtml(versions.error)}</p>` : ""}<p class="erp-version-last-check">${escapeHtml(checkedAt)}</p></section>`;
 }
 
 function applicationVersionCard({ icon, title, product }) {
@@ -1066,6 +1081,7 @@ function createInitialApplicationVersions() {
       message: desktop.isElectron ? "Consultando a instalação local." : "A versão web é atualizada automaticamente.",
     },
     suite: {
+      installed: false,
       current: "",
       available: "",
       status: desktop.isElectron ? "pending" : "not-installed",
@@ -1114,6 +1130,7 @@ async function refreshApplicationVersions({ check = false } = {}) {
       message: applicationVersionMessage("erp", erpStatus, erpState.message),
     },
     suite: {
+      installed: Boolean(desktop.isElectron && localSuite?.installed && localSuite?.status !== "not_installed"),
       current: suiteCurrent,
       available: suiteAvailable,
       status: suiteStatus,
@@ -1432,6 +1449,7 @@ async function refreshAll() {
       canManageSettings ? getPrinting({ hotelId }) : null,
     ]);
     state.context = context.data;
+    desktop.observePrintServer({ hotelId, printing: context.data.printing });
     state.dashboard = dashboard?.data || null;
     state.orders = orders?.data?.orders || [];
     state.orderDateOrders = orderDateOrders?.data?.orders || [];
@@ -1596,6 +1614,7 @@ function switchTab(route, { allowHidden = false } = {}) {
   if (!ROUTES[route] || (!allowHidden && byId(ROUTES[route].button).classList.contains("hidden"))) {
     route = Object.keys(ROUTES).find((key) => !byId(ROUTES[key].button).classList.contains("hidden")) || "dashboard";
   }
+  const previousRoute = state.route;
   saveCurrentSearchQuery();
   state.route = route;
   document.body.dataset.erpRoute = route;
@@ -1608,12 +1627,34 @@ function switchTab(route, { allowHidden = false } = {}) {
     button.setAttribute("aria-current", active ? "page" : "false");
     container.classList.toggle("hidden", !active);
     container.style.display = active ? "flex" : "none";
+    if (active) animateRouteEntry(container, previousRoute, route);
   }
   if (window.matchMedia("(max-width: 1100px)").matches) {
     document.body.classList.remove("sidebar-open");
   }
   syncContextualSearch(route);
   renderActiveRoute();
+}
+
+function animateRouteEntry(container, previousRoute, nextRoute) {
+  container.classList.remove("erp-route-enter-forward", "erp-route-enter-backward");
+  if (previousRoute === nextRoute || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+  const routeOrder = Object.keys(ROUTES);
+  const previousIndex = routeOrder.indexOf(previousRoute);
+  const nextIndex = routeOrder.indexOf(nextRoute);
+  const motionClass = nextIndex >= previousIndex
+    ? "erp-route-enter-forward"
+    : "erp-route-enter-backward";
+  const motionId = String(++routeMotionSequence);
+  container.dataset.routeMotion = motionId;
+  void container.offsetWidth;
+  container.classList.add(motionClass);
+  window.setTimeout(() => {
+    if (container.dataset.routeMotion !== motionId) return;
+    container.classList.remove(motionClass);
+    delete container.dataset.routeMotion;
+  }, 360);
 }
 
 function renderActiveRoute() {
@@ -1958,11 +1999,10 @@ function printEventLabel(status, jobKind) {
 }
 
 function formatOrderItemOptions(options) {
-  if (!options || typeof options !== "object") return "";
-  const details = Object.entries(options)
-    .filter(([, value]) => value != null && String(value).trim())
-    .map(([key, value]) => `${key === "note" ? "Observacao" : displayBusinessText(key.replaceAll("_", " "), key)}: ${String(value)}`);
-  return details.length ? `<p>${details.map(escapeHtml).join(" · ")}</p>` : "";
+  const details = describeOrderItemOptions(options);
+  return details.length
+    ? `<p>${details.map(({ label, value }) => `${escapeHtml(label)}: ${escapeHtml(value)}`).join(" · ")}</p>`
+    : "";
 }
 
 function renderMenu() {
@@ -1995,16 +2035,108 @@ function menuCard(item) {
   const tag = disabled ? "Indisponivel" : displayBusinessText(item.tag || item.category_name, "Cardapio");
   const name = displayBusinessText(item.name, "Item do cardapio");
   const description = displayBusinessText(item.description, "Sem descrição");
-  return `<article class="erp-pdv-card fade-in" aria-disabled="${disabled}" ${disabled ? "" : `draggable="true" data-drag-product-id="${escapeAttr(item.id)}"`}><span class="erp-pdv-thumb">${image ? `<img src="${escapeAttr(image)}" alt="${escapeAttr(name)}">` : imagePlaceholderIcon()}</span><div class="erp-pdv-card-copy"><span class="erp-item-tag">${escapeHtml(tag)}</span><h3>${escapeHtml(name)}</h3><p title="${escapeAttr(description)}">${escapeHtml(description)}</p></div><div class="erp-pdv-card-action"><strong class="erp-pdv-price">${money(item.price_cents, item.currency)}</strong><button type="button" data-product-id="${escapeAttr(item.id)}" ${disabled ? "disabled" : ""} class="erp-pdv-add" aria-label="${disabled ? "Item indisponível" : `Adicionar ${escapeAttr(name)}`}">${plusIcon()} <span>${disabled ? "Indisponível" : "Adicionar"}</span></button></div></article>`;
+  const options = normalizePdvOptionDefinitions(item.options);
+  const actionLabel = options.length ? (/sabor/i.test(options[0].label) ? "Escolher sabor" : "Escolher opção") : "Adicionar";
+  return `<article class="erp-pdv-card fade-in" aria-disabled="${disabled}" ${disabled ? "" : `draggable="true" data-drag-product-id="${escapeAttr(item.id)}"`}><span class="erp-pdv-thumb">${image ? `<img src="${escapeAttr(image)}" alt="${escapeAttr(name)}">` : imagePlaceholderIcon()}</span><div class="erp-pdv-card-copy"><span class="erp-item-tag">${escapeHtml(tag)}</span><h3>${escapeHtml(name)}</h3><p title="${escapeAttr(description)}">${escapeHtml(description)}</p>${options.length ? `<small class="erp-pdv-option-hint">${iconMarkup("list")} ${escapeHtml(options.map((option) => option.label).join(" · "))}</small>` : ""}</div><div class="erp-pdv-card-action"><strong class="erp-pdv-price">${money(item.price_cents, item.currency)}</strong><button type="button" data-product-id="${escapeAttr(item.id)}" ${disabled ? "disabled" : ""} class="erp-pdv-add" aria-label="${disabled ? "Item indisponível" : `${escapeAttr(actionLabel)} de ${escapeAttr(name)}`}">${options.length ? iconMarkup("list", "w-3 h-3") : plusIcon()} <span>${disabled ? "Indisponível" : escapeHtml(actionLabel)}</span></button></div></article>`;
 }
 
-function addToCart(productId) {
+function addToCart(productId, selectedOptions) {
   const item = allCatalogItems().find((entry) => entry.id === productId);
   if (!item || item.available === false) return;
-  const line = state.cart.get(item.id) || { item, quantity: 0 };
+  const definitions = normalizePdvOptionDefinitions(item.options);
+  if (definitions.length && selectedOptions === undefined) {
+    openPdvItemOptions(item, definitions);
+    return;
+  }
+  let normalizedOptions;
+  try {
+    normalizedOptions = validatePdvSelectedOptions(definitions, selectedOptions || {});
+  } catch (error) {
+    notify(error.message || "Selecione as opções do item.");
+    return;
+  }
+  const cartKey = createPdvCartLineKey(item.id, normalizedOptions);
+  const line = state.cart.get(cartKey) || {
+    cart_key: cartKey,
+    item,
+    quantity: 0,
+    selected_options: normalizedOptions,
+  };
   line.quantity += 1;
-  state.cart.set(item.id, line);
+  state.cart.set(cartKey, line);
   renderCart();
+}
+
+function openPdvItemOptions(item, definitions = normalizePdvOptionDefinitions(item.options)) {
+  document.querySelector(".erp-pdv-options-modal")?.remove();
+  const modal = document.createElement("section");
+  const image = safeImage(item.image_url || item.media_url);
+  const titleId = `pdv-options-title-${String(item.id).replace(/[^a-z0-9_-]/gi, "-")}`;
+  modal.className = "erp-modal erp-pdv-options-modal";
+  modal.setAttribute("role", "dialog");
+  modal.setAttribute("aria-modal", "true");
+  modal.setAttribute("aria-labelledby", titleId);
+  modal.innerHTML = `
+    <div class="erp-modal-card erp-pdv-options-dialog">
+      <header class="erp-modal-head">
+        <div><p class="admin-kicker">Configurar item</p><h2 id="${escapeAttr(titleId)}">${escapeHtml(displayBusinessText(item.name, "Item do cardápio"))}</h2></div>
+        <button type="button" class="erp-modal-close" data-pdv-options-close aria-label="Fechar">${closeIcon()}</button>
+      </header>
+      <form class="erp-form erp-pdv-options-form">
+        <div class="erp-pdv-options-layout">
+          <div class="erp-pdv-options-product">
+            <span class="erp-pdv-options-media">${image ? `<img src="${escapeAttr(image)}" alt="">` : imagePlaceholderIcon()}</span>
+            <div><strong>${escapeHtml(displayBusinessText(item.name, "Item do cardápio"))}</strong><span>${money(item.price_cents, item.currency)}</span></div>
+          </div>
+          <div class="erp-pdv-options-fields">
+            <div><h3>Personalize o item</h3><p>A escolha será registrada na comanda e no comprovante.</p></div>
+            ${definitions.map((option) => `
+              <label>
+                <span>${escapeHtml(option.label)}</span>
+                <select name="${escapeAttr(option.key)}" data-pdv-option-key="${escapeAttr(option.key)}" ${option.required ? "required" : ""}>
+                  <option value="">Selecione</option>
+                  ${option.values.map((value) => `<option value="${escapeAttr(value)}">${escapeHtml(value)}</option>`).join("")}
+                </select>
+              </label>`).join("")}
+          </div>
+        </div>
+        <p class="erp-pdv-options-error" data-pdv-options-error role="alert"></p>
+        <footer class="erp-modal-actions erp-pdv-options-actions">
+          <button type="button" class="admin-secondary-btn" data-pdv-options-close>Cancelar</button>
+          <button type="submit" class="admin-primary-btn">${checkIcon()} <span>Adicionar à comanda</span></button>
+        </footer>
+      </form>
+    </div>`;
+
+  const close = () => {
+    document.removeEventListener("keydown", onKeydown);
+    modal.remove();
+  };
+  const onKeydown = (event) => {
+    if (event.key === "Escape") close();
+  };
+  modal.querySelectorAll("[data-pdv-options-close]").forEach((button) => button.addEventListener("click", close));
+  modal.addEventListener("click", (event) => {
+    if (event.target === modal) close();
+  });
+  modal.querySelector("form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const selected = Object.fromEntries(definitions.map((option) => [
+      option.key,
+      event.currentTarget.elements.namedItem(option.key)?.value || "",
+    ]));
+    try {
+      addToCart(item.id, validatePdvSelectedOptions(definitions, selected));
+      close();
+    } catch (error) {
+      const errorTarget = modal.querySelector("[data-pdv-options-error]");
+      errorTarget.textContent = error.message || "Selecione as opções do item.";
+      modal.querySelector("select:invalid")?.focus();
+    }
+  });
+  document.addEventListener("keydown", onKeydown);
+  document.body.append(modal);
+  window.requestAnimationFrame(() => modal.querySelector("select")?.focus({ preventScroll: true }));
 }
 
 function renderCart() {
@@ -2022,7 +2154,9 @@ function renderCart() {
 function cartLine(line) {
   const image = safeImage(line.item.image_url || line.item.media_url);
   const name = displayBusinessText(line.item.name, "Item do cardápio");
-  return `<article class="erp-cart-line fade-in"><span class="erp-cart-thumb">${image ? `<img src="${escapeAttr(image)}" alt="">` : imagePlaceholderIcon()}</span><div class="erp-cart-copy"><strong>${escapeHtml(name)}</strong><small>${money(line.item.price_cents, line.item.currency)} por unidade</small><div class="erp-cart-stepper"><button type="button" data-cart-change="${escapeAttr(line.item.id)}" data-delta="-1" aria-label="Remover uma unidade">−</button><span>${line.quantity}</span><button type="button" data-cart-change="${escapeAttr(line.item.id)}" data-delta="1" aria-label="Adicionar uma unidade">+</button></div></div><b>${money(line.item.price_cents * line.quantity, line.item.currency)}</b></article>`;
+  const options = describePdvSelectedOptions(line.selected_options, line.item.options);
+  const cartKey = line.cart_key || line.item.id;
+  return `<article class="erp-cart-line fade-in"><span class="erp-cart-thumb">${image ? `<img src="${escapeAttr(image)}" alt="">` : imagePlaceholderIcon()}</span><div class="erp-cart-copy"><strong>${escapeHtml(name)}</strong>${options.length ? `<span class="erp-cart-options">${options.map(({ label, value }) => `<b>${escapeHtml(label)}:</b> ${escapeHtml(value)}`).join(" · ")}</span>` : ""}<small>${money(line.item.price_cents, line.item.currency)} por unidade</small><div class="erp-cart-stepper"><button type="button" data-cart-change="${escapeAttr(cartKey)}" data-delta="-1" aria-label="Remover uma unidade">${iconMarkup("minus")}</button><span>${line.quantity}</span><button type="button" data-cart-change="${escapeAttr(cartKey)}" data-delta="1" aria-label="Adicionar uma unidade">${iconMarkup("plus")}</button></div></div><b>${money(line.item.price_cents * line.quantity, line.item.currency)}</b></article>`;
 }
 
 function bindPdvActions() {
@@ -2070,7 +2204,7 @@ async function submitPdvOrder() {
       ...(guestName ? { guest_name: guestName } : {}),
       room_code: roomCode,
       notes: `Local de entrega: ${byId("consumptionLocation").value}\n${byId("orderObs").value.trim()}`.trim(),
-      items: [...state.cart.values()].map(({ item, quantity }) => ({ catalog_item_id: item.id, quantity, unit_price_cents: item.price_cents })),
+      items: buildPdvOrderItems(state.cart.values()),
     }, `admin-pdv-${crypto.randomUUID()}`);
     state.cart.clear();
     byId("guestName").value = "";
@@ -2180,7 +2314,7 @@ function renderBillingLegacy() {
 function renderBilling() {
   const from = byId("histFrom", false)?.value || "0000-01-01";
   const to = byId("histTo", false)?.value || "9999-12-31";
-  const orders = filteredOrders(currentSearchQuery()).filter((order) => {
+  const orders = filteredBillingOrders(currentSearchQuery()).filter((order) => {
     const date = dateKeyInHotelTimezone(order.created_at);
     return date >= from && date <= to;
   });
@@ -2213,7 +2347,7 @@ function renderBilling() {
 function exportBillingCsv() {
   const from = byId("histFrom").value;
   const to = byId("histTo").value;
-  const orders = filteredOrders(currentSearchQuery()).filter((order) => {
+  const orders = filteredBillingOrders(currentSearchQuery()).filter((order) => {
     const date = dateKeyInHotelTimezone(order.created_at);
     return date >= from && date <= to;
   });
@@ -2255,15 +2389,8 @@ function renderAdmin() {
   if (state.settingsView === "printing") target.innerHTML = renderPrintingSettings();
   if (state.settingsView === "users") target.innerHTML = renderUserSettings();
   if (state.settingsView === "account") target.innerHTML = renderAccountSettings();
-  if (state.settingsView === "appearance") target.innerHTML = renderAppearanceSettings();
   if (state.settingsView === "notifications") target.innerHTML = renderNotificationSettings();
   if (state.settingsView === "version") target.innerHTML = renderApplicationVersionSettings();
-  const settingsScale = byId("settingsScaleRange", false);
-  settingsScale?.addEventListener("input", () => applyInterfaceScale(settingsScale.value, false));
-  settingsScale?.addEventListener("change", () => {
-    applyInterfaceScale(settingsScale.value, true);
-    renderAdmin();
-  });
   const settingsVolume = byId("settingsNotificationVolume", false);
   settingsVolume?.addEventListener("input", () => previewNotificationVolume(settingsVolume.value));
   settingsVolume?.addEventListener("change", () => {
@@ -2889,9 +3016,7 @@ function applyInterfaceScale(value, persist = false) {
   state.interfaceScale = scale;
   const headerRange = byId("interfaceScaleRange", false);
   const headerLabel = byId("interfaceScaleLabel", false);
-  const settingsRange = byId("settingsScaleRange", false);
   if (headerRange) headerRange.value = String(scale);
-  if (settingsRange) settingsRange.value = String(scale);
   if (headerLabel) headerLabel.textContent = `${scale}%`;
   if (persist) localStorage.setItem("fioreze-erp-interface-scale", String(scale));
 }
@@ -2962,23 +3087,48 @@ function playNotificationSound(force = false) {
 function startOrderPolling() {
   stopOrderPolling();
   if (!state.session?.permissions?.includes("room-service.orders.read")) return;
-  state.orderPollTimer = window.setInterval(pollNewOrders, 15000);
+  state.orderPollFailureCount = 0;
+  scheduleOrderPolling(ORDER_POLL_BASE_DELAY_MS);
 }
 
 function stopOrderPolling() {
-  if (state.orderPollTimer) window.clearInterval(state.orderPollTimer);
+  if (state.orderPollTimer) window.clearTimeout(state.orderPollTimer);
   state.orderPollTimer = null;
 }
 
+function scheduleOrderPolling(delayMs) {
+  if (!state.session?.permissions?.includes("room-service.orders.read")) return;
+  if (state.orderPollTimer) window.clearTimeout(state.orderPollTimer);
+  state.orderPollTimer = window.setTimeout(() => {
+    state.orderPollTimer = null;
+    void pollNewOrders();
+  }, Math.max(ORDER_POLL_BASE_DELAY_MS, delayMs));
+}
+
 async function pollNewOrders() {
-  if (document.hidden || !state.session || !state.hotelId) return;
+  if (document.hidden) {
+    scheduleOrderPolling(ORDER_POLL_BASE_DELAY_MS);
+    return;
+  }
+  if (!state.session || !state.hotelId || state.orderPollInFlight) return;
+  state.orderPollInFlight = true;
+  let nextDelay = ORDER_POLL_BASE_DELAY_MS;
+  let shouldContinue = true;
   try {
-    const payload = await listOrders({ hotelId: state.hotelId });
+    const createdAfter = state.orders.reduce(
+      (latest, order) => String(order.created_at || "") > latest ? String(order.created_at) : latest,
+      "",
+    );
+    const payload = await listOrders({ hotelId: state.hotelId, createdAfter });
     const nextOrders = payload.data.orders || [];
     const newOrders = nextOrders.filter((order) => !state.knownOrderIds.has(order.id));
-    state.orders = nextOrders;
-    state.knownOrderIds = new Set(nextOrders.map((order) => order.id));
     if (!newOrders.length) return;
+    const mergedOrders = [...newOrders, ...state.orders]
+      .filter((order, index, orders) => orders.findIndex((entry) => entry.id === order.id) === index)
+      .sort((left, right) => String(right.created_at || "").localeCompare(String(left.created_at || "")))
+      .slice(0, 100);
+    state.orders = mergedOrders;
+    state.knownOrderIds = new Set(mergedOrders.map((order) => order.id));
     state.notifications.unshift(...newOrders.map((order) => ({
       id: crypto.randomUUID(),
       orderId: order.id,
@@ -2996,7 +3146,21 @@ async function pollNewOrders() {
     if (state.route === "hist") await refreshOrdersForSelectedDate({ busy: false });
     renderActiveRoute();
   } catch (error) {
-    if (error.status === 401) stopOrderPolling();
+    if (error.status === 401) {
+      shouldContinue = false;
+      stopOrderPolling();
+    } else if (error.status >= 500 || error.status === 429) {
+      state.orderPollFailureCount = Math.min(state.orderPollFailureCount + 1, 4);
+      nextDelay = Math.min(
+        ORDER_POLL_MAX_BACKOFF_MS,
+        ORDER_POLL_BASE_DELAY_MS * (2 ** (state.orderPollFailureCount - 1)),
+      );
+    } else {
+      state.orderPollFailureCount = 0;
+    }
+  } finally {
+    state.orderPollInFlight = false;
+    if (shouldContinue) scheduleOrderPolling(nextDelay);
   }
 }
 
@@ -3221,6 +3385,12 @@ function bindOrderButtons(container) {
 function filteredOrders(query) {
   const normalized = normalize(query || "");
   return state.orders.filter((order) => !normalized || orderMatchesSearch(order, normalized));
+}
+
+function filteredBillingOrders(query) {
+  const normalized = normalize(query || "");
+  const orders = Array.isArray(state.billing?.orders) ? state.billing.orders : state.orders;
+  return orders.filter((order) => !normalized || orderMatchesSearch(order, normalized));
 }
 
 function orderMatchesSearch(order, normalized) {

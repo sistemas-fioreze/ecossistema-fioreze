@@ -85,7 +85,8 @@ export async function getRoomServiceOrderPrintingState({ env, hotelId, now = new
     ),
     first(
       env,
-      `SELECT id, name, status, printer_name, last_seen_at
+      `SELECT id, name, status, platform, app_version, printer_name,
+              last_seen_at, updated_at
          FROM printer_devices
         WHERE hotel_id = ? AND module_key = ?
           AND status IN ('active', 'paused')
@@ -112,12 +113,25 @@ export async function getRoomServiceOrderPrintingState({ env, hotelId, now = new
           id: device.id,
           name: device.name,
           printer_name: device.printer_name || null,
+          platform: device.platform || null,
+          app_version: device.app_version || null,
           status: device.status,
           connection_status: deviceStatus,
           last_seen_at: device.last_seen_at || null,
+          updated_at: device.updated_at || null,
         }
       : null,
     message: printingStateMessage({ globalEnabled, unitEnabled, template, device, deviceStatus }),
+  };
+}
+
+export async function getRoomServicePrintingStatus({ request, env, session, url }) {
+  const hotelId = requestedHotel(session, url.searchParams.get("hotel_id"));
+  const observedAt = requestNow({ request, env });
+  return {
+    ...await getRoomServiceOrderPrintingState({ env, hotelId, now: observedAt }),
+    hotel_id: hotelId,
+    observed_at: observedAt,
   };
 }
 

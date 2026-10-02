@@ -173,6 +173,13 @@ function buildSystems(session) {
       href: "/admin/portais/",
     });
   }
+  if (getPermissions(session).includes("social-planner.read")) {
+    systems.push({
+      title: "Fioreze Marketing Planner",
+      description: "Redes sociais, visitas aos hotéis e blog",
+      href: "/admin/social-planner/overview",
+    });
+  }
   systems.push({
     title: "Mensagens",
     description: "Comunicação interna da equipe",

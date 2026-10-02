@@ -136,7 +136,7 @@ test("frontend do Spa replica o layout legado sem loader ou Apps Script", () => 
 });
 
 test("migration do Spa cria conteudo compartilhado e registra 13 servicos sem endpoint legado", () => {
-  const migration = fs.readFileSync(`${APP_ROOT}/migrations/0030_spa_zena_shared_catalog.sql`, "utf8");
+  const migration = fs.readFileSync(`${APP_ROOT}/migrations/0030_spa_zena_shared_catalog.sql`, "utf8").replace(/\r\n/g, "\n");
   assert.match(migration, /CREATE TABLE IF NOT EXISTS spa_shared_profile/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS spa_shared_services/);
   assert.match(migration, /hotel_id, module_key, storage_provider/);

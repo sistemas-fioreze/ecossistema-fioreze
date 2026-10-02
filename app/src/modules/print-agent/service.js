@@ -6,6 +6,7 @@ import { optionalString, readJson, requireString } from "../../core/validation.j
 import { createPrintAgentToken, requirePrintAgent, sha256Hex } from "../../services/print-agent-auth.js";
 
 const MODULE_KEY = "room-service";
+const HEARTBEAT_WRITE_INTERVAL_MS = 60 * 1000;
 const CLAIM_TTL_MS = 90_000;
 
 export async function listPrintAgentEnrollmentHotels(env) {
@@ -113,14 +114,21 @@ export async function heartbeatPrintAgent({ request, env }) {
   const appVersion = optionalString(payload.app_version, "app_version", { max: 40 });
   const printerName = optionalString(payload.printer_name, "printer_name", { max: 180 });
   const now = requestNow({ request, env });
+  const staleBefore = new Date(Date.parse(now) - HEARTBEAT_WRITE_INTERVAL_MS).toISOString();
   await run(
     env,
     `UPDATE printer_devices
-        SET app_version = COALESCE(?, app_version),
-            printer_name = COALESCE(?, printer_name),
+        SET app_version = COALESCE(NULLIF(?, ''), app_version),
+            printer_name = COALESCE(NULLIF(?, ''), printer_name),
             last_seen_at = ?, updated_at = ?
-      WHERE id = ? AND hotel_id = ?`,
-    [appVersion, printerName, now, now, device.id, device.hotel_id],
+      WHERE id = ? AND hotel_id = ?
+        AND (
+          last_seen_at IS NULL OR last_seen_at <= ?
+          OR (? != '' AND COALESCE(app_version, '') != ?)
+          OR (? != '' AND COALESCE(printer_name, '') != ?)
+        )`,
+    [appVersion, printerName, now, now, device.id, device.hotel_id,
+      staleBefore, appVersion, appVersion, printerName, printerName],
   );
   return { device_id: device.id, status: device.status, printing_enabled: await isPrintingEnabled(env, device.hotel_id) };
 }
@@ -351,16 +359,7 @@ async function loadPrintableJob(env, device, jobId, claimToken, claimExpiresAt) 
     env,
     `SELECT pe.id AS print_event_id, pe.job_kind, pe.attempts, pe.template_id,
             o.id AS order_id, o.public_id, o.origin, o.room_code, o.guest_name,
-            (
-              SELECT COUNT(*)
-                FROM orders sequence
-               WHERE sequence.hotel_id = o.hotel_id
-                 AND sequence.module_key = o.module_key
-                 AND (
-                   sequence.created_at < o.created_at
-                   OR (sequence.created_at = o.created_at AND sequence.id <= o.id)
-                 )
-            ) AS display_number,
+            o.display_number,
             o.notes, o.currency, o.subtotal_cents, o.total_cents, o.preparation_mode,
             o.scheduled_for, o.created_at, h.name AS hotel_name, h.short_name AS hotel_short_name,
             h.timezone, hb.logo_url

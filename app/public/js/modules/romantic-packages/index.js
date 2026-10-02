@@ -73,7 +73,18 @@ function renderShell(bootstrap, usesEditorialLayout) {
 }
 
 function bindActions(container, state) {
+  let carouselTouch = null;
   container.addEventListener("click", (event) => {
+    const carouselControl = event.target.closest("[data-romantic-carousel-direction], [data-romantic-carousel-index]");
+    if (carouselControl) {
+      const carousel = carouselControl.closest("[data-romantic-carousel]");
+      if (carouselControl.dataset.romanticCarouselIndex != null) {
+        setCarouselIndex(carousel, Number(carouselControl.dataset.romanticCarouselIndex));
+      } else {
+        moveCarousel(carousel, Number(carouselControl.dataset.romanticCarouselDirection));
+      }
+      return;
+    }
     const packageButton = event.target.closest("[data-romantic-package]");
     if (packageButton) {
       state.selectedPackageId = packageButton.dataset.romanticPackage;
@@ -88,10 +99,32 @@ function bindActions(container, state) {
     if (event.target.closest("[data-romantic-packages-retry]")) window.location.reload();
   });
   container.addEventListener("keydown", (event) => {
+    const carousel = event.target.closest("[data-romantic-carousel]");
+    if (carousel && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
+      event.preventDefault();
+      moveCarousel(carousel, event.key === "ArrowLeft" ? -1 : 1);
+      return;
+    }
     if (event.key === "Escape" && state.selectedPackageId && !event.target.closest("[data-catalog-media-viewer]")) {
       closePackageDetail(container, state);
     }
   });
+  container.addEventListener("touchstart", (event) => {
+    const carousel = event.target.closest("[data-romantic-carousel]");
+    const touch = event.changedTouches?.[0];
+    carouselTouch = carousel && touch ? { carousel, x: touch.clientX, y: touch.clientY } : null;
+  }, { passive: true });
+  container.addEventListener("touchend", (event) => {
+    if (!carouselTouch) return;
+    const touch = event.changedTouches?.[0];
+    const gesture = carouselTouch;
+    carouselTouch = null;
+    if (!touch) return;
+    const deltaX = touch.clientX - gesture.x;
+    const deltaY = touch.clientY - gesture.y;
+    if (Math.abs(deltaX) < 44 || Math.abs(deltaX) <= Math.abs(deltaY)) return;
+    moveCarousel(gesture.carousel, deltaX < 0 ? 1 : -1);
+  }, { passive: true });
 }
 
 function renderPackages(container, state) {
@@ -138,14 +171,16 @@ function renderCategorySection(category, index) {
 }
 
 function renderPackageCard(item, isFiorezeCentro) {
-  const image = sanitizePublicAssetUrl(item.image_url);
+  const cover = packageImages(item)[0];
+  const image = cover?.image_url || null;
+  const imageAlt = cover?.image_alt || item.image_alt || item.name;
   if (isFiorezeCentro) {
     return `
       <article class="romantic-package-card is-centro-experience">
         <button type="button" data-romantic-package="${escapeHtml(item.id)}" aria-label="Ver detalhes de ${escapeHtml(item.name)}">
           <span class="romantic-package-card-media">
             ${image
-              ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(item.image_alt || item.name)}" loading="lazy">`
+              ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(imageAlt)}" loading="lazy">`
               : `<span class="romantic-package-placeholder" aria-hidden="true">${icon("heart")}</span>`}
             <small>Foto meramente ilustrativa</small>
           </span>
@@ -164,7 +199,7 @@ function renderPackageCard(item, isFiorezeCentro) {
       <button type="button" data-romantic-package="${escapeHtml(item.id)}" aria-label="Ver detalhes de ${escapeHtml(item.name)}">
         <span class="romantic-package-card-media">
           ${image
-            ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(item.image_alt || item.name)}" loading="lazy">`
+            ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(imageAlt)}" loading="lazy">`
             : `<span class="romantic-package-placeholder" aria-hidden="true">${icon("heart")}</span>`}
         </span>
         <span class="romantic-package-card-copy">
@@ -218,7 +253,7 @@ function renderPackageDetail(container, state) {
     return;
   }
 
-  const image = sanitizePublicAssetUrl(item.image_url);
+  const images = packageImages(item);
   const whatsapp = whatsappAction(state.bootstrap, item);
   const isAddOn = item.item_type === "add-on";
   const card = container.querySelector("[data-romantic-package-detail-card]");
@@ -227,13 +262,8 @@ function renderPackageDetail(container, state) {
   card.innerHTML = `
     <button class="romantic-package-detail-close catalog-detail-close" type="button" data-romantic-package-close aria-label="Fechar">${icon("close")}</button>
     <div class="romantic-package-detail-media catalog-detail-media">
-      ${renderZoomableCatalogMedia({
-        image,
-        alt: item.image_alt || item.name,
-        label: `Ampliar imagem de ${item.name}`,
-        placeholder: `<span class="romantic-package-placeholder" aria-hidden="true">${icon("sparkle")}</span>`,
-      })}
-      ${image && state.usesEditorialLayout ? '<small class="romantic-detail-image-note">Foto meramente ilustrativa</small>' : ""}
+      ${renderPackageCarousel(item, images)}
+      ${images.length && state.usesEditorialLayout ? '<small class="romantic-detail-image-note">Foto meramente ilustrativa</small>' : ""}
     </div>
     <div class="romantic-package-detail-content catalog-detail-content">
       <p class="romantic-package-detail-category">${escapeHtml(item.category_name || "Decorações especiais")}</p>
@@ -247,9 +277,98 @@ function renderPackageDetail(container, state) {
         : `<button class="romantic-package-action" type="button" disabled aria-disabled="true">${icon("phone")}<span>Consulte a recepção</span></button>`}
       <small class="romantic-package-note">Disponibilidade, condições e agendamento são confirmados diretamente com a equipe do hotel.</small>
     </div>`;
+  setCarouselIndex(card.querySelector("[data-romantic-carousel]"), 0);
   layer.hidden = false;
   document.body.classList.add("catalog-detail-open");
   window.requestAnimationFrame(() => card.querySelector("[data-romantic-package-close]")?.focus({ preventScroll: true }));
+}
+
+function renderPackageCarousel(item, images) {
+  if (!images.length) {
+    return `<span class="romantic-package-placeholder" aria-hidden="true">${icon("sparkle")}</span>`;
+  }
+  const hasMultipleImages = images.length > 1;
+  return `
+    <div
+      class="romantic-package-carousel${hasMultipleImages ? " has-multiple-images" : ""}"
+      data-romantic-carousel
+      data-index="0"
+      style="--romantic-carousel-offset: 0%"
+      role="group"
+      aria-roledescription="carrossel"
+      aria-label="Fotos de ${escapeHtml(item.name)}"
+      tabindex="0"
+    >
+      <div class="romantic-package-carousel-track">
+        ${images.map((image, index) => `
+          <div class="romantic-package-carousel-slide" data-romantic-carousel-slide aria-hidden="${index === 0 ? "false" : "true"}">
+            ${renderZoomableCatalogMedia({
+              image: image.image_url,
+              alt: image.image_alt || `${item.name}, foto ${index + 1}`,
+              label: `Ampliar foto ${index + 1} de ${item.name}`,
+              placeholder: `<span class="romantic-package-placeholder" aria-hidden="true">${icon("sparkle")}</span>`,
+            })}
+          </div>`).join("")}
+      </div>
+      ${hasMultipleImages ? `
+        <button class="romantic-package-carousel-arrow is-previous" type="button" data-romantic-carousel-direction="-1" aria-label="Foto anterior">${icon("chevron-left")}</button>
+        <button class="romantic-package-carousel-arrow is-next" type="button" data-romantic-carousel-direction="1" aria-label="Próxima foto">${icon("chevron-right")}</button>
+        <div class="romantic-package-carousel-pagination">
+          <div class="romantic-package-carousel-dots" aria-label="Escolher foto">
+            ${images.map((_, index) => `<button type="button" data-romantic-carousel-index="${index}" aria-label="Mostrar foto ${index + 1}" aria-current="${index === 0 ? "true" : "false"}"></button>`).join("")}
+          </div>
+          <span aria-live="polite"><b data-romantic-carousel-current>1</b> de ${images.length}</span>
+        </div>` : ""}
+    </div>`;
+}
+
+function moveCarousel(carousel, direction) {
+  if (!carousel || !Number.isFinite(direction)) return;
+  setCarouselIndex(carousel, Number(carousel.dataset.index || 0) + direction);
+}
+
+function setCarouselIndex(carousel, requestedIndex) {
+  if (!carousel) return;
+  const slides = [...carousel.querySelectorAll("[data-romantic-carousel-slide]")];
+  if (!slides.length) return;
+  const index = ((Math.trunc(requestedIndex) % slides.length) + slides.length) % slides.length;
+  carousel.dataset.index = String(index);
+  carousel.style.setProperty("--romantic-carousel-offset", `${index * -100}%`);
+  slides.forEach((slide, slideIndex) => {
+    const isCurrent = slideIndex === index;
+    slide.setAttribute("aria-hidden", String(!isCurrent));
+    slide.querySelector("[data-catalog-media-open]")?.setAttribute("tabindex", isCurrent ? "0" : "-1");
+  });
+  carousel.querySelectorAll("[data-romantic-carousel-index]").forEach((dot, dotIndex) => {
+    dot.setAttribute("aria-current", String(dotIndex === index));
+  });
+  const counter = carousel.querySelector("[data-romantic-carousel-current]");
+  if (counter) counter.textContent = String(index + 1);
+}
+
+function packageImages(item) {
+  const source = Array.isArray(item?.images) && item.images.length
+    ? item.images
+    : [{
+        media_asset_id: item?.media_asset_id || null,
+        image_url: item?.image_url,
+        image_alt: item?.image_alt || item?.name,
+      }];
+  const unique = [];
+  for (const image of source) {
+    const imageUrl = sanitizePublicAssetUrl(image?.image_url);
+    if (!imageUrl) continue;
+    if (unique.some((entry) => (
+      (image.media_asset_id && entry.media_asset_id === image.media_asset_id)
+      || entry.image_url === imageUrl
+    ))) continue;
+    unique.push({
+      media_asset_id: image.media_asset_id || null,
+      image_url: imageUrl,
+      image_alt: String(image.image_alt || item?.name || "Imagem do pacote"),
+    });
+  }
+  return unique.slice(0, 20);
 }
 
 function renderIncludedItems(items) {
@@ -350,6 +469,8 @@ function icon(name) {
     phone: '<path d="M4 5a2 2 0 0 1 2-2h3l1.4 4.2-2 1.2a12 12 0 0 0 7.2 7.2l1.2-2L21 15v3a2 2 0 0 1-2 2C10.7 20 4 13.3 4 5Z"/>',
     alert: '<path d="M12 3 2 21h20L12 3Z"/><path d="M12 9v5M12 18h.01"/>',
     arrow: '<path d="M5 12h14M14 7l5 5-5 5"/>',
+    "chevron-left": '<path d="m15 18-6-6 6-6"/>',
+    "chevron-right": '<path d="m9 18 6-6-6-6"/>',
     sparkle: '<path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z"/>',
   };
   return `<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[name] || paths.sparkle}</svg>`;
@@ -367,5 +488,6 @@ export const romanticPackagesInternalsForTests = {
   displayPackageName,
   formatPrice,
   groupPackagesByCategory,
+  packageImages,
   whatsappAction,
 };

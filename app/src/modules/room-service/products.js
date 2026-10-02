@@ -22,7 +22,8 @@ export async function listCatalogProducts(env, hotelId, moduleKey) {
         AND cat.status = 'active'
         AND c.status = 'active'
         AND ci.status = 'active'
-      ORDER BY c.sort_order, ci.sort_order, ci.name`,
+      ORDER BY c.sort_order, ci.sort_order, ci.name
+      LIMIT 500`,
     [hotelId, moduleKey, moduleKey],
   );
 }

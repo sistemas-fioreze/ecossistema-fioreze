@@ -141,11 +141,15 @@ export async function updateAdminShortLink({ request, env, session, linkId }) {
   if (current.status === "archived") throw badRequest("Link arquivado não pode ser alterado.");
 
   const payload = await readJson(request);
-  const forbidden = ["id", "hotel_id", "slug", "created_by_user_id", "created_at", "total_clicks", "last_clicked_at"];
-  const allowed = new Set(["internal_name", "destination_url", "status", "starts_at", "expires_at", "notes"]);
+  const forbidden = ["id", "slug", "created_by_user_id", "created_at", "total_clicks", "last_clicked_at"];
+  const allowed = new Set(["hotel_id", "internal_name", "destination_url", "status", "starts_at", "expires_at", "notes"]);
   const forbiddenFields = forbidden.filter((field) => Object.hasOwn(payload, field));
   if (forbiddenFields.length) throw badRequest("Campos imutáveis não podem ser alterados.", { fields: forbiddenFields });
   rejectUnknownFields(payload, allowed);
+  if (Object.hasOwn(payload, "hotel_id")) {
+    const requestedHotelId = requireString(payload.hotel_id, "hotel_id", { max: 80 });
+    if (requestedHotelId !== current.hotel_id) throw badRequest("A unidade do link não pode ser alterada.");
+  }
 
   let internalName = current.internal_name;
   let destinationUrl = current.destination_url;

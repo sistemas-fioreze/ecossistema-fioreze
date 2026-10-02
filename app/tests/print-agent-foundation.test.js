@@ -72,9 +72,9 @@ test("comprovante usa numero humano sequencial sem expor o identificador tecnico
     readFile(agentUrl, "utf8"),
     readFile(templatesUrl, "utf8"),
   ]);
-  assert.match(service, /AS display_number/i);
-  assert.match(service, /sequence\.hotel_id = o\.hotel_id/i);
-  assert.match(service, /sequence\.module_key = o\.module_key/i);
+  assert.match(service, /o\.display_number/i);
+  const migration = await readFile(new URL("../migrations/0056_order_display_numbers.sql", import.meta.url), "utf8");
+  assert.match(migration, /CREATE TRIGGER set_order_display_number_after_insert/i);
   assert.match(templates, /def format_order_number\(order\)/);
   assert.match(templates, /row\("PEDIDO N\.", format_order_number\(order\), columns\)/);
   assert.doesNotMatch(templates, /row\("(?:PEDIDO|COMANDA)"[^\n]*public_id/);

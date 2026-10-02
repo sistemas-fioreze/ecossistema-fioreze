@@ -94,6 +94,7 @@ import {
   createPrinterEnrollment,
   deletePrinterDevice,
   getRoomServicePrinting,
+  getRoomServicePrintingStatus,
   queueRoomServiceOrderReprint,
   updatePrinterDevice,
   updateRoomServicePrinting,
@@ -755,6 +756,11 @@ export function registerAdminRoutes(router) {
   router.get("/api/v1/admin/room-service/printing", async ({ request, env, url }) => {
     const session = await getCurrentRoomServiceErpSession({ request, env });
     return ok(await getRoomServicePrinting({ request, env, session, url }));
+  });
+
+  router.get("/api/v1/admin/room-service/printing/status", async ({ request, env, url }) => {
+    const session = await getCurrentRoomServiceErpSession({ request, env });
+    return ok(await getRoomServicePrintingStatus({ request, env, session, url }));
   });
 
   router.patch("/api/v1/admin/room-service/printing", async ({ request, env }) => {
