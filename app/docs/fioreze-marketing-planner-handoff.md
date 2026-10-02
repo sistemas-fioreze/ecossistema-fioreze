@@ -46,7 +46,7 @@ O atalho `/socialplanner` respondeu com redirecionamento 308 para a rota interna
 | Autenticação | Sessão e permissões do admin existente (`admin_users`, roles e middleware compartilhados) |
 | Ícones | SVGs na UI e dependência `lucide` disponível no projeto |
 
-Configurações: `app/wrangler.jsonc` (Worker), `app/pages/wrangler.jsonc` (Pages), `app/package.json`. Os bindings usados em dev apontam para D1 `fioreze-portais-db-dev` (ID `883e953a-4280-454b-8aed-a3148f8008f1`) e R2 `fioreze-portais-media-dev`. **Nunca acesse D1 do browser.** A UI chama a API privada com cookie de mesma origem e a proteção de mutação administrativa existente.
+Configurações: `app/wrangler.jsonc` (Worker), `app/pages/wrangler.jsonc` (Pages), `app/package.json`. Os bindings usados em dev apontam para D1 `fioreze-portais-db-dev` (identificador mantido exclusivamente nas configurações Wrangler) e R2 `fioreze-portais-media-dev`. **Nunca acesse D1 do browser.** A UI chama a API privada com cookie de mesma origem e a proteção de mutação administrativa existente.
 
 O deploy principal está em `.github/workflows/deploy-cloudflare-worker-pages.yml`; ele executa validações, publica Worker e Pages ao alterar caminhos de código/configuração previstos no workflow. Uma alteração apenas em `app/docs` não dispara esse deploy. Houve também workflow de preview para a branch histórica `codex/fioreze-social-planner`, que publicava uma versão de Worker sob o alias `marketing-planner` sem mover tráfego ativo.
 

@@ -111,7 +111,7 @@ test("Room Service, Emporio e Pacotes Romanticos compartilham detalhe em tela ch
   assert.match(romantic, /Foto meramente ilustrativa/);
   assert.match(romantic, /Decorações especiais/);
   assert.doesNotMatch(romantic, /Encante o seu amor|Família Fioreze|<small>Surpresa<\/small>/);
-  assert.match(loader, /"romantic-packages": \(\) => import\("\.\.\/modules\/romantic-packages\/index\.js"\)/);
+  assert.match(loader, /"romantic-packages": \(\) => import\("\.\.\/modules\/romantic-packages\/index\.js(?:\?v=[^"]+)?"\)/);
 });
 
 test("Pacotes Romanticos usa consulta por hotel e acao da recepcao sem compra online", () => {

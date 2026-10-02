@@ -215,7 +215,10 @@ test("portal anima a troca de abas a partir da posicao anterior", () => {
 
 test("shell abre o portal diretamente sem uma segunda tela de carregamento", () => {
   assert.match(appScript, /document\.createElement\("section"\)/);
-  assert.ok(appScript.indexOf("app.replaceChildren(moduleContainer)") < appScript.indexOf("await module.render(moduleContainer"));
+  const guestPortalBlock = appScript.indexOf('if (moduleKey === "guest-portal")');
+  const replaceContainer = appScript.indexOf("app.replaceChildren(moduleContainer)", guestPortalBlock);
+  const renderModule = appScript.indexOf("await module.render(moduleContainer", replaceContainer);
+  assert.ok(guestPortalBlock >= 0 && replaceContainer > guestPortalBlock && renderModule > replaceContainer);
   assert.match(publicIndex, /<main id="app" class="app-shell" aria-live="polite"><\/main>/);
   assert.doesNotMatch(publicIndex, /loader-screen|Carregando experiência/);
   assert.doesNotMatch(appScript, /app\.innerHTML\s*=\s*moduleLoader[\s\S]*renderGuestPortalHome/);

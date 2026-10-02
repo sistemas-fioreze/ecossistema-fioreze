@@ -2,7 +2,7 @@ import { AppError } from "./core/errors.js";
 import { registerModuleRoutes } from "./core/module-registry.js";
 import { Router } from "./core/router.js";
 import { fail, ok } from "./core/responses.js";
-import { getBootstrap, resolveTenantBySlug } from "./core/tenant.js";
+import { getBootstrap, resolvePublicModuleTenant, resolveTenantBySlug } from "./core/tenant.js";
 import { withSecurityHeaders } from "./middleware/security-headers.js";
 import { servePublicMedia } from "./modules/admin/media.js";
 import { registerAdminRoutes } from "./modules/admin/routes.js";
@@ -16,6 +16,7 @@ import { serveInternalDownloadCenter, serveInternalInstaller } from "./modules/i
 import { archiveExpiredPortalEvents } from "./services/portal-event-lifecycle.js";
 import { registerPrintAgentRoutes } from "./modules/print-agent/routes.js";
 import { registerSocialPlannerRoutes } from "./modules/social-planner/routes.js";
+import { resolveStandaloneCatalog } from "../public/js/core/standalone-catalogs.js";
 import {
   isGuestPortalPublicHost,
   isRetiredCustomPortalPath,
@@ -282,6 +283,11 @@ async function serveAsset(request, env, overridePath = null) {
 }
 
 async function servePublicPortalPage(request, env, url) {
+  const standaloneCatalog = resolveStandaloneCatalog(url.pathname);
+  if (standaloneCatalog) {
+    return serveStandaloneCatalogPage(request, env, standaloneCatalog);
+  }
+
   const parts = safePublicPathParts(url.pathname);
   if (!parts || parts.length < 1 || parts.length > 2) {
     return servePublicNotFoundPage(request, env);
@@ -304,6 +310,19 @@ async function servePublicPortalPage(request, env, url) {
 
   // Pages canonicaliza /index.html para /. Usar a rota canonica evita que o
   // redirect volte ao _worker.js e repita indefinidamente o fallback SPA.
+  return serveAsset(request, env, "/");
+}
+
+async function serveStandaloneCatalogPage(request, env, catalog) {
+  try {
+    await resolvePublicModuleTenant(env, catalog.hotelSlug, catalog.moduleKey);
+  } catch (error) {
+    if (error instanceof AppError && error.status === 404) {
+      return servePublicNotFoundPage(request, env);
+    }
+    throw error;
+  }
+
   return serveAsset(request, env, "/");
 }
 

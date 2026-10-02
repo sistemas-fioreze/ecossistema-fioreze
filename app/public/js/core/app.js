@@ -7,9 +7,10 @@ import {
   renderGuestNavigation,
   syncGuestHeader,
 } from "./guest-navigation.js";
-import { loadModule } from "./module-loader.js?v=20260909-1";
+import { loadModule } from "./module-loader.js?v=20261002-1";
 import { formatRoomServiceHours } from "./service-hours.js";
 import { setupLucideIcons } from "./lucide-icons.js";
+import { resolveStandaloneCatalog } from "./standalone-catalogs.js";
 import { resolveModuleFromPath, resolveSlugFromPath } from "./tenant.js";
 import { applyBranding } from "./theme.js";
 
@@ -17,7 +18,8 @@ const app = document.getElementById("app");
 setupLucideIcons(document);
 
 async function boot() {
-  const slug = resolveSlugFromPath();
+  const standaloneCatalog = resolveStandaloneCatalog(window.location.pathname);
+  const slug = standaloneCatalog?.hotelSlug || resolveSlugFromPath();
   if (!slug) {
     renderNotFound(app);
     return;
@@ -26,14 +28,14 @@ async function boot() {
   const bootstrap = await apiGet(`/api/v1/public/hotels/${encodeURIComponent(slug)}/bootstrap`);
   applyBranding(bootstrap.branding);
 
-  const requestedModule = resolveModuleFromPath(window.location.pathname);
+  const requestedModule = standaloneCatalog?.moduleKey || resolveModuleFromPath(window.location.pathname);
   const enabledModules = new Set(bootstrap.modules.map((module) => module.module_key));
   if (!enabledModules.has(requestedModule)) {
     renderNotFound(app);
     return;
   }
   const moduleKey = requestedModule;
-  trackPortalVisit(slug, portalPageKey(moduleKey));
+  if (!standaloneCatalog) trackPortalVisit(slug, portalPageKey(moduleKey));
 
   app.classList.toggle("guest-portal-root", moduleKey === "guest-portal");
   app.classList.toggle("room-service-root", moduleKey === "room-service");
@@ -42,7 +44,9 @@ async function boot() {
   app.classList.toggle("spa-root", moduleKey === "spa");
   app.classList.toggle("public-module-root", moduleKey !== "guest-portal");
   app.classList.toggle("has-module-heading", !["guest-portal", "romantic-packages"].includes(moduleKey));
-  document.title = moduleKey === "room-service"
+  app.classList.toggle("standalone-catalog-root", Boolean(standaloneCatalog));
+  document.body.classList.toggle("standalone-catalog-page", Boolean(standaloneCatalog));
+  document.title = standaloneCatalog?.documentTitle || (moduleKey === "room-service"
     ? `Room Service | ${bootstrap.short_name || bootstrap.name}`
     : moduleKey === "emporio"
       ? `Empório | ${bootstrap.short_name || bootstrap.name}`
@@ -50,7 +54,20 @@ async function boot() {
         ? `Decorações especiais | ${bootstrap.short_name || bootstrap.name}`
         : moduleKey === "spa"
           ? `Spa | ${bootstrap.short_name || bootstrap.name}`
-          : `${bootstrap.short_name || bootstrap.name} | Portal do Hóspede`;
+          : `${bootstrap.short_name || bootstrap.name} | Portal do Hóspede`);
+
+  if (standaloneCatalog) {
+    app.innerHTML = renderStandaloneCatalogShell(bootstrap, moduleKey);
+    const moduleContainer = app.querySelector("[data-module-view]");
+    const module = await loadModule(moduleKey);
+    await module.render(moduleContainer, {
+      bootstrap,
+      moduleKey,
+      routePath: standaloneCatalog.path,
+      standalone: true,
+    });
+    return;
+  }
 
   if (moduleKey === "guest-portal") {
     const module = await loadModule(moduleKey);
@@ -72,6 +89,16 @@ async function boot() {
   const moduleContainer = app.querySelector("[data-module-view]");
   const module = await loadModule(moduleKey);
   await module.render(moduleContainer, { bootstrap, moduleKey });
+}
+
+function renderStandaloneCatalogShell(bootstrap, moduleKey) {
+  return `
+    <section class="standalone-catalog-shell" data-standalone-catalog>
+      ${moduleKey === "romantic-packages" ? "" : renderModuleHeading(bootstrap, moduleKey)}
+      <section class="module-view" data-module-view data-module-key="${moduleKey}">
+      </section>
+    </section>
+  `;
 }
 
 function renderShell(bootstrap, moduleKey) {

@@ -17,6 +17,7 @@ export async function render(container, context) {
 
   const state = {
     bootstrap: context.bootstrap,
+    routePath: packageRoutePath(context),
     packages: [],
     selectedPackageId: packageIdFromUrl(),
     usesEditorialLayout: true,
@@ -88,7 +89,7 @@ function bindActions(container, state) {
     const packageButton = event.target.closest("[data-romantic-package]");
     if (packageButton) {
       state.selectedPackageId = packageButton.dataset.romanticPackage;
-      updatePackageUrl(state.bootstrap.slug, state.selectedPackageId);
+      updatePackageUrl(state.routePath, state.selectedPackageId);
       renderPackageDetail(container, state);
       return;
     }
@@ -247,7 +248,7 @@ function renderPackageDetail(container, state) {
   const item = state.packages.find((entry) => entry.id === state.selectedPackageId);
   if (!item) {
     state.selectedPackageId = null;
-    updatePackageUrl(state.bootstrap.slug, null);
+    updatePackageUrl(state.routePath, null);
     layer.hidden = true;
     document.body.classList.remove("catalog-detail-open");
     return;
@@ -382,7 +383,7 @@ function renderIncludedItems(items) {
 
 function closePackageDetail(container, state) {
   state.selectedPackageId = null;
-  updatePackageUrl(state.bootstrap.slug, null);
+  updatePackageUrl(state.routePath, null);
   renderPackageDetail(container, state);
 }
 
@@ -448,12 +449,18 @@ function whatsappAction(bootstrap, item) {
   return { href: `https://wa.me/${number}?text=${encodeURIComponent(message)}` };
 }
 
-function updatePackageUrl(slug, packageId) {
+function updatePackageUrl(pathname, packageId) {
   const url = new URL(window.location.href);
-  url.pathname = `/${encodeURIComponent(slug)}/romantic-packages`;
+  url.pathname = pathname;
   if (packageId) url.searchParams.set("pacote", packageId);
   else url.searchParams.delete("pacote");
   window.history.pushState({}, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
+function packageRoutePath(context) {
+  const explicitPath = String(context?.routePath || "").trim();
+  if (/^\/[a-z0-9-]+$/i.test(explicitPath)) return explicitPath;
+  return `/${encodeURIComponent(context.bootstrap.slug)}/romantic-packages`;
 }
 
 function packageIdFromUrl() {
@@ -489,5 +496,6 @@ export const romanticPackagesInternalsForTests = {
   formatPrice,
   groupPackagesByCategory,
   packageImages,
+  packageRoutePath,
   whatsappAction,
 };
