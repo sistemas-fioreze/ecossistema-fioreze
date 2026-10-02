@@ -49,6 +49,8 @@ test("Planner usa shell escuro integrado e filtra cronograma por rede", () => {
   assert.match(styles, /color-scheme:\s*dark/);
   assert.match(styles, /\.schedule-layout/);
   assert.match(styles, /\.upcoming-rail/);
+  assert.match(styles, /\.workspace \{[^}]*border-top: 1px solid var\(--border\);[^}]*border-left: 1px solid var\(--border\);[^}]*border-top-left-radius: 14px/s);
+  assert.match(styles, /\.topbar \{[^}]*border-bottom: 0/s);
   assert.match(app, /platformFilter/);
   assert.match(app, /Instagram/);
   assert.match(app, /TikTok/);
