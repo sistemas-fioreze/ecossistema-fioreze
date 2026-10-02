@@ -419,7 +419,11 @@ document.querySelector<HTMLElement>("#openSidebar")!.addEventListener("click", (
 async function start() {
   try {
     const response = await fetch("/api/v1/admin/session", { credentials: "same-origin" });
-    if (response.status === 401) { location.href = "/admin/"; return; }
+    if (response.status === 401) {
+      const returnPath = `${location.pathname}${location.search}${location.hash}`;
+      location.assign(`/admin/?next=${encodeURIComponent(returnPath)}`);
+      return;
+    }
     const payload = await response.json();
     if (!payload.ok || !payload.data.permissions.includes("social-planner.read")) throw new Error("Acesso ao Social Planner não liberado para este usuário.");
     document.querySelector<HTMLElement>("#currentUser")!.textContent = payload.data.user?.display_name || "Marketing";

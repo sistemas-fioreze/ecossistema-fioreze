@@ -1180,7 +1180,8 @@ async function start() {
   try {
     const response = await fetch("/api/v1/admin/session", { credentials: "same-origin" });
     if (response.status === 401) {
-      location.href = "/admin/";
+      const returnPath = `${location.pathname}${location.search}${location.hash}`;
+      location.assign(`/admin/?next=${encodeURIComponent(returnPath)}`);
       return;
     }
     const payload = await response.json();
