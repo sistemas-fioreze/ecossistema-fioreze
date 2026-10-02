@@ -54,6 +54,14 @@ const els = {
 const auth = createAdminAuthView({
   onAuthenticated(session) {
     currentSession = session;
+    const next = new URLSearchParams(window.location.search).get("next");
+    if (next) {
+      const target = new URL(next, window.location.origin);
+      if (target.origin === window.location.origin && target.pathname.startsWith("/admin/social-planner/")) {
+        window.location.assign(`${target.pathname}${target.search}${target.hash}`);
+        return;
+      }
+    }
     return renderLauncher(session);
   },
   onLoggedOut() {
