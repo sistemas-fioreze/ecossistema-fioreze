@@ -5,7 +5,7 @@ const ASANA_AUTH_URL = "https://app.asana.com/-/oauth_authorize";
 const ASANA_TOKEN_URL = "https://app.asana.com/-/oauth_token";
 const ASANA_REVOKE_URL = "https://app.asana.com/-/oauth_revoke";
 const ASANA_API = "https://app.asana.com/api/1.0";
-const ASANA_SCOPE = "openid email profile users:read workspaces:read projects:read tasks:read";
+const ASANA_SCOPE = "openid email profile users:read workspaces:read projects:read tasks:read tasks:write";
 const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/u;
 
@@ -16,6 +16,7 @@ export async function getAsanaConnectionStatus({ env, session }) {
     provider: "asana",
     configured,
     connected: Boolean(configured && connection?.status === "active"),
+    can_manage_tasks: hasGrantedScope(connection, "tasks:write"),
     connection: connection ? publicConnection(connection) : null,
   };
 }
@@ -205,6 +206,7 @@ export async function listAsanaCalendarTasks({ env, session, searchParams, fetch
       uniqueTasks.set(key, {
         gid: task.gid, name: task.name, completed: Boolean(task.completed),
         start_date: startDate, end_date: endDate, due_at: task.due_at || null,
+        has_start_date: Boolean(task.start_on || task.start_at),
         permalink_url: task.permalink_url || null, assignee_name: task.assignee?.name || null,
         section_name: task.memberships?.find((membership) => membership.project?.gid === mapping.project_gid)?.section?.name || null,
         hotel_id: mapping.hotel_id, hotel_name: mapping.hotel_name,
@@ -214,6 +216,34 @@ export async function listAsanaCalendarTasks({ env, session, searchParams, fetch
   }
   await run(env, "UPDATE social_planner_asana_connections SET last_sync_at = ?, last_error = NULL WHERE planner_user_id = ?", [new Date().toISOString(), userId]);
   return [...uniqueTasks.values()].sort((a, b) => String(a.start_date || "9999").localeCompare(String(b.start_date || "9999")) || a.name.localeCompare(b.name, "pt-BR"));
+}
+
+export async function getAsanaTask({ env, session, taskGid, fetchImpl = fetch }) {
+  const userId = plannerUserId(session);
+  const connection = await requireConnection(env, userId);
+  const token = await validAccessToken(env, connection, fetchImpl);
+  const task = await fetchAsanaTask(fetchImpl, token, taskGid);
+  const mapping = await requireMappedTask(env, userId, task);
+  return publicTask(task, mapping);
+}
+
+export async function updateAsanaTask({ env, session, taskGid, input, fetchImpl = fetch }) {
+  const userId = plannerUserId(session);
+  const connection = await requireConnection(env, userId);
+  if (!hasGrantedScope(connection, "tasks:write")) throw unauthorized("Reconecte sua conta do Asana para liberar a edição de tarefas.");
+  const token = await validAccessToken(env, connection, fetchImpl);
+  const current = await fetchAsanaTask(fetchImpl, token, taskGid);
+  const mapping = await requireMappedTask(env, userId, current);
+  const data = taskUpdateInput(input);
+  if (!Object.keys(data).length) throw badRequest("Nenhuma alteração válida foi informada.");
+  const fields = taskFields();
+  const payload = await asanaJsonRequest(
+    fetchImpl,
+    `${ASANA_API}/tasks/${encodeURIComponent(taskGid)}?opt_fields=${encodeURIComponent(fields)}`,
+    token,
+    { method: "PUT", body: { data } },
+  );
+  return publicTask(payload.data, mapping);
 }
 
 async function matchAsanaProjects({ env, plannerUserId, workspaceGid, accessToken, fetchImpl }) {
@@ -262,6 +292,82 @@ async function listWorkspaceProjects(fetchImpl, token, workspaceGid) {
 async function listProjectTasks(fetchImpl, token, projectGid, completedSince) {
   const fields = "gid,name,completed,due_on,due_at,start_on,start_at,permalink_url,assignee.name,memberships.project.gid,memberships.section.name";
   return paginatedAsana(fetchImpl, `${ASANA_API}/projects/${encodeURIComponent(projectGid)}/tasks?limit=100&completed_since=${encodeURIComponent(`${completedSince}T00:00:00Z`)}&opt_fields=${encodeURIComponent(fields)}`, token, 5);
+}
+
+async function fetchAsanaTask(fetchImpl, token, taskGid) {
+  const gid = String(taskGid || "").trim();
+  if (!/^\d+$/u.test(gid)) throw badRequest("Tarefa do Asana inválida.");
+  const payload = await asanaJsonRequest(fetchImpl, `${ASANA_API}/tasks/${encodeURIComponent(gid)}?opt_fields=${encodeURIComponent(taskFields())}`, token);
+  if (!payload.data) throw badRequest("Tarefa do Asana não encontrada.");
+  return payload.data;
+}
+
+function taskFields() {
+  return "gid,name,notes,completed,completed_at,due_on,due_at,start_on,start_at,modified_at,permalink_url,assignee.gid,assignee.name,memberships.project.gid,memberships.project.name,memberships.section.name";
+}
+
+async function requireMappedTask(env, userId, task) {
+  const mappings = await unitMappings(env, userId);
+  const byProject = new Map(mappings.filter((mapping) => mapping.project_gid).map((mapping) => [mapping.project_gid, mapping]));
+  const membership = (task.memberships || []).find((entry) => byProject.has(entry.project?.gid));
+  if (!membership) throw unauthorized("Essa tarefa não pertence a um projeto vinculado neste Planner.");
+  return { ...byProject.get(membership.project.gid), section_name: membership.section?.name || null };
+}
+
+function publicTask(task, mapping) {
+  const startDate = task.start_on || task.start_at?.slice(0, 10) || task.due_on || task.due_at?.slice(0, 10) || null;
+  const endDate = task.due_on || task.due_at?.slice(0, 10) || startDate;
+  return {
+    gid: task.gid,
+    name: task.name || "",
+    notes: task.notes || "",
+    completed: Boolean(task.completed),
+    completed_at: task.completed_at || null,
+    start_date: startDate,
+    end_date: endDate,
+    start_on: task.start_on || null,
+    due_on: task.due_on || null,
+    due_at: task.due_at || null,
+    has_start_date: Boolean(task.start_on || task.start_at),
+    modified_at: task.modified_at || null,
+    permalink_url: task.permalink_url || null,
+    assignee_gid: task.assignee?.gid || null,
+    assignee_name: task.assignee?.name || null,
+    section_name: mapping.section_name,
+    hotel_id: mapping.hotel_id,
+    hotel_name: mapping.hotel_name,
+    project_gid: mapping.project_gid,
+    project_name: mapping.project_name,
+  };
+}
+
+function taskUpdateInput(input) {
+  const source = input && typeof input === "object" ? input : {};
+  const data = {};
+  if (Object.hasOwn(source, "name")) {
+    const name = String(source.name || "").trim();
+    if (!name || name.length > 500) throw badRequest("Informe um título de até 500 caracteres.");
+    data.name = name;
+  }
+  if (Object.hasOwn(source, "notes")) {
+    const notes = String(source.notes || "");
+    if (notes.length > 50_000) throw badRequest("A descrição da tarefa está muito longa.");
+    data.notes = notes;
+  }
+  if (Object.hasOwn(source, "completed")) data.completed = Boolean(source.completed);
+  const hasStart = Object.hasOwn(source, "start_on");
+  const hasDue = Object.hasOwn(source, "due_on");
+  if (hasStart || hasDue) {
+    const startOn = source.start_on == null || source.start_on === "" ? null : String(source.start_on);
+    const dueOn = source.due_on == null || source.due_on === "" ? null : String(source.due_on);
+    if (startOn && !ISO_DATE.test(startOn)) throw badRequest("Data inicial inválida.");
+    if (dueOn && !ISO_DATE.test(dueOn)) throw badRequest("Data final inválida.");
+    if (startOn && !dueOn) throw badRequest("Informe a data final quando houver data inicial.");
+    if (startOn && dueOn && startOn > dueOn) throw badRequest("A data final deve ser igual ou posterior à inicial.");
+    if (hasDue) data.due_on = dueOn;
+    if (hasStart) data.start_on = startOn;
+  }
+  return data;
 }
 
 async function paginatedAsana(fetchImpl, initialUrl, token, maxPages) {
@@ -357,14 +463,20 @@ async function asanaFormRequest(fetchImpl, url, body) {
   return payload;
 }
 
-async function asanaJsonRequest(fetchImpl, url, token) {
+async function asanaJsonRequest(fetchImpl, url, token, options = {}) {
   const response = await fetchImpl(url, {
-    headers: { accept: "application/json", authorization: `Bearer ${token}` },
+    method: options.method || "GET",
+    headers: { accept: "application/json", authorization: `Bearer ${token}`, ...(options.body ? { "content-type": "application/json" } : {}) },
+    body: options.body ? JSON.stringify(options.body) : undefined,
     signal: AbortSignal.timeout(10_000),
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(payload.errors?.[0]?.message || `Asana respondeu ${response.status}.`);
   return payload;
+}
+
+function hasGrantedScope(connection, scope) {
+  return String(connection?.granted_scope || "").split(/\s+/u).includes(scope);
 }
 
 async function encryptSecret(env, value) {

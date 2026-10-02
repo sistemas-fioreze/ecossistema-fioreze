@@ -71,6 +71,8 @@ var marketingRepository = {
   selectAsanaWorkspace: (workspace_gid) => request("/asana/workspace", "PATCH", { workspace_gid }),
   saveAsanaProjects: (mappings) => request("/asana/projects", "PATCH", { mappings }),
   asanaTasks: (start2, end, hotelId = "all") => request(range("/asana/tasks", start2, end, { hotel_id: hotelId })),
+  asanaTask: (id) => request(`/asana/tasks/${encodeURIComponent(id)}`),
+  updateAsanaTask: (id, input) => request(`/asana/tasks/${encodeURIComponent(id)}`, "PATCH", input),
   posts: (start2, end, filters = {}) => request(range("/blog-posts", start2, end, filters)),
   post: (id) => request(`/blog-posts/${encodeURIComponent(id)}`),
   createPost: (input) => request("/blog-posts", "POST", input),
@@ -261,16 +263,17 @@ function asanaCalendarView(context) {
     const inside = day >= monthStart && day <= monthEnd;
     const tasks = context.tasks.filter((task) => task.start_date && task.end_date && day >= task.start_date && day <= task.end_date);
     const visible = tasks.slice(0, 3);
-    const taskItems = visible.map((task) => `<a class="asana-task ${task.completed ? "completed" : ""}" data-hotel="${escapeHtml(task.hotel_id)}" href="${escapeHtml(task.permalink_url || "#")}" ${task.permalink_url ? 'target="_blank" rel="noopener noreferrer"' : ""} title="${escapeHtml(`${task.project_name} \xB7 ${task.name}`)}"><span>${escapeHtml(task.name)}</span>${task.assignee_name ? `<small>${escapeHtml(task.assignee_name)}</small>` : ""}</a>`).join("");
+    const taskItems = visible.map((task) => `<button class="asana-task ${task.completed ? "completed" : ""}" type="button" data-action="open-asana-task" data-asana-task-id="${escapeHtml(task.gid)}" data-hotel="${escapeHtml(task.hotel_id)}" ${context.canManage ? 'draggable="true"' : ""} title="${escapeHtml(`${task.project_name} \xB7 ${task.name}`)}"><span>${escapeHtml(task.name)}</span>${task.assignee_name ? `<small>${escapeHtml(task.assignee_name)}</small>` : ""}</button>`).join("");
     const more = tasks.length > visible.length ? `<span class="asana-task-more">+${tasks.length - visible.length} tarefas</span>` : "";
-    return `<div class="asana-calendar-day ${inside ? "" : "outside"} ${day === context.today ? "today" : ""}"><time datetime="${day}">${Number(day.slice(-2))}</time><div class="asana-day-tasks">${taskItems}${more}</div></div>`;
+    return `<div class="asana-calendar-day ${inside ? "" : "outside"} ${day === context.today ? "today" : ""}" data-asana-date="${day}"><time datetime="${day}">${Number(day.slice(-2))}</time><div class="asana-day-tasks">${taskItems}${more}</div></div>`;
   }).join("");
   const unitOptions = context.hotels.filter((hotel) => setup.units.some((unit) => unit.hotel_id === hotel.id)).map((hotel) => option(hotel.id, hotel.short_name, context.hotelFilter)).join("");
   const mappingRows = setup.units.map((unit) => `<label class="asana-mapping-row"><span><strong>${escapeHtml(unit.expected_project_name)}</strong><small>${unit.project_gid ? "Projeto conectado" : "Projeto ainda n\xE3o localizado"}</small></span><select data-asana-hotel="${escapeHtml(unit.hotel_id)}"><option value="">N\xE3o vinculado</option>${setup.projects.map((project) => option(project.gid, project.name, unit.project_gid || "")).join("")}</select></label>`).join("");
   const workspaceOptions = setup.workspaces.map((workspace) => option(workspace.gid, workspace.name, setup.connection?.workspace_gid || "")).join("");
+  const permission = setup.can_manage_tasks ? "" : `<section class="asana-permission-notice"><i data-lucide="pencil-line" aria-hidden="true"></i><div><strong>Libere a edi\xE7\xE3o das tarefas</strong><p>Reconecte sua conta uma vez para editar detalhes e mover tarefas pelo calend\xE1rio.</p></div><button class="button primary" type="button" data-action="connect-asana">Reconectar</button></section>`;
   const integration = `<details class="asana-integration"><summary><span><strong>${escapeHtml(setup.connection?.account_name || setup.connection?.account_email || "Conta Asana")}</strong><small>${escapeHtml(setup.connection?.workspace_name || "Selecione o workspace")} \xB7 ${mappedCount}/6 unidades conectadas</small></span><i data-lucide="chevron-down" aria-hidden="true"></i></summary><div class="asana-integration-body">${setup.error ? `<p class="calendar-error">${escapeHtml(setup.error)}</p>` : ""}<form id="asanaWorkspaceForm" class="asana-workspace-form"><label><span>Workspace</span><select name="workspace_gid" required>${workspaceOptions}</select></label><button class="button" type="submit">Usar workspace</button></form><form id="asanaProjectForm" class="asana-mapping-list"><div class="section-heading"><div><h2>Projetos das unidades</h2><p class="subtle">Os nomes oficiais s\xE3o reconhecidos automaticamente. Ajuste somente quando o projeto usar outro nome no Asana.</p></div></div>${mappingRows}<div class="asana-mapping-actions"><button class="button primary" type="submit">Salvar v\xEDnculos</button><button class="button danger" type="button" data-action="disconnect-asana">Desconectar Asana</button></div></form></div></details>`;
   const toolbar = `<div class="asana-calendar-toolbar"><div class="asana-calendar-title"><button class="icon-button" type="button" data-action="asana-prev-month" aria-label="M\xEAs anterior"><i data-lucide="chevron-left"></i></button><h2>${escapeHtml(monthName)}</h2><button class="icon-button" type="button" data-action="asana-next-month" aria-label="Pr\xF3ximo m\xEAs"><i data-lucide="chevron-right"></i></button><button class="button" type="button" data-action="asana-today">Hoje</button></div><label class="asana-unit-filter"><span>Unidade</span><select id="asanaHotelFilter"><option value="all">Todas as unidades</option>${unitOptions}</select></label></div>`;
-  return `${heading2}${integration}<section class="asana-calendar-shell">${toolbar}<div class="asana-weekdays">${["Seg", "Ter", "Qua", "Qui", "Sex", "S\xE1b", "Dom"].map((label) => `<span>${label}</span>`).join("")}</div><div class="asana-calendar-grid">${calendar}</div></section>`;
+  return `${heading2}${permission}${integration}<section class="asana-calendar-shell">${toolbar}<div class="asana-weekdays">${["Seg", "Ter", "Qua", "Qui", "Sex", "S\xE1b", "Dom"].map((label) => `<span>${label}</span>`).join("")}</div><div class="asana-calendar-grid">${calendar}</div></section>`;
 }
 function connectionState(title, description, canConnect) {
   return `<section class="asana-connect-state"><span class="asana-connect-icon"><i data-lucide="calendar-days" aria-hidden="true"></i></span><div><h2>${escapeHtml(title)}</h2><p>${escapeHtml(description)}</p></div>${canConnect ? '<button class="button primary" type="button" data-action="connect-asana">Conectar com o Asana</button>' : ""}</section>`;
@@ -306,6 +309,7 @@ var state = {
   calendar: { provider: "google", configured: false, connected: false, connection: null },
   asanaSetup: null,
   asanaTasks: [],
+  asanaTaskDrawer: null,
   asanaHotelFilter: params.get("asana_hotel") || "all",
   session: null,
   managedUsers: [],
@@ -713,7 +717,7 @@ function render() {
   if (state.view.startsWith("visits-")) main.innerHTML = visitsView(visitContext());
   else if (state.view.startsWith("blog-")) main.innerHTML = blogView(blogContext());
   else if (state.view === "overview") main.innerHTML = overviewView(state.stories, state.visits, state.posts, state.hotels, today, state.week);
-  else if (state.view === "asana-calendar") main.innerHTML = asanaCalendarView({ setup: state.asanaSetup, tasks: state.asanaTasks, hotels: state.hotels, day: state.day, today, hotelFilter: state.asanaHotelFilter });
+  else if (state.view === "asana-calendar") main.innerHTML = asanaCalendarView({ setup: state.asanaSetup, tasks: state.asanaTasks, hotels: state.hotels, day: state.day, today, hotelFilter: state.asanaHotelFilter, canManage: Boolean(state.asanaSetup?.can_manage_tasks && state.session?.permissions.includes("social-planner.write")) });
   else main.innerHTML = { week: weekView, calendar: calendarView, pending: pendingView, campaigns: campaignsView, assets: assetsView, hotels: hotelsView, categories: categoriesView, performance: performanceView, users: usersView, settings: settingsView }[state.view]?.() || "";
   hydrateIcons(main);
 }
@@ -723,6 +727,7 @@ function accessLevelLabel(level) {
 function openDrawer(story, date = today, hotel = "") {
   state.visitDrawer = null;
   state.postDrawer = null;
+  state.asanaTaskDrawer = null;
   state.drawer = story;
   state.createDate = date;
   state.createHotel = hotel;
@@ -737,6 +742,7 @@ function closeDrawer() {
   state.drawer = null;
   state.visitDrawer = null;
   state.postDrawer = null;
+  state.asanaTaskDrawer = null;
   drawer.hidden = true;
   backdrop.hidden = true;
   document.body.style.overflow = "";
@@ -749,6 +755,7 @@ async function openVisit(id, date = today) {
   try {
     state.drawer = null;
     state.postDrawer = null;
+    state.asanaTaskDrawer = null;
     state.createDate = date;
     state.visitDrawer = id ? await marketingRepository.visit(id) : "new";
     drawer.innerHTML = visitDrawerContent(state.visitDrawer === "new" ? null : state.visitDrawer);
@@ -764,6 +771,7 @@ async function openVisit(id, date = today) {
 function openPost(post) {
   state.drawer = null;
   state.visitDrawer = null;
+  state.asanaTaskDrawer = null;
   state.postDrawer = post || "new";
   drawer.innerHTML = blogDrawer(post || null, blogContext());
   hydrateIcons(drawer);
@@ -771,6 +779,81 @@ function openPost(post) {
   backdrop.hidden = false;
   document.body.style.overflow = "hidden";
   drawer.querySelector("[name=title]")?.focus();
+}
+function renderAsanaTaskDrawer(task) {
+  const editable = Boolean(state.asanaSetup?.can_manage_tasks && state.session?.permissions.includes("social-planner.write"));
+  const disabled = editable ? "" : "disabled";
+  const startOn = task.start_on || (task.has_start_date ? task.start_date : "") || "";
+  const dueOn = task.due_on || task.end_date || "";
+  const updated = task.modified_at ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(task.modified_at)) : "N\xE3o informado";
+  drawer.innerHTML = `<div class="drawer-header"><div><small>Tarefa do Asana</small><h2 id="drawerTitle">${escapeHtml(task.name)}</h2></div><button class="icon-button" type="button" data-action="close-drawer" aria-label="Fechar">${icon("close")}</button></div><form id="asanaTaskForm"><div class="drawer-body"><section class="drawer-section asana-task-context"><span>${escapeHtml(task.hotel_name)}</span><strong>${escapeHtml(task.project_name)}</strong>${task.section_name ? `<small>${escapeHtml(task.section_name)}</small>` : ""}</section><section class="drawer-section"><h3>Conte\xFAdo</h3><div class="form-grid"><label class="full"><span>T\xEDtulo *</span><input name="name" value="${escapeHtml(task.name)}" maxlength="500" required ${disabled}></label><label class="full"><span>Descri\xE7\xE3o</span><textarea name="notes" maxlength="50000" ${disabled}>${escapeHtml(task.notes)}</textarea></label></div></section><section class="drawer-section"><h3>Planejamento</h3><div class="form-grid"><label><span>Data inicial</span><input name="start_on" type="date" value="${escapeHtml(startOn)}" ${disabled}></label><label><span>Data final</span><input name="due_on" type="date" value="${escapeHtml(dueOn)}" ${disabled}></label><label class="asana-completed-toggle full"><input name="completed" type="checkbox" ${task.completed ? "checked" : ""} ${disabled}><span>Marcar tarefa como conclu\xEDda</span></label></div></section><section class="drawer-section asana-task-metadata"><h3>Informa\xE7\xF5es do Asana</h3><dl><div><dt>Respons\xE1vel</dt><dd>${escapeHtml(task.assignee_name || "N\xE3o atribu\xEDdo")}</dd></div><div><dt>\xDAltima altera\xE7\xE3o</dt><dd>${escapeHtml(updated)}</dd></div></dl></section>${!editable ? '<p class="calendar-error">Reconecte sua conta com permiss\xE3o de edi\xE7\xE3o ou solicite perfil de Editor no Planner.</p>' : ""}</div><div class="drawer-actions">${task.permalink_url ? `<a class="button" href="${escapeHtml(task.permalink_url)}" target="_blank" rel="noopener noreferrer">Abrir no Asana</a>` : ""}${editable ? '<button type="submit" class="button primary">Salvar tarefa</button>' : ""}</div></form>`;
+  hydrateIcons(drawer);
+}
+async function openAsanaTask(taskGid) {
+  try {
+    state.drawer = null;
+    state.visitDrawer = null;
+    state.postDrawer = null;
+    drawer.innerHTML = '<div class="drawer-body"><div class="loading-shell"><div class="skeleton title"></div><div class="skeleton grid"></div></div></div>';
+    drawer.hidden = false;
+    backdrop.hidden = false;
+    document.body.style.overflow = "hidden";
+    state.asanaTaskDrawer = await marketingRepository.asanaTask(taskGid);
+    renderAsanaTaskDrawer(state.asanaTaskDrawer);
+  } catch (error) {
+    closeDrawer();
+    notify(error.message, true);
+  }
+}
+function mergeAsanaTask(task) {
+  state.asanaTasks = state.asanaTasks.map((entry) => entry.gid === task.gid ? { ...entry, ...task } : entry);
+  state.asanaTaskDrawer = task;
+}
+async function saveAsanaTaskForm(event) {
+  event.preventDefault();
+  const task = state.asanaTaskDrawer;
+  if (!task) return;
+  const form = event.target;
+  const data = new FormData(form);
+  const input = {
+    name: String(data.get("name") || "").trim(),
+    notes: String(data.get("notes") || ""),
+    start_on: String(data.get("start_on") || "") || null,
+    due_on: String(data.get("due_on") || "") || null,
+    completed: data.get("completed") === "on"
+  };
+  if (input.start_on && !input.due_on) {
+    notify("Informe a data final quando houver data inicial.", true);
+    return;
+  }
+  try {
+    const saved = await marketingRepository.updateAsanaTask(task.gid, input);
+    mergeAsanaTask(saved);
+    render();
+    renderAsanaTaskDrawer(saved);
+    notify("Tarefa atualizada no Asana.");
+  } catch (error) {
+    notify(error.message, true);
+  }
+}
+async function moveAsanaTaskToDate(taskGid, targetDate) {
+  const task = state.asanaTasks.find((entry) => entry.gid === taskGid);
+  if (!task || !/^\d{4}-\d{2}-\d{2}$/u.test(targetDate)) return;
+  const duration = task.start_date && task.end_date ? Math.max(0, Math.round((fromIso(task.end_date).getTime() - fromIso(task.start_date).getTime()) / 864e5)) : 0;
+  const dueOn = addDays(targetDate, duration);
+  const input = task.has_start_date ? { start_on: targetDate, due_on: dueOn } : { due_on: targetDate };
+  const previous = state.asanaTasks.map((entry) => ({ ...entry }));
+  state.asanaTasks = state.asanaTasks.map((entry) => entry.gid === taskGid ? { ...entry, start_date: targetDate, end_date: dueOn } : entry);
+  render();
+  try {
+    mergeAsanaTask(await marketingRepository.updateAsanaTask(taskGid, input));
+    render();
+    notify("Tarefa movida no Asana.");
+  } catch (error) {
+    state.asanaTasks = previous;
+    render();
+    notify(`Movimento revertido: ${error.message}`, true);
+  }
 }
 function field(name, label, value, kind = "text", full = false) {
   const escaped = escapeHtml(value);
@@ -1010,6 +1093,10 @@ document.addEventListener("click", async (event) => {
   const button = target.closest("[data-action]");
   if (!button) return;
   const action = button.dataset.action;
+  if (action === "open-asana-task") {
+    await openAsanaTask(button.dataset.asanaTaskId || "");
+    return;
+  }
   if (action === "new-planner-user") {
     openPlannerUserDialog();
     return;
@@ -1440,6 +1527,7 @@ drawer.addEventListener("submit", (event) => {
   if (id === "storyForm") void saveDrawer(event);
   if (id === "visitForm") void saveVisitForm(event);
   if (id === "blogForm") void savePostForm(event);
+  if (id === "asanaTaskForm") void saveAsanaTaskForm(event);
 });
 document.addEventListener("submit", async (event) => {
   if (event.target.id === "plannerSettingsForm") {
@@ -1536,7 +1624,7 @@ document.addEventListener("keydown", (event) => {
     event.preventDefault();
     document.querySelector("#globalPlannerSearch")?.focus();
   }
-  if (event.key === "Escape" && (state.drawer || state.visitDrawer || state.postDrawer)) closeDrawer();
+  if (event.key === "Escape" && (state.drawer || state.visitDrawer || state.postDrawer || state.asanaTaskDrawer)) closeDrawer();
   if ((event.key === "Enter" || event.key === " ") && event.target.matches(".story-card")) {
     event.preventDefault();
     const id = event.target.dataset.storyId;
@@ -1544,34 +1632,50 @@ document.addEventListener("keydown", (event) => {
   }
 });
 document.addEventListener("dragstart", (event) => {
-  const blog = event.target.closest(".kanban-card");
+  const target = event.target;
+  const asanaTask = target.closest(".asana-task");
+  if (asanaTask?.dataset.asanaTaskId) {
+    event.dataTransfer?.setData("application/x-fioreze-asana", asanaTask.dataset.asanaTaskId);
+    event.dataTransfer.effectAllowed = "move";
+    asanaTask.classList.add("dragging");
+    return;
+  }
+  const blog = target.closest(".kanban-card");
   if (blog) {
     event.dataTransfer?.setData("application/x-fioreze-blog", blog.dataset.postId || "");
     event.dataTransfer.effectAllowed = "move";
     return;
   }
-  const card2 = event.target.closest(".story-card");
+  const card2 = target.closest(".story-card");
   if (!card2) return;
   event.dataTransfer?.setData("text/plain", card2.dataset.storyId || "");
   event.dataTransfer.effectAllowed = "move";
   card2.classList.add("dragging");
 });
 document.addEventListener("dragend", (event) => {
-  event.target.closest(".story-card")?.classList.remove("dragging");
+  event.target.closest(".story-card, .asana-task")?.classList.remove("dragging");
   document.querySelectorAll(".drag-over").forEach((item) => item.classList.remove("drag-over"));
 });
 document.addEventListener("dragover", (event) => {
-  const cell = event.target.closest(".day-cell, .kanban-column");
+  const cell = event.target.closest(".day-cell, .kanban-column, .asana-calendar-day");
   if (!cell) return;
   event.preventDefault();
   cell.classList.add("drag-over");
 });
 document.addEventListener("dragleave", (event) => {
-  const cell = event.target.closest(".day-cell");
+  const cell = event.target.closest(".day-cell, .kanban-column, .asana-calendar-day");
   if (cell && !cell.contains(event.relatedTarget)) cell.classList.remove("drag-over");
 });
 document.addEventListener("drop", (event) => {
   const element = event.target;
+  const asanaDay = element.closest(".asana-calendar-day");
+  const asanaTaskId = event.dataTransfer?.getData("application/x-fioreze-asana");
+  if (asanaDay && asanaTaskId) {
+    event.preventDefault();
+    asanaDay.classList.remove("drag-over");
+    void moveAsanaTaskToDate(asanaTaskId, asanaDay.dataset.asanaDate || "");
+    return;
+  }
   const blogColumn = element.closest(".kanban-column");
   if (blogColumn) {
     event.preventDefault();

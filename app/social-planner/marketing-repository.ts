@@ -1,5 +1,5 @@
 import { request } from "./repository";
-import type { AsanaSetup, AsanaTask, BlogInput, BlogPost, CalendarConnectionStatus, Visit, VisitInput, VisitItem } from "./types";
+import type { AsanaSetup, AsanaTask, AsanaTaskDetail, AsanaTaskInput, BlogInput, BlogPost, CalendarConnectionStatus, Visit, VisitInput, VisitItem } from "./types";
 
 function range(path: string, start?: string, end?: string, filters: Record<string, string> = {}) {
   const query = new URLSearchParams();
@@ -30,6 +30,8 @@ export const marketingRepository = {
   selectAsanaWorkspace: (workspace_gid: string) => request<AsanaSetup>("/asana/workspace", "PATCH", { workspace_gid }),
   saveAsanaProjects: (mappings: { hotel_id: string; project_gid: string | null }[]) => request<AsanaSetup>("/asana/projects", "PATCH", { mappings }),
   asanaTasks: (start: string, end: string, hotelId = "all") => request<AsanaTask[]>(range("/asana/tasks", start, end, { hotel_id: hotelId })),
+  asanaTask: (id: string) => request<AsanaTaskDetail>(`/asana/tasks/${encodeURIComponent(id)}`),
+  updateAsanaTask: (id: string, input: AsanaTaskInput) => request<AsanaTaskDetail>(`/asana/tasks/${encodeURIComponent(id)}`, "PATCH", input),
   posts: (start?: string, end?: string, filters: Record<string, string> = {}) => request<BlogPost[]>(range("/blog-posts", start, end, filters)),
   post: (id: string) => request<BlogPost>(`/blog-posts/${encodeURIComponent(id)}`),
   createPost: (input: BlogInput) => request<BlogPost>("/blog-posts", "POST", input),

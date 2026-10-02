@@ -4,7 +4,7 @@ import { blogDrawer, blogFormInput, blogView, type BlogContext } from "./blog";
 import { visitsView, visitDrawer, visitFormInput, type VisitContext } from "./visits";
 import { overviewView } from "./overview";
 import { asanaCalendarView } from "./asana";
-import type { AsanaSetup, AsanaTask, BlogPost, CalendarConnectionStatus, Campaign, Category, ContentPillar, Hotel, SocialChannel, Story, StoryChannelInput, StoryFilters, StoryInput, StorySequence, User, Visit } from "./types";
+import type { AsanaSetup, AsanaTask, AsanaTaskDetail, AsanaTaskInput, BlogPost, CalendarConnectionStatus, Campaign, Category, ContentPillar, Hotel, SocialChannel, Story, StoryChannelInput, StoryFilters, StoryInput, StorySequence, User, Visit } from "./types";
 import { addDays, dateLabel, escapeHtml as e, formatLabels, fromIso, isoDate, objectiveLabels, option, priorityLabels, statusLabels, weekStart } from "./utils";
 
 type View = "overview" | "week" | "calendar" | "pending" | "asana-calendar" | "visits-week" | "visits-calendar" | "visits-history" | "blog-schedule" | "blog-ideas" | "blog-published" | "campaigns" | "assets" | "hotels" | "categories" | "performance" | "users" | "settings";
@@ -24,7 +24,7 @@ const state = {
   hotels: [] as Hotel[], categories: [] as Category[], pillars: [] as ContentPillar[], channels: [] as SocialChannel[], users: [] as User[], campaigns: [] as Campaign[], sequences: [] as StorySequence[], stories: [] as Story[], visits: [] as Visit[], posts: [] as BlogPost[],
   displayName: "Fioreze Marketing Planner", visitFilter: params.get("visit_hotel") || "all", blogFilters: { hotel_id: params.get("blog_hotel") || "all", status: params.get("blog_status") || "all", category_id: params.get("blog_category") || "all", author_user_id: params.get("blog_author") || "all", campaign_id: params.get("blog_campaign") || "all" } as Record<string, string>, blogMode: "list" as "list" | "calendar",
   calendar: { provider: "google", configured: false, connected: false, connection: null } as CalendarConnectionStatus,
-  asanaSetup: null as AsanaSetup | null, asanaTasks: [] as AsanaTask[], asanaHotelFilter: params.get("asana_hotel") || "all",
+  asanaSetup: null as AsanaSetup | null, asanaTasks: [] as AsanaTask[], asanaTaskDrawer: null as AsanaTaskDetail | null, asanaHotelFilter: params.get("asana_hotel") || "all",
   session: null as PlannerSession | null, managedUsers: [] as ManagedPlannerUser[],
   loading: true, drawer: null as Story | "new" | null, visitDrawer: null as Visit | "new" | null, postDrawer: null as BlogPost | "new" | null, createDate: today, createHotel: "", saving: false,
 };
@@ -321,7 +321,7 @@ function render() {
   if (state.view.startsWith("visits-")) main.innerHTML = visitsView(visitContext());
   else if (state.view.startsWith("blog-")) main.innerHTML = blogView(blogContext());
   else if (state.view === "overview") main.innerHTML = overviewView(state.stories, state.visits, state.posts, state.hotels, today, state.week);
-  else if (state.view === "asana-calendar") main.innerHTML = asanaCalendarView({ setup: state.asanaSetup, tasks: state.asanaTasks, hotels: state.hotels, day: state.day, today, hotelFilter: state.asanaHotelFilter });
+  else if (state.view === "asana-calendar") main.innerHTML = asanaCalendarView({ setup: state.asanaSetup, tasks: state.asanaTasks, hotels: state.hotels, day: state.day, today, hotelFilter: state.asanaHotelFilter, canManage: Boolean(state.asanaSetup?.can_manage_tasks && state.session?.permissions.includes("social-planner.write")) });
   else main.innerHTML = ({ week: weekView, calendar: calendarView, pending: pendingView, campaigns: campaignsView, assets: assetsView, hotels: hotelsView, categories: categoriesView, performance: performanceView, users: usersView, settings: settingsView } as Partial<Record<View, () => string>>)[state.view]?.() || "";
   hydrateIcons(main);
 }
@@ -331,19 +331,19 @@ function accessLevelLabel(level: ManagedPlannerUser["access_level"]): string {
 }
 
 function openDrawer(story: Story | "new", date = today, hotel = "") {
-  state.visitDrawer = null; state.postDrawer = null;
+  state.visitDrawer = null; state.postDrawer = null; state.asanaTaskDrawer = null;
   state.drawer = story; state.createDate = date; state.createHotel = hotel;
   renderDrawer(); hydrateIcons(drawer); drawer.hidden = false; backdrop.hidden = false;
   document.body.style.overflow = "hidden"; drawer.querySelector<HTMLInputElement>("input[name=title]")?.focus();
 }
-function closeDrawer() { state.drawer = null; state.visitDrawer = null; state.postDrawer = null; drawer.hidden = true; backdrop.hidden = true; document.body.style.overflow = ""; }
+function closeDrawer() { state.drawer = null; state.visitDrawer = null; state.postDrawer = null; state.asanaTaskDrawer = null; drawer.hidden = true; backdrop.hidden = true; document.body.style.overflow = ""; }
 function visitDrawerContent(visit: Visit | null): string {
   const related = visit?.stories?.length ? `<section class="drawer-section"><h3>Stories da visita</h3><div class="pending-list">${visit.stories.map((story) => `<button type="button" class="pending-row" data-action="open-linked-story" data-linked-story-id="${e(story.id)}"><strong>${e(story.title)}</strong><small>${e(story.date)}</small><span>${statusLabels[story.status]}</span></button>`).join("")}</div></section>` : "";
   return visitDrawer(visit, visitContext(), state.createDate).replace('<div id="deleteConfirm"></div>', `${related}<div id="deleteConfirm"></div>`);
 }
 async function openVisit(id?: string, date = today) {
   try {
-    state.drawer = null; state.postDrawer = null; state.createDate = date;
+    state.drawer = null; state.postDrawer = null; state.asanaTaskDrawer = null; state.createDate = date;
     state.visitDrawer = id ? await marketingRepository.visit(id) : "new";
     drawer.innerHTML = visitDrawerContent(state.visitDrawer === "new" ? null : state.visitDrawer); hydrateIcons(drawer);
     drawer.hidden = false; backdrop.hidden = false; document.body.style.overflow = "hidden";
@@ -351,9 +351,57 @@ async function openVisit(id?: string, date = today) {
   } catch (error) { notify((error as Error).message, true); }
 }
 function openPost(post?: BlogPost) {
-  state.drawer = null; state.visitDrawer = null; state.postDrawer = post || "new";
+  state.drawer = null; state.visitDrawer = null; state.asanaTaskDrawer = null; state.postDrawer = post || "new";
   drawer.innerHTML = blogDrawer(post || null, blogContext()); hydrateIcons(drawer); drawer.hidden = false; backdrop.hidden = false; document.body.style.overflow = "hidden";
   drawer.querySelector<HTMLInputElement>("[name=title]")?.focus();
+}
+function renderAsanaTaskDrawer(task: AsanaTaskDetail) {
+  const editable = Boolean(state.asanaSetup?.can_manage_tasks && state.session?.permissions.includes("social-planner.write"));
+  const disabled = editable ? "" : "disabled";
+  const startOn = task.start_on || (task.has_start_date ? task.start_date : "") || "";
+  const dueOn = task.due_on || task.end_date || "";
+  const updated = task.modified_at ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(task.modified_at)) : "Não informado";
+  drawer.innerHTML = `<div class="drawer-header"><div><small>Tarefa do Asana</small><h2 id="drawerTitle">${e(task.name)}</h2></div><button class="icon-button" type="button" data-action="close-drawer" aria-label="Fechar">${icon("close")}</button></div><form id="asanaTaskForm"><div class="drawer-body"><section class="drawer-section asana-task-context"><span>${e(task.hotel_name)}</span><strong>${e(task.project_name)}</strong>${task.section_name ? `<small>${e(task.section_name)}</small>` : ""}</section><section class="drawer-section"><h3>Conteúdo</h3><div class="form-grid"><label class="full"><span>Título *</span><input name="name" value="${e(task.name)}" maxlength="500" required ${disabled}></label><label class="full"><span>Descrição</span><textarea name="notes" maxlength="50000" ${disabled}>${e(task.notes)}</textarea></label></div></section><section class="drawer-section"><h3>Planejamento</h3><div class="form-grid"><label><span>Data inicial</span><input name="start_on" type="date" value="${e(startOn)}" ${disabled}></label><label><span>Data final</span><input name="due_on" type="date" value="${e(dueOn)}" ${disabled}></label><label class="asana-completed-toggle full"><input name="completed" type="checkbox" ${task.completed ? "checked" : ""} ${disabled}><span>Marcar tarefa como concluída</span></label></div></section><section class="drawer-section asana-task-metadata"><h3>Informações do Asana</h3><dl><div><dt>Responsável</dt><dd>${e(task.assignee_name || "Não atribuído")}</dd></div><div><dt>Última alteração</dt><dd>${e(updated)}</dd></div></dl></section>${!editable ? '<p class="calendar-error">Reconecte sua conta com permissão de edição ou solicite perfil de Editor no Planner.</p>' : ""}</div><div class="drawer-actions">${task.permalink_url ? `<a class="button" href="${e(task.permalink_url)}" target="_blank" rel="noopener noreferrer">Abrir no Asana</a>` : ""}${editable ? '<button type="submit" class="button primary">Salvar tarefa</button>' : ""}</div></form>`;
+  hydrateIcons(drawer);
+}
+async function openAsanaTask(taskGid: string) {
+  try {
+    state.drawer = null; state.visitDrawer = null; state.postDrawer = null;
+    drawer.innerHTML = '<div class="drawer-body"><div class="loading-shell"><div class="skeleton title"></div><div class="skeleton grid"></div></div></div>';
+    drawer.hidden = false; backdrop.hidden = false; document.body.style.overflow = "hidden";
+    state.asanaTaskDrawer = await marketingRepository.asanaTask(taskGid);
+    renderAsanaTaskDrawer(state.asanaTaskDrawer);
+  } catch (error) { closeDrawer(); notify((error as Error).message, true); }
+}
+function mergeAsanaTask(task: AsanaTaskDetail) {
+  state.asanaTasks = state.asanaTasks.map((entry) => entry.gid === task.gid ? { ...entry, ...task } : entry);
+  state.asanaTaskDrawer = task;
+}
+async function saveAsanaTaskForm(event: SubmitEvent) {
+  event.preventDefault();
+  const task = state.asanaTaskDrawer; if (!task) return;
+  const form = event.target as HTMLFormElement; const data = new FormData(form);
+  const input: AsanaTaskInput = {
+    name: String(data.get("name") || "").trim(), notes: String(data.get("notes") || ""),
+    start_on: String(data.get("start_on") || "") || null, due_on: String(data.get("due_on") || "") || null,
+    completed: data.get("completed") === "on",
+  };
+  if (input.start_on && !input.due_on) { notify("Informe a data final quando houver data inicial.", true); return; }
+  try {
+    const saved = await marketingRepository.updateAsanaTask(task.gid, input); mergeAsanaTask(saved); render(); renderAsanaTaskDrawer(saved); notify("Tarefa atualizada no Asana.");
+  } catch (error) { notify((error as Error).message, true); }
+}
+async function moveAsanaTaskToDate(taskGid: string, targetDate: string) {
+  const task = state.asanaTasks.find((entry) => entry.gid === taskGid);
+  if (!task || !/^\d{4}-\d{2}-\d{2}$/u.test(targetDate)) return;
+  const duration = task.start_date && task.end_date ? Math.max(0, Math.round((fromIso(task.end_date).getTime() - fromIso(task.start_date).getTime()) / 86_400_000)) : 0;
+  const dueOn = addDays(targetDate, duration);
+  const input: AsanaTaskInput = task.has_start_date ? { start_on: targetDate, due_on: dueOn } : { due_on: targetDate };
+  const previous = state.asanaTasks.map((entry) => ({ ...entry }));
+  state.asanaTasks = state.asanaTasks.map((entry) => entry.gid === taskGid ? { ...entry, start_date: targetDate, end_date: dueOn } : entry);
+  render();
+  try { mergeAsanaTask(await marketingRepository.updateAsanaTask(taskGid, input)); render(); notify("Tarefa movida no Asana."); }
+  catch (error) { state.asanaTasks = previous; render(); notify(`Movimento revertido: ${(error as Error).message}`, true); }
 }
 function field(name: string, label: string, value: unknown, kind: "text" | "date" | "time" | "textarea" | "url" | "email" | "password" = "text", full = false): string {
   const escaped = e(value); const required = ["title", "hotel_id", "date"].includes(name) ? "required" : "";
@@ -495,6 +543,7 @@ document.addEventListener("click", async (event) => {
   const storyElement = target.closest<HTMLElement>("[data-story-id]"); if (storyElement && !target.closest("[data-action]")) { try { openDrawer(await repository.story(storyElement.dataset.storyId!)); } catch (error) { notify((error as Error).message, true); } return; }
   const button = target.closest<HTMLElement>("[data-action]"); if (!button) return;
   const action = button.dataset.action;
+  if (action === "open-asana-task") { await openAsanaTask(button.dataset.asanaTaskId || ""); return; }
   if (action === "new-planner-user") { openPlannerUserDialog(); return; }
   if (action === "edit-planner-user") { const user = state.managedUsers.find((entry) => entry.id === button.dataset.userId); if (user) openPlannerUserDialog(user); return; }
   if (action === "reset-planner-password") { openPlannerPasswordDialog(button.dataset.userId || ""); return; }
@@ -582,7 +631,7 @@ document.querySelector<HTMLInputElement>("#globalPlannerSearch")!.addEventListen
   if (!["week", "calendar", "pending"].includes(state.view)) { state.view = "week"; updateUrl(); void loadData(); return; }
   updateUrl(); render(); document.querySelector<HTMLInputElement>("#globalPlannerSearch")?.focus();
 });
-drawer.addEventListener("submit", (event) => { const id = (event.target as HTMLElement).id; if (id === "storyForm") void saveDrawer(event); if (id === "visitForm") void saveVisitForm(event); if (id === "blogForm") void savePostForm(event); });
+drawer.addEventListener("submit", (event) => { const id = (event.target as HTMLElement).id; if (id === "storyForm") void saveDrawer(event); if (id === "visitForm") void saveVisitForm(event); if (id === "blogForm") void savePostForm(event); if (id === "asanaTaskForm") void saveAsanaTaskForm(event); });
 document.addEventListener("submit", async (event) => {
   if ((event.target as HTMLElement).id === "plannerSettingsForm") { event.preventDefault(); const form = event.target as HTMLFormElement; const name = String(new FormData(form).get("display_name") || "").trim(); try { const saved = await marketingRepository.saveSettings(name); state.displayName = saved.display_name; document.querySelector<HTMLElement>("#plannerName")!.textContent = saved.display_name; document.title = saved.display_name; render(); notify("Nome atualizado."); } catch (error) { notify((error as Error).message, true); } return; }
   if ((event.target as HTMLElement).id === "asanaWorkspaceForm") {
@@ -614,12 +663,24 @@ document.addEventListener("submit", async (event) => {
   } catch (error) { notify((error as Error).message, true); }
 });
 backdrop.addEventListener("click", closeDrawer);
-document.addEventListener("keydown", (event) => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") { event.preventDefault(); document.querySelector<HTMLInputElement>("#globalPlannerSearch")?.focus(); } if (event.key === "Escape" && (state.drawer || state.visitDrawer || state.postDrawer)) closeDrawer(); if ((event.key === "Enter" || event.key === " ") && (event.target as HTMLElement).matches(".story-card")) { event.preventDefault(); const id = (event.target as HTMLElement).dataset.storyId; if (id) void repository.story(id).then(openDrawer).catch((error) => notify((error as Error).message, true)); } });
-document.addEventListener("dragstart", (event) => { const blog = (event.target as HTMLElement).closest<HTMLElement>(".kanban-card"); if (blog) { event.dataTransfer?.setData("application/x-fioreze-blog", blog.dataset.postId || ""); event.dataTransfer!.effectAllowed = "move"; return; } const card = (event.target as HTMLElement).closest<HTMLElement>(".story-card"); if (!card) return; event.dataTransfer?.setData("text/plain", card.dataset.storyId || ""); event.dataTransfer!.effectAllowed = "move"; card.classList.add("dragging"); });
-document.addEventListener("dragend", (event) => { (event.target as HTMLElement).closest<HTMLElement>(".story-card")?.classList.remove("dragging"); document.querySelectorAll(".drag-over").forEach((item) => item.classList.remove("drag-over")); });
-document.addEventListener("dragover", (event) => { const cell = (event.target as HTMLElement).closest<HTMLElement>(".day-cell, .kanban-column"); if (!cell) return; event.preventDefault(); cell.classList.add("drag-over"); });
-document.addEventListener("dragleave", (event) => { const cell = (event.target as HTMLElement).closest<HTMLElement>(".day-cell"); if (cell && !cell.contains(event.relatedTarget as Node)) cell.classList.remove("drag-over"); });
-document.addEventListener("drop", (event) => { const element = event.target as HTMLElement; const blogColumn = element.closest<HTMLElement>(".kanban-column"); if (blogColumn) { event.preventDefault(); blogColumn.classList.remove("drag-over"); const id = event.dataTransfer?.getData("application/x-fioreze-blog"), post = state.posts.find((p) => p.id === id); if (post && blogColumn.dataset.blogStatus && post.status !== blogColumn.dataset.blogStatus) { const previous = state.posts.map((p) => ({ ...p })); post.status = blogColumn.dataset.blogStatus as BlogPost["status"]; render(); void marketingRepository.updatePost(post.id, { status: post.status }).then((saved) => { upsertPost(saved); notify("Etapa do artigo atualizada."); }).catch((error) => { state.posts = previous; render(); notify(`Alteração revertida: ${(error as Error).message}`, true); }); } return; } const cell = element.closest<HTMLElement>(".day-cell"); if (!cell) return; event.preventDefault(); cell.classList.remove("drag-over"); const id = event.dataTransfer?.getData("text/plain"); const over = element.closest<HTMLElement>(".story-card"); const before = over ? event.clientY < over.getBoundingClientRect().top + over.getBoundingClientRect().height / 2 : false; if (id) void handleDrop(cell, id, over?.dataset.storyId || null, before); });
+document.addEventListener("keydown", (event) => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") { event.preventDefault(); document.querySelector<HTMLInputElement>("#globalPlannerSearch")?.focus(); } if (event.key === "Escape" && (state.drawer || state.visitDrawer || state.postDrawer || state.asanaTaskDrawer)) closeDrawer(); if ((event.key === "Enter" || event.key === " ") && (event.target as HTMLElement).matches(".story-card")) { event.preventDefault(); const id = (event.target as HTMLElement).dataset.storyId; if (id) void repository.story(id).then(openDrawer).catch((error) => notify((error as Error).message, true)); } });
+document.addEventListener("dragstart", (event) => {
+  const target = event.target as HTMLElement;
+  const asanaTask = target.closest<HTMLElement>(".asana-task");
+  if (asanaTask?.dataset.asanaTaskId) { event.dataTransfer?.setData("application/x-fioreze-asana", asanaTask.dataset.asanaTaskId); event.dataTransfer!.effectAllowed = "move"; asanaTask.classList.add("dragging"); return; }
+  const blog = target.closest<HTMLElement>(".kanban-card"); if (blog) { event.dataTransfer?.setData("application/x-fioreze-blog", blog.dataset.postId || ""); event.dataTransfer!.effectAllowed = "move"; return; }
+  const card = target.closest<HTMLElement>(".story-card"); if (!card) return; event.dataTransfer?.setData("text/plain", card.dataset.storyId || ""); event.dataTransfer!.effectAllowed = "move"; card.classList.add("dragging");
+});
+document.addEventListener("dragend", (event) => { (event.target as HTMLElement).closest<HTMLElement>(".story-card, .asana-task")?.classList.remove("dragging"); document.querySelectorAll(".drag-over").forEach((item) => item.classList.remove("drag-over")); });
+document.addEventListener("dragover", (event) => { const cell = (event.target as HTMLElement).closest<HTMLElement>(".day-cell, .kanban-column, .asana-calendar-day"); if (!cell) return; event.preventDefault(); cell.classList.add("drag-over"); });
+document.addEventListener("dragleave", (event) => { const cell = (event.target as HTMLElement).closest<HTMLElement>(".day-cell, .kanban-column, .asana-calendar-day"); if (cell && !cell.contains(event.relatedTarget as Node)) cell.classList.remove("drag-over"); });
+document.addEventListener("drop", (event) => {
+  const element = event.target as HTMLElement;
+  const asanaDay = element.closest<HTMLElement>(".asana-calendar-day"); const asanaTaskId = event.dataTransfer?.getData("application/x-fioreze-asana");
+  if (asanaDay && asanaTaskId) { event.preventDefault(); asanaDay.classList.remove("drag-over"); void moveAsanaTaskToDate(asanaTaskId, asanaDay.dataset.asanaDate || ""); return; }
+  const blogColumn = element.closest<HTMLElement>(".kanban-column"); if (blogColumn) { event.preventDefault(); blogColumn.classList.remove("drag-over"); const id = event.dataTransfer?.getData("application/x-fioreze-blog"), post = state.posts.find((p) => p.id === id); if (post && blogColumn.dataset.blogStatus && post.status !== blogColumn.dataset.blogStatus) { const previous = state.posts.map((p) => ({ ...p })); post.status = blogColumn.dataset.blogStatus as BlogPost["status"]; render(); void marketingRepository.updatePost(post.id, { status: post.status }).then((saved) => { upsertPost(saved); notify("Etapa do artigo atualizada."); }).catch((error) => { state.posts = previous; render(); notify(`Alteração revertida: ${(error as Error).message}`, true); }); } return; }
+  const cell = element.closest<HTMLElement>(".day-cell"); if (!cell) return; event.preventDefault(); cell.classList.remove("drag-over"); const id = event.dataTransfer?.getData("text/plain"); const over = element.closest<HTMLElement>(".story-card"); const before = over ? event.clientY < over.getBoundingClientRect().top + over.getBoundingClientRect().height / 2 : false; if (id) void handleDrop(cell, id, over?.dataset.storyId || null, before);
+});
 document.querySelector<HTMLElement>("#collapseSidebar")!.addEventListener("click", () => document.querySelector("#sidebar")!.classList.toggle("collapsed"));
 document.querySelector<HTMLElement>("#openSidebar")!.addEventListener("click", () => document.querySelector("#sidebar")!.classList.toggle("mobile-open"));
 

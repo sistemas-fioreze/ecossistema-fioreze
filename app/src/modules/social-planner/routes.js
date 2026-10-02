@@ -29,7 +29,8 @@ import {
 } from "../../services/social-planner-calendar.js";
 import {
   completeAsanaConnection, disconnectAsana, getAsanaConnectionStatus, getAsanaSetup,
-  listAsanaCalendarTasks, saveAsanaProjectMappings, selectAsanaWorkspace, startAsanaConnection,
+  getAsanaTask, listAsanaCalendarTasks, saveAsanaProjectMappings, selectAsanaWorkspace,
+  startAsanaConnection, updateAsanaTask,
 } from "../../services/social-planner-asana.js";
 
 const base = "/api/v1/social-planner";
@@ -137,6 +138,8 @@ export function registerSocialPlannerRoutes(router) {
   router.get(`${base}/asana/status`, read(({ env, session }) => getAsanaConnectionStatus({ env, session })));
   router.get(`${base}/asana/setup`, read(({ env, session }) => getAsanaSetup({ env, session })));
   router.get(`${base}/asana/tasks`, read(({ env, session, url }) => listAsanaCalendarTasks({ env, session, searchParams: url.searchParams })));
+  router.get(`${base}/asana/tasks/:id`, read(({ env, session, params }) => getAsanaTask({ env, session, taskGid: params.id })));
+  router.patch(`${base}/asana/tasks/:id`, write(async ({ env, session, params, request }) => updateAsanaTask({ env, session, taskGid: params.id, input: await readJson(request) })));
   router.post(`${base}/asana/connect`, accountWrite(({ request, env, session }) => startAsanaConnection({ request, env, session })));
   router.get(`${base}/asana/callback`, async ({ request, env }) => {
     const session = await getCurrentSocialPlannerSession({ request, env });
