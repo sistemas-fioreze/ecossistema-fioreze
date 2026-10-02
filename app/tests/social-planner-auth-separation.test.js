@@ -63,8 +63,14 @@ test("frontend usa somente APIs e URLs proprias do Planner", () => {
   assert.match(shell, /id="plannerLoginForm"/);
   assert.match(shell, /conta exclusiva do Planner/);
   assert.match(shell, /Usuário ou e-mail/);
+  assert.match(shell, /name="remember_me"/);
+  assert.match(shell, /Permanecer conectado/);
   const auth = fs.readFileSync("src/services/social-planner-auth.js", "utf8");
   assert.match(auth, /normalizeLoginIdentifier\(payload\.email\)/);
+  assert.match(auth, /payload\.remember_me === true/);
+  assert.match(auth, /REMEMBERED_SESSION_TTL_SECONDS = 60 \* 60 \* 24 \* 30/);
+  assert.match(auth, /persistent \? `; Max-Age=\$\{maxAge\}` : ""/);
+  assert.match(app, /remember_me: data\.get\("remember_me"\) === "on"/);
   assert.match(auth, /@hoteisfioreze\.com\.br/);
   assert.match(central, /if \(session\?\.user\?\.is_master\)/);
   assert.match(central, /href: "\/socialplanner\/overview"/);

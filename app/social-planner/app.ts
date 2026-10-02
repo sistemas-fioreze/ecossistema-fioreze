@@ -567,7 +567,7 @@ plannerLoginForm.addEventListener("submit", async (event) => {
   const submit = plannerLoginForm.querySelector<HTMLButtonElement>("button[type=submit]")!; submit.disabled = true;
   const data = new FormData(plannerLoginForm);
   try {
-    const response = await fetch("/api/v1/social-planner/login", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json", "x-fioreze-admin-action": "erp-admin" }, body: JSON.stringify({ email: data.get("email"), password: data.get("password") }) });
+    const response = await fetch("/api/v1/social-planner/login", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json", "x-fioreze-admin-action": "erp-admin" }, body: JSON.stringify({ email: data.get("email"), password: data.get("password"), remember_me: data.get("remember_me") === "on" }) });
     const payload = await response.json(); if (!response.ok || !payload.ok) throw new Error(payload.error?.message || "Não foi possível entrar.");
     state.session = payload.data as PlannerSession; await initializePlanner();
   } catch (error) { plannerLoginError.textContent = (error as Error).message; plannerLoginError.hidden = false; }

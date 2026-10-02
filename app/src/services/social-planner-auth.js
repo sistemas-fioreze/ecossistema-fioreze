@@ -18,6 +18,7 @@ export const SOCIAL_PLANNER_PERMISSIONS = Object.freeze({
 });
 
 const SESSION_TTL_SECONDS = 60 * 60 * 8;
+const REMEMBERED_SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
 const SESSION_TOKEN_BYTES = 32;
 const ACCESS_LEVELS = new Set(["viewer", "editor", "admin"]);
 
@@ -25,6 +26,7 @@ export async function loginSocialPlanner({ request, env }) {
   const payload = await readJson(request);
   const email = normalizeLoginIdentifier(payload.email);
   const password = requireString(payload.password, "password", { max: 300 });
+  const rememberMe = payload.remember_me === true;
   const user = await first(
     env,
     `SELECT id, display_name, email, password_hash, password_strategy, access_level, status
@@ -43,7 +45,8 @@ export async function loginSocialPlanner({ request, env }) {
 
   const token = createSessionToken();
   const createdAt = requestNow({ request, env });
-  const expiresAt = new Date(Date.parse(createdAt) + SESSION_TTL_SECONDS * 1000).toISOString();
+  const sessionTtlSeconds = rememberMe ? REMEMBERED_SESSION_TTL_SECONDS : SESSION_TTL_SECONDS;
+  const expiresAt = new Date(Date.parse(createdAt) + sessionTtlSeconds * 1000).toISOString();
   await run(
     env,
     `INSERT INTO social_planner_sessions (
@@ -61,7 +64,7 @@ export async function loginSocialPlanner({ request, env }) {
   );
   return {
     session: buildPlannerSession({ ...user, expires_at: expiresAt }),
-    headers: sessionCookieHeaders(token, request, env),
+    headers: sessionCookieHeaders(token, request, env, { persistent: rememberMe, maxAge: sessionTtlSeconds }),
   };
 }
 
@@ -293,9 +296,10 @@ function createSessionToken() {
   return toBase64Url(bytes);
 }
 
-function sessionCookieHeaders(token, request, env) {
+function sessionCookieHeaders(token, request, env, { persistent, maxAge }) {
   const headers = new Headers();
-  headers.append("set-cookie", `${SOCIAL_PLANNER_SESSION_COOKIE}=${token}; Path=/; Max-Age=${SESSION_TTL_SECONDS}; HttpOnly; SameSite=Lax${secureCookieSuffix(request, env)}`);
+  const lifetime = persistent ? `; Max-Age=${maxAge}` : "";
+  headers.append("set-cookie", `${SOCIAL_PLANNER_SESSION_COOKIE}=${token}; Path=/${lifetime}; HttpOnly; SameSite=Lax${secureCookieSuffix(request, env)}`);
   return headers;
 }
 
