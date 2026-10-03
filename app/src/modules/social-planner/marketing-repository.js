@@ -1,5 +1,5 @@
 import { all, batch, first, run, statement } from "../../core/database.js";
-import { badRequest, notFoundError } from "../../core/errors.js";
+import { AppError, badRequest, notFoundError } from "../../core/errors.js";
 import { createPublicId } from "../../core/identifiers.js";
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
@@ -9,6 +9,11 @@ const blogStatuses = new Set(["idea", "briefing", "writing", "review", "ready", 
 const priorities = new Set(["low", "normal", "high", "urgent"]);
 const visitFields = ["hotel_id", "date", "start_time", "end_time", "title", "description", "responsible_user_id", "status", "priority", "campaign_id", "notes", "completed_at"];
 const postFields = ["title", "slug", "summary", "briefing", "category_id", "hotel_id", "campaign_id", "author_user_id", "main_keyword", "secondary_keywords", "meta_description", "planned_publish_date", "status", "published_at", "published_url", "notes"];
+const articleMimeTypes = new Map([
+  ["application/pdf", { extension: "pdf", signature: [0x25, 0x50, 0x44, 0x46, 0x2d] }],
+  ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", { extension: "docx", signature: [0x50, 0x4b, 0x03, 0x04] }],
+]);
+const maxArticleBytes = 15 * 1024 * 1024;
 const refs = { hotel_id: ["social_planner_hotels", "hotel_id"], responsible_planner_user_id: ["social_planner_users", "id"], author_planner_user_id: ["social_planner_users", "id"], campaign_id: ["social_campaigns", "id"], category_id: ["social_categories", "id"] };
 
 function date(value, label) {
@@ -60,10 +65,24 @@ function normalize(input, fields, kind) {
   }
   return patch;
 }
+function slugBase(value) {
+  return String(value || "artigo").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 120) || "artigo";
+}
+async function uniquePostSlug(env, title) {
+  const base = slugBase(title);
+  if (!await first(env, "SELECT id FROM marketing_blog_posts WHERE slug = ?", [base])) return base;
+  for (let suffix = 2; suffix < 1000; suffix += 1) {
+    const candidate = `${base}-${suffix}`;
+    if (!await first(env, "SELECT id FROM marketing_blog_posts WHERE slug = ?", [candidate])) return candidate;
+  }
+  return `${base}-${crypto.randomUUID().slice(0, 8)}`;
+}
 async function saveRow(env, table, fields, input, id, kind) {
   const existing = id ? await first(env, `SELECT * FROM ${table} WHERE id = ?`, [id]) : null;
   if (id && !existing) throw notFoundError(kind === "visit" ? "Visita não encontrada." : "Artigo não encontrado.");
   const patch = normalize(input, fields, kind);
+  if (kind === "blog" && !id && !patch.slug && patch.title) patch.slug = await uniquePostSlug(env, patch.title);
   if (!id && (!patch.title || (kind === "visit" && (!patch.hotel_id || !patch.date)) || (kind === "blog" && !patch.slug))) throw badRequest(kind === "visit" ? "Título, hotel e data são obrigatórios." : "Título e slug são obrigatórios.");
   const full = { ...existing, ...patch };
   if (!full.title || (kind === "visit" && (!full.hotel_id || !full.date)) || (kind === "blog" && !full.slug)) throw badRequest("Campos obrigatórios ausentes.");
@@ -192,11 +211,102 @@ export async function listPosts(env, query) {
   const q = { where: [], params: [] };
   if (query.get("start_date") || query.get("end_date")) Object.assign(q, period(query, "p.planned_publish_date"));
   filters(query, { hotel_id: "p.hotel_id", status: "p.status", category_id: "p.category_id", author_user_id: "p.author_planner_user_id", campaign_id: "p.campaign_id" }, q);
-  return all(env, `${postSelect} ${q.where.length ? `WHERE ${q.where.join(" AND ")}` : ""} ORDER BY p.planned_publish_date IS NULL, p.planned_publish_date, p.updated_at DESC LIMIT 1000`, q.params);
+  return (await all(env, `${postSelect} ${q.where.length ? `WHERE ${q.where.join(" AND ")}` : ""} ORDER BY p.updated_at DESC LIMIT 1000`, q.params)).map(normalizePostRow);
 }
-export async function getPost(env, id) { const post = await first(env, `${postSelect} WHERE p.id = ?`, [id]); if (!post) throw notFoundError("Artigo não encontrado."); return post; }
+export async function getPost(env, id) { const post = normalizePostRow(await first(env, `${postSelect} WHERE p.id = ?`, [id])); if (!post) throw notFoundError("Artigo não encontrado."); return post; }
 export const savePost = (env, input, id = null) => saveRow(env, "marketing_blog_posts", postFields, input, id, "blog");
-export async function deletePost(env, id) { const result = await run(env, "DELETE FROM marketing_blog_posts WHERE id = ?", [id]); if (!result.meta?.changes) throw notFoundError("Artigo não encontrado."); return { deleted: true }; }
+export async function deletePost(env, id) {
+  const post = await first(env, "SELECT article_object_key FROM marketing_blog_posts WHERE id = ?", [id]);
+  const result = await run(env, "DELETE FROM marketing_blog_posts WHERE id = ?", [id]);
+  if (!result.meta?.changes) throw notFoundError("Artigo não encontrado.");
+  if (post?.article_object_key && env.MEDIA_BUCKET?.delete) await env.MEDIA_BUCKET.delete(post.article_object_key).catch(() => null);
+  return { deleted: true };
+}
+
+export async function uploadPostDocument(env, id, request) {
+  const existing = await first(env, "SELECT id, status, article_object_key FROM marketing_blog_posts WHERE id = ?", [id]);
+  if (!existing) throw notFoundError("Artigo não encontrado.");
+  const contentType = request.headers.get("content-type") || "";
+  if (!contentType.includes("multipart/form-data")) throw badRequest("Envie o artigo como multipart/form-data.");
+  const announcedSize = Number(request.headers.get("content-length") || 0);
+  if (announcedSize > maxArticleBytes + 1024 * 1024) throw new AppError(413, "article_too_large", "O artigo deve ter no máximo 15 MB.");
+  const form = await request.formData().catch(() => { throw badRequest("Arquivo do artigo inválido."); });
+  const file = form.get("file");
+  if (!file || typeof file.arrayBuffer !== "function") throw badRequest("Selecione um arquivo PDF ou DOCX.");
+  const originalName = safeArticleFileName(file.name);
+  const extension = originalName.toLowerCase().split(".").at(-1);
+  const mimeType = extension === "pdf" ? "application/pdf" : extension === "docx" ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document" : "";
+  const declaredMime = String(file.type || "").toLowerCase();
+  const format = articleMimeTypes.get(mimeType);
+  if (!format || (declaredMime && declaredMime !== "application/octet-stream" && declaredMime !== mimeType)) throw badRequest("O artigo deve estar em PDF ou DOCX.");
+  if (!file.size || file.size > maxArticleBytes) throw new AppError(413, "article_too_large", "O artigo deve ter no máximo 15 MB.");
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (!format.signature.every((byte, index) => bytes[index] === byte)) throw badRequest("O conteúdo do arquivo não corresponde ao formato informado.");
+  const objectKey = `social-planner/blog/${id}/${crypto.randomUUID()}.${format.extension}`;
+  const bucket = requireArticleBucket(env);
+  await bucket.put(objectKey, bytes, {
+    httpMetadata: { contentType: mimeType },
+    customMetadata: { postId: id, originalName },
+  });
+  const now = new Date().toISOString();
+  try {
+    const nextStatus = ["published", "archived"].includes(existing.status) ? existing.status : "ready";
+    await run(env, `UPDATE marketing_blog_posts SET article_file_name = ?, article_mime_type = ?, article_size_bytes = ?,
+      article_object_key = ?, article_uploaded_at = ?, status = ?, updated_at = ? WHERE id = ?`,
+    [originalName, mimeType, bytes.byteLength, objectKey, now, nextStatus, now, id]);
+  } catch (error) {
+    await bucket.delete(objectKey).catch(() => null);
+    throw error;
+  }
+  if (existing.article_object_key && existing.article_object_key !== objectKey) await bucket.delete(existing.article_object_key).catch(() => null);
+  return getPost(env, id);
+}
+
+export async function removePostDocument(env, id) {
+  const existing = await first(env, "SELECT status, article_object_key FROM marketing_blog_posts WHERE id = ?", [id]);
+  if (!existing) throw notFoundError("Artigo não encontrado.");
+  const now = new Date().toISOString();
+  const nextStatus = existing.status === "ready" ? "briefing" : existing.status;
+  await run(env, `UPDATE marketing_blog_posts SET article_file_name = NULL, article_mime_type = NULL,
+    article_size_bytes = NULL, article_object_key = NULL, article_uploaded_at = NULL, status = ?, updated_at = ? WHERE id = ?`, [nextStatus, now, id]);
+  if (existing.article_object_key && env.MEDIA_BUCKET?.delete) await env.MEDIA_BUCKET.delete(existing.article_object_key).catch(() => null);
+  return getPost(env, id);
+}
+
+export async function servePostDocument(env, id) {
+  const post = await first(env, `SELECT article_file_name, article_mime_type, article_size_bytes, article_object_key
+    FROM marketing_blog_posts WHERE id = ?`, [id]);
+  if (!post?.article_object_key) throw notFoundError("Este artigo ainda não possui arquivo.");
+  const object = await requireArticleBucket(env).get(post.article_object_key);
+  if (!object) throw notFoundError("Arquivo do artigo não encontrado.");
+  const headers = new Headers({
+    "content-type": post.article_mime_type || object.httpMetadata?.contentType || "application/octet-stream",
+    "content-disposition": articleContentDisposition(post.article_file_name || "artigo"),
+    "cache-control": "private, no-store",
+    "x-content-type-options": "nosniff",
+  });
+  if (post.article_size_bytes) headers.set("content-length", String(post.article_size_bytes));
+  return new Response(object.body, { status: 200, headers });
+}
+
+function normalizePostRow(row) {
+  if (!row) return null;
+  delete row.article_object_key;
+  row.article_download_url = row.article_file_name ? `/api/v1/social-planner/blog-posts/${encodeURIComponent(row.id)}/document` : null;
+  return row;
+}
+function requireArticleBucket(env) {
+  if (!env?.MEDIA_BUCKET?.put || !env.MEDIA_BUCKET?.get || !env.MEDIA_BUCKET?.delete) throw new AppError(503, "storage_unavailable", "Armazenamento de artigos indisponível.");
+  return env.MEDIA_BUCKET;
+}
+function safeArticleFileName(value) {
+  const name = String(value || "artigo").replace(/^.*[\\/]/, "").replace(/[\u0000-\u001f\u007f<>:"|?*]+/g, " ").replace(/\s+/g, " ").trim();
+  return name.slice(0, 180) || "artigo";
+}
+function articleContentDisposition(fileName) {
+  const ascii = fileName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\x20-\x7e]/g, "_").replace(/["\\]/g, "_");
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
+}
 
 export async function getSettings(env) { const row = await first(env, "SELECT setting_value FROM marketing_planner_settings WHERE setting_key = 'display_name'"); return { display_name: row?.setting_value || "Fioreze Marketing Planner" }; }
 export async function saveSettings(env, input) { const name = text(input?.display_name, "Nome", 100, true); await run(env, "UPDATE marketing_planner_settings SET setting_value = ?, updated_at = ? WHERE setting_key = 'display_name'", [name, new Date().toISOString()]); return { display_name: name }; }

@@ -25,6 +25,16 @@ export async function request<T>(path: string, method = "GET", body?: unknown): 
   return payload.data as T;
 }
 
+export async function uploadRequest<T>(path: string, body: FormData): Promise<T> {
+  const response = await fetch(`${base}${path}`, {
+    method: "POST", credentials: "same-origin",
+    headers: { accept: "application/json", "x-fioreze-admin-action": "erp-admin" }, body,
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload.ok) throw new Error(payload.error?.message || "Não foi possível enviar o arquivo.");
+  return payload.data as T;
+}
+
 export const apiStoryRepository: StoryRepository = {
   hotels: () => request("/hotels"), categories: () => request("/categories"),
   pillars: () => request("/pillars"), channels: () => request("/channels"), users: () => request("/users"),

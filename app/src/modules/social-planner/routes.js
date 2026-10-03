@@ -21,7 +21,7 @@ import {
 import {
   deletePost, deleteVisit, deleteVisitItem, getPost, getSettings, getVisit,
   linkVisitMedia, listPosts, listVisits, savePost, saveSettings, saveVisit,
-  saveVisitItem, unlinkVisitMedia,
+  saveVisitItem, unlinkVisitMedia, uploadPostDocument, removePostDocument, servePostDocument,
 } from "./marketing-repository.js";
 import {
   completeGoogleCalendarConnection, disconnectGoogleCalendar, getCalendarConnectionStatus,
@@ -118,6 +118,13 @@ export function registerSocialPlannerRoutes(router) {
   router.get(`${base}/blog-posts/:id`, read(({ env, params }) => getPost(env, params.id)));
   router.post(`${base}/blog-posts`, write(async ({ env, request }) => savePost(env, await readJson(request)), 201));
   router.patch(`${base}/blog-posts/:id`, write(async ({ env, request, params }) => savePost(env, await readJson(request), params.id)));
+  router.post(`${base}/blog-posts/:id/document`, write(({ env, request, params }) => uploadPostDocument(env, params.id, request)));
+  router.get(`${base}/blog-posts/:id/document`, async (context) => {
+    const session = await getCurrentSocialPlannerSession(context);
+    requireSocialPlannerPermission(session, SOCIAL_PLANNER_PERMISSIONS.read);
+    return servePostDocument(context.env, context.params.id);
+  });
+  router.delete(`${base}/blog-posts/:id/document`, write(({ env, params }) => removePostDocument(env, params.id)));
   router.delete(`${base}/blog-posts/:id`, write(({ env, params }) => deletePost(env, params.id)));
 
   router.get(`${base}/calendar/status`, read(({ env, session }) => getCalendarConnectionStatus({ env, session })));

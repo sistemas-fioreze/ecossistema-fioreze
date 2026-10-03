@@ -1,4 +1,4 @@
-import { request } from "./repository";
+import { request, uploadRequest } from "./repository";
 import type { AsanaSetup, AsanaTask, AsanaTaskDetail, AsanaTaskInput, BlogInput, BlogPost, CalendarConnectionStatus, Visit, VisitInput, VisitItem } from "./types";
 
 function range(path: string, start?: string, end?: string, filters: Record<string, string> = {}) {
@@ -37,4 +37,6 @@ export const marketingRepository = {
   createPost: (input: BlogInput) => request<BlogPost>("/blog-posts", "POST", input),
   updatePost: (id: string, input: BlogInput) => request<BlogPost>(`/blog-posts/${encodeURIComponent(id)}`, "PATCH", input),
   deletePost: (id: string) => request(`/blog-posts/${encodeURIComponent(id)}`, "DELETE"),
+  uploadPostDocument: (id: string, file: File) => { const body = new FormData(); body.set("file", file); return uploadRequest<BlogPost>(`/blog-posts/${encodeURIComponent(id)}/document`, body); },
+  removePostDocument: (id: string) => request<BlogPost>(`/blog-posts/${encodeURIComponent(id)}/document`, "DELETE"),
 };

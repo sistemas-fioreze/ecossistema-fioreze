@@ -11,6 +11,17 @@ async function request(path, method = "GET", body) {
   if (!response.ok || !payload.ok) throw new Error(payload.error?.message || "N\xE3o foi poss\xEDvel concluir a opera\xE7\xE3o.");
   return payload.data;
 }
+async function uploadRequest(path, body) {
+  const response = await fetch(`${base}${path}`, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { accept: "application/json", "x-fioreze-admin-action": "erp-admin" },
+    body
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload.ok) throw new Error(payload.error?.message || "N\xE3o foi poss\xEDvel enviar o arquivo.");
+  return payload.data;
+}
 var apiStoryRepository = {
   hotels: () => request("/hotels"),
   categories: () => request("/categories"),
@@ -77,7 +88,13 @@ var marketingRepository = {
   post: (id) => request(`/blog-posts/${encodeURIComponent(id)}`),
   createPost: (input) => request("/blog-posts", "POST", input),
   updatePost: (id, input) => request(`/blog-posts/${encodeURIComponent(id)}`, "PATCH", input),
-  deletePost: (id) => request(`/blog-posts/${encodeURIComponent(id)}`, "DELETE")
+  deletePost: (id) => request(`/blog-posts/${encodeURIComponent(id)}`, "DELETE"),
+  uploadPostDocument: (id, file) => {
+    const body = new FormData();
+    body.set("file", file);
+    return uploadRequest(`/blog-posts/${encodeURIComponent(id)}/document`, body);
+  },
+  removePostDocument: (id) => request(`/blog-posts/${encodeURIComponent(id)}/document`, "DELETE")
 };
 
 // social-planner/utils.ts
@@ -139,43 +156,44 @@ function heading(eyebrow, title, subtitle, action, label) {
 }
 
 // social-planner/blog.ts
-var blogLabels = { idea: "Ideia", briefing: "Pauta", writing: "Redigindo", review: "Em revis\xE3o", ready: "Pronto", scheduled: "Agendado", published: "Publicado", archived: "Arquivado" };
 function filterBar(ctx) {
-  const select = (key, label, options) => `<select data-blog-filter="${key}" aria-label="${label}">${option("all", label, ctx.filters[key] || "all")}${options.map((i) => option(i.id, i.name, ctx.filters[key] || "all")).join("")}</select>`;
-  return `<div class="filter-panel">${select("hotel_id", "Todos os hot\xE9is", ctx.hotels)}${select("status", "Todos os status", Object.entries(blogLabels).map(([id, name]) => ({ id, name })))}${select("category_id", "Todas as categorias", ctx.categories)}${select("author_user_id", "Todos os autores", ctx.users)}${select("campaign_id", "Todas as campanhas", ctx.campaigns)}</div>`;
+  const select = (key, label, options) => `<select data-blog-filter="${key}" aria-label="${label}">${option("all", label, ctx.filters[key] || "all")}${options.map((item) => option(item.id, item.name, ctx.filters[key] || "all")).join("")}</select>`;
+  return `<div class="filter-panel blog-filters">${select("hotel_id", "Todas as unidades", ctx.hotels)}${select("author_user_id", "Todos os respons\xE1veis", ctx.users)}${select("document", "Todos os arquivos", [{ id: "attached", name: "Com artigo anexado" }, { id: "missing", name: "Sem artigo anexado" }, { id: "archived", name: "Arquivados" }])}</div>`;
 }
-function postButton(post) {
-  return `<button class="blog-row" data-post-id="${escapeHtml(post.id)}"><span>${escapeHtml(post.planned_publish_date || "Sem data")}</span><strong>${escapeHtml(post.title)}</strong><span>${escapeHtml(post.hotel_name || "Toda a rede")}</span><span>${escapeHtml(post.author_name || "Sem autor")}</span><span class="status-pill" data-status="${post.status}">${blogLabels[post.status]}</span></button>`;
+function matchesFilters(post, filters) {
+  if (filters.hotel_id && filters.hotel_id !== "all" && post.hotel_id !== filters.hotel_id) return false;
+  if (filters.author_user_id && filters.author_user_id !== "all" && post.author_user_id !== filters.author_user_id) return false;
+  if (filters.document === "attached" && !post.article_file_name) return false;
+  if (filters.document === "missing" && post.article_file_name) return false;
+  if (filters.document === "archived") return post.status === "archived";
+  return post.status !== "archived";
+}
+function articleState(post) {
+  if (post.status === "published") return { label: "Publicado", kind: "published" };
+  if (post.status === "archived") return { label: "Arquivado", kind: "archived" };
+  if (post.article_file_name) return { label: "Artigo anexado", kind: "ready" };
+  return { label: "Pauta", kind: "briefing" };
+}
+function postRow(post) {
+  const state2 = articleState(post);
+  const updated = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(post.updated_at));
+  return `<button class="article-row" data-post-id="${escapeHtml(post.id)}"><span class="article-main"><strong>${escapeHtml(post.title)}</strong><small>${escapeHtml(post.briefing || "Pauta sem orienta\xE7\xF5es adicionais.")}</small></span><span>${escapeHtml(post.hotel_name || "Toda a rede")}</span><span>${escapeHtml(post.author_name || "Sem respons\xE1vel")}</span><span class="article-file-name">${post.article_file_name ? `<i data-lucide="file-check-2" aria-hidden="true"></i>${escapeHtml(post.article_file_name)}` : '<i data-lucide="file-plus-2" aria-hidden="true"></i>Adicionar arquivo'}</span><span class="status-pill" data-status="${state2.kind}">${state2.label}</span><time datetime="${escapeHtml(post.updated_at)}">${escapeHtml(updated)}</time></button>`;
 }
 function blogView(ctx) {
-  const posts = ctx.posts.filter((p) => Object.entries(ctx.filters).every(([key, value]) => !value || value === "all" || String(p[key] || "") === value));
-  if (ctx.view === "blog-ideas") {
-    const statuses = Object.entries(blogLabels).filter(([key]) => key !== "archived");
-    return `${heading("Blog", "Pautas", "Arraste artigos entre etapas do fluxo editorial.", "new-post", "Nova pauta")}${filterBar(ctx)}<div class="blog-kanban">${statuses.map(([status, label]) => {
-      const group = posts.filter((p) => p.status === status);
-      return `<section class="kanban-column" data-blog-status="${status}"><h2>${label} <small>${group.length}</small></h2>${group.map((p) => `<button class="kanban-card" draggable="true" data-post-id="${escapeHtml(p.id)}"><strong>${escapeHtml(p.title)}</strong><small>${escapeHtml(p.planned_publish_date || "Sem data")} \xB7 ${escapeHtml(p.hotel_name || "Toda a rede")}</small></button>`).join("")}${!group.length ? '<p class="subtle">Nenhum artigo.</p>' : ""}</section>`;
-    }).join("")}</div>`;
-  }
-  if (ctx.view === "blog-published") {
-    const published = posts.filter((p) => p.status === "published");
-    return `${heading("Blog", "Publicados", "Artigos publicados e seus links.", "new-post", "Novo artigo")}${filterBar(ctx)}<div class="blog-list">${published.length ? published.map(postButton).join("") : '<div class="empty-state"><h2>Nenhum artigo publicado neste filtro.</h2></div>'}</div>`;
-  }
-  const d = fromIso(ctx.day), month = d.getMonth(), first = isoDate(new Date(d.getFullYear(), month, 1));
-  const scheduled = posts.filter((p) => p.planned_publish_date && p.planned_publish_date.slice(0, 7) === first.slice(0, 7));
-  const toolbar = `<div class="heading-actions"><button class="button" data-action="blog-prev-month">M\xEAs anterior</button><strong>${escapeHtml(dateLabel(first, { month: "long", year: "numeric" }))}</strong><button class="button" data-action="blog-next-month">Pr\xF3ximo m\xEAs</button><button class="button" data-action="blog-list">Lista</button><button class="button" data-action="blog-calendar">Calend\xE1rio</button></div>`;
-  if (ctx.mode === "list") return `${heading("Blog", "Cronograma editorial", "Artigos planejados por data de publica\xE7\xE3o.", "new-post", "Novo artigo")}${toolbar}${filterBar(ctx)}<div class="blog-list"><div class="blog-row blog-table-head"><span>Data</span><strong>T\xEDtulo</strong><span>Hotel</span><span>Autor</span><span>Status</span></div>${scheduled.length ? scheduled.map(postButton).join("") : '<div class="empty-state"><h2>Sem artigos neste m\xEAs.</h2><p>Crie uma pauta ou navegue para outro m\xEAs.</p></div>'}</div>`;
-  const start2 = addDays(first, -(new Date(d.getFullYear(), month, 1).getDay() + 6) % 7);
-  return `${heading("Blog", "Cronograma editorial", "Visualiza\xE7\xE3o mensal das publica\xE7\xF5es.", "new-post", "Novo artigo")}${toolbar}${filterBar(ctx)}<div class="calendar-grid">${["Seg", "Ter", "Qua", "Qui", "Sex", "S\xE1b", "Dom"].map((s) => `<div class="calendar-weekday">${s}</div>`).join("")}${Array.from({ length: 42 }, (_, i) => {
-    const day = addDays(start2, i), items = scheduled.filter((p) => p.planned_publish_date === day);
-    return `<div class="calendar-day ${fromIso(day).getMonth() !== month ? "outside" : ""}"><div class="calendar-date ${day === ctx.today ? "today" : ""}">${day.slice(-2)}</div>${items.map((p) => `<button class="calendar-story" data-post-id="${escapeHtml(p.id)}">${escapeHtml(p.title)}</button>`).join("")}</div>`;
-  }).join("")}</div>`;
+  const posts = ctx.posts.filter((post) => matchesFilters(post, ctx.filters));
+  return `${heading("Produ\xE7\xE3o", "Artigos", "Crie a pauta e anexe o artigo final em PDF ou DOCX.", "new-post", "Nova pauta")}${filterBar(ctx)}<div class="article-list"><div class="article-row article-table-head"><span>Pauta</span><span>Unidade</span><span>Respons\xE1vel</span><span>Arquivo</span><span>Etapa</span><span>Atualizado</span></div>${posts.length ? posts.map(postRow).join("") : '<div class="empty-state"><h2>Nenhuma pauta neste filtro.</h2><p>Crie uma pauta para come\xE7ar um novo artigo.</p></div>'}</div>`;
+}
+function fileSize(bytes) {
+  if (!bytes) return "";
+  if (bytes < 1024 * 1024) return `${Math.ceil(bytes / 1024)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1).replace(".", ",")} MB`;
 }
 function blogDrawer(post, ctx) {
-  const statuses = Object.entries(blogLabels).map(([id, name]) => ({ id, name }));
-  return `<div class="drawer-header"><div><small>${post ? "Editar artigo" : "Nova pauta"}</small><h2 id="drawerTitle">${escapeHtml(post?.title || "Planejar artigo")}</h2></div><button class="icon-button" data-action="close-drawer" aria-label="Fechar">\xD7</button></div><form id="blogForm"><div class="drawer-body"><section class="drawer-section"><h3>Planejamento</h3><div class="form-grid">${inputField("title", "T\xEDtulo", post?.title, "text", true, true)}${inputField("slug", "Slug", post?.slug, "text", true, true)}${inputField("planned_publish_date", "Data prevista", post?.planned_publish_date || ctx.today, "date")}${selectField("status", "Status", post?.status || "idea", statuses, true)}${selectField("category_id", "Categoria", post?.category_id, ctx.categories)}${selectField("hotel_id", "Hotel", post?.hotel_id, ctx.hotels)}${selectField("campaign_id", "Campanha", post?.campaign_id, ctx.campaigns)}${selectField("author_user_id", "Autor", post?.author_user_id, ctx.users)}</div></section><section class="drawer-section"><h3>SEO</h3><div class="form-grid">${inputField("main_keyword", "Palavra-chave principal", post?.main_keyword)}${inputField("secondary_keywords", "Palavras-chave secund\xE1rias", post?.secondary_keywords, "textarea", true)}${inputField("meta_description", "Meta description", post?.meta_description, "textarea", true)}</div></section><section class="drawer-section"><h3>Conte\xFAdo</h3><div class="form-grid">${inputField("briefing", "Briefing", post?.briefing, "textarea", true)}${inputField("summary", "Resumo", post?.summary, "textarea", true)}${inputField("notes", "Observa\xE7\xF5es", post?.notes, "textarea", true)}</div></section><section class="drawer-section"><h3>Publica\xE7\xE3o</h3><div class="form-grid">${inputField("published_url", "URL publicada", post?.published_url, "url", true)}</div></section><div id="deleteConfirm"></div></div><div class="drawer-actions">${post ? '<button type="button" class="button" data-action="duplicate-post">Duplicar</button><button type="button" class="button" data-action="archive-post">Arquivar</button><button type="button" class="button danger" data-action="delete-post">Excluir</button>' : ""}<button type="submit" class="button primary">Salvar artigo</button></div></form>`;
+  const currentFile = post?.article_file_name ? `<div class="article-current-file"><i data-lucide="file-text" aria-hidden="true"></i><span><strong>${escapeHtml(post.article_file_name)}</strong><small>${escapeHtml(fileSize(post.article_size_bytes))}</small></span><a class="button" href="${escapeHtml(post.article_download_url || "#")}">Baixar</a><button type="button" class="icon-button" data-action="remove-post-document" aria-label="Remover arquivo"><i data-lucide="trash-2" aria-hidden="true"></i></button></div>` : "";
+  return `<div class="drawer-header"><div><small>${post ? "Editar pauta" : "Nova pauta"}</small><h2 id="drawerTitle">${escapeHtml(post?.title || "Planejar artigo")}</h2></div><button class="icon-button" data-action="close-drawer" aria-label="Fechar"><i data-lucide="x" aria-hidden="true"></i></button></div><form id="blogForm"><div class="drawer-body"><input type="hidden" name="status" value="${escapeHtml(post?.status || "briefing")}"><section class="drawer-section"><h3>Pauta</h3><div class="form-grid">${inputField("title", "T\xEDtulo da pauta", post?.title, "text", true, true)}${selectField("hotel_id", "Unidade", post?.hotel_id, ctx.hotels)}${selectField("author_user_id", "Respons\xE1vel", post?.author_user_id, ctx.users)}${inputField("briefing", "Orienta\xE7\xF5es do artigo", post?.briefing, "textarea", true)}</div></section><section class="drawer-section article-upload-section"><h3>Arquivo do artigo</h3><p class="subtle">Anexe o texto final em PDF ou DOCX, com at\xE9 15 MB.</p>${currentFile}<label class="article-file-picker"><i data-lucide="upload" aria-hidden="true"></i><span><strong>${post?.article_file_name ? "Substituir arquivo" : "Selecionar artigo"}</strong><small>PDF ou DOCX</small></span><input name="article_file" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"></label></section><div id="deleteConfirm"></div></div><div class="drawer-actions">${post ? '<button type="button" class="button" data-action="archive-post">Arquivar</button><button type="button" class="button danger" data-action="delete-post">Excluir</button>' : ""}<button type="submit" class="button primary">Salvar pauta</button></div></form>`;
 }
 function blogFormInput(form) {
-  return formValues(form, ["title", "slug", "summary", "briefing", "category_id", "hotel_id", "campaign_id", "author_user_id", "main_keyword", "secondary_keywords", "meta_description", "planned_publish_date", "status", "published_url", "notes"]);
+  return formValues(form, ["title", "briefing", "hotel_id", "author_user_id", "status"]);
 }
 
 // social-planner/visits.ts
@@ -280,7 +298,7 @@ function connectionState(title, description, canConnect) {
 }
 
 // social-planner/app.ts
-var views = { overview: "Vis\xE3o Geral", week: "Redes \xB7 Semana", calendar: "Redes \xB7 Calend\xE1rio", pending: "Redes \xB7 Pend\xEAncias", "asana-calendar": "Calend\xE1rio do Asana", "visits-week": "Visitas \xB7 Semana", "visits-calendar": "Visitas \xB7 Calend\xE1rio", "visits-history": "Visitas \xB7 Hist\xF3rico", "blog-schedule": "Blog \xB7 Cronograma", "blog-ideas": "Blog \xB7 Pautas", "blog-published": "Blog \xB7 Publicados", campaigns: "Campanhas", assets: "Banco de conte\xFAdos", hotels: "Hot\xE9is", categories: "Categorias", performance: "Desempenho", users: "Usu\xE1rios", settings: "Configura\xE7\xF5es" };
+var views = { overview: "Vis\xE3o Geral", week: "Redes \xB7 Semana", calendar: "Redes \xB7 Calend\xE1rio", pending: "Redes \xB7 Pend\xEAncias", "asana-calendar": "Calend\xE1rio do Asana", "visits-week": "Visitas \xB7 Semana", "visits-calendar": "Visitas \xB7 Calend\xE1rio", "visits-history": "Visitas \xB7 Hist\xF3rico", "blog-schedule": "Artigos", "blog-ideas": "Artigos", "blog-published": "Artigos", campaigns: "Campanhas", assets: "Banco de conte\xFAdos", hotels: "Hot\xE9is", categories: "Categorias", performance: "Desempenho", users: "Usu\xE1rios", settings: "Configura\xE7\xF5es" };
 var today = isoDate(/* @__PURE__ */ new Date());
 var CAMPAIGN_TIMELINE_DAYS = 35;
 var params = new URLSearchParams(location.search);
@@ -304,7 +322,7 @@ var state = {
   posts: [],
   displayName: "Fioreze Marketing Planner",
   visitFilter: params.get("visit_hotel") || "all",
-  blogFilters: { hotel_id: params.get("blog_hotel") || "all", status: params.get("blog_status") || "all", category_id: params.get("blog_category") || "all", author_user_id: params.get("blog_author") || "all", campaign_id: params.get("blog_campaign") || "all" },
+  blogFilters: { hotel_id: params.get("blog_hotel") || "all", author_user_id: params.get("blog_author") || "all", document: params.get("blog_document") || "all" },
   blogMode: "list",
   calendar: { provider: "google", configured: false, connected: false, connection: null },
   asanaSetup: null,
@@ -322,6 +340,7 @@ var state = {
   saving: false
 };
 if (!Object.hasOwn(views, state.view)) state.view = "overview";
+if (["blog-schedule", "blog-published"].includes(state.view)) state.view = "blog-ideas";
 if (!params.get("day") && (state.day < state.week || state.day > addDays(state.week, 6))) state.day = state.week;
 if (state.view === "visits-history" && !params.get("day")) state.day = today;
 var main = document.querySelector("#mainContent");
@@ -346,7 +365,8 @@ function icon(name) {
     right: "chevron-right",
     alert: "triangle-alert",
     close: "x",
-    asana: "calendar-days"
+    asana: "calendar-days",
+    file: "file-text"
   };
   return `<i data-lucide="${names[name] || "layout-dashboard"}" aria-hidden="true"></i>`;
 }
@@ -385,7 +405,7 @@ function updateUrl() {
   if (state.campaignStart !== weekStart(today)) query.set("campaign_start", state.campaignStart);
   if (state.visitFilter !== "all") query.set("visit_hotel", state.visitFilter);
   if (state.asanaHotelFilter !== "all") query.set("asana_hotel", state.asanaHotelFilter);
-  for (const [key, urlKey] of [["hotel_id", "blog_hotel"], ["status", "blog_status"], ["category_id", "blog_category"], ["author_user_id", "blog_author"], ["campaign_id", "blog_campaign"]]) {
+  for (const [key, urlKey] of [["hotel_id", "blog_hotel"], ["author_user_id", "blog_author"], ["document", "blog_document"]]) {
     if (state.blogFilters[key] && state.blogFilters[key] !== "all") query.set(urlKey, state.blogFilters[key]);
   }
   history.replaceState({}, "", `/socialplanner/${state.view}?${query}`);
@@ -394,7 +414,7 @@ function renderNavigation() {
   const groups = [
     ["Trabalho", [["overview", "Vis\xE3o geral", "grid"]]],
     ["Planejamento", [["week", "Cronograma", "calendar"], ["calendar", "Calend\xE1rio", "calendar"], ["pending", "Pend\xEAncias", "alert"], ["asana-calendar", "Calend\xE1rio do Asana", "asana"]]],
-    ["Produ\xE7\xE3o", [["visits-week", "Visitas", "hotel"], ["visits-calendar", "Agenda de visitas", "calendar"], ["visits-history", "Hist\xF3rico", "check"], ["blog-schedule", "Blog", "calendar"], ["blog-ideas", "Pautas", "grid"], ["blog-published", "Publicados", "check"]]],
+    ["Produ\xE7\xE3o", [["visits-week", "Visitas", "hotel"], ["visits-calendar", "Agenda de visitas", "calendar"], ["visits-history", "Hist\xF3rico", "check"], ["blog-ideas", "Artigos", "file"]]],
     ["Conte\xFAdo", [["assets", "Banco de conte\xFAdos", "image"], ["campaigns", "Campanhas", "flag"], ["performance", "Desempenho", "grid"]]],
     ["Administra\xE7\xE3o", [["hotels", "Hot\xE9is", "hotel"], ["categories", "Categorias", "tag"], ["users", "Usu\xE1rios", "users"], ["settings", "Configura\xE7\xF5es", "settings"]]]
   ];
@@ -1010,10 +1030,22 @@ async function savePostForm(event) {
   state.saving = true;
   try {
     const existing = state.postDrawer && state.postDrawer !== "new" ? state.postDrawer : null;
-    const saved = existing ? await marketingRepository.updatePost(existing.id, blogFormInput(form)) : await marketingRepository.createPost(blogFormInput(form));
+    let saved = existing ? await marketingRepository.updatePost(existing.id, blogFormInput(form)) : await marketingRepository.createPost(blogFormInput(form));
     upsertPost(saved);
+    const file = form.querySelector("[name=article_file]")?.files?.[0];
+    if (file) {
+      try {
+        saved = await marketingRepository.uploadPostDocument(saved.id, file);
+        upsertPost(saved);
+      } catch (error) {
+        state.postDrawer = saved;
+        openPost(saved);
+        notify(`A pauta foi salva, mas o arquivo n\xE3o foi enviado: ${error.message}`, true);
+        return;
+      }
+    }
     closeDrawer();
-    notify(existing ? "Artigo atualizado." : "Pauta criada.");
+    notify(file ? "Pauta e artigo salvos." : existing ? "Pauta atualizada." : "Pauta criada.");
   } catch (error) {
     notify(error.message, true);
   } finally {
@@ -1296,12 +1328,13 @@ document.addEventListener("click", async (event) => {
     return;
   }
   const currentPost = state.postDrawer && state.postDrawer !== "new" ? state.postDrawer : null;
-  if (currentPost && action === "duplicate-post") {
+  if (currentPost && action === "remove-post-document") {
+    if (!window.confirm("Remover o arquivo anexado desta pauta?")) return;
     try {
-      const copy = await marketingRepository.createPost({ ...currentPost, title: `${currentPost.title} (c\xF3pia)`, slug: `${currentPost.slug}-copia-${Date.now().toString(36)}`, status: "idea", published_at: null, published_url: null });
-      upsertPost(copy);
-      openPost(copy);
-      notify("Artigo duplicado.");
+      const updated = await marketingRepository.removePostDocument(currentPost.id);
+      upsertPost(updated);
+      openPost(updated);
+      notify("Arquivo removido.");
     } catch (error) {
       notify(error.message, true);
     }
@@ -1461,6 +1494,17 @@ document.addEventListener("click", async (event) => {
 });
 document.addEventListener("change", (event) => {
   const target = event.target;
+  if (target.name === "article_file" && target instanceof HTMLInputElement) {
+    const file = target.files?.[0];
+    if (file && file.size > 15 * 1024 * 1024) {
+      target.value = "";
+      notify("O artigo deve ter no m\xE1ximo 15 MB.", true);
+      return;
+    }
+    const label = target.closest(".article-file-picker")?.querySelector("strong");
+    if (label && file) label.textContent = file.name;
+    return;
+  }
   if (target.id === "asanaHotelFilter") {
     state.asanaHotelFilter = target.value;
     updateUrl();

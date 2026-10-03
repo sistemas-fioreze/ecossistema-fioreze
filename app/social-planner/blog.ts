@@ -1,33 +1,52 @@
 import type { BlogInput, BlogPost, Campaign, Category, Hotel, User } from "./types";
-import { addDays, dateLabel, escapeHtml as e, fromIso, isoDate, option } from "./utils";
+import { escapeHtml as e, option } from "./utils";
 import { formValues, heading, inputField, selectField } from "./marketing-ui";
 
-export const blogLabels = { idea: "Ideia", briefing: "Pauta", writing: "Redigindo", review: "Em revisão", ready: "Pronto", scheduled: "Agendado", published: "Publicado", archived: "Arquivado" } as const;
 export interface BlogContext { posts: BlogPost[]; hotels: Hotel[]; categories: Category[]; campaigns: Campaign[]; users: User[]; day: string; today: string; view: "blog-schedule" | "blog-ideas" | "blog-published"; mode: "list" | "calendar"; filters: Record<string, string> }
+
 function filterBar(ctx: BlogContext): string {
-  const select = (key: string, label: string, options: { id: string; name: string }[]) => `<select data-blog-filter="${key}" aria-label="${label}">${option("all", label, ctx.filters[key] || "all")}${options.map((i) => option(i.id, i.name, ctx.filters[key] || "all")).join("")}</select>`;
-  return `<div class="filter-panel">${select("hotel_id", "Todos os hotéis", ctx.hotels)}${select("status", "Todos os status", Object.entries(blogLabels).map(([id, name]) => ({ id, name })))}${select("category_id", "Todas as categorias", ctx.categories)}${select("author_user_id", "Todos os autores", ctx.users)}${select("campaign_id", "Todas as campanhas", ctx.campaigns)}</div>`;
+  const select = (key: string, label: string, options: { id: string; name: string }[]) => `<select data-blog-filter="${key}" aria-label="${label}">${option("all", label, ctx.filters[key] || "all")}${options.map((item) => option(item.id, item.name, ctx.filters[key] || "all")).join("")}</select>`;
+  return `<div class="filter-panel blog-filters">${select("hotel_id", "Todas as unidades", ctx.hotels)}${select("author_user_id", "Todos os responsáveis", ctx.users)}${select("document", "Todos os arquivos", [{ id: "attached", name: "Com artigo anexado" }, { id: "missing", name: "Sem artigo anexado" }, { id: "archived", name: "Arquivados" }])}</div>`;
 }
-function postButton(post: BlogPost): string { return `<button class="blog-row" data-post-id="${e(post.id)}"><span>${e(post.planned_publish_date || "Sem data")}</span><strong>${e(post.title)}</strong><span>${e(post.hotel_name || "Toda a rede")}</span><span>${e(post.author_name || "Sem autor")}</span><span class="status-pill" data-status="${post.status}">${blogLabels[post.status]}</span></button>`; }
+
+function matchesFilters(post: BlogPost, filters: Record<string, string>): boolean {
+  if (filters.hotel_id && filters.hotel_id !== "all" && post.hotel_id !== filters.hotel_id) return false;
+  if (filters.author_user_id && filters.author_user_id !== "all" && post.author_user_id !== filters.author_user_id) return false;
+  if (filters.document === "attached" && !post.article_file_name) return false;
+  if (filters.document === "missing" && post.article_file_name) return false;
+  if (filters.document === "archived") return post.status === "archived";
+  return post.status !== "archived";
+}
+
+function articleState(post: BlogPost): { label: string; kind: string } {
+  if (post.status === "published") return { label: "Publicado", kind: "published" };
+  if (post.status === "archived") return { label: "Arquivado", kind: "archived" };
+  if (post.article_file_name) return { label: "Artigo anexado", kind: "ready" };
+  return { label: "Pauta", kind: "briefing" };
+}
+
+function postRow(post: BlogPost): string {
+  const state = articleState(post);
+  const updated = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(post.updated_at));
+  return `<button class="article-row" data-post-id="${e(post.id)}"><span class="article-main"><strong>${e(post.title)}</strong><small>${e(post.briefing || "Pauta sem orientações adicionais.")}</small></span><span>${e(post.hotel_name || "Toda a rede")}</span><span>${e(post.author_name || "Sem responsável")}</span><span class="article-file-name">${post.article_file_name ? `<i data-lucide="file-check-2" aria-hidden="true"></i>${e(post.article_file_name)}` : '<i data-lucide="file-plus-2" aria-hidden="true"></i>Adicionar arquivo'}</span><span class="status-pill" data-status="${state.kind}">${state.label}</span><time datetime="${e(post.updated_at)}">${e(updated)}</time></button>`;
+}
+
 export function blogView(ctx: BlogContext): string {
-  const posts = ctx.posts.filter((p) => Object.entries(ctx.filters).every(([key, value]) => !value || value === "all" || String(p[key as keyof BlogPost] || "") === value));
-  if (ctx.view === "blog-ideas") {
-    const statuses = Object.entries(blogLabels).filter(([key]) => key !== "archived");
-    return `${heading("Blog", "Pautas", "Arraste artigos entre etapas do fluxo editorial.", "new-post", "Nova pauta")}${filterBar(ctx)}<div class="blog-kanban">${statuses.map(([status, label]) => { const group = posts.filter((p) => p.status === status); return `<section class="kanban-column" data-blog-status="${status}"><h2>${label} <small>${group.length}</small></h2>${group.map((p) => `<button class="kanban-card" draggable="true" data-post-id="${e(p.id)}"><strong>${e(p.title)}</strong><small>${e(p.planned_publish_date || "Sem data")} · ${e(p.hotel_name || "Toda a rede")}</small></button>`).join("")}${!group.length ? '<p class="subtle">Nenhum artigo.</p>' : ""}</section>`; }).join("")}</div>`;
-  }
-  if (ctx.view === "blog-published") {
-    const published = posts.filter((p) => p.status === "published");
-    return `${heading("Blog", "Publicados", "Artigos publicados e seus links.", "new-post", "Novo artigo")}${filterBar(ctx)}<div class="blog-list">${published.length ? published.map(postButton).join("") : '<div class="empty-state"><h2>Nenhum artigo publicado neste filtro.</h2></div>'}</div>`;
-  }
-  const d = fromIso(ctx.day), month = d.getMonth(), first = isoDate(new Date(d.getFullYear(), month, 1));
-  const scheduled = posts.filter((p) => p.planned_publish_date && p.planned_publish_date.slice(0, 7) === first.slice(0, 7));
-  const toolbar = `<div class="heading-actions"><button class="button" data-action="blog-prev-month">Mês anterior</button><strong>${e(dateLabel(first, { month: "long", year: "numeric" }))}</strong><button class="button" data-action="blog-next-month">Próximo mês</button><button class="button" data-action="blog-list">Lista</button><button class="button" data-action="blog-calendar">Calendário</button></div>`;
-  if (ctx.mode === "list") return `${heading("Blog", "Cronograma editorial", "Artigos planejados por data de publicação.", "new-post", "Novo artigo")}${toolbar}${filterBar(ctx)}<div class="blog-list"><div class="blog-row blog-table-head"><span>Data</span><strong>Título</strong><span>Hotel</span><span>Autor</span><span>Status</span></div>${scheduled.length ? scheduled.map(postButton).join("") : '<div class="empty-state"><h2>Sem artigos neste mês.</h2><p>Crie uma pauta ou navegue para outro mês.</p></div>'}</div>`;
-  const start = addDays(first, -(new Date(d.getFullYear(), month, 1).getDay() + 6) % 7);
-  return `${heading("Blog", "Cronograma editorial", "Visualização mensal das publicações.", "new-post", "Novo artigo")}${toolbar}${filterBar(ctx)}<div class="calendar-grid">${["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"].map((s) => `<div class="calendar-weekday">${s}</div>`).join("")}${Array.from({ length: 42 }, (_, i) => { const day = addDays(start, i), items = scheduled.filter((p) => p.planned_publish_date === day); return `<div class="calendar-day ${fromIso(day).getMonth() !== month ? "outside" : ""}"><div class="calendar-date ${day === ctx.today ? "today" : ""}">${day.slice(-2)}</div>${items.map((p) => `<button class="calendar-story" data-post-id="${e(p.id)}">${e(p.title)}</button>`).join("")}</div>`; }).join("")}</div>`;
+  const posts = ctx.posts.filter((post) => matchesFilters(post, ctx.filters));
+  return `${heading("Produção", "Artigos", "Crie a pauta e anexe o artigo final em PDF ou DOCX.", "new-post", "Nova pauta")}${filterBar(ctx)}<div class="article-list"><div class="article-row article-table-head"><span>Pauta</span><span>Unidade</span><span>Responsável</span><span>Arquivo</span><span>Etapa</span><span>Atualizado</span></div>${posts.length ? posts.map(postRow).join("") : '<div class="empty-state"><h2>Nenhuma pauta neste filtro.</h2><p>Crie uma pauta para começar um novo artigo.</p></div>'}</div>`;
 }
+
+function fileSize(bytes: number | null): string {
+  if (!bytes) return "";
+  if (bytes < 1024 * 1024) return `${Math.ceil(bytes / 1024)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1).replace(".", ",")} MB`;
+}
+
 export function blogDrawer(post: BlogPost | null, ctx: BlogContext): string {
-  const statuses = Object.entries(blogLabels).map(([id, name]) => ({ id, name }));
-  return `<div class="drawer-header"><div><small>${post ? "Editar artigo" : "Nova pauta"}</small><h2 id="drawerTitle">${e(post?.title || "Planejar artigo")}</h2></div><button class="icon-button" data-action="close-drawer" aria-label="Fechar">×</button></div><form id="blogForm"><div class="drawer-body"><section class="drawer-section"><h3>Planejamento</h3><div class="form-grid">${inputField("title", "Título", post?.title, "text", true, true)}${inputField("slug", "Slug", post?.slug, "text", true, true)}${inputField("planned_publish_date", "Data prevista", post?.planned_publish_date || ctx.today, "date")}${selectField("status", "Status", post?.status || "idea", statuses, true)}${selectField("category_id", "Categoria", post?.category_id, ctx.categories)}${selectField("hotel_id", "Hotel", post?.hotel_id, ctx.hotels)}${selectField("campaign_id", "Campanha", post?.campaign_id, ctx.campaigns)}${selectField("author_user_id", "Autor", post?.author_user_id, ctx.users)}</div></section><section class="drawer-section"><h3>SEO</h3><div class="form-grid">${inputField("main_keyword", "Palavra-chave principal", post?.main_keyword)}${inputField("secondary_keywords", "Palavras-chave secundárias", post?.secondary_keywords, "textarea", true)}${inputField("meta_description", "Meta description", post?.meta_description, "textarea", true)}</div></section><section class="drawer-section"><h3>Conteúdo</h3><div class="form-grid">${inputField("briefing", "Briefing", post?.briefing, "textarea", true)}${inputField("summary", "Resumo", post?.summary, "textarea", true)}${inputField("notes", "Observações", post?.notes, "textarea", true)}</div></section><section class="drawer-section"><h3>Publicação</h3><div class="form-grid">${inputField("published_url", "URL publicada", post?.published_url, "url", true)}</div></section><div id="deleteConfirm"></div></div><div class="drawer-actions">${post ? '<button type="button" class="button" data-action="duplicate-post">Duplicar</button><button type="button" class="button" data-action="archive-post">Arquivar</button><button type="button" class="button danger" data-action="delete-post">Excluir</button>' : ""}<button type="submit" class="button primary">Salvar artigo</button></div></form>`;
+  const currentFile = post?.article_file_name ? `<div class="article-current-file"><i data-lucide="file-text" aria-hidden="true"></i><span><strong>${e(post.article_file_name)}</strong><small>${e(fileSize(post.article_size_bytes))}</small></span><a class="button" href="${e(post.article_download_url || "#")}">Baixar</a><button type="button" class="icon-button" data-action="remove-post-document" aria-label="Remover arquivo"><i data-lucide="trash-2" aria-hidden="true"></i></button></div>` : "";
+  return `<div class="drawer-header"><div><small>${post ? "Editar pauta" : "Nova pauta"}</small><h2 id="drawerTitle">${e(post?.title || "Planejar artigo")}</h2></div><button class="icon-button" data-action="close-drawer" aria-label="Fechar"><i data-lucide="x" aria-hidden="true"></i></button></div><form id="blogForm"><div class="drawer-body"><input type="hidden" name="status" value="${e(post?.status || "briefing")}"><section class="drawer-section"><h3>Pauta</h3><div class="form-grid">${inputField("title", "Título da pauta", post?.title, "text", true, true)}${selectField("hotel_id", "Unidade", post?.hotel_id, ctx.hotels)}${selectField("author_user_id", "Responsável", post?.author_user_id, ctx.users)}${inputField("briefing", "Orientações do artigo", post?.briefing, "textarea", true)}</div></section><section class="drawer-section article-upload-section"><h3>Arquivo do artigo</h3><p class="subtle">Anexe o texto final em PDF ou DOCX, com até 15 MB.</p>${currentFile}<label class="article-file-picker"><i data-lucide="upload" aria-hidden="true"></i><span><strong>${post?.article_file_name ? "Substituir arquivo" : "Selecionar artigo"}</strong><small>PDF ou DOCX</small></span><input name="article_file" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"></label></section><div id="deleteConfirm"></div></div><div class="drawer-actions">${post ? '<button type="button" class="button" data-action="archive-post">Arquivar</button><button type="button" class="button danger" data-action="delete-post">Excluir</button>' : ""}<button type="submit" class="button primary">Salvar pauta</button></div></form>`;
 }
-export function blogFormInput(form: HTMLFormElement): BlogInput { return formValues(form, ["title", "slug", "summary", "briefing", "category_id", "hotel_id", "campaign_id", "author_user_id", "main_keyword", "secondary_keywords", "meta_description", "planned_publish_date", "status", "published_url", "notes"]) as BlogInput; }
+
+export function blogFormInput(form: HTMLFormElement): BlogInput {
+  return formValues(form, ["title", "briefing", "hotel_id", "author_user_id", "status"]) as BlogInput;
+}
