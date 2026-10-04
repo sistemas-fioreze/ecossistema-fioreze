@@ -35,6 +35,7 @@
   "dependencies": {
     "lucide": "1.27.0",
     "qrcode-generator": "^2.0.4",
+    "simple-icons": "^16.33.0",
     "xss": "^1.0.15"
   }
 }

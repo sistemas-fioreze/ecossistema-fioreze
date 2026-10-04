@@ -4,6 +4,7 @@ import { blogDrawer, blogFormInput, blogView, type BlogContext } from "./blog";
 import { visitsView, visitDrawer, visitFormInput, type VisitContext } from "./visits";
 import { overviewView } from "./overview";
 import { asanaCalendarView } from "./asana";
+import { siFacebook, siInstagram, siTiktok, siYoutube, type SimpleIcon } from "simple-icons";
 import type { AsanaSetup, AsanaTask, AsanaTaskDetail, AsanaTaskInput, BlogPost, CalendarConnectionStatus, Campaign, Category, ContentPillar, Hotel, SocialChannel, Story, StoryChannelInput, StoryFilters, StoryInput, StorySequence, User, Visit } from "./types";
 import { addDays, dateLabel, escapeHtml as e, formatLabels, fromIso, isoDate, objectiveLabels, option, priorityLabels, statusLabels, weekStart } from "./utils";
 
@@ -139,12 +140,25 @@ async function loadAsanaData() {
   finally { if (version === loadVersion) { state.loading = false; render(); } }
 }
 const platformOptions = [
-  { id: "all", label: "Todas", short: "ALL" },
-  { id: "instagram", label: "Instagram", short: "IG" },
-  { id: "tiktok", label: "TikTok", short: "TT" },
-  { id: "youtube", label: "YouTube", short: "YT" },
-  { id: "facebook", label: "Facebook", short: "FB" },
+  { id: "all", label: "Todas" },
+  { id: "instagram", label: "Instagram" },
+  { id: "tiktok", label: "TikTok" },
+  { id: "youtube", label: "YouTube" },
+  { id: "facebook", label: "Facebook" },
 ] as const;
+const platformIcons: Record<string, SimpleIcon> = {
+  instagram: siInstagram,
+  tiktok: siTiktok,
+  youtube: siYoutube,
+  facebook: siFacebook,
+};
+function platformLogo(platform: string, compact = false): string {
+  const key = platform.toLocaleLowerCase("pt-BR");
+  const brand = platformIcons[key];
+  const className = compact ? "platform-mini" : "platform-mark";
+  if (!brand) return `<span class="${className} all" aria-hidden="true">${icon("grid")}</span>`;
+  return `<span class="${className} ${key}" title="${e(brand.title)}"><svg viewBox="0 0 24 24" role="img" aria-label="${e(brand.title)}"><path d="${brand.path}"></path></svg></span>`;
+}
 function storyPlatforms(story: Story): string[] {
   const fromChannels = (story.channels || []).map((channel) => channel.platform_key);
   const raw = `${story.channel_ids || ""},${story.channel_names || ""}`.toLocaleLowerCase("pt-BR");
@@ -158,7 +172,7 @@ function visibleStories(): Story[] {
 function platformSelector(): string {
   return `<div class="platform-selector" role="group" aria-label="Filtrar cronograma por rede">${platformOptions.map((platform) => {
     const count = platform.id === "all" ? state.stories.length : state.stories.filter((story) => storyPlatforms(story).includes(platform.id)).length;
-    return `<button type="button" class="platform-option ${state.platformFilter === platform.id ? "active" : ""}" data-platform="${platform.id}" aria-pressed="${state.platformFilter === platform.id}"><span class="platform-mark ${platform.id}">${platform.short}</span><span>${platform.label}</span><strong>${count}</strong></button>`;
+    return `<button type="button" class="platform-option ${state.platformFilter === platform.id ? "active" : ""}" data-platform="${platform.id}" aria-pressed="${state.platformFilter === platform.id}">${platformLogo(platform.id)}<span>${platform.label}</span><strong>${count}</strong></button>`;
   }).join("")}</div>`;
 }
 function selectedHotels(): Hotel[] { return state.hotels.filter((hotel) => state.filters.hotel_id === "all" || state.filters.hotel_id === hotel.id); }
@@ -188,7 +202,7 @@ function card(story: Story): string {
   const members = story.sequence_group_id ? state.stories.filter((item) => item.sequence_group_id === story.sequence_group_id) : [];
   const sequence = story.sequence_group_id ? `<span class="sequence-badge">${story.sequence_position || members.indexOf(story) + 1}/${members.length}</span>` : "";
   const platforms = storyPlatforms(story).slice(0, 4);
-  return `<article class="story-card" data-story-id="${e(story.id)}" data-status="${story.status}" draggable="true" tabindex="0" role="button" aria-label="${e(story.title)}, ${statusLabels[story.status]}"><div class="card-top"><span class="card-time">${e(story.planned_time || "—")}</span><span class="platform-miniatures">${platforms.map((platform) => `<span class="platform-mini ${platform}">${platformOptions.find((item) => item.id === platform)?.short || platform.slice(0, 2).toUpperCase()}</span>`).join("")}</span></div>${story.thumbnail_url ? `<img class="card-thumb" src="${e(story.thumbnail_url)}" alt="">` : ""}<div class="card-title">${e(story.title)}</div><div class="card-meta">${format ? `<span>${e(format)}</span>` : ""}${category ? `<span>${e(category)}</span>` : ""}</div><div class="card-footer"><span class="status-pill" data-status="${story.status}">${statusLabels[story.status]}</span><span>${e(story.responsible_name || "Sem responsável")}</span>${sequence}</div></article>`;
+  return `<article class="story-card" data-story-id="${e(story.id)}" data-status="${story.status}" draggable="true" tabindex="0" role="button" aria-label="${e(story.title)}, ${statusLabels[story.status]}"><div class="card-top"><span class="card-time">${e(story.planned_time || "—")}</span><span class="platform-miniatures">${platforms.map((platform) => platformLogo(platform, true)).join("")}</span></div>${story.thumbnail_url ? `<img class="card-thumb" src="${e(story.thumbnail_url)}" alt="">` : ""}<div class="card-title">${e(story.title)}</div><div class="card-meta">${format ? `<span>${e(format)}</span>` : ""}${category ? `<span>${e(category)}</span>` : ""}</div><div class="card-footer"><span class="status-pill" data-status="${story.status}">${statusLabels[story.status]}</span><span>${e(story.responsible_name || "Sem responsável")}</span>${sequence}</div></article>`;
 }
 function upcomingRail(): string {
   const upcoming = state.stories.filter((story) => story.date >= today && story.status !== "cancelled")
@@ -198,7 +212,7 @@ function upcomingRail(): string {
   return `<aside class="upcoming-rail" aria-label="Próximos compromissos"><div class="rail-header"><h2>Próximos</h2><button type="button" data-view="calendar">Ver todos</button></div><div class="rail-date">A partir de hoje</div><div class="rail-items">${upcoming.length ? upcoming.map((story) => {
     const hotel = state.hotels.find((item) => item.id === story.hotel_id)?.short_name || "Fioreze";
     const platform = storyPlatforms(story)[0] || "all";
-    return `<button type="button" class="rail-item" data-story-id="${e(story.id)}"><span class="rail-time">${e(story.date === today ? story.planned_time || "Hoje" : dateLabel(story.date, { day: "2-digit", month: "short" }))}</span><span class="platform-mini ${platform}">${platformOptions.find((item) => item.id === platform)?.short || "--"}</span><span><strong>${e(story.title)}</strong><small>${e(hotel)}</small></span><span class="status-pill" data-status="${story.status}">${statusLabels[story.status]}</span></button>`;
+    return `<button type="button" class="rail-item" data-story-id="${e(story.id)}"><span class="rail-time">${e(story.date === today ? story.planned_time || "Hoje" : dateLabel(story.date, { day: "2-digit", month: "short" }))}</span>${platformLogo(platform, true)}<span><strong>${e(story.title)}</strong><small>${e(hotel)}</small></span><span class="status-pill" data-status="${story.status}">${statusLabels[story.status]}</span></button>`;
   }).join("") : '<p class="rail-empty">Nenhum conteúdo futuro neste período.</p>'}</div>${visit ? `<div class="rail-visit"><div class="rail-header"><h2>Visita agendada</h2><button type="button" data-view="visits-calendar">Ver agenda</button></div><button type="button" class="visit-preview" data-visit-id="${e(visit.id)}"><span class="visit-date"><strong>${visit.date.slice(-2)}</strong>${e(dateLabel(visit.date, { month: "short" }))}</span><span><strong>${e(visit.title)}</strong><small>${e(visit.start_time || "Horário livre")} · ${e(visit.hotel_name)}</small></span></button></div>` : ""}</aside>`;
 }
 function weekView(): string {
@@ -420,7 +434,7 @@ function channelPlanner(story: Story | null): string {
     const linked = existing.get(channel.id);
     const selected = Boolean(linked || channel.id === defaultId);
     const plannedAt = linked?.planned_at || (selected && story?.date ? `${story.date}T${story.planned_time || "12:00"}` : "");
-    return `<article class="channel-row" data-channel-row="${e(channel.id)}"><label class="channel-toggle"><input type="checkbox" name="channel_selected" value="${e(channel.id)}" ${selected ? "checked" : ""}><span><strong>${e(channel.display_name)}</strong><small>${e(channel.platform_name)} · ${e(channel.placement_key)}</small></span></label><div class="channel-fields"><label><span>Agendar</span><input type="datetime-local" name="channel_planned_${e(channel.id)}" value="${e(plannedAt)}"></label><label><span>Status</span><select name="channel_status_${e(channel.id)}">${statusOptions.map((item) => option(item.id, item.name, linked?.status || story?.status || "idea")).join("")}</select></label><label><span>Reaproveitar de</span><select name="channel_source_${e(channel.id)}">${option("", "Conteúdo original", linked?.source_channel_id || "")}${sourceOptions.filter((item) => item.id !== channel.id).map((item) => option(item.id, item.name, linked?.source_channel_id || "")).join("")}</select></label><label class="full"><span>Texto adaptado</span><textarea name="channel_text_${e(channel.id)}" placeholder="Use somente quando este canal precisar de outra legenda ou roteiro">${e(linked?.adapted_text)}</textarea></label></div></article>`;
+    return `<article class="channel-row" data-channel-row="${e(channel.id)}"><label class="channel-toggle"><input type="checkbox" name="channel_selected" value="${e(channel.id)}" ${selected ? "checked" : ""}>${platformLogo(channel.platform_key, true)}<span><strong>${e(channel.display_name)}</strong><small>${e(channel.platform_name)} · ${e(channel.placement_key)}</small></span></label><div class="channel-fields"><label><span>Agendar</span><input type="datetime-local" name="channel_planned_${e(channel.id)}" value="${e(plannedAt)}"></label><label><span>Status</span><select name="channel_status_${e(channel.id)}">${statusOptions.map((item) => option(item.id, item.name, linked?.status || story?.status || "idea")).join("")}</select></label><label><span>Reaproveitar de</span><select name="channel_source_${e(channel.id)}">${option("", "Conteúdo original", linked?.source_channel_id || "")}${sourceOptions.filter((item) => item.id !== channel.id).map((item) => option(item.id, item.name, linked?.source_channel_id || "")).join("")}</select></label><label class="full"><span>Texto adaptado</span><textarea name="channel_text_${e(channel.id)}" placeholder="Use somente quando este canal precisar de outra legenda ou roteiro">${e(linked?.adapted_text)}</textarea></label></div></article>`;
   }).join("")}</div></section>`;
 }
 function channelFormInput(form: HTMLFormElement): StoryChannelInput[] {

@@ -228,14 +228,18 @@ main { max-width: none; min-height: calc(100vh - 68px); margin: 0; padding: 24px
 .platform-option.active { border-color: var(--gold); color: #fff; background: #302a19; box-shadow: inset 0 -2px var(--gold); }
 .platform-option strong { min-width: 20px; padding: 2px 5px; border-radius: 4px; color: var(--muted); background: #2e2f2f; font-size: 10px; font-variant-numeric: tabular-nums; text-align: center; }
 .platform-option.active strong { color: #e9d98f; background: #17150e; }
-.platform-mark, .platform-mini { display: inline-grid; place-items: center; flex: none; border-radius: 4px; color: #fff; font-size: 8px; font-weight: 700; letter-spacing: 0; }
+.platform-mark, .platform-mini { display: inline-grid; place-items: center; flex: none; border-radius: 5px; color: #fff; }
 .platform-mark { width: 22px; height: 22px; }
 .platform-mini { width: 19px; height: 19px; }
+.platform-mark svg { width: 13px; height: 13px; }
+.platform-mini svg { width: 11px; height: 11px; }
+.platform-mark svg, .platform-mini svg { fill: currentColor; stroke: none; }
 .platform-mark.all, .platform-mini.all { color: #1b170a; background: var(--gold); }
-.platform-mark.instagram, .platform-mini.instagram { background: #b43b7e; }
-.platform-mark.tiktok, .platform-mini.tiktok { background: #151616; box-shadow: inset 0 0 0 1px #5f6262; }
-.platform-mark.youtube, .platform-mini.youtube { background: #c93434; }
-.platform-mark.facebook, .platform-mini.facebook { background: #2f69bd; }
+.platform-mark.all svg, .platform-mini.all svg { fill: none; stroke: currentColor; }
+.platform-mark.instagram, .platform-mini.instagram { background: #e1306c; }
+.platform-mark.tiktok, .platform-mini.tiktok { background: #111; box-shadow: inset 0 0 0 1px #515252; }
+.platform-mark.youtube, .platform-mini.youtube { background: #f00; }
+.platform-mark.facebook, .platform-mini.facebook { background: #0866ff; }
 .platform-miniatures { display: flex; align-items: center; gap: 3px; }
 
 .filter-panel { margin-bottom: 12px; padding: 8px; gap: 7px; border-color: var(--border); border-radius: 7px; background: #1a1b1b; }

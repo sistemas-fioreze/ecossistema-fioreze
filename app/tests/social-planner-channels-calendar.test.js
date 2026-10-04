@@ -66,6 +66,11 @@ test("Planner usa shell escuro integrado e filtra cronograma por rede", () => {
   assert.match(app, /YouTube/);
   assert.match(app, /Facebook/);
   assert.match(app, /data-platform/);
+  assert.match(app, /from "simple-icons"/);
+  assert.match(app, /function platformLogo/);
+  assert.match(app, /platformLogo\(channel\.platform_key, true\)/);
+  assert.match(styles, /\.platform-mark svg, \.platform-mini svg/);
+  assert.doesNotMatch(app, /short: "(?:IG|TT|YT|FB)"/);
 });
 
 test("Asana conecta cada usuario e organiza os seis projetos por unidade", () => {
