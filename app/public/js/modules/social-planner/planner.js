@@ -156,32 +156,40 @@ function heading(eyebrow, title, subtitle, action, label) {
 }
 
 // social-planner/blog.ts
+var editorialStatuses = [
+  { id: "briefing", name: "Pauta" },
+  { id: "review", name: "Aguardando aprova\xE7\xE3o" },
+  { id: "published", name: "Publicado" }
+];
+function canonicalStatus(status) {
+  if (status === "published" || status === "archived") return status;
+  if (["review", "ready", "scheduled"].includes(status)) return "review";
+  return "briefing";
+}
 function filterBar(ctx) {
   const select = (key, label, options) => `<select data-blog-filter="${key}" aria-label="${label}">${option("all", label, ctx.filters[key] || "all")}${options.map((item) => option(item.id, item.name, ctx.filters[key] || "all")).join("")}</select>`;
-  return `<div class="filter-panel blog-filters">${select("hotel_id", "Todas as unidades", ctx.hotels)}${select("author_user_id", "Todos os respons\xE1veis", ctx.users)}${select("document", "Todos os arquivos", [{ id: "attached", name: "Com artigo anexado" }, { id: "missing", name: "Sem artigo anexado" }, { id: "archived", name: "Arquivados" }])}</div>`;
+  return `<div class="filter-panel blog-filters">${select("hotel_id", "Todas as unidades", ctx.hotels)}${select("author_user_id", "Todos os respons\xE1veis", ctx.users)}${select("status", "Todos os status", [...editorialStatuses, { id: "archived", name: "Arquivado" }])}${select("document", "Todos os arquivos", [{ id: "attached", name: "Com artigo anexado" }, { id: "missing", name: "Sem artigo anexado" }])}</div>`;
 }
 function matchesFilters(post, filters) {
   if (filters.hotel_id && filters.hotel_id !== "all" && post.hotel_id !== filters.hotel_id) return false;
   if (filters.author_user_id && filters.author_user_id !== "all" && post.author_user_id !== filters.author_user_id) return false;
+  if (filters.status && filters.status !== "all" && canonicalStatus(post.status) !== filters.status) return false;
   if (filters.document === "attached" && !post.article_file_name) return false;
   if (filters.document === "missing" && post.article_file_name) return false;
-  if (filters.document === "archived") return post.status === "archived";
-  return post.status !== "archived";
+  return post.status !== "archived" || filters.status === "archived";
 }
 function articleState(post) {
-  if (post.status === "published") return { label: "Publicado", kind: "published" };
-  if (post.status === "archived") return { label: "Arquivado", kind: "archived" };
-  if (post.article_file_name) return { label: "Artigo anexado", kind: "ready" };
-  return { label: "Pauta", kind: "briefing" };
+  const status = canonicalStatus(post.status);
+  return { briefing: { label: "Pauta", kind: "briefing" }, review: { label: "Aguardando aprova\xE7\xE3o", kind: "review" }, published: { label: "Publicado", kind: "published" }, archived: { label: "Arquivado", kind: "archived" } }[status];
 }
 function postRow(post) {
   const state2 = articleState(post);
-  const updated = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(post.updated_at));
-  return `<button class="article-row" data-post-id="${escapeHtml(post.id)}"><span class="article-main"><strong>${escapeHtml(post.title)}</strong><small>${escapeHtml(post.briefing || "Pauta sem orienta\xE7\xF5es adicionais.")}</small></span><span>${escapeHtml(post.hotel_name || "Toda a rede")}</span><span>${escapeHtml(post.author_name || "Sem respons\xE1vel")}</span><span class="article-file-name">${post.article_file_name ? `<i data-lucide="file-check-2" aria-hidden="true"></i>${escapeHtml(post.article_file_name)}` : '<i data-lucide="file-plus-2" aria-hidden="true"></i>Adicionar arquivo'}</span><span class="status-pill" data-status="${state2.kind}">${state2.label}</span><time datetime="${escapeHtml(post.updated_at)}">${escapeHtml(updated)}</time></button>`;
+  const planned = post.planned_publish_date ? new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", year: "numeric" }).format(/* @__PURE__ */ new Date(`${post.planned_publish_date}T12:00:00`)) : "Sem data";
+  return `<button class="article-row" data-post-id="${escapeHtml(post.id)}"><span class="article-main"><strong>${escapeHtml(post.title)}</strong><small>${escapeHtml(post.briefing || "Pauta sem orienta\xE7\xF5es adicionais.")}</small></span><span>${escapeHtml(post.hotel_name || "Toda a rede")}</span><span>${escapeHtml(post.author_name || "Sem respons\xE1vel")}</span><span class="article-file-name">${post.article_file_name ? `<i data-lucide="file-check-2" aria-hidden="true"></i>${escapeHtml(post.article_file_name)}` : '<i data-lucide="file-plus-2" aria-hidden="true"></i>Adicionar arquivo'}</span><span class="status-pill" data-status="${state2.kind}">${state2.label}</span><time datetime="${escapeHtml(post.planned_publish_date || "")}">${escapeHtml(planned)}</time></button>`;
 }
 function blogView(ctx) {
   const posts = ctx.posts.filter((post) => matchesFilters(post, ctx.filters));
-  return `${heading("Produ\xE7\xE3o", "Artigos", "Crie a pauta e anexe o artigo final em PDF ou DOCX.", "new-post", "Nova pauta")}${filterBar(ctx)}<div class="article-list"><div class="article-row article-table-head"><span>Pauta</span><span>Unidade</span><span>Respons\xE1vel</span><span>Arquivo</span><span>Etapa</span><span>Atualizado</span></div>${posts.length ? posts.map(postRow).join("") : '<div class="empty-state"><h2>Nenhuma pauta neste filtro.</h2><p>Crie uma pauta para come\xE7ar um novo artigo.</p></div>'}</div>`;
+  return `${heading("Produ\xE7\xE3o", "Artigos", "Crie a pauta, acompanhe a aprova\xE7\xE3o e anexe o artigo final em PDF ou DOCX.", "new-post", "Nova pauta")}${filterBar(ctx)}<div class="article-list"><div class="article-row article-table-head"><span>Pauta</span><span>Unidade</span><span>Respons\xE1vel</span><span>Arquivo</span><span>Status</span><span>Previs\xE3o</span></div>${posts.length ? posts.map(postRow).join("") : '<div class="empty-state"><h2>Nenhuma pauta neste filtro.</h2><p>Crie uma pauta para come\xE7ar um novo artigo.</p></div>'}</div>`;
 }
 function fileSize(bytes) {
   if (!bytes) return "";
@@ -190,10 +198,12 @@ function fileSize(bytes) {
 }
 function blogDrawer(post, ctx) {
   const currentFile = post?.article_file_name ? `<div class="article-current-file"><i data-lucide="file-text" aria-hidden="true"></i><span><strong>${escapeHtml(post.article_file_name)}</strong><small>${escapeHtml(fileSize(post.article_size_bytes))}</small></span><a class="button" href="${escapeHtml(post.article_download_url || "#")}">Baixar</a><button type="button" class="icon-button" data-action="remove-post-document" aria-label="Remover arquivo"><i data-lucide="trash-2" aria-hidden="true"></i></button></div>` : "";
-  return `<div class="drawer-header"><div><small>${post ? "Editar pauta" : "Nova pauta"}</small><h2 id="drawerTitle">${escapeHtml(post?.title || "Planejar artigo")}</h2></div><button class="icon-button" data-action="close-drawer" aria-label="Fechar"><i data-lucide="x" aria-hidden="true"></i></button></div><form id="blogForm"><div class="drawer-body"><input type="hidden" name="status" value="${escapeHtml(post?.status || "briefing")}"><section class="drawer-section"><h3>Pauta</h3><div class="form-grid">${inputField("title", "T\xEDtulo da pauta", post?.title, "text", true, true)}${selectField("hotel_id", "Unidade", post?.hotel_id, ctx.hotels)}${selectField("author_user_id", "Respons\xE1vel", post?.author_user_id, ctx.users)}${inputField("briefing", "Orienta\xE7\xF5es do artigo", post?.briefing, "textarea", true)}</div></section><section class="drawer-section article-upload-section"><h3>Arquivo do artigo</h3><p class="subtle">Anexe o texto final em PDF ou DOCX, com at\xE9 15 MB.</p>${currentFile}<label class="article-file-picker"><i data-lucide="upload" aria-hidden="true"></i><span><strong>${post?.article_file_name ? "Substituir arquivo" : "Selecionar artigo"}</strong><small>PDF ou DOCX</small></span><input name="article_file" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"></label></section><div id="deleteConfirm"></div></div><div class="drawer-actions">${post ? '<button type="button" class="button" data-action="archive-post">Arquivar</button><button type="button" class="button danger" data-action="delete-post">Excluir</button>' : ""}<button type="submit" class="button primary">Salvar pauta</button></div></form>`;
+  const selectedStatus = canonicalStatus(post?.status || "briefing");
+  const statusOptions = selectedStatus === "archived" ? [...editorialStatuses, { id: "archived", name: "Arquivado" }] : editorialStatuses;
+  return `<div class="drawer-header"><div><small>${post ? "Editar pauta" : "Nova pauta"}</small><h2 id="drawerTitle">${escapeHtml(post?.title || "Planejar artigo")}</h2></div><button class="icon-button" data-action="close-drawer" aria-label="Fechar"><i data-lucide="x" aria-hidden="true"></i></button></div><form id="blogForm"><div class="drawer-body"><section class="drawer-section"><h3>Pauta</h3><div class="form-grid">${inputField("title", "T\xEDtulo da pauta", post?.title, "text", true, true)}${inputField("planned_publish_date", "Previs\xE3o de publica\xE7\xE3o", post?.planned_publish_date || "", "date")}${selectField("status", "Status", selectedStatus, statusOptions, true)}${selectField("hotel_id", "Unidade", post?.hotel_id, ctx.hotels)}${selectField("author_user_id", "Respons\xE1vel", post?.author_user_id, ctx.users)}${inputField("briefing", "Orienta\xE7\xF5es do artigo", post?.briefing, "textarea", true)}</div></section><section class="drawer-section article-upload-section"><h3>Arquivo do artigo</h3><p class="subtle">Anexe o texto final em PDF ou DOCX, com at\xE9 15 MB.</p>${currentFile}<label class="article-file-picker"><i data-lucide="upload" aria-hidden="true"></i><span><strong>${post?.article_file_name ? "Substituir arquivo" : "Selecionar artigo"}</strong><small>PDF ou DOCX</small></span><input name="article_file" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"></label></section><div id="deleteConfirm"></div></div><div class="drawer-actions">${post ? '<button type="button" class="button" data-action="archive-post">Arquivar</button><button type="button" class="button danger" data-action="delete-post">Excluir</button>' : ""}<button type="submit" class="button primary">Salvar pauta</button></div></form>`;
 }
 function blogFormInput(form) {
-  return formValues(form, ["title", "briefing", "hotel_id", "author_user_id", "status"]);
+  return formValues(form, ["title", "briefing", "planned_publish_date", "hotel_id", "author_user_id", "status"]);
 }
 
 // social-planner/visits.ts
@@ -322,7 +332,7 @@ var state = {
   posts: [],
   displayName: "Fioreze Marketing Planner",
   visitFilter: params.get("visit_hotel") || "all",
-  blogFilters: { hotel_id: params.get("blog_hotel") || "all", author_user_id: params.get("blog_author") || "all", document: params.get("blog_document") || "all" },
+  blogFilters: { hotel_id: params.get("blog_hotel") || "all", author_user_id: params.get("blog_author") || "all", status: params.get("blog_status") || "all", document: params.get("blog_document") || "all" },
   blogMode: "list",
   calendar: { provider: "google", configured: false, connected: false, connection: null },
   asanaSetup: null,
@@ -405,7 +415,7 @@ function updateUrl() {
   if (state.campaignStart !== weekStart(today)) query.set("campaign_start", state.campaignStart);
   if (state.visitFilter !== "all") query.set("visit_hotel", state.visitFilter);
   if (state.asanaHotelFilter !== "all") query.set("asana_hotel", state.asanaHotelFilter);
-  for (const [key, urlKey] of [["hotel_id", "blog_hotel"], ["author_user_id", "blog_author"], ["document", "blog_document"]]) {
+  for (const [key, urlKey] of [["hotel_id", "blog_hotel"], ["author_user_id", "blog_author"], ["status", "blog_status"], ["document", "blog_document"]]) {
     if (state.blogFilters[key] && state.blogFilters[key] !== "all") query.set(urlKey, state.blogFilters[key]);
   }
   history.replaceState({}, "", `/socialplanner/${state.view}?${query}`);

@@ -250,10 +250,9 @@ export async function uploadPostDocument(env, id, request) {
   });
   const now = new Date().toISOString();
   try {
-    const nextStatus = ["published", "archived"].includes(existing.status) ? existing.status : "ready";
     await run(env, `UPDATE marketing_blog_posts SET article_file_name = ?, article_mime_type = ?, article_size_bytes = ?,
-      article_object_key = ?, article_uploaded_at = ?, status = ?, updated_at = ? WHERE id = ?`,
-    [originalName, mimeType, bytes.byteLength, objectKey, now, nextStatus, now, id]);
+      article_object_key = ?, article_uploaded_at = ?, updated_at = ? WHERE id = ?`,
+    [originalName, mimeType, bytes.byteLength, objectKey, now, now, id]);
   } catch (error) {
     await bucket.delete(objectKey).catch(() => null);
     throw error;
@@ -266,9 +265,8 @@ export async function removePostDocument(env, id) {
   const existing = await first(env, "SELECT status, article_object_key FROM marketing_blog_posts WHERE id = ?", [id]);
   if (!existing) throw notFoundError("Artigo não encontrado.");
   const now = new Date().toISOString();
-  const nextStatus = existing.status === "ready" ? "briefing" : existing.status;
   await run(env, `UPDATE marketing_blog_posts SET article_file_name = NULL, article_mime_type = NULL,
-    article_size_bytes = NULL, article_object_key = NULL, article_uploaded_at = NULL, status = ?, updated_at = ? WHERE id = ?`, [nextStatus, now, id]);
+    article_size_bytes = NULL, article_object_key = NULL, article_uploaded_at = NULL, updated_at = ? WHERE id = ?`, [now, id]);
   if (existing.article_object_key && env.MEDIA_BUCKET?.delete) await env.MEDIA_BUCKET.delete(existing.article_object_key).catch(() => null);
   return getPost(env, id);
 }

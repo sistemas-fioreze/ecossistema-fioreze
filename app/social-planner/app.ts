@@ -22,7 +22,7 @@ const state = {
   platformFilter: params.get("platform") || "all",
   campaignStart: /^\d{4}-\d{2}-\d{2}$/.test(params.get("campaign_start") || "") ? weekStart(params.get("campaign_start")!) : weekStart(today),
   hotels: [] as Hotel[], categories: [] as Category[], pillars: [] as ContentPillar[], channels: [] as SocialChannel[], users: [] as User[], campaigns: [] as Campaign[], sequences: [] as StorySequence[], stories: [] as Story[], visits: [] as Visit[], posts: [] as BlogPost[],
-  displayName: "Fioreze Marketing Planner", visitFilter: params.get("visit_hotel") || "all", blogFilters: { hotel_id: params.get("blog_hotel") || "all", author_user_id: params.get("blog_author") || "all", document: params.get("blog_document") || "all" } as Record<string, string>, blogMode: "list" as "list" | "calendar",
+  displayName: "Fioreze Marketing Planner", visitFilter: params.get("visit_hotel") || "all", blogFilters: { hotel_id: params.get("blog_hotel") || "all", author_user_id: params.get("blog_author") || "all", status: params.get("blog_status") || "all", document: params.get("blog_document") || "all" } as Record<string, string>, blogMode: "list" as "list" | "calendar",
   calendar: { provider: "google", configured: false, connected: false, connection: null } as CalendarConnectionStatus,
   asanaSetup: null as AsanaSetup | null, asanaTasks: [] as AsanaTask[], asanaTaskDrawer: null as AsanaTaskDetail | null, asanaHotelFilter: params.get("asana_hotel") || "all",
   session: null as PlannerSession | null, managedUsers: [] as ManagedPlannerUser[],
@@ -73,7 +73,7 @@ function updateUrl() {
   if (state.campaignStart !== weekStart(today)) query.set("campaign_start", state.campaignStart);
   if (state.visitFilter !== "all") query.set("visit_hotel", state.visitFilter);
   if (state.asanaHotelFilter !== "all") query.set("asana_hotel", state.asanaHotelFilter);
-  for (const [key, urlKey] of [["hotel_id", "blog_hotel"], ["author_user_id", "blog_author"], ["document", "blog_document"]] as const) { if (state.blogFilters[key] && state.blogFilters[key] !== "all") query.set(urlKey, state.blogFilters[key]); }
+  for (const [key, urlKey] of [["hotel_id", "blog_hotel"], ["author_user_id", "blog_author"], ["status", "blog_status"], ["document", "blog_document"]] as const) { if (state.blogFilters[key] && state.blogFilters[key] !== "all") query.set(urlKey, state.blogFilters[key]); }
   history.replaceState({}, "", `/socialplanner/${state.view}?${query}`);
 }
 function renderNavigation() {

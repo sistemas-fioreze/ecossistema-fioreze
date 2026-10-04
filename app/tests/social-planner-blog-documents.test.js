@@ -21,6 +21,8 @@ test("Blog simplifica o fluxo para pauta e um artigo privado", () => {
   assert.doesNotMatch(blog, /name="slug"/);
   assert.match(blog, /accept="\.pdf,\.docx,/);
   assert.match(blog, /Orientações do artigo/);
+  assert.match(blog, /Previsão de publicação/);
+  assert.match(blog, /Aguardando aprovação/);
   assert.match(styles, /\.article-file-picker/);
 });
 
@@ -40,7 +42,7 @@ test("Arquivos de artigo usam R2 autenticado com validacao de formato", () => {
 
 test("upload, download e remocao do artigo preservam somente metadados seguros", async () => {
   const row = {
-    id: "blog-1", title: "Pauta do Centro", slug: "pauta-do-centro", status: "briefing",
+    id: "blog-1", title: "Pauta do Centro", slug: "pauta-do-centro", status: "review",
     article_file_name: null, article_mime_type: null, article_size_bytes: null,
     article_object_key: null, article_uploaded_at: null, updated_at: "2026-10-03T12:00:00.000Z",
   };
@@ -49,7 +51,7 @@ test("upload, download e remocao do artigo preservam somente metadados seguros",
   form.set("file", new File([new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37])], "artigo-centro.pdf", { type: "application/pdf" }));
   const uploaded = await uploadPostDocument(env, row.id, new Request("https://local.test/upload", { method: "POST", body: form }));
   assert.equal(uploaded.article_file_name, "artigo-centro.pdf");
-  assert.equal(uploaded.status, "ready");
+  assert.equal(uploaded.status, "review");
   assert.equal(Object.hasOwn(uploaded, "article_object_key"), false);
   assert.match(uploaded.article_download_url, /blog-1\/document$/);
   assert.equal(env.MEDIA_BUCKET.objects.size, 1);
@@ -63,7 +65,7 @@ test("upload, download e remocao do artigo preservam somente metadados seguros",
 
   const removed = await removePostDocument(env, row.id);
   assert.equal(removed.article_file_name, null);
-  assert.equal(removed.status, "briefing");
+  assert.equal(removed.status, "review");
   assert.equal(env.MEDIA_BUCKET.objects.size, 0);
 });
 
@@ -82,10 +84,10 @@ function fakeBlogDb(row) {
             async all() { return { results: [] }; },
             async run() {
               if (sql.includes("SET article_file_name = ?")) {
-                [row.article_file_name, row.article_mime_type, row.article_size_bytes, row.article_object_key, row.article_uploaded_at, row.status, row.updated_at] = params;
+                [row.article_file_name, row.article_mime_type, row.article_size_bytes, row.article_object_key, row.article_uploaded_at, row.updated_at] = params;
               } else if (sql.includes("SET article_file_name = NULL")) {
                 row.article_file_name = null; row.article_mime_type = null; row.article_size_bytes = null;
-                row.article_object_key = null; row.article_uploaded_at = null; [row.status, row.updated_at] = params;
+                row.article_object_key = null; row.article_uploaded_at = null; [row.updated_at] = params;
               }
               return { meta: { changes: 1 } };
             },
