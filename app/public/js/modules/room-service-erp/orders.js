@@ -14,7 +14,7 @@ export function renderOrders({ outlet, orders, selectedOrder, onSelect }) {
         <div>
           <p class="rs-kicker">Pedidos</p>
           <h1>Fila operacional</h1>
-          <span>Lista oficial do Room Service · impressão desativada neste ambiente</span>
+          <span>Lista oficial do Room Service · status de impressão em tempo real</span>
         </div>
         <strong>${orders.length} pedido(s)</strong>
       </header>
@@ -69,7 +69,7 @@ function renderOrderDetail(order) {
     <h3>Histórico</h3>
     ${(order.history || []).map((entry) => `<div class="rs-detail-row"><span>${statusLabel(entry.status)}</span><small>${escapeHtml(formatDate(entry.created_at, order.timezone))}</small></div>`).join("") || '<div class="rs-empty">Sem histórico.</div>'}
     <h3>Impressão</h3>
-    <p class="rs-muted">${escapeHtml(order.printing?.message || "Impressão desativada neste ambiente.")}</p>
+    <p class="rs-muted">${escapeHtml(order.printing?.message || "Status de impressão indisponível.")}</p>
   `;
 }
 

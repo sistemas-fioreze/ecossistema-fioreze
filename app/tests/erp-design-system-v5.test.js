@@ -157,6 +157,8 @@ test("pedidos antigos preservam dados e ocultam nomes operacionais invalidos", (
   assert.match(app, /displayGuestName\(order\.guest_name\)/);
   assert.match(app, /displayGuestName\(guest\.guest_name, ""\)/);
   assert.match(ordersModule, /detail\("Hóspede", displayGuestName\(order\.guest_name\)\)/);
+  assert.match(ordersModule, /status de impressão em tempo real/);
+  assert.doesNotMatch(ordersModule, /impressão desativada neste ambiente/i);
   assert.match(css, /\.order-mini-card \{[\s\S]*min-height: 60px;[\s\S]*padding: 7px 14px !important;/);
 });
 
